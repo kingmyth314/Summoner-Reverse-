@@ -120,7 +120,7 @@ int net_stats_avg_recv_bytes;                                 // 0x65e938
 int net_stats_sent_bytes_history[MP_NET_STATS_HISTORY];       // 0x65e93c
 int net_stats_avg_sent_bytes;                                 // 0x65e964
 
-// 0x441820  Confidence: likely (the loop variable is the offset; the invalid-type exit returns without
+// 0x441820  Confidence: exact (VC6 byte match, w6 pass; was likely) (the loop variable is the offset; the invalid-type exit returns without
 // clearing mp_cur_packet). Each packet's handler runs when the sender is a listed player or the type's
 // flag allows strangers. Game bugs (D3310): the type check is `> 66`, so type 0x42 reads the record after
 // the table (the literal "multi_process_packet: ...": flag 'o', handler "i_pr" = 0x72705f69) and calls that
@@ -146,7 +146,10 @@ void multi_process_packet(ubyte *data, int len, void *from, bool reliable)
         }
         sprintf(string_buffer, "Processing packet type: %d\n", type);
         if (mp_packet_table[type].rate_flags[0]) {
-            strcpy(rate_name, reliable ? "INC R " : "INC U ");
+            if (reliable)
+                strcpy(rate_name, "INC R ");
+            else
+                strcpy(rate_name, "INC U ");
             strcpy(rate_name + MP_RATE_PREFIX_LEN, mp_packet_table[type].name);
             if (!debug_return_zero(0, rate_name, mp_cur_packet_size + MP_HEADER_SIZE,
                                    mp_packet_table[type].rate_flags[1]))
@@ -278,7 +281,7 @@ void mp_net_stats_update()
     net_stats_avg_recv_bytes = recv_bytes / MP_NET_STATS_HISTORY;
 }
 
-// 0x441da0  Confidence: likely (the type byte is kept in the dead first-argument slot). An immediate
+// 0x441da0  Confidence: exact (VC6 byte match, w6 pass; was likely) (the type byte is kept in the dead first-argument slot). An immediate
 // datagram to an address; the rate name is built with "OUT U " but no counter changes.
 void mp_send_tracked(ubyte *data, int len, net_addr to)
 {
@@ -297,13 +300,12 @@ void mp_send_tracked(ubyte *data, int len, net_addr to)
     nw_send(&to, data, len);
 }
 
-// 0x441e90  Confidence: likely (the address is copied into a local: from the server's on a client, else
+// 0x441e90  Confidence: exact (VC6 byte match, w6 pass; was likely) (the address is copied into a local: from the server's on a client, else
 // from the record). A client's buffer is the server player id's.
 void multi_send_packet_buffered(ubyte *data, int len, mp_player *to, bool flush)
 {
     char rate_name[MP_RATE_NAME_LEN];
     net_addr addr;
-    mp_send_buffer *buf;
     ubyte type;
     int id;
 
@@ -324,29 +326,27 @@ void multi_send_packet_buffered(ubyte *data, int len, mp_player *to, bool flush)
         addr = *(net_addr *)to->addr;
         id = to->id;
     }
-    buf = &multi_unreliable_send_bufs[id];
-    if (buf->len + len > MP_MAX_PACKET) {
-        nw_send(&addr, buf->data, buf->len);
-        net_stats_sent_bytes += buf->len;
-        buf->len = 0;
+    if (multi_unreliable_send_bufs[id].len + len > MP_MAX_PACKET) {
+        nw_send(&addr, multi_unreliable_send_bufs[id].data, multi_unreliable_send_bufs[id].len);
+        net_stats_sent_bytes += multi_unreliable_send_bufs[id].len;
+        multi_unreliable_send_bufs[id].len = 0;
     }
     if (len > 0) {
-        memcpy(buf->data + buf->len, data, len);
-        buf->len += len;
+        memcpy(multi_unreliable_send_bufs[id].data + multi_unreliable_send_bufs[id].len, data, len);
+        multi_unreliable_send_bufs[id].len += len;
     }
-    if (flush && buf->len > 0) {
-        nw_send(&addr, buf->data, buf->len);
-        net_stats_sent_bytes += buf->len;
-        buf->len = 0;
+    if (flush && multi_unreliable_send_bufs[id].len > 0) {
+        nw_send(&addr, multi_unreliable_send_bufs[id].data, multi_unreliable_send_bufs[id].len);
+        net_stats_sent_bytes += multi_unreliable_send_bufs[id].len;
+        multi_unreliable_send_bufs[id].len = 0;
     }
 }
 
-// 0x442060  Confidence: likely (the packet counter is bumped on both paths of the rate test). Always over
+// 0x442060  Confidence: exact (VC6 byte match, w6 pass; was likely) (the packet counter is bumped on both paths of the rate test). Always over
 // the reliable socket; a client uses the local record's socket (the link to the server) and buffer 0.
 void multi_send_packet(ubyte *data, int len, mp_player *to, bool flush)
 {
     char rate_name[MP_RATE_NAME_LEN];
-    mp_send_buffer *buf;
     ubyte type;
     int socket;
     int id;
@@ -368,20 +368,19 @@ void multi_send_packet(ubyte *data, int len, mp_player *to, bool flush)
         socket = to->socket;
         id = to->id;
     }
-    buf = &multi_reliable_send_bufs[id];
-    if (buf->len + len > MP_MAX_PACKET) {
-        nw_NewSendReliable(socket, buf->data, buf->len);
-        net_stats_sent_bytes += buf->len;
-        buf->len = 0;
+    if (multi_reliable_send_bufs[id].len + len > MP_MAX_PACKET) {
+        nw_NewSendReliable(socket, multi_reliable_send_bufs[id].data, multi_reliable_send_bufs[id].len);
+        net_stats_sent_bytes += multi_reliable_send_bufs[id].len;
+        multi_reliable_send_bufs[id].len = 0;
     }
     if (len > 0) {
-        memcpy(buf->data + buf->len, data, len);
-        buf->len += len;
+        memcpy(multi_reliable_send_bufs[id].data + multi_reliable_send_bufs[id].len, data, len);
+        multi_reliable_send_bufs[id].len += len;
     }
-    if (flush && buf->len > 0) {
-        nw_NewSendReliable(socket, buf->data, buf->len);
-        net_stats_sent_bytes += buf->len;
-        buf->len = 0;
+    if (flush && multi_reliable_send_bufs[id].len > 0) {
+        nw_NewSendReliable(socket, multi_reliable_send_bufs[id].data, multi_reliable_send_bufs[id].len);
+        net_stats_sent_bytes += multi_reliable_send_bufs[id].len;
+        multi_reliable_send_bufs[id].len = 0;
     }
 }
 

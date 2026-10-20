@@ -883,7 +883,7 @@ void itemtrade_draw_scrollbar()
                      itemtrade_scrollbar_y - itemtrade_scrollbar_bm_h + itemtrade_scrollbar_h, gr_bitmap_wrap_mode);
 }
 
-// 0x41a7b0  Confidence: likely (locals: w +0x00, clip h/w/y/x +0x04..+0x10, h +0x14, the "%s|" text
+// 0x41a7b0  Confidence: exact (VC6 8966 byte match, m1019: min(0, size - w) in a local and an if / else of two gr_string calls, which 8966 tail-merges) (locals: w +0x00, clip h/w/y/x +0x04..+0x10, h +0x14, the "%s|" text
 // +0x18, the number +0x38 in a 0x58 frame). The amount, measured with the cursor bar, is drawn in a clip
 // window and shifted left when it is wider; the bar blinks with itemtrade_cursor_on.
 void itemtrade_draw_gold_input()
@@ -901,8 +901,11 @@ void itemtrade_draw_gold_input()
     sprintf(text, "%s|", number);
     gr_get_string_size(&w, &h, text, -1, -1);
     gr_set_color_ptr(&ui_color_text);
-    gr_string(min(itemtrade_gold_input_size[resolution_index][0] - w, 0), 0,
-              itemtrade_cursor_on ? text : number, -1, gr_string_mode);
+    int x = min(0, itemtrade_gold_input_size[resolution_index][0] - w);
+    if (itemtrade_cursor_on)
+        gr_string(x, 0, text, -1, gr_string_mode);
+    else
+        gr_string(x, 0, number, -1, gr_string_mode);
     gr__set_clip(clip_x, clip_y, clip_w, clip_h);
 }
 

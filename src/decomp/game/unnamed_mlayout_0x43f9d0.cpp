@@ -99,11 +99,11 @@ bool state6_listbox_cb(int event, int value)
     return false;
 }
 
-// 0x43fb60  Confidence: likely (the first entry is kept in a register: `if (!first) first = e`). The list
+// 0x43fb60  Confidence: exact (VC6 8966 byte match with first set to NULL just before the loop, m1019) (the first entry is kept in a register: `if (!first) first = e`). The list
 // gets every char_infos name with its index as the data; it starts disabled (hidden behind the button).
 void state6_enter()
 {
-    ui_listbox_entry *first = NULL;
+    ui_listbox_entry *first;
     ui_listbox_entry *e;
     int i;
 
@@ -115,6 +115,7 @@ void state6_enter()
     state6_button.callback = state6_button_cb;
     state6_listbox.create(&state6_window, 0, 0, 100, 400, 0, 0, STATE6_LISTBOX_ID, STATE6_LISTBOX_FLAGS, false);
     state6_listbox.callback = state6_listbox_cb;
+    first = NULL;
     for (i = 0; i < num_char_infos; i++) {
         e = state6_listbox.add_entry(char_infos[i].name, -1, 0, 0, 0);
         e->data = i;

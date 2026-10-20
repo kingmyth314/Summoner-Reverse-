@@ -14,8 +14,8 @@ void DebugError(const char *file, int line, const char *msg);   // 0x531cb0
 // decomp53: compiled-out debug hooks next to DebugError (unit not known). The net rate hook takes
 // (0, "INC R TYPE_NM" style name, packet bytes, the type's display flag) and returns 0, so every caller's
 // "Unable to add net rate info" sprintf runs.
-int  debug_return_zero(int a, const char *name, int size, int display);   // 0x531c50
+int  debug_return_zero(int a, const char *name, int size, unsigned char display);   // 0x531c50
 void debug_noop_mp_frame();                                         // 0x531c60 bare ret (mp_game_frame)
-void debug_noop_disp_rate(int a, const char *name, int display);   // 0x531c90 bare ret (cmd_disp_rate)
+void debug_noop_disp_rate(int a, const char *name, unsigned char display);   // 0x531c90 bare ret (cmd_disp_rate)
 
 #endif

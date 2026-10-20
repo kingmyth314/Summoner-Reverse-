@@ -157,7 +157,7 @@ void items_reset_paging()
     }
 }
 
-// 0x46c940  Confidence: likely (the stub test: when item_page_in_stub returns non-zero the code
+// 0x46c940  Confidence: exact (VC6 byte match, m-1019 w3; was likely; the stub test: when item_page_in_stub returns non-zero the code
 // skips straight to the success tail; the pool rewind stores the stub's 0 from EAX).
 int item_page_in(int type, int slot, int unused)
 {
@@ -170,15 +170,15 @@ int item_page_in(int type, int slot, int unused)
     item_page_slot *s = &item_page_slots[slot];
     ItemType *t = &item_types[type];
 
-    if (s->type == type)
+    if (item_page_slots[slot].type == type)
         return 1;
     if (s->type >= 0)
         item_page_out_all(slot);
 
     if (item_type_is_paged_in(type)) {
         s->type = type;
-        s->vim_arg = -1;
-        s->paged = 0;
+        item_page_slots[slot].vim_arg = -1;
+        item_page_slots[slot].paged = 0;
         return 1;
     }
 

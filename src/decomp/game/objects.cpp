@@ -279,14 +279,14 @@ item_obj::item_obj()
 item_obj *item_obj_spawn(item_info *item, const vector3 *pos, const matrix *orient, int count,
                          int level_item, int layer)
 {
-    lobj_ray ray;
-    int floor;
-    bool found;
-    lobj_hit hit;
-    item_obj *io;
+    lobj *l;
+    float top;
     int i;
-    float best;
-    lobj *lo;
+    item_obj *io;
+    lobj_hit h;
+    bool any;
+    int floor;
+    lobj_ray cast;
 
     for (i = 0; i < MAX_ITEM_OBJS; i++) {
         if (item_obj_pool[i].type == 0)
@@ -301,50 +301,50 @@ item_obj *item_obj_spawn(item_info *item, const vector3 *pos, const matrix *orie
     io->orient = *orient;
     io->obj_flags |= 1;
     if (layer >= 0) {
-        found = false;
-        best = -1000000.0f;
+        any = false;
+        top = -1000000.0f;
         floor = -1;
         for (i = 0; i < num_lobjs; i++) {
-            lo = &lobjs[i];
-            if (lo->pick_layer(&io->pos, 1) != layer)
+            l = &lobjs[i];
+            if (l->pick_layer(&io->pos, 1) != layer)
                 continue;
-            ray.start = io->pos;
-            ray.start.y += 3.0f;
-            ray.dir.x = 0.0f;
-            ray.dir.y = -10.0f;
-            ray.dir.z = 0.0f;
-            ray._unk18 = 0.0f;
-            ray.flags = 0;
-            ray.require_flags = 0;
-            ray.exclude_flags = 0x400000;
-            lobj_raycast(i, &ray, &hit, 1);
-            if (hit.num_hits > 0 && ray.dir.y * hit.t > best) {
-                best = ray.dir.y * hit.t;
-                floor = hit.face;
-                found = true;
+            cast.start = io->pos;
+            cast.start.y += 3.0f;
+            cast.dir.x = 0.0f;
+            cast.dir.y = -10.0f;
+            cast.dir.z = 0.0f;
+            cast._unk18 = 0.0f;
+            cast.flags = 0;
+            cast.require_flags = 0;
+            cast.exclude_flags = 0x400000;
+            lobj_raycast(i, &cast, &h, 1);
+            if (h.num_hits > 0 && cast.dir.y * h.t > top) {
+                top = cast.dir.y * h.t;
+                floor = h.face;
+                any = true;
             }
         }
-        if (found) {
-            io->pos.y = ray.start.y + best;
+        if (any) {
+            io->pos.y = cast.start.y + top;
             io->ground_face = floor;
         }
         if (i >= num_lobjs)
             layer = -1;
     }
     if (layer < 0) {
-        ray.start = io->pos;
-        ray.start.y += 3.0f;
-        ray.dir.x = 0.0f;
-        ray.dir.y = -10.0f;
-        ray.dir.z = 0.0f;
-        ray._unk18 = 0.0f;
-        ray.flags = 0;
-        ray.require_flags = 0;
-        ray.exclude_flags = 0x400000;
-        lobj_raycast_all(&ray, &hit);
-        if (hit.num_hits > 0) {
-            io->pos.y = ray.dir.y * hit.t + ray.start.y;
-            io->ground_face = hit.face;
+        cast.start = io->pos;
+        cast.start.y += 3.0f;
+        cast.dir.x = 0.0f;
+        cast.dir.y = -10.0f;
+        cast.dir.z = 0.0f;
+        cast._unk18 = 0.0f;
+        cast.flags = 0;
+        cast.require_flags = 0;
+        cast.exclude_flags = 0x400000;
+        lobj_raycast_all(&cast, &h);
+        if (h.num_hits > 0) {
+            io->pos.y = cast.dir.y * h.t + cast.start.y;
+            io->ground_face = h.face;
         } else {
             io->ground_face = -1;
         }

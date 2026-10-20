@@ -190,7 +190,8 @@ void gamecreate_set_difficulty(int difficulty)
     }
 }
 
-// 0x409cd0  Confidence: likely (marked exact earlier; differs under cl 12.00.8966, match31). A click outside a focused text field takes the focus away.
+// 0x409cd0  Confidence: exact (VC6 byte match, w7: the field rectangle read into locals before point_in_rect,
+// D6205). A click outside a focused text field takes the focus away.
 int gamecreate_frame(int key)
 {
     int i;
@@ -216,12 +217,13 @@ int gamecreate_frame(int key)
 
     if (mouse_was_pressed(0)) {
         for (i = 0; i < 2; i++) {
-            if (gamecreate_field_active[i])
-                gamecreate_field_active[i] = point_in_rect(game_mouse_x, game_mouse_y,
-                                                           gamecreate_field_pos[resolution_index][i][0],
-                                                           gamecreate_field_pos[resolution_index][i][1],
-                                                           gamecreate_field_size[resolution_index][i][0],
-                                                           gamecreate_field_size[resolution_index][i][1]);
+            if (gamecreate_field_active[i]) {
+                int x = gamecreate_field_pos[resolution_index][i][0];
+                int y = gamecreate_field_pos[resolution_index][i][1];
+                int w = gamecreate_field_size[resolution_index][i][0];
+                int h = gamecreate_field_size[resolution_index][i][1];
+                gamecreate_field_active[i] = point_in_rect(game_mouse_x, game_mouse_y, x, y, w, h);
+            }
         }
     }
     return key;

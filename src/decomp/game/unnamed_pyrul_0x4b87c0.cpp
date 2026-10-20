@@ -496,7 +496,7 @@ void pyrul_update_attack_points(Character *c)
     }
 }
 
-// 0x4b94a0  Confidence: likely (switch on the move's spell; case -1 has its own slot in the byte table
+// 0x4b94a0  Confidence: exact (VC6 byte match, m-1019 w3; was likely; switch on the move's spell; case -1 has its own slot in the byte table
 // 0x4b9598; the bodies are laid out 29/58, 78, 77, 79). Pyrul fire arrow / fireball / meteor storm are
 // cast as goals in multiplayer and directly otherwise; wall of fire (0x1d) and pushback (0x3a) report a
 // special move without a cast.
@@ -509,7 +509,7 @@ bool pyrul_cast_special(Character *c, int anim)
         return false;
     case SPELL_WALL_OF_FIRE:
     case SPELL_PUSHBACK:
-        return true;
+        break;
     case SPELL_PYRUL_FIREBALL:
         if (game_flags & GF_MULTIPLAYER) {
             c->ai.add_cast_at_target(SPELL_PYRUL_FIREBALL, c->combat.opponent->owner, 999999);
@@ -531,8 +531,10 @@ bool pyrul_cast_special(Character *c, int anim)
         }
         c->perform_spell_cast(SPELL_PYRUL_METEOR_STORM, false);
         return true;
+    default:
+        return false;
     }
-    return false;
+    return true;
 }
 
 // 0x4b95f0  Confidence: exact. Without the "$missile01" tag the boss's own frame is copied, but the bone

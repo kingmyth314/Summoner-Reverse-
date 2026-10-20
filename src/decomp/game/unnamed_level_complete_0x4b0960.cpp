@@ -116,7 +116,7 @@ void mp_mark_difficulty_complete(int difficulty)
         mp_send_difficulty_complete(difficulty);
 }
 
-// 0x4b0b50  Confidence: likely (jump table 0x4b10e4 over the 26 level_table indices; each boss case has
+// 0x4b0b50  Confidence: exact (VC6 byte match, m-1019 w3; was likely; jump table 0x4b10e4 over the 26 level_table indices; each boss case has
 // its own living-list loop with an inline strcmp, the found case is tail-merged). The levels without a
 // boss are completed at once.
 void mp_level_find_boss()
@@ -129,107 +129,93 @@ void mp_level_find_boss()
     mp_level_boss = NULL;
     for (i = 0; i < MP_NUM_LEVELS; i++)
         if (cur_level_index == level_table[i].id)
-            break;
-    if (i == MP_NUM_LEVELS)
-        return;
+            goto found;
+    return;
+found:
     mp_level_index = i;
     switch (i) {
     case 0:
         for (c = living_list.live_next; c != &living_list; c = c->live_next)
             if (!strcmp(c->name, "Barbarian Fighter#boss")) {
-                mp_level_boss = c;
-                return;
+                goto boss;
             }
         break;
     case 4:
         for (c = living_list.live_next; c != &living_list; c = c->live_next)
             if (!strcmp(c->name, "Galienne#$kingroom")) {
-                mp_level_boss = c;
-                return;
+                goto boss;
             }
         break;
     case 6:
         for (c = living_list.live_next; c != &living_list; c = c->live_next)
             if (!strcmp(c->name, "Carados")) {
-                mp_level_boss = c;
-                return;
+                goto boss;
             }
         break;
     case 8:
         for (c = living_list.live_next; c != &living_list; c = c->live_next)
             if (!strcmp(c->name, "Ikaemos Priest King")) {
-                mp_level_boss = c;
-                return;
+                goto boss;
             }
         break;
     case 10:
         for (c = living_list.live_next; c != &living_list; c = c->live_next)
             if (!strcmp(c->name, "Red Oni")) {
-                mp_level_boss = c;
-                return;
+                goto boss;
             }
         break;
     case 13:
         for (c = living_list.live_next; c != &living_list; c = c->live_next)
             if (!strcmp(c->name, "Sornehan")) {
-                mp_level_boss = c;
-                return;
+                goto boss;
             }
         break;
     case 14:
         for (c = living_list.live_next; c != &living_list; c = c->live_next)
             if (!strcmp(c->name, "Sand Minotaur")) {
-                mp_level_boss = c;
-                return;
+                goto boss;
             }
         break;
     case 16:
         for (c = living_list.live_next; c != &living_list; c = c->live_next)
             if (!strcmp(c->name, "Pijian")) {
-                mp_level_boss = c;
-                return;
+                goto boss;
             }
         break;
     case 17:
         for (c = living_list.live_next; c != &living_list; c = c->live_next)
             if (!strcmp(c->name, "Guardian of the Shrine")) {
-                mp_level_boss = c;
-                return;
+                goto boss;
             }
         break;
     case 18:
         for (c = living_list.live_next; c != &living_list; c = c->live_next)
             if (!strcmp(c->name, "Murod")) {
-                mp_level_boss = c;
-                return;
-            }
-        break;
-    case 19:
-        for (c = living_list.live_next; c != &living_list; c = c->live_next)
-            if (!strcmp(c->name, "Pyrul")) {
-                mp_level_boss = c;
-                return;
-            }
-        break;
-    case 21:
-        for (c = living_list.live_next; c != &living_list; c = c->live_next)
-            if (!strcmp(c->name, "Titus")) {
-                mp_level_boss = c;
-                return;
+                goto boss;
             }
         break;
     case 22:
         for (c = living_list.live_next; c != &living_list; c = c->live_next)
             if (!strcmp(c->name, "Azha the Archlich")) {
-                mp_level_boss = c;
-                return;
+                goto boss;
+            }
+        break;
+    case 21:
+        for (c = living_list.live_next; c != &living_list; c = c->live_next)
+            if (!strcmp(c->name, "Titus")) {
+                goto boss;
+            }
+        break;
+    case 19:
+        for (c = living_list.live_next; c != &living_list; c = c->live_next)
+            if (!strcmp(c->name, "Pyrul")) {
+                goto boss;
             }
         break;
     case 25:
         for (c = living_list.live_next; c != &living_list; c = c->live_next)
             if (!strcmp(c->name, "Machival")) {
-                mp_level_boss = c;
-                return;
+                goto boss;
             }
         break;
     case 1: case 2: case 3: case 5: case 7: case 9: case 11: case 12: case 15: case 20: case 23: case 24:
@@ -237,6 +223,9 @@ void mp_level_find_boss()
         mp_level_done = true;
         break;
     }
+    return;
+boss:
+    mp_level_boss = c;
 }
 
 // 0x4b1150  Confidence: exact. A boss that is not found leaves mp_level_boss NULL, which counts as dead.

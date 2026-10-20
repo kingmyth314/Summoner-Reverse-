@@ -537,7 +537,7 @@ int ai_state::goal_find(int mask, int type, int a, int b, int c, vector3 *d, int
         if (type != AI_GOAL_FOLLOW && (m & AI_GF_TARGET) && g->target != c)
             continue;
         if (m & AI_GF_POS) {
-            if (!(g->pos.x == d->x && g->pos.y == d->y && g->pos.z == d->z))
+            if (!(g->pos == *d))
                 match = false;
             if (g->layer != e || !match)
                 continue;

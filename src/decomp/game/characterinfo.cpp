@@ -1626,13 +1626,14 @@ void living_entity_setup_head(char_info *info, character_instance *ci)
     }
     if (info->flags & CIF_ELONGATED) {
         info->head_height = 0.0f;
-        info->head_bone = ca->find_mesh_tag("$head");
-        if (info->head_bone != -1) {
+        tag = ca->find_mesh_tag("$head");
+        info->head_bone = tag;
+        if (tag != -1) {
             vector3 pos(0.0f, 0.0f, 0.0f);
             matrix orient(vector3(1.0f, 0.0f, 0.0f), vector3(0.0f, 1.0f, 0.0f), vector3(0.0f, 0.0f, 1.0f));
             matrix out_orient;
             vector3 out_pos;
-            ci->get_bone_world_transform(info->head_bone, &orient, &pos, &out_orient, &out_pos);
+            ci->get_bone_world_transform(tag, &orient, &pos, &out_orient, &out_pos);
             info->head_height = out_pos.len() + 0.1f;
         }
     }
@@ -2112,15 +2113,15 @@ void charinfo_remap_town_moves(char_info *info, bool full_set)
     }
 }
 
-// 0x447b10  Confidence: likely (the two inline strcat copies; the name is the first four letters of the
-// skeleton set and the last four digits of its name hash). Loads a non-hero record's anims into the given
+// 0x447b10  Confidence: exact (VC6 byte match, m-1019 w1, D10000). The name is the first four letters of
+// the skeleton set and the last four digits of its name hash. Loads a non-hero record's anims into the given
 // pool (default: the level pool, or the summon pool for summons) through its .svf preload index, and the
 // effects of a few boss records.
 void level_load_preload(char_info *info, bool load_sounds, int summon, Mempool *pool)
 {
     Mempool *mp;
-    char name[0x10];
-    char hash[0x30];
+    char name[0x20];
+    char hash[0x20];
     bool full_set;
     ca_character *ca;
     unsigned int start;
@@ -2159,7 +2160,10 @@ void level_load_preload(char_info *info, bool load_sounds, int summon, Mempool *
         for (m = (move_info *)info->moves[i]; m; m = m->next)
             charinfo_load_move_anim(info, ca, m, load_sounds, info->anim_folder, full_set);
     ca_preload_loaded = 0;
-    charinfo_mark_anims_loaded(info->alt_parent ? info->alt_parent : info);
+    if (info->alt_parent)
+        charinfo_mark_anims_loaded(info->alt_parent);
+    else
+        charinfo_mark_anims_loaded(info);
     charinfo_remap_town_moves(info, full_set);
     for (c = living_list.live_next; c != &living_list; c = c->live_next)
         if (c->info == info)
@@ -2248,7 +2252,7 @@ void character_reinit_anims(Character *c, int anim_class)
     }
 }
 
-// 0x448000  Confidence: likely. Before a cutscene: finishes the summon's emerge (it fast-forwards the
+// 0x448000  Confidence: exact (VC6 byte match, m-1019 w1, D10000). Before a cutscene: finishes the summon's emerge (it fast-forwards the
 // emerge anim and moves the move's trigger times, a permanent edit of the shared move record), frees its
 // anims and skeleton set, takes it out of the party or the object lists and remembers it; with no summon,
 // deletes the inactive summons. The level pool offset is saved for summon_restore_after_cutscene.
@@ -2270,7 +2274,8 @@ void summon_stash_for_cutscene()
         if (!s->ai.is_mode(6, -1)) {
             cur_summon->ai.begin_emerge();
             mv = cur_summon->cur_move;
-            cur_summon->instance->process(cur_summon->instance->get_anim_length(mv->anim) - 0.01f, false, 0);
+            float t = cur_summon->instance->get_anim_length(mv->anim);
+            cur_summon->instance->process(t - 0.01f, false, 0);
             for (i = 0; i < 3; i++)
                 mv->triggers[i].time -= cur_summon->move_trigger_time_left(mv->triggers[i].id) + 0.1f;
             cur_summon->ai.summon_emerge_update();
@@ -2390,7 +2395,7 @@ void charinfo_free_moves(char_info *info)
     }
 }
 
-// 0x448500  Confidence: likely. After the cutscene: drops every script anim, puts the stashed summon back
+// 0x448500  Confidence: exact (VC6 byte match, m-1019 w1, D10000). After the cutscene: drops every script anim, puts the stashed summon back
 // (party or object lists), rebuilds its instance and anims in the summon pool and restores the level pool
 // offset.
 void summon_restore_after_cutscene()
@@ -2400,10 +2405,7 @@ void summon_restore_after_cutscene()
     for (i = 0; i < num_char_infos; i++)
         charinfo_free_moves(&char_infos[i]);
     charinfo_script_anim_pool.Reset();
-    if (!stashed_summon) {
-        level_mempool.offset = summon_stash_level_offset;
-        return;
-    }
+    if (stashed_summon) {
     cur_summon = stashed_summon;
     summon_player = stashed_summon_player;
     if (summon_player) {
@@ -2430,6 +2432,9 @@ void summon_restore_after_cutscene()
     if (cur_summon->info->vfx)
         fx_attach_to_character(cur_summon->info->vfx, cur_summon->handle, -1, -1, 1, 0);
     set_current_mempool(NULL);
+    level_mempool.offset = summon_stash_level_offset;
+        return;
+    }
     level_mempool.offset = summon_stash_level_offset;
 }
 
@@ -2570,7 +2575,10 @@ void characterinfo_alloc_level_buffers()
         }
         c->instance = charinfo_create_character_instance(c->info, false);
         if (game_flags & 2)
-            c->apply_hero_model(c->equipment[7] && c->equipment[7]->type->slot == 8);
+            if (c->equipment[7] && c->equipment[7]->type->slot == 8)
+                c->apply_hero_model(1);
+            else
+                c->apply_hero_model(0);
         characterinfo_load_party_anims(c->info, c->equipment[5] ? c->equipment[5]->type->weapon_class : 0, true, false);
     }
     if (game_flags & 1) {
@@ -2704,10 +2712,10 @@ Mempool *charinfo_select_mempool(int species, int summon)
     return &level_mempool;
 }
 
-// 0x448f60  Confidence: likely. The stat screen idle anim (state move 0x9e light / 0x9f heavy armour):
+// 0x448f60  Confidence: exact (VC6 byte match, m-1019 w1, D10000). The stat screen idle anim (state move 0x9e light / 0x9f heavy armour):
 // in multiplayer it is already loaded; else it goes into the stat screen pool. The party member using
 // the record gets it (m is NULL when the record has no such move: not checked).
-void statscreen_load_anim(Character *c, bool heavy)
+void statscreen_load_anim(Character *c, int heavy)
 {
     ca_character *ca;
     move_info *m;
@@ -2717,9 +2725,13 @@ void statscreen_load_anim(Character *c, bool heavy)
     if (!species_is_hero(c->info->species))
         return;
     if (game_flags & 2) {
-        m = charinfo_find_move(c->info, MOVE_TYPE_STATE, heavy ? 0x9f : 0x9e, false);
-        c->anim_statscreen = m->anim;
-        c->instance->rewind_anim(m->anim);
+        if (!heavy)
+            m = charinfo_find_move(c->info, MOVE_TYPE_STATE, 0x9e, false);
+        else
+            m = charinfo_find_move(c->info, MOVE_TYPE_STATE, 0x9f, false);
+        int anim = m->anim;
+        c->anim_statscreen = anim;
+        c->instance->rewind_anim(anim);
         return;
     }
     statscreen_mempool.Copy((char *)statscreen_anim_buffer, 0x7800, "statscreen");
@@ -2741,8 +2753,9 @@ void statscreen_load_anim(Character *c, bool heavy)
     set_current_mempool(NULL);
     for (p = party_list.next; p != &party_list; p = p->next) {
         if (p->char_info == c->info - char_infos && (lc = living_from_handle(p->handle)) != NULL) {
-            lc->anim_statscreen = m->anim;
-            lc->instance->rewind_anim(m->anim);
+            int anim = m->anim;
+            lc->anim_statscreen = anim;
+            lc->instance->rewind_anim(anim);
             return;
         }
     }
@@ -2939,7 +2952,10 @@ void character_learn_chain_skill(Player *p, int skill, int count)
     if (c) {
         cost = (float)skill_table[skill].ap_cost;
         if (frand() < cost * 0.23f)
-            c->add_ap((float)-((int)floor(count * cost * 0.2f) + 1));
+        {
+            int ap = (int)floor(count * cost * 0.2f) + 1;
+            c->add_ap((float)-ap);
+        }
     }
     if (species >= 4)
         return;

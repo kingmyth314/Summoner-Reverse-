@@ -204,148 +204,149 @@ void glide_unload_dll()
     }
 }
 
-// 0x5473b0  Confidence: likely (differs under cl 8966 in match26). The order of the GetProcAddress calls is the order of the stores; the
+// 0x5473b0  Confidence: exact (VC6 8966 byte match, m1019: the handle copied into a local h after the first GetProcAddress, which still reads the global; the binary keeps it in ESI). The order of the GetProcAddress calls is the order of the stores; the
 // addresses of grCheckForRoom (0x2f0e9a8) and guTexGetMipMapInfo (0x2f0e9ac) are out of line with it.
 int glide_load_dll()
 {
     glide_dll_handle = LoadLibrary("glide2x.dll");
     if (!glide_dll_handle)
         return 0;
+    HINSTANCE h = glide_dll_handle;
     glide_grDrawLine = (grDrawLine_t)GetProcAddress(glide_dll_handle, "_grDrawLine@8");
-    glide_grDrawPlanarPolygon = (grDrawPlanarPolygon_t)GetProcAddress(glide_dll_handle, "_grDrawPlanarPolygon@12");
+    glide_grDrawPlanarPolygon = (grDrawPlanarPolygon_t)GetProcAddress(h, "_grDrawPlanarPolygon@12");
     glide_grDrawPlanarPolygonVertexList =
-        (grDrawPlanarPolygonVertexList_t)GetProcAddress(glide_dll_handle, "_grDrawPlanarPolygonVertexList@8");
-    glide_grDrawPoint = (grDrawPoint_t)GetProcAddress(glide_dll_handle, "_grDrawPoint@4");
-    glide_grDrawPolygon = (grDrawPolygon_t)GetProcAddress(glide_dll_handle, "_grDrawPolygon@12");
+        (grDrawPlanarPolygonVertexList_t)GetProcAddress(h, "_grDrawPlanarPolygonVertexList@8");
+    glide_grDrawPoint = (grDrawPoint_t)GetProcAddress(h, "_grDrawPoint@4");
+    glide_grDrawPolygon = (grDrawPolygon_t)GetProcAddress(h, "_grDrawPolygon@12");
     glide_grDrawPolygonVertexList =
-        (grDrawPolygonVertexList_t)GetProcAddress(glide_dll_handle, "_grDrawPolygonVertexList@8");
-    glide_grDrawTriangle = (grDrawTriangle_t)GetProcAddress(glide_dll_handle, "_grDrawTriangle@12");
+        (grDrawPolygonVertexList_t)GetProcAddress(h, "_grDrawPolygonVertexList@8");
+    glide_grDrawTriangle = (grDrawTriangle_t)GetProcAddress(h, "_grDrawTriangle@12");
     glide_guDrawTriangleWithClip =
-        (guDrawTriangleWithClip_t)GetProcAddress(glide_dll_handle, "_guDrawTriangleWithClip@12");
-    glide_grBufferClear = (grBufferClear_t)GetProcAddress(glide_dll_handle, "_grBufferClear@12");
-    glide_grBufferNumPending = (grBufferNumPending_t)GetProcAddress(glide_dll_handle, "_grBufferNumPending@0");
-    glide_grBufferSwap = (grBufferSwap_t)GetProcAddress(glide_dll_handle, "_grBufferSwap@4");
-    glide_grRenderBuffer = (grRenderBuffer_t)GetProcAddress(glide_dll_handle, "_grRenderBuffer@4");
-    glide_grErrorSetCallback = (grErrorSetCallback_t)GetProcAddress(glide_dll_handle, "_grErrorSetCallback@4");
-    glide_grSstIdle = (grSstIdle_t)GetProcAddress(glide_dll_handle, "_grSstIdle@0");
-    glide_grSstVideoLine = (grSstVideoLine_t)GetProcAddress(glide_dll_handle, "_grSstVideoLine@0");
-    glide_grSstVRetraceOn = (grSstVRetraceOn_t)GetProcAddress(glide_dll_handle, "_grSstVRetraceOn@0");
-    glide_grSstIsBusy = (grSstIsBusy_t)GetProcAddress(glide_dll_handle, "_grSstIsBusy@0");
-    glide_grSstWinOpen = (grSstWinOpen_t)GetProcAddress(glide_dll_handle, "_grSstWinOpen@28");
-    glide_grSstWinClose = (grSstWinClose_t)GetProcAddress(glide_dll_handle, "_grSstWinClose@0");
-    glide_grSstControl = (grSstControl_t)GetProcAddress(glide_dll_handle, "_grSstControl@4");
-    glide_grSstQueryHardware = (grSstQueryHardware_t)GetProcAddress(glide_dll_handle, "_grSstQueryHardware@4");
-    glide_grSstQueryBoards = (grSstQueryBoards_t)GetProcAddress(glide_dll_handle, "_grSstQueryBoards@4");
-    glide_grSstOrigin = (grSstOrigin_t)GetProcAddress(glide_dll_handle, "_grSstOrigin@4");
-    glide_grSstSelect = (grSstSelect_t)GetProcAddress(glide_dll_handle, "_grSstSelect@4");
-    glide_grSstScreenHeight = (grSstScreenHeight_t)GetProcAddress(glide_dll_handle, "_grSstScreenHeight@0");
-    glide_grSstScreenWidth = (grSstScreenWidth_t)GetProcAddress(glide_dll_handle, "_grSstScreenWidth@0");
-    glide_grSstStatus = (grSstStatus_t)GetProcAddress(glide_dll_handle, "_grSstStatus@0");
-    glide_grSstPerfStats = (grSstPerfStats_t)GetProcAddress(glide_dll_handle, "_grSstPerfStats@4");
-    glide_grSstResetPerfStats = (grSstResetPerfStats_t)GetProcAddress(glide_dll_handle, "_grSstResetPerfStats@0");
-    glide_grResetTriStats = (grResetTriStats_t)GetProcAddress(glide_dll_handle, "_grResetTriStats@0");
-    glide_grTriStats = (grTriStats_t)GetProcAddress(glide_dll_handle, "_grTriStats@8");
-    glide_grAlphaBlendFunction = (grAlphaBlendFunction_t)GetProcAddress(glide_dll_handle, "_grAlphaBlendFunction@16");
-    glide_grAlphaCombine = (grAlphaCombine_t)GetProcAddress(glide_dll_handle, "_grAlphaCombine@20");
+        (guDrawTriangleWithClip_t)GetProcAddress(h, "_guDrawTriangleWithClip@12");
+    glide_grBufferClear = (grBufferClear_t)GetProcAddress(h, "_grBufferClear@12");
+    glide_grBufferNumPending = (grBufferNumPending_t)GetProcAddress(h, "_grBufferNumPending@0");
+    glide_grBufferSwap = (grBufferSwap_t)GetProcAddress(h, "_grBufferSwap@4");
+    glide_grRenderBuffer = (grRenderBuffer_t)GetProcAddress(h, "_grRenderBuffer@4");
+    glide_grErrorSetCallback = (grErrorSetCallback_t)GetProcAddress(h, "_grErrorSetCallback@4");
+    glide_grSstIdle = (grSstIdle_t)GetProcAddress(h, "_grSstIdle@0");
+    glide_grSstVideoLine = (grSstVideoLine_t)GetProcAddress(h, "_grSstVideoLine@0");
+    glide_grSstVRetraceOn = (grSstVRetraceOn_t)GetProcAddress(h, "_grSstVRetraceOn@0");
+    glide_grSstIsBusy = (grSstIsBusy_t)GetProcAddress(h, "_grSstIsBusy@0");
+    glide_grSstWinOpen = (grSstWinOpen_t)GetProcAddress(h, "_grSstWinOpen@28");
+    glide_grSstWinClose = (grSstWinClose_t)GetProcAddress(h, "_grSstWinClose@0");
+    glide_grSstControl = (grSstControl_t)GetProcAddress(h, "_grSstControl@4");
+    glide_grSstQueryHardware = (grSstQueryHardware_t)GetProcAddress(h, "_grSstQueryHardware@4");
+    glide_grSstQueryBoards = (grSstQueryBoards_t)GetProcAddress(h, "_grSstQueryBoards@4");
+    glide_grSstOrigin = (grSstOrigin_t)GetProcAddress(h, "_grSstOrigin@4");
+    glide_grSstSelect = (grSstSelect_t)GetProcAddress(h, "_grSstSelect@4");
+    glide_grSstScreenHeight = (grSstScreenHeight_t)GetProcAddress(h, "_grSstScreenHeight@0");
+    glide_grSstScreenWidth = (grSstScreenWidth_t)GetProcAddress(h, "_grSstScreenWidth@0");
+    glide_grSstStatus = (grSstStatus_t)GetProcAddress(h, "_grSstStatus@0");
+    glide_grSstPerfStats = (grSstPerfStats_t)GetProcAddress(h, "_grSstPerfStats@4");
+    glide_grSstResetPerfStats = (grSstResetPerfStats_t)GetProcAddress(h, "_grSstResetPerfStats@0");
+    glide_grResetTriStats = (grResetTriStats_t)GetProcAddress(h, "_grResetTriStats@0");
+    glide_grTriStats = (grTriStats_t)GetProcAddress(h, "_grTriStats@8");
+    glide_grAlphaBlendFunction = (grAlphaBlendFunction_t)GetProcAddress(h, "_grAlphaBlendFunction@16");
+    glide_grAlphaCombine = (grAlphaCombine_t)GetProcAddress(h, "_grAlphaCombine@20");
     glide_grAlphaControlsITRGBLighting =
-        (grAlphaControlsITRGBLighting_t)GetProcAddress(glide_dll_handle, "_grAlphaControlsITRGBLighting@4");
-    glide_grAlphaTestFunction = (grAlphaTestFunction_t)GetProcAddress(glide_dll_handle, "_grAlphaTestFunction@4");
+        (grAlphaControlsITRGBLighting_t)GetProcAddress(h, "_grAlphaControlsITRGBLighting@4");
+    glide_grAlphaTestFunction = (grAlphaTestFunction_t)GetProcAddress(h, "_grAlphaTestFunction@4");
     glide_grAlphaTestReferenceValue =
-        (grAlphaTestReferenceValue_t)GetProcAddress(glide_dll_handle, "_grAlphaTestReferenceValue@4");
-    glide_grChromakeyMode = (grChromakeyMode_t)GetProcAddress(glide_dll_handle, "_grChromakeyMode@4");
-    glide_grChromakeyValue = (grChromakeyValue_t)GetProcAddress(glide_dll_handle, "_grChromakeyValue@4");
-    glide_grClipWindow = (grClipWindow_t)GetProcAddress(glide_dll_handle, "_grClipWindow@16");
-    glide_grColorCombine = (grColorCombine_t)GetProcAddress(glide_dll_handle, "_grColorCombine@20");
-    glide_grColorMask = (grColorMask_t)GetProcAddress(glide_dll_handle, "_grColorMask@8");
-    glide_grCullMode = (grCullMode_t)GetProcAddress(glide_dll_handle, "_grCullMode@4");
-    glide_grConstantColorValue = (grConstantColorValue_t)GetProcAddress(glide_dll_handle, "_grConstantColorValue@4");
+        (grAlphaTestReferenceValue_t)GetProcAddress(h, "_grAlphaTestReferenceValue@4");
+    glide_grChromakeyMode = (grChromakeyMode_t)GetProcAddress(h, "_grChromakeyMode@4");
+    glide_grChromakeyValue = (grChromakeyValue_t)GetProcAddress(h, "_grChromakeyValue@4");
+    glide_grClipWindow = (grClipWindow_t)GetProcAddress(h, "_grClipWindow@16");
+    glide_grColorCombine = (grColorCombine_t)GetProcAddress(h, "_grColorCombine@20");
+    glide_grColorMask = (grColorMask_t)GetProcAddress(h, "_grColorMask@8");
+    glide_grCullMode = (grCullMode_t)GetProcAddress(h, "_grCullMode@4");
+    glide_grConstantColorValue = (grConstantColorValue_t)GetProcAddress(h, "_grConstantColorValue@4");
     glide_grConstantColorValue4 =
-        (grConstantColorValue4_t)GetProcAddress(glide_dll_handle, "_grConstantColorValue4@16");
-    glide_grDepthBiasLevel = (grDepthBiasLevel_t)GetProcAddress(glide_dll_handle, "_grDepthBiasLevel@4");
+        (grConstantColorValue4_t)GetProcAddress(h, "_grConstantColorValue4@16");
+    glide_grDepthBiasLevel = (grDepthBiasLevel_t)GetProcAddress(h, "_grDepthBiasLevel@4");
     glide_grDepthBufferFunction =
-        (grDepthBufferFunction_t)GetProcAddress(glide_dll_handle, "_grDepthBufferFunction@4");
-    glide_grDepthBufferMode = (grDepthBufferMode_t)GetProcAddress(glide_dll_handle, "_grDepthBufferMode@4");
-    glide_grDepthMask = (grDepthMask_t)GetProcAddress(glide_dll_handle, "_grDepthMask@4");
-    glide_grDisableAllEffects = (grDisableAllEffects_t)GetProcAddress(glide_dll_handle, "_grDisableAllEffects@0");
-    glide_grDitherMode = (grDitherMode_t)GetProcAddress(glide_dll_handle, "_grDitherMode@4");
-    glide_grFogColorValue = (grFogColorValue_t)GetProcAddress(glide_dll_handle, "_grFogColorValue@4");
-    glide_grFogMode = (grFogMode_t)GetProcAddress(glide_dll_handle, "_grFogMode@4");
-    glide_grFogTable = (grFogTable_t)GetProcAddress(glide_dll_handle, "_grFogTable@4");
+        (grDepthBufferFunction_t)GetProcAddress(h, "_grDepthBufferFunction@4");
+    glide_grDepthBufferMode = (grDepthBufferMode_t)GetProcAddress(h, "_grDepthBufferMode@4");
+    glide_grDepthMask = (grDepthMask_t)GetProcAddress(h, "_grDepthMask@4");
+    glide_grDisableAllEffects = (grDisableAllEffects_t)GetProcAddress(h, "_grDisableAllEffects@0");
+    glide_grDitherMode = (grDitherMode_t)GetProcAddress(h, "_grDitherMode@4");
+    glide_grFogColorValue = (grFogColorValue_t)GetProcAddress(h, "_grFogColorValue@4");
+    glide_grFogMode = (grFogMode_t)GetProcAddress(h, "_grFogMode@4");
+    glide_grFogTable = (grFogTable_t)GetProcAddress(h, "_grFogTable@4");
     glide_grGammaCorrectionValue =
-        (grGammaCorrectionValue_t)GetProcAddress(glide_dll_handle, "_grGammaCorrectionValue@4");
-    glide_grSplash = (grSplash_t)GetProcAddress(glide_dll_handle, "_grSplash@20");
-    glide_grTexCalcMemRequired = (grTexCalcMemRequired_t)GetProcAddress(glide_dll_handle, "_grTexCalcMemRequired@16");
+        (grGammaCorrectionValue_t)GetProcAddress(h, "_grGammaCorrectionValue@4");
+    glide_grSplash = (grSplash_t)GetProcAddress(h, "_grSplash@20");
+    glide_grTexCalcMemRequired = (grTexCalcMemRequired_t)GetProcAddress(h, "_grTexCalcMemRequired@16");
     glide_grTexTextureMemRequired =
-        (grTexTextureMemRequired_t)GetProcAddress(glide_dll_handle, "_grTexTextureMemRequired@8");
-    glide_grTexMinAddress = (grTexMinAddress_t)GetProcAddress(glide_dll_handle, "_grTexMinAddress@4");
-    glide_grTexMaxAddress = (grTexMaxAddress_t)GetProcAddress(glide_dll_handle, "_grTexMaxAddress@4");
-    glide_grTexNCCTable = (grTexNCCTable_t)GetProcAddress(glide_dll_handle, "_grTexNCCTable@8");
-    glide_grTexSource = (grTexSource_t)GetProcAddress(glide_dll_handle, "_grTexSource@16");
-    glide_grTexClampMode = (grTexClampMode_t)GetProcAddress(glide_dll_handle, "_grTexClampMode@12");
-    glide_grTexCombine = (grTexCombine_t)GetProcAddress(glide_dll_handle, "_grTexCombine@28");
-    glide_grTexCombineFunction = (grTexCombineFunction_t)GetProcAddress(glide_dll_handle, "_grTexCombineFunction@8");
-    glide_grTexDetailControl = (grTexDetailControl_t)GetProcAddress(glide_dll_handle, "_grTexDetailControl@16");
-    glide_grTexFilterMode = (grTexFilterMode_t)GetProcAddress(glide_dll_handle, "_grTexFilterMode@12");
-    glide_grTexLodBiasValue = (grTexLodBiasValue_t)GetProcAddress(glide_dll_handle, "_grTexLodBiasValue@8");
-    glide_grTexDownloadMipMap = (grTexDownloadMipMap_t)GetProcAddress(glide_dll_handle, "_grTexDownloadMipMap@16");
+        (grTexTextureMemRequired_t)GetProcAddress(h, "_grTexTextureMemRequired@8");
+    glide_grTexMinAddress = (grTexMinAddress_t)GetProcAddress(h, "_grTexMinAddress@4");
+    glide_grTexMaxAddress = (grTexMaxAddress_t)GetProcAddress(h, "_grTexMaxAddress@4");
+    glide_grTexNCCTable = (grTexNCCTable_t)GetProcAddress(h, "_grTexNCCTable@8");
+    glide_grTexSource = (grTexSource_t)GetProcAddress(h, "_grTexSource@16");
+    glide_grTexClampMode = (grTexClampMode_t)GetProcAddress(h, "_grTexClampMode@12");
+    glide_grTexCombine = (grTexCombine_t)GetProcAddress(h, "_grTexCombine@28");
+    glide_grTexCombineFunction = (grTexCombineFunction_t)GetProcAddress(h, "_grTexCombineFunction@8");
+    glide_grTexDetailControl = (grTexDetailControl_t)GetProcAddress(h, "_grTexDetailControl@16");
+    glide_grTexFilterMode = (grTexFilterMode_t)GetProcAddress(h, "_grTexFilterMode@12");
+    glide_grTexLodBiasValue = (grTexLodBiasValue_t)GetProcAddress(h, "_grTexLodBiasValue@8");
+    glide_grTexDownloadMipMap = (grTexDownloadMipMap_t)GetProcAddress(h, "_grTexDownloadMipMap@16");
     glide_grTexDownloadMipMapLevel =
-        (grTexDownloadMipMapLevel_t)GetProcAddress(glide_dll_handle, "_grTexDownloadMipMapLevel@32");
+        (grTexDownloadMipMapLevel_t)GetProcAddress(h, "_grTexDownloadMipMapLevel@32");
     glide_grTexDownloadMipMapLevelPartial =
-        (grTexDownloadMipMapLevelPartial_t)GetProcAddress(glide_dll_handle, "_grTexDownloadMipMapLevelPartial@40");
+        (grTexDownloadMipMapLevelPartial_t)GetProcAddress(h, "_grTexDownloadMipMapLevelPartial@40");
     glide_ConvertAndDownloadRle =
-        (ConvertAndDownloadRle_t)GetProcAddress(glide_dll_handle, "_ConvertAndDownloadRle@64");
-    glide_grCheckForRoom = (grCheckForRoom_t)GetProcAddress(glide_dll_handle, "_grCheckForRoom@4");
-    glide_grTexDownloadTable = (grTexDownloadTable_t)GetProcAddress(glide_dll_handle, "_grTexDownloadTable@12");
+        (ConvertAndDownloadRle_t)GetProcAddress(h, "_ConvertAndDownloadRle@64");
+    glide_grCheckForRoom = (grCheckForRoom_t)GetProcAddress(h, "_grCheckForRoom@4");
+    glide_grTexDownloadTable = (grTexDownloadTable_t)GetProcAddress(h, "_grTexDownloadTable@12");
     glide_grTexDownloadTablePartial =
-        (grTexDownloadTablePartial_t)GetProcAddress(glide_dll_handle, "_grTexDownloadTablePartial@20");
-    glide_grTexMipMapMode = (grTexMipMapMode_t)GetProcAddress(glide_dll_handle, "_grTexMipMapMode@12");
-    glide_grTexMultibase = (grTexMultibase_t)GetProcAddress(glide_dll_handle, "_grTexMultibase@8");
+        (grTexDownloadTablePartial_t)GetProcAddress(h, "_grTexDownloadTablePartial@20");
+    glide_grTexMipMapMode = (grTexMipMapMode_t)GetProcAddress(h, "_grTexMipMapMode@12");
+    glide_grTexMultibase = (grTexMultibase_t)GetProcAddress(h, "_grTexMultibase@8");
     glide_grTexMultibaseAddress =
-        (grTexMultibaseAddress_t)GetProcAddress(glide_dll_handle, "_grTexMultibaseAddress@20");
-    glide_guTexAllocateMemory = (guTexAllocateMemory_t)GetProcAddress(glide_dll_handle, "_guTexAllocateMemory@60");
+        (grTexMultibaseAddress_t)GetProcAddress(h, "_grTexMultibaseAddress@20");
+    glide_guTexAllocateMemory = (guTexAllocateMemory_t)GetProcAddress(h, "_guTexAllocateMemory@60");
     glide_guTexChangeAttributes =
-        (guTexChangeAttributes_t)GetProcAddress(glide_dll_handle, "_guTexChangeAttributes@48");
-    glide_guTexCombineFunction = (guTexCombineFunction_t)GetProcAddress(glide_dll_handle, "_guTexCombineFunction@8");
+        (guTexChangeAttributes_t)GetProcAddress(h, "_guTexChangeAttributes@48");
+    glide_guTexCombineFunction = (guTexCombineFunction_t)GetProcAddress(h, "_guTexCombineFunction@8");
     glide_guTexGetCurrentMipMap =
-        (guTexGetCurrentMipMap_t)GetProcAddress(glide_dll_handle, "_guTexGetCurrentMipMap@4");
-    glide_guTexGetMipMapInfo = (guTexGetMipMapInfo_t)GetProcAddress(glide_dll_handle, "_guTexGetMipMapInfo@4");
-    glide_guTexMemQueryAvail = (guTexMemQueryAvail_t)GetProcAddress(glide_dll_handle, "_guTexMemQueryAvail@4");
-    glide_guTexMemReset = (guTexMemReset_t)GetProcAddress(glide_dll_handle, "_guTexMemReset@0");
-    glide_guTexDownloadMipMap = (guTexDownloadMipMap_t)GetProcAddress(glide_dll_handle, "_guTexDownloadMipMap@12");
+        (guTexGetCurrentMipMap_t)GetProcAddress(h, "_guTexGetCurrentMipMap@4");
+    glide_guTexGetMipMapInfo = (guTexGetMipMapInfo_t)GetProcAddress(h, "_guTexGetMipMapInfo@4");
+    glide_guTexMemQueryAvail = (guTexMemQueryAvail_t)GetProcAddress(h, "_guTexMemQueryAvail@4");
+    glide_guTexMemReset = (guTexMemReset_t)GetProcAddress(h, "_guTexMemReset@0");
+    glide_guTexDownloadMipMap = (guTexDownloadMipMap_t)GetProcAddress(h, "_guTexDownloadMipMap@12");
     glide_guTexDownloadMipMapLevel =
-        (guTexDownloadMipMapLevel_t)GetProcAddress(glide_dll_handle, "_guTexDownloadMipMapLevel@12");
-    glide_guTexSource = (guTexSource_t)GetProcAddress(glide_dll_handle, "_guTexSource@4");
+        (guTexDownloadMipMapLevel_t)GetProcAddress(h, "_guTexDownloadMipMapLevel@12");
+    glide_guTexSource = (guTexSource_t)GetProcAddress(h, "_guTexSource@4");
     glide_guColorCombineFunction =
-        (guColorCombineFunction_t)GetProcAddress(glide_dll_handle, "_guColorCombineFunction@4");
-    glide_grLfbLock = (grLfbLock_t)GetProcAddress(glide_dll_handle, "_grLfbLock@24");
-    glide_grLfbUnlock = (grLfbUnlock_t)GetProcAddress(glide_dll_handle, "_grLfbUnlock@8");
-    glide_grLfbConstantAlpha = (grLfbConstantAlpha_t)GetProcAddress(glide_dll_handle, "_grLfbConstantAlpha@4");
-    glide_grLfbConstantDepth = (grLfbConstantDepth_t)GetProcAddress(glide_dll_handle, "_grLfbConstantDepth@4");
+        (guColorCombineFunction_t)GetProcAddress(h, "_guColorCombineFunction@4");
+    glide_grLfbLock = (grLfbLock_t)GetProcAddress(h, "_grLfbLock@24");
+    glide_grLfbUnlock = (grLfbUnlock_t)GetProcAddress(h, "_grLfbUnlock@8");
+    glide_grLfbConstantAlpha = (grLfbConstantAlpha_t)GetProcAddress(h, "_grLfbConstantAlpha@4");
+    glide_grLfbConstantDepth = (grLfbConstantDepth_t)GetProcAddress(h, "_grLfbConstantDepth@4");
     glide_grLfbWriteColorSwizzle =
-        (grLfbWriteColorSwizzle_t)GetProcAddress(glide_dll_handle, "_grLfbWriteColorSwizzle@8");
+        (grLfbWriteColorSwizzle_t)GetProcAddress(h, "_grLfbWriteColorSwizzle@8");
     glide_grLfbWriteColorFormat =
-        (grLfbWriteColorFormat_t)GetProcAddress(glide_dll_handle, "_grLfbWriteColorFormat@4");
-    glide_grLfbWriteRegion = (grLfbWriteRegion_t)GetProcAddress(glide_dll_handle, "_grLfbWriteRegion@32");
-    glide_grLfbReadRegion = (grLfbReadRegion_t)GetProcAddress(glide_dll_handle, "_grLfbReadRegion@28");
-    glide_grAADrawLine = (grAADrawLine_t)GetProcAddress(glide_dll_handle, "_grAADrawLine@8");
-    glide_grAADrawPoint = (grAADrawPoint_t)GetProcAddress(glide_dll_handle, "_grAADrawPoint@4");
-    glide_grAADrawPolygon = (grAADrawPolygon_t)GetProcAddress(glide_dll_handle, "_grAADrawPolygon@12");
+        (grLfbWriteColorFormat_t)GetProcAddress(h, "_grLfbWriteColorFormat@4");
+    glide_grLfbWriteRegion = (grLfbWriteRegion_t)GetProcAddress(h, "_grLfbWriteRegion@32");
+    glide_grLfbReadRegion = (grLfbReadRegion_t)GetProcAddress(h, "_grLfbReadRegion@28");
+    glide_grAADrawLine = (grAADrawLine_t)GetProcAddress(h, "_grAADrawLine@8");
+    glide_grAADrawPoint = (grAADrawPoint_t)GetProcAddress(h, "_grAADrawPoint@4");
+    glide_grAADrawPolygon = (grAADrawPolygon_t)GetProcAddress(h, "_grAADrawPolygon@12");
     glide_grAADrawPolygonVertexList =
-        (grAADrawPolygonVertexList_t)GetProcAddress(glide_dll_handle, "_grAADrawPolygonVertexList@8");
-    glide_grAADrawTriangle = (grAADrawTriangle_t)GetProcAddress(glide_dll_handle, "_grAADrawTriangle@24");
-    glide_grGlideInit = (grGlideInit_t)GetProcAddress(glide_dll_handle, "_grGlideInit@0");
-    glide_grGlideShutdown = (grGlideShutdown_t)GetProcAddress(glide_dll_handle, "_grGlideShutdown@0");
-    glide_grGlideGetVersion = (grGlideGetVersion_t)GetProcAddress(glide_dll_handle, "_grGlideGetVersion@4");
-    glide_grGlideGetState = (grGlideGetState_t)GetProcAddress(glide_dll_handle, "_grGlideGetState@4");
-    glide_grGlideSetState = (grGlideSetState_t)GetProcAddress(glide_dll_handle, "_grGlideSetState@4");
+        (grAADrawPolygonVertexList_t)GetProcAddress(h, "_grAADrawPolygonVertexList@8");
+    glide_grAADrawTriangle = (grAADrawTriangle_t)GetProcAddress(h, "_grAADrawTriangle@24");
+    glide_grGlideInit = (grGlideInit_t)GetProcAddress(h, "_grGlideInit@0");
+    glide_grGlideShutdown = (grGlideShutdown_t)GetProcAddress(h, "_grGlideShutdown@0");
+    glide_grGlideGetVersion = (grGlideGetVersion_t)GetProcAddress(h, "_grGlideGetVersion@4");
+    glide_grGlideGetState = (grGlideGetState_t)GetProcAddress(h, "_grGlideGetState@4");
+    glide_grGlideSetState = (grGlideSetState_t)GetProcAddress(h, "_grGlideSetState@4");
     glide_grGlideShamelessPlug =
-        (grGlideShamelessPlug_t)GetProcAddress(glide_dll_handle, "_grGlideShamelessPlug@4");
-    glide_grHints = (grHints_t)GetProcAddress(glide_dll_handle, "_grHints@8");
-    glide_guFogTableIndexToW = (guFogTableIndexToW_t)GetProcAddress(glide_dll_handle, "_guFogTableIndexToW@4");
-    glide_guFogGenerateExp = (guFogGenerateExp_t)GetProcAddress(glide_dll_handle, "_guFogGenerateExp@8");
-    glide_guFogGenerateExp2 = (guFogGenerateExp2_t)GetProcAddress(glide_dll_handle, "_guFogGenerateExp2@8");
+        (grGlideShamelessPlug_t)GetProcAddress(h, "_grGlideShamelessPlug@4");
+    glide_grHints = (grHints_t)GetProcAddress(h, "_grHints@8");
+    glide_guFogTableIndexToW = (guFogTableIndexToW_t)GetProcAddress(h, "_guFogTableIndexToW@4");
+    glide_guFogGenerateExp = (guFogGenerateExp_t)GetProcAddress(h, "_guFogGenerateExp@8");
+    glide_guFogGenerateExp2 = (guFogGenerateExp2_t)GetProcAddress(h, "_guFogGenerateExp2@8");
     glide_guFogGenerateLinear =
-        (guFogGenerateLinear_t)GetProcAddress(glide_dll_handle, "_guFogGenerateLinear@12");
+        (guFogGenerateLinear_t)GetProcAddress(h, "_guFogGenerateLinear@12");
     return 1;
 }
 
@@ -959,10 +960,11 @@ int gr_glide_get_section_count(int bm)
     return glide_tcache_entries[bm_get_current_frame(bm)].num_sections;
 }
 
-// 0x549500  Confidence: likely (differs under cl 8966 in match26).
+// 0x549500  Confidence: exact (VC6 8966 byte match with the entry pointer first, m1019).
 void gr_glide_get_section_rect(int bm, int section, int *x, int *y, int *w, int *h)
 {
-    glide_section *sec = &glide_tcache_entries[bm_get_current_frame(bm)].sections[section];
+    glide_tcache_entry *e = &glide_tcache_entries[bm_get_current_frame(bm)];
+    glide_section *sec = &e->sections[section];
     *x = sec->x;
     *y = sec->y;
     *w = sec->w;
@@ -1336,16 +1338,18 @@ void gr_glide_init(HWND hwnd)
     glide_grAlphaTestReferenceValue(0);
 }
 
-// 0x549f50  Confidence: likely (the old value is read before the new one is stored).
+// 0x549f50  Confidence: exact (VC6 8966 byte match with active set in an if / else, m1019; the old value is read before the new one is stored).
 // WM_ACTIVATE / WM_ACTIVATEAPP: counts the focus changes for gr_glide_flip and, on a Voodoo2, closes or
 // reopens the Glide window.
 void glide_msg_handler(UINT msg, WPARAM wparam, LPARAM lparam)
 {
     if (msg == WM_ACTIVATE || msg == WM_ACTIVATEAPP) {
         int old_active = glide_app_active;
-        int active = wparam;
+        int active;
         if (msg == WM_ACTIVATE)
             active = (LOWORD(wparam) == WA_ACTIVE || LOWORD(wparam) == WA_CLICKACTIVE) ? 1 : 0;
+        else
+            active = wparam;
         glide_app_active = active;
         if (old_active != active) {
             if (active)

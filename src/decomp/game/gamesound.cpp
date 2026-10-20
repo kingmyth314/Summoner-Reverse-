@@ -241,8 +241,8 @@ void music_set_volume(float volume)
         snd_set_volume(music_play_signature, volume);
 }
 
-// 0x4691e0  Confidence: likely (local order; the event loop is compiled as a pointer walk over
-// feedback_event_names with a separate index, which an index loop gives under /O2).
+// 0x4691e0  Confidence: exact (VC6 8966 byte match, m1019: an unsigned event index and the event name read into a local before Expect; the event loop is compiled as a pointer walk over
+// feedback_event_names with a separate index).
 // music.tbl: $Name: / $Filename: pairs into music_tracks (strings in feedback_string_pool).
 // feedback.tbl: per hero "$Name:", then for each of the 16 events "<event>" chance and up to 4
 // quoted file names; each file becomes a sound handle in feedback_sounds.
@@ -290,10 +290,11 @@ void music_feedback_parse_tables()
             for (;;)
                 DebugError(GAMESOUND_CPP, 661, "Bad feedback party name.\n");
 
-        for (int event = 0; event < MAX_FEEDBACK_EVENTS; event++) {
+        for (unsigned int event = 0; event < MAX_FEEDBACK_EVENTS; event++) {
             unsigned int count = 0;
+            const char *name = feedback_event_names[event];
 
-            tf.Expect(feedback_event_names[event]);
+            tf.Expect(name);
             feedback_chance[party][event] = (ubyte)tf.ParseInt();
             while (tf.Peek("\"")) {
                 if (count >= MAX_FEEDBACK_ALTERNATIVES)

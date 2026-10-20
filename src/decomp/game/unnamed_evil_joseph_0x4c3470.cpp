@@ -68,26 +68,7 @@ int  evil_joseph_248b9a4;             // 0x248b9a4 never accessed
 int  evil_joseph_248b9a8;             // 0x248b9a8 1 at load, never read
 int  evil_joseph_248b9ac;             // 0x248b9ac 1 at load, never read
 int  evil_joseph_248b9b0;             // 0x248b9b0 zeroed when the target is lost, never read
-bool evil_joseph_combat_enabled;      // 0x248b9b4
-boss_threat evil_joseph_threat_table[BOSS_MAX_THREATS];   // 0x248b9b8
-int  evil_joseph_mesh_tag_count;      // 0x248ba30
-boss_offense_point evil_joseph_offense_points[10];        // 0x248ba34 (only the tags are filled)
-boss_attack evil_joseph_moves[1][BOSS_MAX_OFFENSE_POINTS];   // 0x248bb4c "darkjo_boss.tbl"
-boss_attack *evil_joseph_current_move;   // 0x248bc8c
-int  evil_joseph_248bc90;             // 0x248bc90 never accessed
-int  evil_joseph_target_handle;       // 0x248bc94
-GameTimer evil_joseph_attack_timer;   // 0x248bc98
-int  evil_joseph_attack_move_id;      // 0x248bc9c 1..3 for move 8
-int  evil_joseph_summon_handle;       // 0x248bca0
-int  evil_joseph_helpers[4];          // 0x248bca4
-vector3 evil_joseph_summon_pos;       // 0x248bcb4
-int  evil_joseph_resurrect_count;     // 0x248bcc0
-int  evil_joseph_helper_index;        // 0x248bcc4
-int  evil_joseph_teleport_index;      // 0x248bcc8
-int  evil_joseph_248bccc[3];          // 0x248bccc never accessed
-navpoint *evil_joseph_teleports[5];   // 0x248bcd8
-int  evil_joseph_248bcec;             // 0x248bcec -1 at load and combat start, never read
-int  evil_joseph_248bcf0;             // 0x248bcf0 -1 at load and combat start, never read
+evil_joseph_boss evil_joseph;         // 0x248b9b4-0x248bcf3: combat_enabled .. 0x248bcf0 (D10504; fields in boss_ai.h)
 boss_attack *evil_joseph_move_8;      // 0x248bcf4 [0][8] the plain attack (move id 1..3)
 boss_attack *evil_joseph_move_0;      // 0x248bcf8 [0][0]
 bool evil_joseph_loaded;              // 0x248bcfc
@@ -107,7 +88,7 @@ void cmd_darkjo_combat()
     print_to_console("Setting dark joseph's ai state to combat\n", 0);
 }
 
-// 0x4c3500  Confidence: likely (the species list is a local array). Creates the four helpers one unit in
+// 0x4c3500  Confidence: exact (VC6 byte match, w6 pass; was likely) (the species list is a local array). Creates the four helpers one unit in
 // front of the boss, inactive and hidden; the handles are packed (a failed create leaves no gap).
 void evil_joseph_spawn_helpers(Character *boss)
 {
@@ -123,7 +104,8 @@ void evil_joseph_spawn_helpers(Character *boss)
     handle = evil_joseph_helpers;
     for (i = 0; i < 4; i++) {
         int info = charinfo_find_by_species(species[i]);
-        vector3 pos = boss->pos + boss->orient.fvec;
+        vector3 pos;
+        pos = vector3(boss->pos.x + boss->orient.fvec.x, boss->pos.y + boss->orient.fvec.y, boss->pos.z + boss->orient.fvec.z);
         c = living_entity_create(5, info, &pos, &boss->orient, true, boss->layer, 0, 0, false);
         if (c) {
             *handle++ = c->handle;
@@ -133,7 +115,7 @@ void evil_joseph_spawn_helpers(Character *boss)
     }
 }
 
-// 0x4c35e0  Confidence: likely. Runs once per level (evil_joseph_unload clears the flag). The boss
+// 0x4c35e0  Confidence: exact (VC6 byte match, w6 pass; was likely). Runs once per level (evil_joseph_unload clears the flag). The boss
 // carries the "Sword of Summoners" as his one attachment, starts hidden (flag 8, plus the ready stance
 // flag 1) and creates his helpers.
 void ai_state::evil_joseph_boss_load()
@@ -143,15 +125,17 @@ void ai_state::evil_joseph_boss_load()
 
     if (evil_joseph_loaded == true)
         return;
+    evil_joseph_loaded = true;
     evil_joseph_248b9a8 = 1;
     evil_joseph_248b9ac = 1;
-    evil_joseph_loaded = true;
     evil_joseph_target_handle = -1;
     for (i = 0; i < BOSS_MAX_THREATS; i++)
         evil_joseph_threat_table[i].handle = -1;
     evil_joseph_mesh_tag_count = 0;
     for (i = 0; i < 10; i++) {
-        tag = owner->instance->character->find_mesh_tag(offense_point_name(i));
+        const char *name = offense_point_name(i);
+        ca_character *ch = owner->instance->character;
+        tag = ch->find_mesh_tag(name);
         if (tag != -1) {
             evil_joseph_offense_points[evil_joseph_mesh_tag_count].tag = tag;
             evil_joseph_mesh_tag_count++;

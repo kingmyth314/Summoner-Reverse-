@@ -243,7 +243,7 @@ extern tentacle_info tentacle_beast_tentacles[NUM_TENTACLES];   // 0x248c328
 void  tentacle_begin_sink(tentacle_info *t, int ms);   // 0x4c6c50
 extern bool tentacle_beast_battle_started;             // 0x248c76c
 extern int  tentacle_beast_tentacles_up;               // 0x248c798
-extern bool evil_joseph_combat_enabled;                // 0x248b9b4 evil_joseph_ai_idle engages when set
+// evil_joseph_combat_enabled (0x248b9b4): a field of the Evil Joseph's state object (D10504).
 extern bool evil_urath_combat_enabled;                 // 0x248bd0c evil_urath_ai_idle engages when set
 
 bool  titus_cast_special(Character *c, int anim);      // 0x4c32e0
@@ -362,18 +362,18 @@ void  phoenix_evaluate_target(Character *boss, boss_target *t);    // 0x499e20
 // ghost_rider_threat_table (0x248081c): a field of the ghost rider's state object (D6511).
 // titus_threat_table (0x248b3b8): a field of the Titus's state object (D8100).
 // pyrul_threat_table (0x247fd3c): a field of the Pyrul's state object (D6701).
-extern boss_threat murod_oni_threat_table[BOSS_MAX_THREATS];         // 0x248c008
+// murod_oni_threat_table (0x248c008): a field of the Murod Oni's state object (D10503).
 extern boss_threat murod_threat_table[BOSS_MAX_THREATS];             // 0x248bf3c
 extern boss_threat evil_urath_threat_table[BOSS_MAX_THREATS];        // 0x248bd10
-extern boss_threat evil_joseph_threat_table[BOSS_MAX_THREATS];       // 0x248b9b8
+// evil_joseph_threat_table (0x248b9b8): a field of the Evil Joseph's state object (D10504).
 // tiger_cur_move (0x2452c40): a field of the tiger's state object (D3403).
 // phoenix_cur_attack (0x2452920): a field of the phoenix's state object (D3403).
 // ghost_cur_move (0x2480810): a field of the ghost rider's state object (D6511).
 // titus_current_move (0x248b90c): a field of the Titus's state object (D8100).
 // pyrul_cur_move (0x2480290): a field of the Pyrul's state object (D6701).
-extern boss_attack *murod_oni_current_move;           // 0x248c2dc
+// murod_oni_current_move (0x248c2dc): a field of the Murod Oni's state object (D10503).
 extern boss_attack *evil_urath_current_move;          // 0x248bec8
-extern boss_attack *evil_joseph_current_move;         // 0x248bc8c
+// evil_joseph_current_move (0x248bc8c): a field of the Evil Joseph's state object (D10504).
 // machival_current_move (0x248b30c): a field of the machival's state object (D6510).
 // The serpent and its two copies (index serpent_part_index): the attack each one is playing (sum.symbols
 // types it int[3]; the dispatchers read +0x14 / +0x1c through it) and its move id. decomp54 (D3403):
@@ -776,23 +776,56 @@ extern int  evil_joseph_248b9a4;                      // 0x248b9a4 never accesse
 extern int  evil_joseph_248b9a8;                      // 0x248b9a8 1 at load, never read
 extern int  evil_joseph_248b9ac;                      // 0x248b9ac 1 at load, never read
 extern int  evil_joseph_248b9b0;                      // 0x248b9b0 zeroed when the target is lost
-extern int  evil_joseph_mesh_tag_count;               // 0x248ba30
-extern boss_offense_point evil_joseph_offense_points[10];   // 0x248ba34
-extern boss_attack evil_joseph_moves[1][BOSS_MAX_OFFENSE_POINTS];   // 0x248bb4c "darkjo_boss.tbl"
-extern int  evil_joseph_248bc90;                      // 0x248bc90 never accessed
-extern int  evil_joseph_target_handle;                // 0x248bc94
-extern GameTimer evil_joseph_attack_timer;            // 0x248bc98
-extern int  evil_joseph_attack_move_id;               // 0x248bc9c
-extern int  evil_joseph_summon_handle;                // 0x248bca0
-extern int  evil_joseph_helpers[4];                   // 0x248bca4 species 0xc0, 0xca, 0xcb, 0xb0
-extern vector3 evil_joseph_summon_pos;                // 0x248bcb4
-extern int  evil_joseph_resurrect_count;              // 0x248bcc0 summons out minus revivals
-extern int  evil_joseph_helper_index;                 // 0x248bcc4
-extern int  evil_joseph_teleport_index;               // 0x248bcc8 HP band 1..4, -1 none
-extern int  evil_joseph_248bccc[3];                   // 0x248bccc never accessed
-extern navpoint *evil_joseph_teleports[5];            // 0x248bcd8 "$tele_02", 03, 01, 05, 06
-extern int  evil_joseph_248bcec;                      // 0x248bcec -1, never read
-extern int  evil_joseph_248bcf0;                      // 0x248bcf0 -1, never read
+// The Evil Joseph's state 0x248b9b4-0x248bcf3 is one object (D10504, as the Titus's D8100 and the Murod
+// Oni's D10503: init_evil_joseph_timers 0x4c3480 constructs the threat timers and the attack timer in one
+// function; the binary reloads evil_joseph_mesh_tag_count after the offense-point stores). Field names ours,
+// the old names are macros. The move pointers (0x248b978-0x248b9a0, 0x248bcf4, 0x248bcf8), the words
+// 0x248b9a4-0x248b9b0 and evil_joseph_loaded (0x248bcfc) stay separate globals.
+struct evil_joseph_boss {
+    bool combat_enabled;                              // +0x000 0x248b9b4 cmd_darkjo_combat, the level script
+    ubyte _pad001[3];
+    boss_threat threat[BOSS_MAX_THREATS];             // +0x004 0x248b9b8
+    int num_offense_points;                           // +0x07c 0x248ba30
+    boss_offense_point offense_points[10];            // +0x080 0x248ba34 (only the tags are filled)
+    boss_attack moves[1][BOSS_MAX_OFFENSE_POINTS];    // +0x198 0x248bb4c "darkjo_boss.tbl"
+    boss_attack *current_move;                        // +0x2d8 0x248bc8c
+    int _unk2dc;                                      // +0x2dc 0x248bc90 never accessed
+    int target_handle;                                // +0x2e0 0x248bc94
+    GameTimer attack_timer;                           // +0x2e4 0x248bc98
+    int attack_move_id;                               // +0x2e8 0x248bc9c 1..3 for move 8
+    int summon_handle;                                // +0x2ec 0x248bca0
+    int helpers[4];                                   // +0x2f0 0x248bca4 species 0xc0, 0xca, 0xcb, 0xb0
+    vector3 summon_pos;                               // +0x300 0x248bcb4
+    int resurrect_count;                              // +0x30c 0x248bcc0 summons out minus revivals
+    int helper_index;                                 // +0x310 0x248bcc4
+    int teleport_index;                               // +0x314 0x248bcc8 HP band 1..4, -1 none
+    int _unk318[3];                                   // +0x318 0x248bccc never accessed
+    navpoint *teleports[5];                           // +0x324 0x248bcd8 "$tele_02", 03, 01, 05, 06
+    int _unk338;                                      // +0x338 0x248bcec -1, never read
+    int _unk33c;                                      // +0x33c 0x248bcf0 -1, never read
+};
+LAYOUT_CHECK(evil_joseph_boss, sizeof(evil_joseph_boss) == 0x340);
+extern evil_joseph_boss evil_joseph;                  // 0x248b9b4 (name ours)
+#define evil_joseph_combat_enabled   (evil_joseph.combat_enabled)
+#define evil_joseph_threat_table     (evil_joseph.threat)
+#define evil_joseph_mesh_tag_count   (evil_joseph.num_offense_points)
+#define evil_joseph_offense_points   (evil_joseph.offense_points)
+#define evil_joseph_moves            (evil_joseph.moves)
+#define evil_joseph_current_move     (evil_joseph.current_move)
+#define evil_joseph_248bc90          (evil_joseph._unk2dc)
+#define evil_joseph_target_handle    (evil_joseph.target_handle)
+#define evil_joseph_attack_timer     (evil_joseph.attack_timer)
+#define evil_joseph_attack_move_id   (evil_joseph.attack_move_id)
+#define evil_joseph_summon_handle    (evil_joseph.summon_handle)
+#define evil_joseph_helpers          (evil_joseph.helpers)
+#define evil_joseph_summon_pos       (evil_joseph.summon_pos)
+#define evil_joseph_resurrect_count  (evil_joseph.resurrect_count)
+#define evil_joseph_helper_index     (evil_joseph.helper_index)
+#define evil_joseph_teleport_index   (evil_joseph.teleport_index)
+#define evil_joseph_248bccc          (evil_joseph._unk318)
+#define evil_joseph_teleports        (evil_joseph.teleports)
+#define evil_joseph_248bcec          (evil_joseph._unk338)
+#define evil_joseph_248bcf0          (evil_joseph._unk33c)
 extern boss_attack *evil_joseph_move_8;               // 0x248bcf4
 extern boss_attack *evil_joseph_move_0;               // 0x248bcf8
 extern bool evil_joseph_loaded;                       // 0x248bcfc
@@ -854,18 +887,44 @@ extern boss_attack *murod_oni_move_0;                 // 0x248bff0 &murod_oni_mo
 extern boss_attack *murod_oni_move_3;                 // 0x248bff4 [0][3] (murod_oni_move_is_kick)
 extern int  murod_oni_248bff8[2];                     // 0x248bff8 never accessed
 extern int  murod_oni_248c000;                        // 0x248c000 zeroed when the target is lost
-extern bool murod_oni_engaged;                        // 0x248c004
-extern int  murod_oni_offense_point_count;            // 0x248c080
-extern boss_offense_point murod_oni_offense_points[10];   // 0x248c084
-extern boss_attack murod_oni_moves[1][BOSS_MAX_OFFENSE_POINTS];   // 0x248c19c "murod_oni_boss.tbl"
-extern int  murod_oni_target_handle;                  // 0x248c2e0
-extern int  murod_oni_saved_target_handle;            // 0x248c2e4
-extern GameTimer murod_oni_attack_timer;              // 0x248c2e8
-extern GameTimer murod_oni_crowd_timer;               // 0x248c2ec
-extern GameTimer murod_oni_248c2f0;                   // 0x248c2f0 never used
-extern GameTimer murod_oni_timer_b;                   // 0x248c2f4
-extern int  murod_oni_area_hit_count;                 // 0x248c2f8
-extern int  murod_oni_area_hits[5];                   // 0x248c2fc
+// The Murod Oni's state 0x248c004-0x248c30f is one object (D10503, as the Titus's D8100 and the Pyrul's
+// D6701: init_murod_oni_timers 0x4c5c30 constructs the threat timers and the four state timers in one
+// function; the binary reloads murod_oni_offense_point_count / murod_oni_area_hit_count after the array
+// stores). Field names ours, the old names are macros. The move pointers (0x248bff0, 0x248bff4,
+// 0x248c310-0x248c318) and the unused words 0x248bff8-0x248c003 stay separate globals.
+struct murod_oni_boss {
+    bool engaged;                                     // +0x000 0x248c004
+    ubyte _pad005[3];
+    boss_threat threat[BOSS_MAX_THREATS];             // +0x004 0x248c008
+    int num_offense_points;                           // +0x07c 0x248c080
+    boss_offense_point offense_points[10];            // +0x080 0x248c084
+    boss_attack moves[1][BOSS_MAX_OFFENSE_POINTS];    // +0x198 0x248c19c "murod_oni_boss.tbl"
+    boss_attack *current_move;                        // +0x2d8 0x248c2dc
+    int target_handle;                                // +0x2dc 0x248c2e0
+    int saved_target_handle;                          // +0x2e0 0x248c2e4
+    GameTimer attack_timer;                           // +0x2e4 0x248c2e8
+    GameTimer crowd_timer;                            // +0x2e8 0x248c2ec
+    GameTimer _unk2f0;                                // +0x2ec 0x248c2f0 constructed, never used
+    GameTimer timer_b;                                // +0x2f0 0x248c2f4
+    int area_hit_count;                               // +0x2f4 0x248c2f8
+    int area_hits[5];                                 // +0x2f8 0x248c2fc
+};
+LAYOUT_CHECK(murod_oni_boss, sizeof(murod_oni_boss) == 0x30c);
+extern murod_oni_boss murod_oni;                      // 0x248c004 (name ours)
+#define murod_oni_engaged               (murod_oni.engaged)
+#define murod_oni_threat_table          (murod_oni.threat)
+#define murod_oni_offense_point_count   (murod_oni.num_offense_points)
+#define murod_oni_offense_points        (murod_oni.offense_points)
+#define murod_oni_moves                 (murod_oni.moves)
+#define murod_oni_current_move          (murod_oni.current_move)
+#define murod_oni_target_handle         (murod_oni.target_handle)
+#define murod_oni_saved_target_handle   (murod_oni.saved_target_handle)
+#define murod_oni_attack_timer          (murod_oni.attack_timer)
+#define murod_oni_crowd_timer           (murod_oni.crowd_timer)
+#define murod_oni_248c2f0               (murod_oni._unk2f0)
+#define murod_oni_timer_b               (murod_oni.timer_b)
+#define murod_oni_area_hit_count        (murod_oni.area_hit_count)
+#define murod_oni_area_hits             (murod_oni.area_hits)
 extern boss_attack *murod_oni_move_1;                 // 0x248c310
 extern boss_attack *murod_oni_move_4;                 // 0x248c314
 extern boss_attack *murod_oni_move_2;                 // 0x248c318

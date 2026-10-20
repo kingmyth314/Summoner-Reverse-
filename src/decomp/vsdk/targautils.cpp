@@ -67,7 +67,12 @@ int m2v_skip_extension_and_user_data(m2v_bitstream *bs)
     bs->next_start_code();
     for (;;) {
         code = bs->show_bits(32);
-        if (code == 0x1b5) {
+        if (code != 0x1b5) {
+            if (code != 0x1b2)
+                return 1;
+            bs->get_bits(32);
+            bs->next_start_code();
+        } else {
             bs->get_bits(32);
             switch (bs->get_bits(4)) {
             case 1:                             // sequence extension (44 more bits)
@@ -93,11 +98,6 @@ int m2v_skip_extension_and_user_data(m2v_bitstream *bs)
             default:
                 return 0;
             }
-        } else if (code == 0x1b2) {
-            bs->get_bits(32);
-            bs->next_start_code();
-        } else {
-            return 1;
         }
     }
 }
@@ -363,7 +363,7 @@ int tga_read_header(const char *name, int *w, int *h, int *bpp, void *unused1, v
     return 0;
 }
 
-// 0x555330  Confidence: likely (the run loop is a do-while on the packet's count field; the header byte
+// 0x555330  Confidence: exact (`c &= ~0x80` gives the binary's byte `and bl, 0x7f`, D10800; the run loop is a do-while on the packet's count field; the header byte
 // as an int: the source cursor then lives in dst's argument slot as in the binary, D6803). Decodes
 // num_pixels pixels of TGA RLE packets; returns the source bytes used.
 int tga_rle_decode(ubyte *dst, ubyte *src, int num_pixels, int pixel_size)
@@ -377,7 +377,7 @@ int tga_rle_decode(ubyte *dst, ubyte *src, int num_pixels, int pixel_size)
     while (i < num_pixels) {
         int c = *s++;
         if (c & 0x80) {
-            c &= 0x7f;
+            c &= ~0x80;
             i += c + 1;
             pp = pixel;
             copy_pixels_advance(1, &pp, &s, pixel_size);

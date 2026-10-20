@@ -135,7 +135,10 @@ void cmd_avoidance()
         print_to_console(string_buffer, 0);
         sprintf(string_buffer, "no_remove: %d", avoidance_no_remove);
         print_to_console(string_buffer, 0);
-        print_to_console(avoidance_area_type ? "type: prohibit rect" : "type: prohibit circle", 0);
+        if (avoidance_area_type)
+            print_to_console("type: prohibit rect", 0);
+        else
+            print_to_console("type: prohibit circle", 0);
     }
     if (doing_help_for_comand) {
         print_to_console("Usage: avoidance enable -- enable avoidance areas.", 0);
@@ -226,26 +229,19 @@ bool avoid_prim_test(const vector2 *p, const avoid_obstacle *ob, float margin)
     return false;
 }
 
-// 0x4a6d60  Confidence: likely (the axis is written through a pointer to it). A box of zero width
+// 0x4a6d60  Confidence: likely (w10, D10901: the centre, axis and points through the vector2 operators give
+// the binary up to axis_b, which the binary constructs in place). A box of zero width
 // around the segment a-b.
 void avoid_prim_from_segment(avoid_prim *out, const vector2 *a, const vector2 *b)
 {
-    vector2 *axis;
-
     out->flags = AVOID_OB_SEGMENT | AVOID_OB_USED;
-    axis = &out->axis_a;
-    out->centre.x = (a->x + b->x) * 0.5f;
-    out->centre.y = (a->y + b->y) * 0.5f;
-    axis->x = b->x - out->centre.x;
-    axis->y = b->y - out->centre.y;
-    out->half_a = axis->normalize();
-    out->axis_b.x = -out->axis_a.y;
-    out->axis_b.y = axis->x;
+    out->centre = 0.5f * (*a + *b);
+    out->axis_a = *b - out->centre;
+    out->half_a = out->axis_a.normalize();
+    out->axis_b = vector2(-out->axis_a.y, out->axis_a.x);
     out->half_b = 0.0f;
-    out->points[0].x = a->x;
-    out->points[0].y = a->y;
-    out->points[1].x = b->x;
-    out->points[1].y = b->y;
+    out->points[0] = *a;
+    out->points[1] = *b;
 }
 
 // 0x4a6e00  Confidence: likely (the order of the projections). Separating-axis test of a (its two axes,
@@ -360,13 +356,14 @@ bool seg_params_in_range(const float *t, const float *u)
     return true;
 }
 
-// 0x4a7210  Confidence: likely (t and u live in the argument slots of q and poly). Nearest crossing of
+// 0x4a7210  Confidence: likely (t and u live in the argument slots of q and poly; the hit point through the
+// vector2 operators, w10 D10901). Nearest crossing of
 // p-q with an edge (points[i - 1], points[i]) of the polygon: *edge = i, *hit the point.
 bool avoid_poly_nearest_edge_hit(const vector2 *p, const vector2 *q, const avoid_poly *poly, int *edge,
                                  vector2 *hit)
 {
     const vector2 *prev;
-    float best, t, u, dx, dy;
+    float best, t, u;
     int i;
 
     best = FLT_MAX;
@@ -378,10 +375,7 @@ bool avoid_poly_nearest_edge_hit(const vector2 *p, const vector2 *q, const avoid
             && t < best) {
             best = t;
             *edge = i;
-            dx = q->x - p->x;
-            dy = q->y - p->y;
-            hit->x = dx * t + p->x;
-            hit->y = dy * t + p->y;
+            *hit = *p + t * (*q - *p);
         }
         prev = &poly->points[i];
     }

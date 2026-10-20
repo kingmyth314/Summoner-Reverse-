@@ -737,7 +737,8 @@ int pxochat_frame(int key)
     return key;
 }
 
-// 0x423370  Confidence: likely. Any choice ends the check; a button (the Cancel) leaves to state 1.
+// 0x423370  Confidence: exact. Any choice ends the check; a button (the Cancel) leaves to state 1. The
+// negative choices have their own copy of the two stores (VC6 merges them, D10300).
 int pxochat_checking_version_popup_frame(int key)
 {
     int choice = ui_choice_popup_frame(key);
@@ -749,15 +750,19 @@ int pxochat_checking_version_popup_frame(int key)
         pxochat_state = 0;
         return 0;
     }
+    if (choice < 0) {
+        pxochat_version_checked = 1;
+        pxochat_state = 0;
+        return key;
+    }
     pxochat_version_checked = 1;
     pxochat_state = 0;
-    if (choice >= 0)
-        gameseq_set_state(1);
+    gameseq_set_state(1);
     return key;
 }
 
-// 0x4233d0  Confidence: likely (a compare of the choice with 0 is left without a branch: an empty
-// "if (choice >= 0)" or a removed statement in the source).
+// 0x4233d0  Confidence: exact. The compare of the choice with 0 that has no branch is a "choice < 0"
+// block identical to the code after it; VC6 merges the two and keeps the compare (D10300).
 int pxochat_version_error_popup_frame(int key)
 {
     int choice = ui_choice_popup_frame(key);
@@ -769,13 +774,18 @@ int pxochat_version_error_popup_frame(int key)
         pxochat_state = 0;
         return 0;
     }
+    if (choice < 0) {
+        pxochat_version_checked = 1;
+        pxochat_state = 0;
+        return key;
+    }
     pxochat_version_checked = 1;
     pxochat_state = 0;
     return key;
 }
 
-// 0x423420  Confidence: unsure (the last case: "cmp eax, 1" is followed by an unconditional
-// gameseq_set_state(1), so every choice above 0 leaves to state 1). Yes (0) runs the updater on exit
+// 0x423420  Confidence: exact (the "cmp eax, 1" without a branch is an "else if (choice == 1)" with the
+// same call as the else, merged by VC6, D10300: every choice above 0 leaves to state 1). Yes (0) runs the updater on exit
 // (state 3), Update Later (1) leaves.
 int pxochat_new_version_popup_frame(int key)
 {
@@ -796,6 +806,8 @@ int pxochat_new_version_popup_frame(int key)
     if (choice == 0) {
         gameseq_set_state(3);
         pxo_run_updater_on_exit = 1;
+    } else if (choice == 1) {
+        gameseq_set_state(1);
     } else {
         gameseq_set_state(1);
     }

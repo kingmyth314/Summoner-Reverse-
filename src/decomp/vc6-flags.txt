@@ -98,4 +98,4 @@ vsdk/unnamed_ui_static_0x527e20.cpp /Ox /GX /MT /Ow
 vsdk/unnamed_vfile_0x5128b0.cpp /Ox /GX /MT /Ow
 vsdk/unnamed_vfile_array_0x544e50.cpp /Ox /GX /MT /Ow
 vsdk/unnamed_vfx_dummy_0x55fc70.cpp /Ox /Ob0 /GX /MT /Ow
-vsdk/unnamed_vif_0x5329f0.cpp /Ox /GX /MT /Ow
+vsdk/unnamed_vif_0x5329f0.cpp /Ox /Ob0 /GX /MT /Ow

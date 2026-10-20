@@ -287,9 +287,12 @@ bool boss_move_in_range_dispatch(Character *boss, Character *target)
     switch (boss->info->species) {
     case SPECIES_LUMINAR:
     case SPECIES_MUROD:
-        if (boss->info->attack_radius > boss->distance_between_edges(target, true, -1))
+    {
+        float r = boss->info->attack_radius;
+        if (r > boss->distance_between_edges(target, true, -1))
             return true;
         break;
+    }
     case SPECIES_TIGER_RIDER:
         return tiger_move_in_range(boss, target);
     case SPECIES_SERPENT_RIDER:

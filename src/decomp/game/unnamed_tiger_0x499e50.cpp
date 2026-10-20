@@ -435,7 +435,7 @@ void ai_state::tiger_check_stage()
     }
 }
 
-// 0x49a830  Confidence: likely (the dot product in the binary's z, y, x order). A random horizontal
+// 0x49a830  Confidence: exact (dir scaled and moved in place; the dot product written x, z, y, D10308). A random horizontal
 // direction whose dot product with (target - self) lies in [dot_min, dot_max], at rmin..rmax from the
 // target, more than min_dist from self and navigable.
 bool tiger_pick_wander_point(Character *self, Character *target, int tries, float rmin, float rmax,
@@ -447,17 +447,17 @@ bool tiger_pick_wander_point(Character *self, Character *target, int tries, floa
         dir.random_direction();
         dir.y = 0;
         dir.normalize_safe();
-        float dot = dir.z * to.z + to.y * dir.y + to.x * dir.x;
+        float dot = dir.x * to.x + to.z * dir.z + to.y * dir.y;
         if (dot < dot_min)
             continue;
         if (dot > dot_max)
             continue;
-        float r = frand_range(rmin, rmax);
-        vector3 p = dir * r + target->pos;
-        if ((p - self->pos).len() <= min_dist)
+        dir *= frand_range(rmin, rmax);
+        dir += target->pos;
+        if ((dir - self->pos).len() <= min_dist)
             continue;
-        if (pf_point_is_navigable(&p, self->info->size, self->layer)) {
-            tiger_wander_point = p;
+        if (pf_point_is_navigable(&dir, self->info->size, self->layer)) {
+            tiger_wander_point = dir;
             return true;
         }
     }
@@ -744,7 +744,7 @@ int tiger_pick_target(Character *boss)
     return -1;
 }
 
-// 0x49b350  Confidence: likely (the stage 2 re-pick and the stage 3 case order). 5 while a move of the
+// 0x49b350  Confidence: exact (one condition on submode read in place; the stage 3 cases break to one return, D10305). 5 while a move of the
 // table or a special sub-mode runs, else the next move: stage 1 the spear (0), stage 2 the charge (1)
 // or the axe (2), stage 3 one of 3-5 at random; 0 in other stages.
 int ai_state::tiger_choose_attack()
@@ -759,8 +759,7 @@ int ai_state::tiger_choose_attack()
     }
     if (owner->combat.is_busy() == true)
         return tiger_cur_move ? 5 : 0;
-    int s = submode;
-    if (s == 0x20 || (s == 0x21 && tiger.wander_state != -1) || s == 0x1f || s == 0x1e)
+    if (submode == 0x20 || (submode == 0x21 && tiger.wander_state != -1) || submode == 0x1f || submode == 0x1e)
         return 5;
     if (tiger_current_move_index() != -1)
         return 5;
@@ -800,13 +799,13 @@ int ai_state::tiger_choose_attack()
         switch (rand() % 3) {
         case 0:
             tiger_cur_move = &tiger_move_table[3];
-            return 3;
+            break;
         case 1:
             tiger_cur_move = &tiger_move_table[4];
-            return 3;
+            break;
         case 2:
             tiger_cur_move = &tiger_move_table[5];
-            return 3;
+            break;
         }
         return 3;
     }
@@ -1226,7 +1225,7 @@ void tiger_anim_remap_out(Character *c, int *anims)
     }
 }
 
-// 0x49c240  Confidence: likely (the case order 4, 3, 2, 1, 0 from the bodies). Sub-mode 0xe: the move
+// 0x49c240  Confidence: exact (the move tests inside "if (emerge_move >= 0)", D10305; the case order 4, 3, 2, 1, 0 from the bodies). Sub-mode 0xe: the move
 // that puts the next weapon in hand (type 10, id 0xb7 / 0xb5 / 0xb4 / 0xb3 / 0xb2 by spear uses left);
 // at its trigger or end the stage's ready animations; true when it ended.
 bool ai_state::tiger_stage_move_update()
@@ -1270,41 +1269,41 @@ bool ai_state::tiger_stage_move_update()
         }
         flags = (flags & 0x7ffffffd) | 2;
     }
-    if (emerge_move < 0)
-        return false;
-    if (owner->move_finished(emerge_move)) {
-        if (owner->flags & CF_COMBAT_READY) {
-            owner->prop_tag = 0;
-            owner->attachments[4 - tiger_spear_uses_left].slot = 0;
+    if (emerge_move >= 0) {
+        if (owner->move_finished(emerge_move)) {
+            if (owner->flags & CF_COMBAT_READY) {
+                owner->prop_tag = 0;
+                owner->attachments[4 - tiger_spear_uses_left].slot = 0;
+                if (tiger_stage == 1)
+                    tiger_set_stage1_anims(owner);
+                else
+                    tiger_set_stage2_anims(owner);
+                tiger.weapon_ready = true;
+            }
+            flags &= ~2;
+            disable_timer.invalidate();
+            return true;
+        }
+        if (owner->move_trigger_fired(10, 1)) {
             if (tiger_stage == 1)
                 tiger_set_stage1_anims(owner);
             else
                 tiger_set_stage2_anims(owner);
             tiger.weapon_ready = true;
+            if (owner->get_current_move()->id == id) {
+                owner->prop_tag = 0;
+                owner->attachments[4 - tiger_spear_uses_left].slot = 0;
+            }
         }
-        flags &= ~2;
-        disable_timer.invalidate();
-        return true;
-    }
-    if (owner->move_trigger_fired(10, 1)) {
-        if (tiger_stage == 1)
-            tiger_set_stage1_anims(owner);
-        else
-            tiger_set_stage2_anims(owner);
-        tiger.weapon_ready = true;
-        if (owner->get_current_move()->id == id) {
-            owner->prop_tag = 0;
-            owner->attachments[4 - tiger_spear_uses_left].slot = 0;
+        if (owner->move_progress(emerge_move) >= 0.5f && !(flags & 0x80000000)) {
+            flags |= 0x80000000;
+            owner->flags |= CF_COMBAT_READY;
+            if (owner->flags & CF_COMBAT_READY) {
+                owner->stance_blend = 0;
+                return false;
+            }
+            owner->stance_blend = 1.0f;
         }
-    }
-    if (owner->move_progress(emerge_move) >= 0.5f && !(flags & 0x80000000)) {
-        flags |= 0x80000000;
-        owner->flags |= CF_COMBAT_READY;
-        if (owner->flags & CF_COMBAT_READY) {
-            owner->stance_blend = 0;
-            return false;
-        }
-        owner->stance_blend = 1.0f;
     }
     return false;
 }

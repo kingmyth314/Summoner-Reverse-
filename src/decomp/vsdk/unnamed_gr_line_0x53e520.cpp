@@ -174,13 +174,13 @@ bool gr_poly(int n, gr_vertex **verts, gr::Mode mode, bool fixed_depth, float de
     return gr_poly_end();
 }
 
-// 0x53e8d0  Confidence: likely. No caller. A polygon still outside one plane after clipping returns its
+// 0x53e8d0  Confidence: exact (VC6 8966 byte match, w10: codes_or first, the vertex through a local). No caller. A polygon still outside one plane after clipping returns its
 // vertex count without writing out (dead code).
 int gr_poly_project_to_screen(int n, gr_vertex **verts, vector2 *out)
 {
     gr_vertex **list = gr_clip_vlist_a;
     ubyte codes[2];
-    ubyte codes_and = 0xff, codes_or = 0;
+    ubyte codes_or = 0, codes_and = 0xff;
     bool clipped;
     int i;
 
@@ -201,12 +201,13 @@ int gr_poly_project_to_screen(int n, gr_vertex **verts, vector2 *out)
             goto done;
     }
     for (i = 0; i < n; i++) {
-        if (!(list[i]->flags & 1))
-            gr_project_vertex(list[i]);
-        if (list[i]->flags & 2)
+        gr_vertex *v = list[i];
+        if (!(v->flags & 1))
+            gr_project_vertex(v);
+        if (v->flags & 2)
             return 0;
-        out[i].x = list[i]->sx;
-        out[i].y = list[i]->sy;
+        out[i].x = v->sx;
+        out[i].y = v->sy;
     }
 done:
     if (clipped)
@@ -214,13 +215,13 @@ done:
     return n;
 }
 
-// 0x53e9d0  Confidence: likely. The result list replaces verts (the caller's array has room for the
+// 0x53e9d0  Confidence: exact (VC6 8966 byte match, w10: codes_or declared before codes_and). The result list replaces verts (the caller's array has room for the
 // clipped vertices). A vertex behind the viewer returns 0 without freeing the temporary vertices.
 int gr_clip_and_project_poly(int n, gr_vertex **verts)
 {
     gr_vertex **list = gr_clip_vlist_a;
     ubyte codes[2];
-    ubyte codes_and = 0xff, codes_or = 0;
+    ubyte codes_or = 0, codes_and = 0xff;
     bool clipped;
     int i;
 

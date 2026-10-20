@@ -90,26 +90,21 @@ void ui_gadget::draw_sunken(Color *colors, int width)
     ui_draw_bevel(sx, sy, w, h, &colors[1], &colors[0], width, 0);
 }
 
-// 0x55e420  Confidence: likely (differs under 8966: register and store scheduling).
+// 0x55e420  Confidence: exact (VC6 byte match, w7: the four stores my, mx, mw, mh with no locals).
 void ui_slider_base::get_marker_rect(int *mx, int *my, int *mw, int *mh)
 {
     float f = (float)pos / (count - 1);
-    int height = h;
-    int size;
-    int width;
 
-    *mh = height;
-    size = marker_size;
     *my = 0;
     *mx = 0;
-    width = w;
-    *mw = width;
+    *mw = w;
+    *mh = h;
     if (horizontal) {
-        *mx = (int)((width - size) * f);
-        *mw = size;
+        *mx = (int)((w - marker_size) * f);
+        *mw = marker_size;
     } else {
-        *my = (int)((height - size) * f);
-        *mh = size;
+        *my = (int)((h - marker_size) * f);
+        *mh = marker_size;
     }
 }
 

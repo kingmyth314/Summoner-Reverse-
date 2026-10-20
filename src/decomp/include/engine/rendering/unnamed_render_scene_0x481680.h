@@ -203,7 +203,7 @@ void levelrender_effect_apply_vis(effect_object *fx, s3d_vis_set **sets, int cou
 // (position in the effect frame, cull radius, sort radius, effect, kind, index, instance record, cull):
 // false when nothing was added.
 bool levelrender_add_effect_entry(vector3 pos, float cull_radius, float sort_radius, effect_object *fx,
-                                  int kind, int index, void *inst, bool cull);   // 0x4841e0
+                                  int kind, int index, void *inst, int cull);   // 0x4841e0
 void lamp_glows_draw();                   // 0x484380
 void lamp_glow_update_lobjs();            // 0x4843e0
 void lamp_glow_update_effects();          // 0x484600

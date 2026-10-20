@@ -270,17 +270,17 @@ void input_flush()
     mouse_flush();
 }
 
-// 0x4328b0  Confidence: likely (statement order of the two mouse stores and the gr_info resets; block-local
-// variables for the two string sizes, which use different stack slots). GameTick, after the state's frame.
+// 0x4328b0  Confidence: exact (D10802: the first message's w / h at function scope, the frame rate's own w / h and a
+// 28-byte buffer in its block, the mouse position in a block of its own: the binary's 0x2c frame and slots).
+// GameTick, after the state's frame.
 void FrameEnd()
 {
     int state = gameseq_get_state();
-    int mouse_x, mouse_y;
+    int w, h;
 
     if (game_status_message_timer.valid() && !game_status_message_timer.elapsed()) {
         if (_strnicmp(game_status_message, "Screenshot written to", strlen("Screenshot written to") - 1)
             || !(game_flags & GF_SCREENSHOT)) {
-            int w, h;
             gr_get_string_size(&w, &h, game_status_message, -1, font_small);
             gr_set_color(0, 0, 0, 192);
             gr_rect(8, 18, w + 2, h + 2, gr_rect_mode, 1.0f);
@@ -292,7 +292,7 @@ void FrameEnd()
 
     // The frame rate, only on the HUD (no screen open).
     if (Gamewide_show_framerate && !interface_get_screen()) {
-        char buf[20];
+        char buf[28];
         int w, h;
         sprintf(buf, "FPS=%3.1f", fps);
         gr_get_string_size(&w, &h, buf, -1, font_small);
@@ -332,23 +332,26 @@ void FrameEnd()
         gr_info_point_rotation_time = 0;
     }
 
-    mouse_get_pos(&mouse_x, &mouse_y, &game_mouse_z);
-    if (cursor_visible)
-        cursor_draw(mouse_x, mouse_y);
-    if ((game_flags & GF_MULTIPLAYER) && frame_debug_flag_5fc01e)
-        debug_noop_frame_end(0, 10, 10);
-    if (state == STATE_GAME && frame_show_loading_icon)
-        draw_loading_icon();
-    frame_last_mouse_x = mouse_x;
-    frame_last_mouse_y = mouse_y;
-    if (game_flags & GF_SCREENSHOT) {
-        screenshot_save();
-        game_flags &= ~GF_SCREENSHOT;
+    {
+        int mouse_x, mouse_y;
+        mouse_get_pos(&mouse_x, &mouse_y, &game_mouse_z);
+        if (cursor_visible)
+            cursor_draw(mouse_x, mouse_y);
+        if ((game_flags & GF_MULTIPLAYER) && frame_debug_flag_5fc01e)
+            debug_noop_frame_end(0, 10, 10);
+        if (state == STATE_GAME && frame_show_loading_icon)
+            draw_loading_icon();
+        frame_last_mouse_x = mouse_x;
+        frame_last_mouse_y = mouse_y;
+        if (game_flags & GF_SCREENSHOT) {
+            screenshot_save();
+            game_flags &= ~GF_SCREENSHOT;
+        }
+        if (!(game_flags & GF_NO_FLIP))
+            gr_flip();
+        game_flags &= ~GF_NO_FLIP;
+        snd_do_frame();
     }
-    if (!(game_flags & GF_NO_FLIP))
-        gr_flip();
-    game_flags &= ~GF_NO_FLIP;
-    snd_do_frame();
 }
 
 // 0x432d60  Confidence: exact. FrameEnd, state 4 during a cutscene load.

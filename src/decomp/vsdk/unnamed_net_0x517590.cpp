@@ -254,8 +254,8 @@ unsigned long nw_ras_init()
             FreeLibrary(lib);
             return 0;
         }
-        projection.dwSize = sizeof(projection);
         projection_size = sizeof(projection);
+        projection.dwSize = sizeof(projection);
         if (nw_RasGetProjectionInfo(connections[i].hrasconn, NW_RASP_PPPIP, &projection, &projection_size)) {
             FreeLibrary(lib);
             return 0;

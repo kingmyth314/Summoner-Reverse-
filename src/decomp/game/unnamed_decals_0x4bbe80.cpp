@@ -313,25 +313,26 @@ void decals_draw_for_lobj(int lobj_index, const vector3 *verts)
     } while (d);
 }
 
-// 0x4bcbb0  Confidence: likely. Every touching decal counts, the list takes the first 0x40.
+// 0x4bcbb0  Confidence: likely (w10, D10902: unsigned count test and the bool bit read as the binary has them;
+// the registers of d and count still swap). Every touching decal counts, the list takes the first 0x40.
 int decals_collect_for_lobj(lobj *lo, projector_record **out, int *count)
 {
     decal_record *d = decal_active;
     int found = 0;
 
-    if (d == NULL)
-        return 0;
-    do {
-        d->proj.test_bounds(lo);
-        if (d->proj.inside) {
-            if (*count < 0x40) {
-                out[*count] = &d->proj;
-                (*count)++;
+    if (d != NULL) {
+        do {
+            d->proj.test_bounds(lo);
+            if ((bool)d->proj.inside) {
+                if ((uint)*count < 0x40) {
+                    out[*count] = &d->proj;
+                    (*count)++;
+                }
+                found++;
             }
-            found++;
-        }
-        d = d->next;
-    } while (d != decal_active && d != NULL);
+            d = d->next;
+        } while (d != decal_active && d != NULL);
+    }
     return found;
 }
 

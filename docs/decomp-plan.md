@@ -422,9 +422,23 @@ with mingw (syntax only). They are in [`src/decomp/`](../src/decomp/README.md):
   PXO chat screens, the interface manager, the level script editor, editor dialogs, boot/title states, frame end, input, the cutscene player, the multiplayer menus, lobby, net session and packets, AI groups, cutscene camera, snow every boss (Serpent, Phoenix, Tiger, Pyrul, Ghost Rider, Machival, Titus, Evil Joseph, Evil Urath, Murod, Murod Oni, Tentacle Beast, Giant Salamanka, Luminar), projectors, lamp glows, decals, the AI combat modes, blob shadows, pathfinding geometry, obstacle avoidance, AI goals, doors and the game camera (under placeholder file names), the multiplayer save, trade, chat, chat-tracker, spell, container, end-game and data code, the CD check, targeting, plus `gamesound`, `item_paging`, `player`, `objects`, `living_entity`, `items`, `characterinfo`, `spells`, `combat`, `s3d`, `levelrender`, `ai`, `boss_ai`, `pathfinding`, `gameplay`, `summoner` (the main module, with WinMain), `conversation`, `level_scripts` (with the savegame code), `level_scripts_common`, all 23 tagged per-level scripts and
   `conversationctl`.
 
-`node tools/decomp-progress.mjs` counts the result (2026-10-18): 7,725 functions written (89.4%). 5,905 of them are
-compiled and compared by VC6 SP5, and 4,944 of those give the original bytes and call / data targets (the sweep list
-`src/decomp/vc6-matches.txt` has 4,963, two more since D9817: 19 compared functions are not `func` lines in sum.symbols). The
+`node tools/decomp-progress.mjs` counts the result (2026-10-19): 7,725 functions written (89.4%). 5,905 of them are
+compiled and compared by VC6 SP5, and 5,058 of those give the original bytes and call / data targets (the sweep list
+`src/decomp/vc6-matches.txt` has 5,077: 19 compared functions are not `func` lines in sum.symbols).
+
+**Byte-match round 2026-10-19 (ten workers, D10000-D10999).** The 962 functions that still differed, split by file
+over ten agents, each in its own copy, merged with `decomp-merge.mjs` and swept strictly: 4,963 -> 5,077 matches,
+none lost. Techniques that worked (DECISIONS D10000-D10999): a ternary call argument as an if / else of two calls,
+calls hoisted out of argument lists into locals, buffer sizes read from the binary's frame offsets, locals moved
+into sibling blocks so they share stack slots, the order of independent stores or of a dot product's terms
+searched with `vc6-try.mjs`, a float copied through a parenthesised temporary, and the `max(x, 0)` clamp written
+`x &= (x <= 0) - 1` on a global. The compiler is build 8966, the one that built Sum.exe, so parts of D6306 (written
+for build 8168) no longer hold. Two bosses' state globals became one struct each (D10503, D10504), as the code uses
+them as one record. Two behaviour errors were found and fixed, both checked in the listing: `inventory_handle_click`
+had the open-mode button test inverted (D10601), and `ui_gadget::process` passed the original key to every child
+instead of chaining each child's result (D10700, now a byte match); `ui_container::process` ignores the children's
+result as the original does. Candidates for the bug list, not yet checked in game: the quicksave message buffer
+(64 bytes) and the script editor's door-sound text buffer (8 bytes). The
 `Confidence:` markers follow the sweep (`tools/decomp-confidence.mjs`): every compared function that matches is
 `exact`, none that differs is. The other 1,819 written functions are not compared (`tools/decomp-uncompared.mjs`):
 about 1,130 are the compiler-generated helpers of global objects (static initialiser, constructor call, atexit

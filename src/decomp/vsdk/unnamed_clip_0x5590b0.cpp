@@ -119,7 +119,7 @@ gr_vertex *gr_clip_alloc_temp_vertex()
     return v;
 }
 
-// 0x559350  Confidence: likely (differs under cl 12.00.8966, match23; was exact).
+// 0x559350  Confidence: exact (VC6 byte match, m-1019 w3; was likely).
 void gr_clip_line(gr_vertex **p0, gr_vertex **p1, ubyte codes)
 {
     int bit;
@@ -128,9 +128,9 @@ void gr_clip_line(gr_vertex **p0, gr_vertex **p1, ubyte codes)
     for (bit = 1; bit < 0x20; bit <<= 1) {
         if (bit & codes) {
             if ((*p0)->codes & bit) {
-                tmp = *p1;
-                *p1 = *p0;
-                *p0 = tmp;
+                tmp = *p0;
+                *p0 = *p1;
+                *p1 = tmp;
             }
             tmp = gr_clip_edge(bit, *p0, *p1);
             *p1 = tmp;
@@ -139,7 +139,7 @@ void gr_clip_line(gr_vertex **p0, gr_vertex **p1, ubyte codes)
     }
 }
 
-// 0x5593a0  Confidence: likely (differs under cl 12.00.8966, match23; was exact). src has room for n + 2 entries (the first two are repeated at the end).
+// 0x5593a0  Confidence: exact (VC6 byte match, m-1019 w3; was likely). src has room for n + 2 entries (the first two are repeated at the end).
 int gr_clip_plane(int plane, gr_vertex **src, gr_vertex **dst, int *nv, ubyte *codes)
 {
     gr_vertex **start = dst;
@@ -154,15 +154,17 @@ int gr_clip_plane(int plane, gr_vertex **src, gr_vertex **dst, int *nv, ubyte *c
         if (src[i]->codes & plane) {
             if (!(src[i - 1]->codes & plane)) {
                 t = gr_clip_edge(plane, src[i - 1], src[i]);
-                *dst++ = t;
+                *dst = t;
                 codes[0] |= t->codes;
                 codes[1] &= t->codes;
+                dst++;
             }
             if (!(src[i + 1]->codes & plane)) {
                 t = gr_clip_edge(plane, src[i + 1], src[i]);
-                *dst++ = t;
+                *dst = t;
                 codes[0] |= t->codes;
                 codes[1] &= t->codes;
+                dst++;
             }
         } else {
             *dst++ = src[i];
@@ -319,6 +321,7 @@ int bbox_silhouette_corners(vector3 *out, const vector3 *p, const vector3 *min, 
     int code = 0;
     int n;
     int i;
+    const int *t;
 
     if (p->x < min->x)
         code = 9;
@@ -334,11 +337,12 @@ int bbox_silhouette_corners(vector3 *out, const vector3 *p, const vector3 *min, 
         code += 2;
     if (code == 0)
         return 0;
+    t = bbox_silhouette_table[code];
     n = 0;
     for (i = 0; i < 6; i++) {
-        if (bbox_silhouette_table[code][i] > 7)
+        if (t[i] > 7)
             break;
-        bbox_get_corner(out, bbox_silhouette_table[code][i], min, max);
+        bbox_get_corner(out, t[i], min, max);
         n++;
         out++;
     }

@@ -220,16 +220,19 @@ inline float round_to_step(float x, float step)
     return (float)(int)((x + step * 0.5f) / step) * step;
 }
 
-// 0x44ddb0  Confidence: likely (the min / max ?: temporaries at ebp-0x18 / -0x1c; the skill copy is a
-// struct assignment of 0x54 bytes, rep movsd 0x15). Frame: ap_mult -4, v -8, hp_mult -0xc, i -0x10,
-// sk -0x14, this -0x20.
+// 0x44ddb0  Confidence: likely (D10701: only the hp_mult division differs, fild / fdivp in the binary,
+// fidiv from 8966; the skill copy is a struct assignment of 0x54 bytes, rep movsd 0x15). Frame: ap_mult
+// -4, v -8, hp_mult -0xc, i -0x10, sk -0x14, ap_cap -0x18, cur_ap -0x1c (the two clamped AP values, named
+// locals written in both arms), this -0x20.
 void Character::scale_stats_to_level()
 {
     float ap_mult;
     float hp_mult;
     int v;
     int i;
+    int ap_cap;
     float sk;
+    int cur_ap;
 
     if (type == 7 && summon_skill_from_creature_name(info->name) == -1) {
         hp_mult = 1.0f;
@@ -244,9 +247,11 @@ void Character::scale_stats_to_level()
     base_max_hp = round_to_step(info->max_hp * hp_mult, 1.0f);
     hp = round_to_step(info->hp * hp_mult, 1.0f);
     v = (int)(info->max_ap * ap_mult + 0.5f);
-    base_max_ap = (short)min(v, 0x7fff);
+    ASSIGN_MIN(ap_cap, v, 0x7fff);
+    base_max_ap = (short)ap_cap;
     v = (int)(info->ap * ap_mult + 0.5f);
-    ap = (short)min(v, 0x7fff);
+    ASSIGN_MIN(cur_ap, v, 0x7fff);
+    ap = (short)cur_ap;
     if ((game_flags & GF_MULTIPLAYER) && type != 7) {
         base_max_hp = mp_netgame_num_players * base_max_hp;
         hp = base_max_hp;
@@ -2213,28 +2218,29 @@ void Character::update_layer()
     }
 }
 
-// 0x4569c0  Confidence: likely. One profile label (EH state 0); every return goes through a byte
-// temporary (ebp-0x58, -0x5c, -0x84, -0xac, -0xb0, -0xb4) and the EH state -1 store. Frame: p -0x18, c
-// -0x1c, r -0x20, rc -0x24, r_self -0x2c, px -0x30, pz -0x34, py -0x38, top -0x3c, dz -0x40, rsum -0x44,
-// dx -0x48, push -0x54, this -0xec. Characters of the same team overlap at 3/4 of their radii. With
+// 0x4569c0  Confidence: exact (D10701: locals renamed for the bucket order; the self test wraps the rest
+// of the loop body, 0x456b48 jumps to the loop's end at 0x456e9a). One profile label pl at -0x28 (EH
+// state 0); every return goes through a byte temporary (ebp-0x58, -0x5c, -0x84, -0xac, -0xb0, -0xb4) and
+// the EH state -1 store. Frame: p -0x18, hit -0x1c, r -0x20, rc -0x24, pl -0x28, r_self -0x2c, x0 -0x30,
+// ptz -0x34, y0 -0x38, top -0x3c, dz_p -0x40, reach -0x44, dx -0x48, step -0x54, this -0xec. Characters of the same team overlap at 3/4 of their radii. With
 // `relative` (`move` is a step from pos) the step is replaced by the way round the first character hit
 // and the result is false; otherwise true when something is in the way.
 bool Character::find_overlap(vector3 *move, int unused, bool relative)
 {
-    profile_label label("character_find_overlap");
-    vector3 p;
-    Character *c;
-    float r;
-    float rc;
-    float r_self;
-    float px;
-    float pz;
-    float py;
-    float top;
-    float dz;
-    float rsum;
+    vector3 step;
     float dx;
-    vector3 push;
+    float reach;
+    float dz_p;
+    float top;
+    float y0;
+    float ptz;
+    float x0;
+    float r_self;
+    profile_label pl("character_find_overlap");
+    float rc;
+    float r;
+    Character *hit;
+    vector3 p;
 
     if ((flags & 0x20) || (flags & CF_SUMMONLIKE) || (flags & 0x400))
         return false;
@@ -2244,39 +2250,39 @@ bool Character::find_overlap(vector3 *move, int unused, bool relative)
     if (relative)
         p += pos;
     r_self = size_radius();
-    px = p.x;
-    pz = p.z;
-    py = p.y;
+    x0 = p.x;
+    ptz = p.z;
+    y0 = p.y;
     top = size_height() + p.y;
-    for (c = living_list.live_next; c != &living_list; c = c->live_next) {
-        if (c->flags & 0x20)
+    for (hit = living_list.live_next; hit != &living_list; hit = hit->live_next) {
+        if (hit->flags & 0x20)
             continue;
-        if (c == this)
-            continue;
-        rc = c->size_radius();
-        if (team == c->team) {
-            r = r_self * 0.75f;
-            rc = rc * 0.75f;
-        } else {
-            r = r_self;
-        }
-        if (px - r < rc + c->pos.x && px + r > c->pos.x - rc && pz - r < rc + c->pos.z
-            && pz + r > c->pos.z - rc && c->size_height() + c->pos.y > py && top > c->pos.y) {
-            dx = px - c->pos.x;
-            dz = pz - c->pos.z;
-            rsum = r + rc;
-            if (dx * dx + dz * dz < rsum * rsum) {
-                if (relative) {
-                    push = p - c->pos;
-                    push.y = 0.0f;
-                    if (push.is_zero())
+        if (hit != this) {
+            rc = hit->size_radius();
+            if (team == hit->team) {
+                r = r_self * 0.75f;
+                rc = rc * 0.75f;
+            } else {
+                r = r_self;
+            }
+            if (x0 - r < rc + hit->pos.x && x0 + r > hit->pos.x - rc && ptz - r < rc + hit->pos.z
+                && ptz + r > hit->pos.z - rc && hit->size_height() + hit->pos.y > y0 && top > hit->pos.y) {
+                dx = x0 - hit->pos.x;
+                dz_p = ptz - hit->pos.z;
+                reach = r + rc;
+                if (dx * dx + dz_p * dz_p < reach * reach) {
+                    if (relative) {
+                        step = p - hit->pos;
+                        step.y = 0.0f;
+                        if (step.is_zero())
+                            return false;
+                        step.normalize();
+                        step *= reach;
+                        *move = (hit->pos + step) - pos;
                         return false;
-                    push.normalize();
-                    push *= rsum;
-                    *move = (c->pos + push) - pos;
-                    return false;
+                    }
+                    return true;
                 }
-                return true;
             }
         }
     }
@@ -2525,63 +2531,63 @@ int character_save_state_size()
 
 // One status record read back (load_state). A remaining time of MAX_TIME (an invalid timer's) leaves
 // the timer invalid; the ice coffin (16) gets its effect re-attached (spells[0x24].misc_effect).
-#define LE_GET_STATUSES(id, fx)                                                         \
+#define LE_GET_STATUSES(eid, fx)                                                         \
     for (i = 0; i < 4; i++) {                                                           \
         LE_GET(ubyte, b);                                                               \
         if (b == 0 || b == 2) {                                                         \
-            LE_GET(ubyte, id);                                                          \
-            status[id].kind = b;                                                        \
+            LE_GET(ubyte, eid);                                                          \
+            status[eid].kind = b;                                                        \
             LE_GET(ubyte, b);                                                           \
-            status[id].spell = b;                                                       \
-            LE_GET(int, v);                                                             \
-            ASSIGN_MAX(v, v, 0);                                                              \
-            if (v == MAX_TIME)                                                          \
-                status[id].timer.invalidate();                                          \
+            status[eid].spell = b;                                                       \
+            LE_GET(int, word);                                                             \
+            ASSIGN_MAX(word, word, 0);                                                              \
+            if (word == MAX_TIME)                                                          \
+                status[eid].timer.invalidate();                                          \
             else                                                                        \
-                status[id].timer.SetTimeout(v);                                         \
-            LE_GET(int, v);                                                             \
-            ASSIGN_MAX(v, v, 0);                                                              \
-            if (v == MAX_TIME)                                                          \
-                status[id].tick_timer.invalidate();                                     \
+                status[eid].timer.SetTimeout(word);                                         \
+            LE_GET(int, word);                                                             \
+            ASSIGN_MAX(word, word, 0);                                                              \
+            if (word == MAX_TIME)                                                          \
+                status[eid].tick_timer.invalidate();                                     \
             else                                                                        \
-                status[id].tick_timer.SetTimeout(v);                                    \
-            LE_GET(int, status[id].tick_ms);                                            \
-            LE_GET(float, status[id].value);                                            \
-            if (id == STATUS_ICE_COFFIN) {                                              \
+                status[eid].tick_timer.SetTimeout(word);                                    \
+            LE_GET(int, status[eid].tick_ms);                                            \
+            LE_GET(float, status[eid].value);                                            \
+            if (eid == STATUS_ICE_COFFIN) {                                              \
                 fx = fx_attach_to_character(spells[0x24].misc_effect, handle, -1, -1, 1, 1); \
                 status_set_8(STATUS_ICE_COFFIN, fx);                                    \
             }                                                                           \
         } else {                                                                        \
             LE_GET(ubyte, b);                                                           \
             LE_GET(ubyte, b);                                                           \
-            LE_GET(int, v);                                                             \
-            LE_GET(int, v);                                                             \
-            LE_GET(int, v);                                                             \
-            LE_GET(float, h);                                                           \
+            LE_GET(int, word);                                                             \
+            LE_GET(int, word);                                                             \
+            LE_GET(int, word);                                                             \
+            LE_GET(float, hp_f);                                                           \
         }                                                                               \
     }
 
-#define LE_GET_SCRIPT(dummy)                                                            \
+#define LE_GET_SCRIPT(ignored)                                                            \
     if (script_object >= 0) {                                                           \
         do {                                                                            \
-            LE_GET(int, v);                                                             \
-            if (v == MAX_TIME)                                                          \
+            LE_GET(int, word);                                                             \
+            if (word == MAX_TIME)                                                          \
                 script_objects[script_object].timer.invalidate();                       \
             else                                                                        \
-                script_objects[script_object].timer.SetTimeout(v);                      \
+                script_objects[script_object].timer.SetTimeout(word);                      \
             LE_GET(int, script_objects[script_object].cur_action);                      \
             LE_GET_BOOL(script_objects[script_object].suspended);                       \
         } while (0);                                                                    \
     } else {                                                                            \
         do {                                                                            \
-            LE_GET(int, v);                                                             \
-            LE_GET(int, v);                                                             \
-            LE_GET_BOOL(dummy);                                                         \
+            LE_GET(int, word);                                                             \
+            LE_GET(int, word);                                                             \
+            LE_GET_BOOL(ignored);                                                         \
         } while (0);                                                                    \
     }
 
-// 0x458800  Confidence: likely (as save_state). Frame: dummy -4 (bool), b -8, h -0xc, ofs -0x10, i -0x14,
-// v -0x18, this -0xa8, the switch value -0xac. The reverse of save_state; type 4 also recomputes xp
+// 0x458800  Confidence: likely (as save_state). Frame: ignored -4 (bool), b -8, hp_f -0xc, ofs -0x10, i -0x14,
+// word -0x18, this -0xa8, the switch value -0xac. The reverse of save_state; type 4 also recomputes xp
 // from the level (types 5 / 9 do not). A party member's empty slots are emptied (except the weapon slot
 // 5), the stats are rescaled before HP / AP are read (scale_stats_to_level), species 0xce sets
 // attachments[0].slot = 1 (init stores num_attachments = 1 and slot 4: likely meant as the count;
@@ -2589,33 +2595,33 @@ int character_save_state_size()
 // move 0x22), lose their equipment unless they are party members, and go to the inactive list.
 int Character::load_state(const ubyte *in)
 {
-    bool dummy;
-    ubyte b;
-    float h;
-    int ofs;
+    int word;
     int i;
-    int v;
+    int ofs;
+    float hp_f;
+    ubyte b;
+    bool ignored;
 
     ofs = 0;
-    LE_GET(int, v);
-    type = v;
+    LE_GET(int, word);
+    type = word;
     LE_GET_VECTOR(pos);
-    LE_GET(float, h);
-    orient.set_from_angles(0.0f, 0.0f, h);
+    LE_GET(float, hp_f);
+    orient.set_from_angles(0.0f, 0.0f, hp_f);
     last_pos = pos;
     last_orient = orient;
     LE_GET(int, layer);
-    LE_GET(int, v);
-    obj_flags = v;
-    LE_GET(int, v);
-    flags = v;
+    LE_GET(int, word);
+    obj_flags = word;
+    LE_GET(int, word);
+    flags = word;
     switch (type) {
     case 5:
     case 9: {
-        ubyte id;
+        ubyte eid;
         int fx;
 
-        LE_GET_STATUSES(id, fx);
+        LE_GET_STATUSES(eid, fx);
         LE_GET(short, level);
         scale_stats_to_level();
         LE_GET(float, hp);
@@ -2624,14 +2630,14 @@ int Character::load_state(const ubyte *in)
         LE_GET(short, base_max_ap);
         LE_GET(int, prop_tag);
         ofs += ai.load(in + ofs);
-        LE_GET_SCRIPT(dummy);
+        LE_GET_SCRIPT(ignored);
         break;
     }
     case 4: {
-        ubyte id;
+        ubyte eid;
         int fx;
 
-        LE_GET_STATUSES(id, fx);
+        LE_GET_STATUSES(eid, fx);
         LE_GET(short, level);
         xp = xp_for_level(level);
         scale_stats_to_level();
@@ -2641,22 +2647,22 @@ int Character::load_state(const ubyte *in)
         LE_GET(short, base_max_ap);
         LE_GET(int, prop_tag);
         ofs += ai.load(in + ofs);
-        LE_GET_SCRIPT(dummy);
+        LE_GET_SCRIPT(ignored);
         break;
     }
     case 7: {
         Player *pl;
-        ubyte id;
+        ubyte eid;
         int fx;
         item_info *old_b;
         item_info *old_a;
 
-        LE_GET_STATUSES(id, fx);
+        LE_GET_STATUSES(eid, fx);
         for (i = 0; i < 9; i++) {
-            LE_GET(int, v);
-            printf("%d %s\n", i, v >= 0 ? item_types[v].name : "nothing");
-            if (v >= 0) {
-                character_equip_item(&old_a, &old_b, this, i, item_create(v));
+            LE_GET(int, word);
+            printf("%d %s\n", i, word >= 0 ? item_types[word].name : "nothing");
+            if (word >= 0) {
+                character_equip_item(&old_a, &old_b, this, i, item_create(word));
                 if (old_a != NULL)
                     item_free(old_a);
                 if (old_b != NULL)
@@ -2669,11 +2675,11 @@ int Character::load_state(const ubyte *in)
         }
         pl = player_from_handle(handle);
         for (i = 0; i < 36; i++) {
-            LE_GET(int, v);
-            if (v == MAX_TIME)
+            LE_GET(int, word);
+            if (word == MAX_TIME)
                 pl->skill_cooldown[i].invalidate();
             else
-                pl->skill_cooldown[i].SetTimeout(v);
+                pl->skill_cooldown[i].SetTimeout(word);
         }
         for (i = 0; i < 36; i++) {
             LE_GET(ubyte, b);
@@ -2731,134 +2737,135 @@ int Character::load_state(const ubyte *in)
     return ofs;
 }
 
-// 0x45a120  Confidence: likely. One profile label (EH state 0). Frame: i -0x10, walk -0x14, set -0x28
-// (count, two anims, two weights: the record boss_anim_remap_in / _out rewrite), ready -0x30, rider
-// -0x34, n -0x38, idle -0x3c, stand -0x40, run -0x44, hide -0x48, two_stances -0x4c, this -0x50. Picks
+// 0x45a120  Confidence: exact (D10701: locals renamed for the D6101 bucket order, declared bottom first).
+// One profile label (EH state 0). Frame: idx -0x10, walk -0x14, mix -0x28 (count, two anims, two weights:
+// the record boss_anim_remap_in / _out rewrite), profile -0x2c, combat (ready) -0x30, rider -0x34, nset
+// -0x38, idle_anim -0x3c, stand -0x40, running -0x44, hide_idx -0x48, has_two -0x4c, this -0x50. Picks
 // the stance animations (cloaked, badly hurt, combat ready CF 0x1 or relaxed) and blends idle / walk /
 // run by loco_blend (0..0.5 idle-walk, 0.5..1 walk-run; walk alone when there is no run animation).
 // Tripped (AI disabled 0x2d / 0x2e) shows the lie-down animation; hiding blends hide_ready and ready
 // by stance_blend.
 void Character::update_locomotion_anim()
 {
-    profile_label label("character_update_locomotion_anim");
-    int i;
-    int walk;
-    loco_blend_set set;
-    int ready;
-    Character *rider;
-    int n;
-    int idle;
+    bool has_two;
+    int hide_idx;
+    int running;
     int stand;
-    int run;
-    int hide;
-    bool two_stances;
+    int idle_anim;
+    int nset;
+    Character *rider;
+    int combat;
+    profile_label profile("character_update_locomotion_anim");
+    loco_blend_set mix;
+    int walk;
+    int idx;
 
     if (flags & CF_HIDDEN)
         return;
     instance->clear_state_anims();
-    n = 0;
+    nset = 0;
     if (ai.is_mode(AI_STATE_DISABLED, 0x2d) == 1 || ai.is_mode(AI_STATE_DISABLED, 0x2e)) {
         if (anim_tripped_liedown != -1)
             instance->set_state_weight(anim_tripped_liedown, 1.0f);
         return;
     }
     if (flags & 0x400) {
-        ready = anim_cloaked_ready;
+        combat = anim_cloaked_ready;
         walk = anim_cloaked_sneak;
         stand = anim_ready;
-        idle = ready;
-        run = -1;
+        idle_anim = combat;
+        running = -1;
     } else if (is_badly_hurt()) {
         if (flags & CF_COMBAT_READY) {
             stand = anim_stand_hurt;
-            ready = anim_ready_hurt;
+            combat = anim_ready_hurt;
             walk = anim_walk_hurt;
-            run = anim_run_hurt;
-            idle = ready;
+            running = anim_run_hurt;
+            idle_anim = combat;
         } else {
             stand = anim_stand_hurt;
-            ready = anim_ready_hurt;
+            combat = anim_ready_hurt;
             walk = anim_norm_walk_hurt;
-            run = anim_norm_run_hurt;
-            idle = stand;
+            running = anim_norm_run_hurt;
+            idle_anim = stand;
         }
     } else if (flags & CF_COMBAT_READY) {
         stand = anim_stand;
-        ready = anim_ready;
+        combat = anim_ready;
         walk = anim_walk;
-        run = anim_run;
-        idle = ready;
+        running = anim_run;
+        idle_anim = combat;
     } else {
         stand = anim_stand;
-        ready = anim_ready;
+        combat = anim_ready;
         walk = anim_norm_walk;
-        run = anim_norm_run;
-        idle = stand;
+        running = anim_norm_run;
+        idle_anim = stand;
     }
     if (ai.is_mode(AI_STATE_HIDING, -1) == 1) {
-        hide = anim_hide_ready;
-        if (hide != -1) {
-            instance->set_state_weight(hide, 1.0f - stance_blend);
-            instance->set_state_weight(ready, stance_blend);
+        hide_idx = anim_hide_ready;
+        if (hide_idx != -1) {
+            instance->set_state_weight(hide_idx, 1.0f - stance_blend);
+            instance->set_state_weight(combat, stance_blend);
         }
         return;
     }
     walk_speed = instance->get_anim_root_speed(walk);
-    if (run < 0)
+    if (running < 0)
         run_speed = walk_speed;
     else
-        run_speed = instance->get_anim_root_speed(run);
+        run_speed = instance->get_anim_root_speed(running);
     if (loco_blend < 0.0005f) {
-        two_stances = false;
-        if (ai.is_combat_e_or_sneak_attack() && stand != ready)
-            two_stances = true;
-        if (two_stances) {
-            set.anim[n] = stand;
-            set.weight[n] = stance_blend;
-            n++;
-            set.anim[n] = ready;
-            set.weight[n] = 1.0f - stance_blend;
-            n++;
+        has_two = false;
+        if (ai.is_combat_e_or_sneak_attack() && stand != combat)
+            has_two = true;
+        if (has_two) {
+            mix.anim[nset] = stand;
+            mix.weight[nset] = stance_blend;
+            nset++;
+            mix.anim[nset] = combat;
+            mix.weight[nset] = 1.0f - stance_blend;
+            nset++;
         } else {
-            set.anim[n] = idle;
-            set.weight[n] = 1.0f;
-            n++;
+            mix.anim[nset] = idle_anim;
+            mix.weight[nset] = 1.0f;
+            nset++;
         }
-    } else if (run < 0) {
+    } else if (running < 0) {
         if (loco_blend > 1.0f)
             printf("%s %f\n", name, loco_blend);
-        set.anim[n] = idle;
-        set.weight[n] = 1.0f - loco_blend;
-        n++;
-        set.anim[n] = walk;
-        set.weight[n] = loco_blend;
-        n++;
+        mix.anim[nset] = idle_anim;
+        mix.weight[nset] = 1.0f - loco_blend;
+        nset++;
+        mix.anim[nset] = walk;
+        mix.weight[nset] = loco_blend;
+        nset++;
     } else if (loco_blend < 0.5f) {
-        set.anim[n] = idle;
-        set.weight[n] = 1.0f - loco_blend * 2.0f;
-        n++;
-        set.anim[n] = walk;
-        set.weight[n] = loco_blend * 2.0f;
-        n++;
+        mix.anim[nset] = idle_anim;
+        mix.weight[nset] = 1.0f - loco_blend * 2.0f;
+        nset++;
+        mix.anim[nset] = walk;
+        mix.weight[nset] = loco_blend * 2.0f;
+        nset++;
     } else if (loco_blend < 1.0f) {
-        set.anim[n] = walk;
-        set.weight[n] = 1.0f - (loco_blend - 0.5f) * 2.0f;
-        n++;
-        set.anim[n] = run;
-        set.weight[n] = (loco_blend - 0.5f) * 2.0f;
-        n++;
+        mix.anim[nset] = walk;
+        mix.weight[nset] = 1.0f - (loco_blend - 0.5f) * 2.0f;
+        nset++;
+        mix.anim[nset] = running;
+        mix.weight[nset] = (loco_blend - 0.5f) * 2.0f;
+        nset++;
     } else {
-        set.anim[n] = run;
-        set.weight[n] = 1.0f;
-        n++;
+        mix.anim[nset] = running;
+        mix.weight[nset] = 1.0f;
+        nset++;
     }
-    set.count = n;
+    mix.count = nset;
     rider = get_rider();
     if (rider != NULL)
-        rider->boss_anim_remap_in((int *)&set);
-    boss_anim_remap_out((int *)&set);
-    for (i = 0; i < set.count; i++)
-        instance->set_state_weight(set.anim[i], set.weight[i]);
+        rider->boss_anim_remap_in((int *)&mix);
+    boss_anim_remap_out((int *)&mix);
+    for (idx = 0; idx < mix.count; idx++)
+        instance->set_state_weight(mix.anim[idx], mix.weight[idx]);
 }
 
 // 0x45a6e0  Confidence: exact (d at ebp-4, 16 unused bytes, the block's diff at -0x18, this -0x1c; the
@@ -3230,25 +3237,29 @@ void Character::update_status_effects()
 
 // The AP clamp of character_update_regen_and_status evaluates its arguments right to left into two
 // short temporaries (ebp-0x2c, -0x28) and a third for the result (-0x30): an inline function, not the
-// min macro (which would call get_max_stat twice). Name ours.
+// min macro (which would call get_max_stat twice). Name ours. Two returns, not a ?: (D10703: the
+// result temporary then sits above `this`, as in the binary).
 inline short short_min(short a, short b)
 {
-    return a < b ? a : b;
+    if (a < b)
+        return a;
+    return b;
 }
 
-// 0x45bf70  Confidence: likely. One profile label (EH state 0). Frame: dt -0x10, regen -0x18, b -0x1c,
-// r -0x20, g -0x24, mult -0x38, this -0x34. Sleeping, paralyzed or frozen characters do not animate and
+// 0x45bf70  Confidence: exact (D10701 / D10703). One profile label pl (EH state 0). Frame: ft -0x10,
+// pl -0x14, amount -0x18, cb -0x1c, cr -0x20, cg -0x24, the short_min temporaries -0x28 / -0x2c / -0x30,
+// this -0x34, the AP multiplier spilled across get_max_stat -0x38. The light sum is accumulated in float
+// (fild / fiadd / fiadd). Sleeping, paralyzed or frozen characters do not animate and
 // stay inactive. AP regenerates every 7.5 s: max AP * AP regen multiplier * 5%, at least 1, doubled in
 // multiplayer. The light level is the floor's light map sample, averaged, / 255 * 0.55.
 void Character::update_regen_and_status()
 {
-    profile_label label("character_update_regen_and_status");
-    float dt;
-    int regen;
-    ubyte b;
-    ubyte r;
-    ubyte g;
-    float mult;
+    ubyte cg;
+    ubyte cr;
+    ubyte cb;
+    int amount;
+    profile_label pl("character_update_regen_and_status");
+    float ft;
 
     if (!has_status(STATUS_PARALYZE) && !has_status(STATUS_SLEEP) && !has_status(STATUS_ICE_COFFIN)) {
         process_anim(frametime);
@@ -3258,16 +3269,16 @@ void Character::update_regen_and_status()
         ai.go_inactive();
     }
     if (frametime > 0.0f)
-        dt = frametime;
+        ft = frametime;
     else
-        dt = reported_frametime;
-    hp_text_timer -= dt;
+        ft = reported_frametime;
+    hp_text_timer -= ft;
     if (hp_text_timer < 0.0f)
         hp_text_timer = 0.0f;
-    pos_mod_text_timer -= dt;
+    pos_mod_text_timer -= ft;
     if (pos_mod_text_timer < 0.0f)
         pos_mod_text_timer = 0.0f;
-    float_text_scale -= dt;
+    float_text_scale -= ft;
     if (float_text_scale < 0.0f)
         float_text_scale = 0.0f;
     if (cur_anim == -1 || !move_playing(cur_anim, NULL)) {
@@ -3276,19 +3287,18 @@ void Character::update_regen_and_status()
         cur_anim = -1;
     }
     if (timer2ec.valid() && timer2ec.elapsed()) {
-        mult = ap_regen_mult() * 0.05f;
-        regen = (int)(get_max_stat(1) * mult);
-        ASSIGN_MAX(regen, 1, regen);
+        amount = (int)(ap_regen_mult() * 0.05f * get_max_stat(1));
+        ASSIGN_MAX(amount, 1, amount);
         if (game_flags & GF_MULTIPLAYER)
-            regen *= 2;
-        ap += regen;
+            amount *= 2;
+        ap = ap + amount;
         ap = short_min(ap, (short)get_max_stat(1));
         timer2ec.SetTimeout(7500);
     }
     update_status_effects();
     if (!(flags & CF_DEAD) && ground_lobj >= 0 && ground_lobj < num_lobjs && ground_face >= 0) {
-        lighting_sample_stub(ground_lobj, ground_face, ground_hit, &r, &g, &b);
-        light_level = (r + g + b) / 3.0f;
+        lighting_sample_stub(ground_lobj, ground_face, ground_hit, &cr, &cg, &cb);
+        light_level = ((float)cr + cg + cb) / 3.0f;
         light_level = light_level / 255.0f;
         light_level = light_level * 0.55f;
     }
@@ -4403,34 +4413,35 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
         ai.retaliate_on_hit(source);
 }
 
-// 0x460190  Confidence: likely (two jump tables: by spell, byte-indexed 0x460e90 / 0x460e58, and by the
-// result kind 0x460ef8; case bodies in the code's order). Frame: has_pos -4, src -8, play_sound -0xc,
-// snd_pos -0x18, show_fx -0x1c, flinch -0x20, status -0x24, force -0x28, i -0x2c, this -0x88, the
-// switch values -0x8c / -0x9c / -0xa0. Applies a hit that spell_cast_launch_effects / fx_frame /
+// 0x460190  Confidence: exact (D10701: locals renamed for the D6101 bucket order; D10702). Two jump tables:
+// by spell, byte-indexed 0x460e90 / 0x460e58, and by the result kind 0x460ef8; case bodies in the code's
+// order. Frame: haspos -4, origin -8, play_sound -0xc, where -0x18, do_fx -0x1c, flinch -0x20, status
+// -0x24, always -0x28, n -0x2c, sub_ids -0x40, ix -0x44, status_ids -0x58, this -0x88, the switch values
+// -0x8c / -0x9c / -0xa0. Applies a hit that spell_cast_launch_effects / fx_frame /
 // fx_missile_hit resolved (h->result: spell_prepare_cast's result): statuses, cures, resurrection, the
 // hit sound and effect, then the HP / AP change by kind. Only the multiplayer host (or single player
 // for none of them: every change is behind MP_IS_HOST) changes HP, AP and statuses here; the flinches
 // and effects play everywhere.
 void Character::spell_apply_hit_effects(spell_hit *h)
 {
-    bool has_pos;
-    Character *src;
-    bool play_sound;
-    vector3 snd_pos;
-    bool show_fx;
-    bool flinch;
+    int n;
+    bool always;
     int status;
-    bool force;
-    int i;
+    bool flinch;
+    bool do_fx;
+    vector3 where;
+    bool play_sound;
+    Character *origin;
+    bool haspos;
 
     if (((flags & CF_DEAD) || hp <= 0.0f) && h->spell != 5 && h->spell != 3 && h->spell != 0x69)
         return;
     play_sound = true;
-    show_fx = true;
-    has_pos = false;
+    do_fx = true;
+    haspos = false;
     flinch = false;
-    src = living_from_handle(h->source);
-    snd_pos = pos;
+    origin = living_from_handle(h->source);
+    where = pos;
     switch (h->spell) {
     case 0: case 0xc: case 0xd: case 0xf: case 0x11: case 0x3e: case 0x3f: case 0x40: case 0x41:
     case 0x42: case 0x66:
@@ -4444,32 +4455,32 @@ void Character::spell_apply_hit_effects(spell_hit *h)
             if ((spells[h->spell].flags & SPELL_OFFENSIVE) && h->spell != 0x24)
                 flinch = true;
         } else if (h->spell == 0x24) {
-            show_fx = false;
+            do_fx = false;
         }
         break;
     case 1:
         if (MP_IS_HOST() && (h->hit_mask & 1)) {
-            force = (h->value != 0.0f) ? 1 : 0;
-            status_effect_cure(STATUS_BLIND, force, false);
-            status_effect_cure(STATUS_SILENCE, force, false);
-            status_effect_cure(STATUS_CURSE, force, false);
-            status_effect_cure(STATUS_SLEEP, force, false);
-            status_effect_cure(STATUS_PARALYZE, force, false);
-            status_effect_cure(STATUS_POISON, force, false);
-            status_effect_cure(STATUS_CRIPPLE, force, false);
-            status_effect_cure(STATUS_SLOW, force, false);
-            status_effect_cure(STATUS_ICE_COFFIN, force, false);
+            always = (h->value != 0.0f) ? 1 : 0;
+            status_effect_cure(STATUS_BLIND, always, false);
+            status_effect_cure(STATUS_SILENCE, always, false);
+            status_effect_cure(STATUS_CURSE, always, false);
+            status_effect_cure(STATUS_SLEEP, always, false);
+            status_effect_cure(STATUS_PARALYZE, always, false);
+            status_effect_cure(STATUS_POISON, always, false);
+            status_effect_cure(STATUS_CRIPPLE, always, false);
+            status_effect_cure(STATUS_SLOW, always, false);
+            status_effect_cure(STATUS_ICE_COFFIN, always, false);
         }
         break;
     case 0x17:
-        for (i = 0; i < 6; i++) {
-            if (h->handles[i] == handle) {
-                if (h->hit_mask & (1 << i)) {
+        for (n = 0; n < 6; n++) {
+            if (h->handles[n] == handle) {
+                if (h->hit_mask & (1 << n)) {
                     if (MP_IS_HOST())
                         status_effect_add(STATUS_CURSE, h->curse_ms, h->spell, h->curse_value, h->source, false);
                     flinch = true;
                 } else {
-                    show_fx = false;
+                    do_fx = false;
                 }
                 break;
             }
@@ -4478,20 +4489,20 @@ void Character::spell_apply_hit_effects(spell_hit *h)
         break;
     case 0x18: case 0x19: case 0x1a: case 0x20: case 0x4d: case 0x4e: case 0x5b:
         if (h->pos != NULL && h->orient != NULL)
-            has_pos = true;
+            haspos = true;
         break;
     case 0x21:
         if (h->hit_mask & 1)
             flinch = (h->amount > 0.0f || h->duration > 0) ? 1 : 0;
         break;
     case 0x1c: case 0x1e: case 0x4f: case 0x64:
-        show_fx = false;
+        do_fx = false;
         play_sound = false;
         break;
     case 0x3a:
         if (h->hit_mask & 1)
             ai.disable_2f();
-        show_fx = false;
+        do_fx = false;
         play_sound = false;
         break;
     case 3:
@@ -4505,29 +4516,29 @@ void Character::spell_apply_hit_effects(spell_hit *h)
             if (this == cur_character)
                 hud_mode_reset();
         }
-        show_fx = false;
+        do_fx = false;
         play_sound = false;
         break;
     case 0x3b:
         if (h->hit_mask & 1)
             ai.knock_down(rand_int_range(3000, 7000));
-        show_fx = false;
+        do_fx = false;
         play_sound = false;
         break;
     case 4:
-        snd_pos = src->pos;
-        play_sound = (this == src);
+        where = origin->pos;
+        play_sound = (this == origin);
         break;
     case 0x65:
         break;
     case 0x67: {
-        int sub_spells[5] = { 0x3d, 7, 0x3c, 8, 0x17 };
-        int j;
-        int statuses[5] = { STATUS_PARALYZE, STATUS_BLIND, STATUS_POISON, STATUS_SILENCE, STATUS_CURSE };
+        int sub_ids[5] = { 0x3d, 7, 0x3c, 8, 0x17 };
+        int ix;
+        int status_ids[5] = { STATUS_PARALYZE, STATUS_BLIND, STATUS_POISON, STATUS_SILENCE, STATUS_CURSE };
 
-        for (j = 0; j < 5; j++) {
-            if (h->durations[j] != 0)
-                status_effect_add(statuses[j], h->durations[j], sub_spells[j], h->values[j], src->handle, false);
+        for (ix = 0; ix < 5; ix++) {
+            if (h->durations[ix] != 0)
+                status_effect_add(status_ids[ix], h->durations[ix], sub_ids[ix], h->values[ix], origin->handle, false);
         }
         break;
     }
@@ -4535,16 +4546,16 @@ void Character::spell_apply_hit_effects(spell_hit *h)
         return;
     }
     if (play_sound)
-        spell_play_hit_sound(h->spell, &snd_pos);
-    if (show_fx && spells[h->spell].hit_effect != NULL) {
+        spell_play_hit_sound(h->spell, &where);
+    if (do_fx && spells[h->spell].hit_effect != NULL) {
         switch (h->spell) {
         case 0x17:
         case 0x1e:
-            if (src != NULL)
-                fx_create_spell_effect_facing(h->spell, src->handle, handle);
+            if (origin != NULL)
+                fx_create_spell_effect_facing(h->spell, origin->handle, handle);
             break;
         case 0x1a:
-            if (has_pos) {
+            if (haspos) {
                 int fx;
 
                 fx = fx_add_effect(spells[h->spell].hit_effect, h->pos, h->orient, 1);
@@ -4553,7 +4564,7 @@ void Character::spell_apply_hit_effects(spell_hit *h)
             }
             break;
         default:
-            if (has_pos)
+            if (haspos)
                 fx_add_effect(spells[h->spell].hit_effect, h->pos, h->orient, 1);
             else
                 fx_attach_to_character(spells[h->spell].hit_effect, handle, -1, -1, 0, 1);
@@ -4606,7 +4617,7 @@ void Character::spell_apply_hit_effects(spell_hit *h)
     case 7:
         if (MP_IS_HOST()) {
             add_hp(h->amount, h->source, 0, false);
-            src->add_hp(h->value, -1, 0, false);
+            origin->add_hp(h->value, -1, 0, false);
         }
         if (h->amount < 0.0f && h->flinch)
             combat.flinch_if_idle(h->flinch);
@@ -4622,10 +4633,12 @@ void Character::spell_apply_hit_effects(spell_hit *h)
             if (MP_IS_HOST()) {
                 float gain;
 
-                add_ap((float)-h->iamount);
-                gain = (float)h->iamount;
-                ASSIGN_MIN(gain, gain, 20.0f);
-                src->add_ap(gain);
+                add_ap(-(float)h->iamount);
+                if ((gain = (float)h->iamount) < 20.0f)     // the binary copies gain onto itself (D10702)
+                    gain = gain;
+                else
+                    gain = 20.0f;
+                origin->add_ap(gain);
             }
             if (h->flinch)
                 combat.flinch_if_idle(h->flinch);
@@ -5345,13 +5358,14 @@ float Character::get_resistance(int type)
     if (type == 3) {
         skill_part = get_skill(SKILL_MAGIC_RESIST) * 0.5f;
         equip = resist_equip_bonus(type);
-        curse = 0.0f;
         if (has_status(STATUS_CURSE) == 1) {
             curse = status_value(STATUS_CURSE);
             if (curse <= 0.0f)
                 curse = 0.0f;
-        }
-        r = skill_part + equip - curse + level * 0.02f;
+        } else
+            curse = 0.0f;
+        float lv = level * 0.02f;
+        r = skill_part + equip - curse + lv;
         if (has_status(STATUS_FAITH) == 1) {
             faith = status_value(STATUS_FAITH);
             if (!(r > faith))

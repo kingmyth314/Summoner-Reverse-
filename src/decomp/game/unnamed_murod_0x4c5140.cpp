@@ -114,7 +114,7 @@ found:
     return true;
 }
 
-// 0x4c53c0  Confidence: likely. Sub-mode AIS_MUROD_LEAP: when the vanish move ends, the boss is put at the
+// 0x4c53c0  Confidence: exact (VC6 byte match, m-1019 w1, D10000). Sub-mode AIS_MUROD_LEAP: when the vanish move ends, the boss is put at the
 // destination (a fresh floor search), faces the member, is shown again and plays the arrival move (8,
 // 0x8b). Until then, from frame 73 of the move, the level renderer tints the boss (0 -> 1 over 12 frames)
 // and its alpha falls from 255 after frame 85 (25.5 per frame).
@@ -131,7 +131,8 @@ void ai_state::murod_ai_leap()
         owner->orient.set_from_forward(murod_leap_dir);
         owner->obj_flags |= 1;
         owner->instance->_unkb4 = 0xff;
-        murod_move_anim = owner->play_move((int)owner->find_move(8, 0x8b), 1.0f, false, false, false);
+        move_info *m = owner->find_move(8, 0x8b);
+        murod_move_anim = owner->play_move((int)m, 1.0f, false, false, false);
         set_mode(AI_STATE_COMBAT, AIS_MUROD_ARRIVE);
         priority = 99999;
         return;

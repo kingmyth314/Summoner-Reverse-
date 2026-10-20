@@ -387,7 +387,7 @@ int ai_state::pick_attack_slot(Character *attacker)
 // a taken slot is only replaced when its occupant has more time left than ms.
 void ai_state::claim_attack_slot(Character *self, Character *attacker, int ms, int slot)
 {
-    vector3 me, him, dir, s;
+    vector3 me, him, dir;
     float best, dot;
     int i, rem, best_slot;
 
@@ -410,6 +410,7 @@ void ai_state::claim_attack_slot(Character *self, Character *attacker, int ms, i
         dir.y = him.y - me.y;
         dir.z = him.z - me.z;
         for (i = 0; i < 5; i++) {
+            vector3 s;
             attack_slot_direction(&s, i);
             dot = s.z * dir.z + s.y * dir.y + dir.x * s.x;
             if (dot > best) {
@@ -427,12 +428,15 @@ void ai_state::claim_attack_slot(Character *self, Character *attacker, int ms, i
     attackers[slot].timer.SetTimeout(ms);
 }
 
-// 0x4729b0  Confidence: likely (the temporaries' order). travel_dest = the owner's position moved
+// 0x4729b0  Confidence: exact (VC6 byte match, w6 pass; was likely) (the temporaries' order). travel_dest = the owner's position moved
 // offset->z along the horizontal direction to pos and offset->x to its right-hand side.
 void ai_state::offset_point_sideways(const vector3 *pos, const vector3 *offset)
 {
-    vector3 d(pos->x - owner->pos.x, 0.0f, pos->z - owner->pos.z);
+    vector3 d;
     vector3 side;
+
+    d = *pos - owner->pos;
+    d.y = 0.0f;
 
     d.normalize();
     side = vector3(d.z, 0.0f, -d.x) * offset->x;
@@ -1251,7 +1255,7 @@ int ai_state::add_move_to_timed(vector3 *pos, int layer, float f, bool walk, int
     return goal_add(AI_GOAL_WANDER, ms, fl, -1, pos, layer, AI_NO_SPELL, f);
 }
 
-// 0x4741d0  Confidence: likely (the dot product's operand order). The backstab goal when the owner stands
+// 0x4741d0  Confidence: exact (VC6 byte match, w6 pass; was likely) (the dot product's operand order). The backstab goal when the owner stands
 // within 2 m behind the target.
 int ai_state::add_skill_from_behind(Character *t, int priority)
 {
@@ -1261,7 +1265,7 @@ int ai_state::add_skill_from_behind(Character *t, int priority)
         d = owner->pos - t->pos;
         d.normalize();
         back = -t->orient.fvec;
-        if (d.z * back.z + d.y * back.y + d.x * back.x > 0.707f)
+        if (d.dot(back) > 0.707f)
             return goal_add(AI_GOAL_BACKSTAB, priority, 0, t->handle, NULL, 0, AI_NO_SPELL, 0.0f);
     }
     return -1;

@@ -295,6 +295,7 @@ int sound_emitter_delete(int emitter, int fade)
         next->prev = prev;
         sound_emitters[emitter].flags &= ~SOUND_EMITTER_FLAG8;
         sound_emitter_reset(emitter);
+        return 0;
     }
     return 0;
 }

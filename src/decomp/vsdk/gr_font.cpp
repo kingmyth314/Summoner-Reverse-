@@ -158,8 +158,7 @@ void gr_get_string_size(int *out_w, int *out_h, const char *s, int len, int font
     *out_w = max_w;
 }
 
-// 0x508440  Confidence: likely (the final spacing: the binary adds the kern offset to the cached
-// chars[i].spacing in EBP, which fits either this or *spacing += offset).
+// 0x508440  Confidence: exact (VC6 byte match, m-1019 w1, D10000; the kern pair count in a local).
 // Glyph index of c in gr_current_font, or -1 (width 0, default spacing). The kern search starts at
 // the character's first pair and stops at the first pair that is not (i, < j); only ch1 is
 // compared after the loop.
@@ -182,7 +181,8 @@ int gr_font_get_char(char c, char next, int *width, int *spacing)
         int j = (unsigned char)next - f->first_ascii;
         if (j >= 0 && j < f->num_chars) {
             FontKernEntry *kp = &((FontKernEntry *)f->kern_data)[k];
-            while (kp->ch0 == i && kp->ch1 < j && k < f->num_kern_pairs) {
+            int n = f->num_kern_pairs;
+            while (kp->ch0 == i && kp->ch1 < j && k < n) {
                 kp++;
                 k++;
             }

@@ -763,8 +763,8 @@ int ds_play(int buffer, float volume, float pan, int looping, int a)
     return c->signature;
 }
 
-// 0x55d2b0  Confidence: likely. Always played looping: the stream refills the ring buffer.
-int ds_play_streamed(int buffer, float volume, float pan, int looping, float priority)
+// 0x55d2b0  Confidence: exact (VC6 byte match, m-1019 w3; was likely). Always played looping: the stream refills the ring buffer.
+int ds_play_streamed(int buffer, float volume, float pan, bool looping, float priority)
 {
     ds_channel *c;
     int ch;
@@ -773,19 +773,19 @@ int ds_play_streamed(int buffer, float volume, float pan, int looping, float pri
         return -1;
     if (buffer < 0)
         return -1;
-    ch = ds_find_free_channel((int)priority);   // the binary pushes the float bits unconverted
+    ch = ds_find_free_channel(*(int *)&priority);   // the binary pushes the float bits unconverted
     if (ch == -1)
         return -1;
     if (ds_stream_open(buffer, ch) != 0)
         return -1;
+    ds_channels[ch].group = ds_buffers[buffer].group;
+    ds_channels[ch].flags |= DS_CHANNEL_STREAMED;
     c = &ds_channels[ch];
-    c->group = ds_buffers[buffer].group;
-    c->flags |= DS_CHANNEL_STREAMED;
     c->pdsb->SetVolume(ds_volume_to_attenuation(volume));
     c->volume = volume;
     c->pdsb->SetPan((int)(pan * 1000.0f));
     c->buffer = buffer;
-    c->stream = snd_stream_start(buffer, ch, looping != 0);
+    c->stream = snd_stream_start(buffer, ch, looping);
     if (c->stream < 0) {
         ds_channel_release(ch);
         return -1;

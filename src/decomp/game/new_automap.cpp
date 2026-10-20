@@ -712,7 +712,17 @@ int automap_label_text_input(int key)
     if (key != 0) {
         int c = key_to_ascii(key);
 
-        if (c == 0xff) {
+        if (c != 0xff) {
+            char s[2];                    // lives in the key argument's stack slot
+
+            s[0] = (char)c;
+            s[1] = 0;
+            if ((int)strlen(label->text) < 0x1f) {
+                strcat(label->text, s);
+                changed = true;
+                automap_select_label(automap_selected_label);
+            }
+        } else {
             switch (key) {
             case KEY_ESC:
             case KEY_ENTER:
@@ -734,16 +744,6 @@ int automap_label_text_input(int key)
                 }
                 break;
             }
-            }
-        } else {
-            char s[2];                    // lives in the key argument's stack slot
-
-            s[0] = (char)c;
-            s[1] = 0;
-            if (strlen(label->text) < 0x1f) {
-                strcat(label->text, s);
-                changed = true;
-                automap_select_label(automap_selected_label);
             }
         }
     }

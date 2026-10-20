@@ -465,7 +465,7 @@ void level_script_reparse()
     script_avoid_splines_reset();
 }
 
-// 0x4cb430  Confidence: likely (one shared text buffer; the two messages are only formatted, never shown).
+// 0x4cb430  Confidence: exact (VC6 byte match, m-1019 w3; was likely; one shared text buffer; the two messages are only formatted, never shown).
 // The "#Level:" section of the current level: every record is kept; the ones of the current script whose
 // savegame entry is still there are placed at their navpoint (hidden while their +Event: flag is clear).
 void level_items_parse_table()
@@ -483,51 +483,51 @@ void level_items_parse_table()
     }
     tf.Expect("#Level Items");
     sprintf(buf, "#Level: \"%s\"", level_script_table[cur_level_index].name);
-    if (!tf.SkipPast(buf, "#End")) {
+    if (tf.SkipPast(buf, "#End")) {
+        level_item_count = 0;
+        while (tf.Accept("$Name:")) {
+            level_item_rec *li = &level_items[level_item_count];
+            int type;
+
+            tf.ParseString(li->name, 0x20, '"', '"');
+            tf.Expect("$Script:");
+            tf.ParseString(li->script, 0x20, '"', '"');
+            tf.Expect("$Item:");
+            tf.ParseString(buf, 0x100, '"', '"');
+            type = item_type_find(buf);
+            if (type >= 0)
+                li->type = &item_types[type];
+            tf.Expect("$Navpoint:");
+            tf.ParseString(buf, 0x100, '"', '"');
+            if (!_stricmp(li->script, level_script_name))
+                li->navpoint = navpoint_find(buf);
+            if (tf.Accept("+Count:"))
+                li->count = tf.ParseInt();
+            else
+                li->count = 1;
+            if (tf.Accept("+Event:")) {
+                tf.ParseString(buf, 0x100, '"', '"');
+                li->flag_level = level_script_find(buf);
+                tf.ParseString(li->flag, 0x20, '"', '"');
+            } else {
+                li->flag_level = -1;
+                li->flag[0] = '\0';
+            }
+            if (!_stricmp(li->script, level_script_name) && savegame_state.level_item_has(li->name)) {
+                li->navpoint->level_item = level_item_count;
+                if (navpoint_get_position(li->navpoint->name, &pos, &orient)) {
+                    container *it = level_item_spawn(item_create_by_name(li->type->name), &pos, &orient, li->count,
+                                                     level_item_count, li->navpoint->layer);
+                    if (li->flag_level != -1 && !savegame_state.get_flag(li->flag_level, li->flag))
+                        it->obj_flags &= ~1;
+                    savegame_state.level_item_add(li->name);
+                }
+            }
+            level_item_count++;
+        }
+    } else {
         sprintf(buf, "No level item entry for %s in \"%s\"\n", level_script_table[cur_level_index].name,
                 "level_items.tbl");
-        return;
-    }
-    level_item_count = 0;
-    while (tf.Accept("$Name:")) {
-        level_item_rec *li = &level_items[level_item_count];
-        int type;
-
-        tf.ParseString(li->name, 0x20, '"', '"');
-        tf.Expect("$Script:");
-        tf.ParseString(li->script, 0x20, '"', '"');
-        tf.Expect("$Item:");
-        tf.ParseString(buf, 0x100, '"', '"');
-        type = item_type_find(buf);
-        if (type >= 0)
-            li->type = &item_types[type];
-        tf.Expect("$Navpoint:");
-        tf.ParseString(buf, 0x100, '"', '"');
-        if (!_stricmp(li->script, level_script_name))
-            li->navpoint = navpoint_find(buf);
-        if (tf.Accept("+Count:"))
-            li->count = tf.ParseInt();
-        else
-            li->count = 1;
-        if (tf.Accept("+Event:")) {
-            tf.ParseString(buf, 0x100, '"', '"');
-            li->flag_level = level_script_find(buf);
-            tf.ParseString(li->flag, 0x20, '"', '"');
-        } else {
-            li->flag_level = -1;
-            li->flag[0] = '\0';
-        }
-        if (!_stricmp(li->script, level_script_name) && savegame_state.level_item_has(li->name)) {
-            li->navpoint->level_item = level_item_count;
-            if (navpoint_get_position(li->navpoint->name, &pos, &orient)) {
-                container *it = level_item_spawn(item_create_by_name(li->type->name), &pos, &orient, li->count,
-                                                 level_item_count, li->navpoint->layer);
-                if (li->flag_level != -1 && !savegame_state.get_flag(li->flag_level, li->flag))
-                    it->obj_flags &= ~1;
-                savegame_state.level_item_add(li->name);
-            }
-        }
-        level_item_count++;
     }
 }
 
@@ -838,11 +838,11 @@ void level_parse_shopkeeper(TextFile *tf)
         obj = script_object_find(name);
         if (obj == -1) {
             for (c = living_list.live_next; c != &living_list; c = c->live_next)
-                if (!_stricmp(c->get_name(), name))
+                if (!_stricmp(c->get_name(), name)) {
+                    s->name = c->get_name();
                     break;
-            if (c != &living_list)
-                s->name = c->get_name();
-            else {
+                }
+            if (c == &living_list) {
                 sprintf(string_buffer, "Unable to locate character %s for shopkeeper support", name);
                 s->name = "";
             }
@@ -865,39 +865,38 @@ void level_parse_shopkeeper(TextFile *tf)
             while (!tf->Peek("$End")) {
                 tf->ParseString(item, 0x100, '"', '"');
                 type = item_type_find(item);
-                if (type == -1) {
+                if (type != -1) {
+                    price = item_types[type].value;
+                    if (!item_types[type].name)
+                        continue;
+                    if (sell) {
+                        for (i = 0; i < s->num_sell; i++)
+                            if (s->sell[i].item_type == type)
+                                break;
+                        if (i < s->num_sell)
+                            continue;
+                    } else {
+                        for (i = 0; i < s->num_buy; i++)
+                            if (s->buy[i].item_type == type)
+                                break;
+                        if (i < s->num_buy)
+                            continue;
+                        if (game_flags & GF_MULTIPLAYER) {
+                            price = (int)(price * 0.1f);
+                            if (price < 1)
+                                price = 1;
+                        } else
+                            price = (int)(price * 0.7f);
+                    }
+                    level_shop_items[level_shop_item_count].item_type = type;
+                    level_shop_items[level_shop_item_count].price = price;
+                    level_shop_item_count++;
+                    if (sell)
+                        s->num_sell++;
+                    else
+                        s->num_buy++;
+                } else
                     sprintf(string_buffer, "Unable to locate item %s in any table file.\n", item);
-                    continue;
-                }
-                price = item_types[type].value;
-                if (!item_types[type].name)
-                    continue;
-                if (sell) {
-                    for (i = 0; i < s->num_sell; i++)
-                        if (s->sell[i].item_type == type)
-                            break;
-                    if (i < s->num_sell)
-                        continue;
-                } else {
-                    for (i = 0; i < s->num_buy; i++)
-                        if (s->buy[i].item_type == type)
-                            break;
-                    if (i < s->num_buy)
-                        continue;
-                    if (game_flags & GF_MULTIPLAYER) {
-                        price = (int)(price * 0.1f);
-                        if (price < 1)
-                            price = 1;
-                    } else
-                        price = (int)(price * 0.7f);
-                }
-                level_shop_items[level_shop_item_count].item_type = type;
-                level_shop_items[level_shop_item_count].price = price;
-                level_shop_item_count++;
-                if (sell)
-                    s->num_sell++;
-                else
-                    s->num_buy++;
             }
             tf->Expect("$End");
         }
@@ -1211,7 +1210,7 @@ void level_trigger_set_script_use_by_refname(const char *ref_name)
     printf("Loadarea or table file trigger missing!\n");
 }
 
-// 0x4cd120  Confidence: likely (the bool is kept in AL across the loop, so it is a local; the function has
+// 0x4cd120  Confidence: exact (VC6 byte match, m-1019 w3; was likely; the bool is kept in AL across the loop, so it is a local; the function has
 // no result: the caller ignores EAX). The boss / sound triggers (id != 0) only: a radius trigger fires once
 // (LEVEL_TRIGGER_TRIPPED), a spline trigger every time it is crossed.
 void level_trigger_trip(obj *o, int *out_id, int *out_index)
@@ -1230,8 +1229,10 @@ void level_trigger_trip(obj *o, int *out_id, int *out_index)
             continue;
         switch (level_triggers[i].type) {
         case 0:
-            tripped = segments_intersect_xz(&o->last_pos, &o->pos, &level_triggers[i].path->points[0],
-                                            &level_triggers[i].path->points[1]);
+            {
+                s3d_named_path *p = level_triggers[i].path;
+                tripped = segments_intersect_xz(&o->last_pos, &o->pos, &p->points[0], &p->points[1]);
+            }
             break;
         case 1:
             if ((level_triggers[i].flags & LEVEL_TRIGGER_ON) && !(level_triggers[i].flags & LEVEL_TRIGGER_TRIPPED))
@@ -1277,14 +1278,13 @@ void level_ambient_remove(int index)
     level_ambient_count--;
 }
 
-// 0x4cd330  Confidence: likely (marked exact; differs under VC6 8966, match27).
+// 0x4cd330  Confidence: exact (VC6 byte match, m-1019 w3; was likely).
 int level_ambient_find_at(const vector3 *pos)
 {
     int i;
 
     for (i = 0; i < level_ambient_count; i++) {
-        vector3 *a = &level_ambients[i].pos;
-        if (a->x == pos->x && a->y == pos->y && a->z == pos->z)
+        if (level_ambients[i].pos == *pos)
             return i;
     }
     return -1;
@@ -1403,7 +1403,6 @@ int level_script_parse_table()
             door_info *d;
             bool locked, open, saved_locked;
             float lock;
-            char key[256];
 
             tf.ParseString(buf, 0x100, '"', '"');
             char open_sound[64] = "";
@@ -1427,12 +1426,12 @@ int level_script_parse_table()
                     close_c = 1.0f;
             }
             locked = tf.Accept("+Locked:");
-            strcpy(key, "");
+            strcpy(name, "");
             lock = 0.0f;
             if (locked) {
                 lock = tf.ParseFloat();
                 if (tf.Accept("+Key:"))
-                    tf.ParseString(key, 0x100, '"', '"');
+                    tf.ParseString(name, 0x100, '"', '"');
             }
             for (i = 0; i < num_lobjs; i++) {
                 l = &lobjs[i];
@@ -1441,8 +1440,8 @@ int level_script_parse_table()
             }
             d = door_from_lobj(l);
             d->state = (d->state & ~8) | ((locked ? 1 : 0) << 3);
-            if (locked && strlen(key))
-                d->key = &item_types[item_type_find(key)];
+            if (locked && strlen(name))
+                d->key = &item_types[item_type_find(name)];
             savegame_state.two_stage_get(&open, &saved_locked, l);
             if (open) {
                 l->pos = d->open_pos;

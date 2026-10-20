@@ -341,8 +341,9 @@ void empty_frame_hook_40acc0()
 {
 }
 
-// 0x40acd0  Confidence: likely (the shape of the password block: every path in it returns; the tooltip
-// test sits between the hit test and the disabled test, a disabled entry lets the loop go on). While the
+// 0x40acd0  Confidence: exact (VC6 8966 byte match, w10: the list rectangles through locals, the row offset
+// row * font_h, the drag thumb stored before the drag start). The password block: every path in it returns; the tooltip
+// test sits between the hit test and the disabled test, a disabled entry lets the loop go on. While the
 // popup is open only its entries (flag 4) react and the keys go to the password (at most 15 characters);
 // Enter joins, Esc closes the popup.
 int gamelist_handle_click(int key)
@@ -425,8 +426,8 @@ int gamelist_handle_click(int key)
                       gamelist_scrollbar_h)
         && mouse_was_pressed(0)) {
         gamelist_mouse_mode = 2;
-        gamelist_drag_start_y = game_mouse_y;
         gamelist_drag_start_thumb = gamelist_scrollbar_y;
+        gamelist_drag_start_y = game_mouse_y;
         return key;
     }
 
@@ -435,14 +436,17 @@ int gamelist_handle_click(int key)
         rows = gamelist_page_rows[resolution_index];
     font_h = gr_get_font_height(-1);
 
-    if (point_in_rect(game_mouse_x, game_mouse_y, gamelist_list_pos[resolution_index][0],
-                      gamelist_list_pos[resolution_index][1], gamelist_list_width[resolution_index], font_h * rows)) {
-        int row, y;
+    int lx = gamelist_list_pos[resolution_index][0];
+    int ly = gamelist_list_pos[resolution_index][1];
+    int lw = gamelist_list_width[resolution_index];
+    if (point_in_rect(game_mouse_x, game_mouse_y, lx, ly, lw, font_h * rows)) {
+        int row;
 
-        for (row = 0, y = 0; row < rows; row++, y += font_h) {
-            if (point_in_rect(game_mouse_x, game_mouse_y, gamelist_list_pos[resolution_index][0],
-                              gamelist_list_pos[resolution_index][1] + y, gamelist_list_width[resolution_index],
-                              font_h)) {
+        for (row = 0; row < rows; row++) {
+            int rx = gamelist_list_pos[resolution_index][0];
+            int ry = gamelist_list_pos[resolution_index][1] + row * font_h;
+            int rw = gamelist_list_width[resolution_index];
+            if (point_in_rect(game_mouse_x, game_mouse_y, rx, ry, rw, font_h)) {
                 mp_gamelist_entry *game = mp_server_list_get(gamelist_scroll_pos + row);
                 if (game->status == 1) {
                     gamelist_hover_row = row;
@@ -713,8 +717,8 @@ void gamelist_draw()
         mp_draw_join_help();
 }
 
-// 0x40b5c0  Confidence: likely (local order; each column's colour test is written out as in the binary,
-// which repeats it per column). A closed game is red; the hovered or selected game uses the highlight
+// 0x40b5c0  Confidence: exact (VC6 8966 byte match, w10: the level and players tests are positive, the text
+// colour first). Each column's colour test is written out as in the binary, which repeats it per column. A closed game is red; the hovered or selected game uses the highlight
 // colour; otherwise a column is red when it keeps the selected character out (level not unlocked, game
 // full, difficulty locked, character level out of range).
 void mp_server_list_draw()
@@ -774,10 +778,10 @@ void mp_server_list_draw()
             gr_set_color_ptr(&ui_color_red);
         else if (row == gamelist_hover_row || game == gamelist_selected_game)
             gr_set_color_ptr(&ui_color_highlight);
-        else if (!mp_player_level_available(profile->flags, game->level, game->difficulty))
-            gr_set_color_ptr(&ui_color_red);
-        else
+        else if (mp_player_level_available(profile->flags, game->level, game->difficulty))
             gr_set_color_ptr(&ui_color_text);
+        else
+            gr_set_color_ptr(&ui_color_red);
         name = level_table_display_name(game->level);
         if (name) {
             gr_string_truncate_ellipsis(buf, name, gamelist_col_players[resolution_index]
@@ -792,10 +796,10 @@ void mp_server_list_draw()
             gr_set_color_ptr(&ui_color_red);
         else if (row == gamelist_hover_row || game == gamelist_selected_game)
             gr_set_color_ptr(&ui_color_highlight);
-        else if (game->num_players >= game->max_players)
-            gr_set_color_ptr(&ui_color_red);
-        else
+        else if (game->num_players < game->max_players)
             gr_set_color_ptr(&ui_color_text);
+        else
+            gr_set_color_ptr(&ui_color_red);
         sprintf(buf, "%d/%d", game->num_players, game->max_players);
         gr_string(x + gamelist_col_players[resolution_index], y, buf, -1, gr_string_mode);
 

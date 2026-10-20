@@ -636,7 +636,8 @@ int mp_charselect_handle_click(int key)
     return key;
 }
 
-// 0x4072e0  Confidence: likely (the min / clamp spelling of the scroll position: the last page is shown).
+// 0x4072e0  Confidence: exact (VC6 byte match, w7 / D10600: the clamp at 0 is `pos &= (pos <= 0) - 1` on the
+// stored element). The last page is shown.
 // Wraps the description (with the "|" cursor while it has the focus) to count its lines.
 void mp_charselect_wrap_text_input()
 {
@@ -652,8 +653,8 @@ void mp_charselect_wrap_text_input()
                                                32, 0, -1);
     first = mp_charselect_row_counts[1] < mp_charselect_list_page[resolution_index][1]
             ? mp_charselect_row_counts[1] : mp_charselect_list_page[resolution_index][1];
-    first = mp_charselect_row_counts[1] - first;
-    mp_charselect_scroll_pos[1] = first > 0 ? first : 0;
+    mp_charselect_scroll_pos[1] = mp_charselect_row_counts[1] - first;
+    mp_charselect_scroll_pos[1] &= (mp_charselect_scroll_pos[1] <= 0) - 1;
     mp_charselect_update_scrollbar(1);
 }
 

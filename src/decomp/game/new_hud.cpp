@@ -1218,15 +1218,15 @@ void quickload()
     }
 }
 
-// 0x40e7c0  Confidence: likely (the case bodies come out in the order 3, 2, 1 and share the message box
-// call; frame: buttons 0x0, file list 0x4, filename 0x38, message 0x54, so 0xc-0x37 holds no variable I can
-// place). At most 32 savegames: the files are only counted, then freed.
+// 0x40e7c0  Confidence: exact (frame: buttons 0x0, the list head a whole 0x38-byte node at 0x4, filename[32]
+// at 0x3c, message[64] at 0x5c, D10306; the case bodies share the message box call). At most 32 savegames:
+// the files are only counted, then freed.
 void quicksave()
 {
     char *buttons[1];
-    file_list files;
-    char filename[28];
-    char message[72];
+    file_entry files;
+    char filename[32];
+    char message[64];
     file_entry *e;
     int count;
 

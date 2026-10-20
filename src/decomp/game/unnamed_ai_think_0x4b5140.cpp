@@ -245,8 +245,8 @@ void ai_score_target(ai_target_query *q, bool boss_list)
     }
 }
 
-// 0x4b5790  Confidence: likely (MP_IS_CLIENT / MP_IS_HOST as the binary tests them, game_flags & 2
-// loaded once). Not for bosses; the Luminar keeps its target until luminar_can_switch_target. A locally
+// 0x4b5790  Confidence: exact (VC6 byte match, m-1019 w1, D10000; MP_IS_CLIENT / MP_IS_HOST as the
+// binary tests them, game_flags & 2 loaded once). Not for bosses; the Luminar keeps its target until luminar_can_switch_target. A locally
 // controlled, idle (or waiting) character hit by an enemy turns on it unless its current target is
 // nearer by the intelligence factor.
 void ai_state::retaliate_on_hit(int attacker)
@@ -281,7 +281,7 @@ void ai_state::retaliate_on_hit(int attacker)
         Character *t = living_from_handle(target);
         if (t) {
             float dt = distance_squared(&owner->pos, &t->pos);
-            if (owner->info->intelligence * 4.0f * da >= dt)
+            if (da * (owner->info->intelligence * 4.0f) >= dt)
                 return;
         }
     }
@@ -336,20 +336,20 @@ void ai_state::pick_attack_target(int max_attackers)
 }
 
 // ---- following -----------------------------------------------------------------------------------------
-// 0x4b5a80  Confidence: likely. While already travelling (sub-mode 3) to within 0.3 of the target, keep
+// 0x4b5a80  Confidence: exact (VC6 byte match, m-1019 w1, D10000). While already travelling (sub-mode 3) to within 0.3 of the target, keep
 // going; else path to where the target will be (its remaining think time ahead), stopping the sizes and
 // 2 units short.
 int ai_state::follow_repath(Character *self, Character *target)
 {
-    vector3 dest;
     vector3 p;
     int layer;
     float stop;
 
-    if (mode == AI_STATE_TRAVELING && submode == AIS_TRAVEL_FOLLOW && path_get_destination(&dest)
-        && distance_squared(&dest, &target->pos) < 0.1f)
+    if (mode == AI_STATE_TRAVELING && submode == AIS_TRAVEL_FOLLOW && path_get_destination(&p)
+        && distance_squared(&p, &target->pos) < 0.1f)
         return 0;
-    target->ai.predict_owner_position(&p, timer3c.GetRemainingTime() * 0.0005f);
+    float dt = timer3c.GetRemainingTime() * 0.0005f;
+    target->ai.predict_owner_position(&p, dt);
     layer = pf_trace_edge_crossings(&target->pos, target->layer, p);
     stop = self->size_radius() + target->size_radius() + 2.0f;
     path_find_new(&self->pos, self->layer, &p, layer, self->info->size, stop);

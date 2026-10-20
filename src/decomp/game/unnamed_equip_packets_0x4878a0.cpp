@@ -45,14 +45,15 @@ void mp_send_equip_item(Character *c, int slot, int type)
         multi_send_packet(data, packet_size, NULL, 0);
 }
 
-// 0x487950  Confidence: likely (the first old-item pointer lives in the dead data argument's slot). The
+// 0x487950  Confidence: exact (VC6 byte match, w6 pass: slot read before type, D10500; the first old-item
+// pointer lives in the dead data argument's slot). The
 // item is created from its type and equipped on the player's party member; the items it replaces are
 // freed; the weapon and shield meshes are paged in for the player's slots; the host forwards the packet.
 void mp_handle_equip_item(ubyte *data, void *from)
 {
     int id = ((int *)data)[0];
-    int type = ((int *)data)[2];
     int slot = ((int *)data)[1];
+    int type = ((int *)data)[2];
     item_info *old1, *old2;
     int slot1, slot2;
 

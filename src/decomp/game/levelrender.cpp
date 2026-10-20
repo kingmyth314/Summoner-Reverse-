@@ -184,7 +184,6 @@ void cmd_small_mesh_threshold()
 // GameTimer's empty atexit handler is 0x48e460 (atexit_nop_48e460, compiler-generated).
 void levelrender_wave_lobj(lobj *l, vector3 *out)
 {
-    static GameTimer timer;                   // 0x23eb688 levelrender_wave_timer (guard 0x2438a14)
     s3d_textured_record *rec;
     vector3 p;
     float t;
@@ -193,6 +192,8 @@ void levelrender_wave_lobj(lobj *l, vector3 *out)
     vector3 n0, n1, n2;
 
     rec = lobj_find_textured_record(l - lobjs);
+    // Declared after the lookup: the binary runs the guard test and constructor after the call (m1019).
+    static GameTimer timer;                   // 0x23eb688 levelrender_wave_timer (guard 0x2438a14)
     if (!timer.valid())
         timer.SetTimeout(0);
     t = (float)timer.GetElapsedTime() * 0.001f / rec->period;

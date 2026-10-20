@@ -351,7 +351,8 @@ int acm_stream_close(HACMSTREAM s)
     return acmStreamClose(s, 0) != 0 ? -1 : 0;
 }
 
-// 0x566ed0  Confidence: likely (a failed convert leaves the header prepared).
+// 0x566ed0  Confidence: exact (VC6 byte match, w7: pbSrc stored before cbSrcLength). A failed convert
+// leaves the header prepared.
 int acm_convert(HACMSTREAM s, void *src, DWORD src_len, void *dst, DWORD dst_len, DWORD *dst_used,
                 DWORD *src_used)
 {
@@ -360,8 +361,8 @@ int acm_convert(HACMSTREAM s, void *src, DWORD src_len, void *dst, DWORD dst_len
     if (!acm_initialized)
         return -1;
     memset(&h, 0, sizeof(h));
-    h.cbSrcLength = src_len;
     h.pbSrc = (LPBYTE)src;
+    h.cbSrcLength = src_len;
     h.cbStruct = sizeof(h);
     h.pbDst = (LPBYTE)dst;
     h.cbDstLength = dst_len;

@@ -800,8 +800,9 @@ void levelrender_setup_level_lights()
     int i;
 
     if (count) {
-        for (i = count; i; i--)
-            light_delete(levelrender_level_light_handles[i - 1]);
+        i = count;
+        while (i--)
+            light_delete(levelrender_level_light_handles[i]);
         count = 0;
     }
     if (levelrender_no_lighting) {
@@ -924,13 +925,13 @@ void levelrender_build_draw_lists()
     }
 }
 
-// 0x483260  Confidence: likely. In level 24 a character in the servant disguise draws no props. The
+// 0x483260  Confidence: exact (the attachment count read once, D10806). In level 24 a character in the servant disguise draws no props. The
 // weapon (slot 5, unless the prop tag is 0x11), slot 9 at tag 1, slot 6 at tag 15 or 1 (not for the party
 // in a cutscene), then the character's attachment list. The Ghost Rider (species 0x5a) test in the
 // two ghost cutscenes can never be true: it asks for both script names at once (game bug, NOTES).
 void levelrender_add_character(Character *c)
 {
-    int i;
+    int i, n;
 
     if (cur_level_index == 0x18 && character_wearing_servant_disguise(c))
         return;
@@ -952,7 +953,8 @@ void levelrender_add_character(Character *c)
         && !_stricmp(cutscene_script_table(), "Ghost-Escape_cscript.tbl")
         && !_stricmp(cutscene_script_table(), "Ghost-Dismount_cscript.tbl"))
         return;
-    for (i = 0; i < c->num_attachments; i++) {
+    n = c->num_attachments;
+    for (i = 0; i < n; i++) {
         if (c->attachments[i].slot != 0x11)
             levelrender_add_bone_attachment(c, &item_types[c->attachments[i].item_type], c->attachments[i].slot);
     }
@@ -1073,7 +1075,8 @@ void levelrender_add_containers(container *ct)
     ct->obj_flags |= 2;
 }
 
-// 0x483850  Confidence: likely (the scope object of the EH frame). Each object of the sets once
+// 0x483850  Confidence: exact (D10806: the object table, the count and the index pointer read once per set;
+// the scope object of the EH frame). Each object of the sets once
 // (flag 0x2000, cleared by levelrender_render_scene at the end of the frame).
 void levelrender_add_lobjs(s3d_vis_set **sets, int count)
 {
@@ -1082,12 +1085,14 @@ void levelrender_add_lobjs(s3d_vis_set **sets, int count)
 
     for (i = 0; i < count; i++) {
         s3d_vis_set *set = sets[i];
-        for (j = 0; j < set->count; j++) {
-            int index = set->indices[j];
-            lobj *l = &lobjs[index];
-            if (!(l->flags & 0x2000)) {
-                l->flags |= 0x2000;
-                levelrender_add_lobj(l, index);
+        lobj *base = lobjs;
+        int n = set->count;
+        int *p = set->indices;
+        for (j = 0; j < n; j++, p++) {
+            int index = *p;
+            if (!(base[index].flags & 0x2000)) {
+                base[index].flags |= 0x2000;
+                levelrender_add_lobj(&base[index], index);
             }
         }
     }
@@ -1309,7 +1314,7 @@ void levelrender_effect_apply_vis(effect_object *fx, s3d_vis_set **sets, int cou
 // the effect's timer has run out), any other effect when its sphere is in view; trails (bit 8) and
 // kind-4 effects are never culled. Opaque effects (bit 2) put their nodes into the opaque list.
 bool levelrender_add_effect_entry(vector3 pos, float cull_radius, float sort_radius, effect_object *fx,
-                                  int kind, int index, void *inst, bool cull)
+                                  int kind, int index, void *inst, int cull)
 {
     levelrender_effect_entry *e;
 
@@ -1768,17 +1773,17 @@ void levelrender_draw_name_labels()
     }
 }
 
-// 0x485380  Confidence: likely (the three texts share the projection code; the string width of the
+// 0x485380  Confidence: exact (D10804: an 8-byte text buffer, w / h / hh local to each text block, drew_hp
+// cleared before gr_get_clip; the three texts share the projection code; the string width of the
 // third goes to the dead argument's slot). Above living entities within 50 m: the HP change ("%d",
 // green when healed; yellow for the party, red-brown on ionaext02, white otherwise), the stat change
 // ("%d%%", blue, stacked above the first) and the character's own float text, each faded by its timer.
 void levelrender_draw_float_text(levelrender_entry *e)
 {
-    char buf[0x14];
+    char buf[8];
     vector3 p;
     gr_vertex v;
     int clip_x, clip_y, clip_w, clip_h;
-    int w, h, hh;
     int x, y;
     bool drew_hp;
 
@@ -1790,9 +1795,10 @@ void levelrender_draw_float_text(levelrender_entry *e)
         return;
     if (fabsf(cur_character->pos.y - c->pos.y) > 4.0f || distance_squared(&cur_character->pos, &c->pos) > 2500.0f)
         return;
-    gr_get_clip(&clip_x, &clip_y, &clip_w, &clip_h);
     drew_hp = false;
+    gr_get_clip(&clip_x, &clip_y, &clip_w, &clip_h);
     if (c->hp_text_timer != 0.0f) {
+        int w, h, hh;
         sprintf(buf, "%d", (int)fabsf(c->hp_overflow));
         p = e->object->pos;
         p.y = c->size_height() + p.y + 0.3f;
@@ -1816,6 +1822,7 @@ void levelrender_draw_float_text(levelrender_entry *e)
         drew_hp = true;
     }
     if (c->pos_mod_text_timer != 0.0f) {
+        int w, h, hh;
         sprintf(buf, "%d%%", (int)(c->pos_mod_text * 100.0f));
         p = e->object->pos;
         p.y = c->size_height() + p.y + 0.3f;
@@ -1834,6 +1841,7 @@ void levelrender_draw_float_text(levelrender_entry *e)
         gr_string(x, y, buf, -1, gr_string_mode);
     }
     if (strlen(c->float_text)) {
+        int w, h;
         p = e->object->pos;
         p.y = c->size_height() + p.y + 0.3f;
         gr_rotate_vertex(&v, &p);
@@ -2204,14 +2212,15 @@ unsigned int levelrender_lobj_collect_projections(int index)
 }
 
 // ---- level load and unload ----------------------------------------------------------------------------
-// 0x4865a0  Confidence: likely (returns 0, D4300; the order of the stores between the memsets). The
+// 0x4865a0  Confidence: exact (D10803: a 0x28-byte name buffer, the light loop bounded by the array's element
+// count, an unsigned compare; returns 0, D4300; the order of the stores between the memsets). The
 // level's detail_levels.tbl record, decals, face marks, the low camera fog defaults, per-layer snow on
 // and fog cleared, the D3D vertex buffer, the lightmap detail flag, the render records (in the level
 // mempool, their bytes counted in levelrender_lobj_state_bytes), the "$seethru" sets, the level lights,
 // and a lamp glow for every lamp object (flag 8).
 int levelrender_level_load()
 {
-    char name[0x20];
+    char name[0x28];
     int i, j;
     unsigned int before;
 
@@ -2240,7 +2249,7 @@ int levelrender_level_load()
     levelrender_apply_lobj_detail_flag();
     if (!levelrender_lights_initialized) {
         levelrender_lights_initialized = true;
-        for (i = 0; i < 16; i++)
+        for (i = 0; i < sizeof(levelrender_lights) / sizeof(levelrender_lights[0]); i++)
             levelrender_lights[i]._unk55[0] = 0;
     }
     levelrender_clear_draw_lists();
@@ -2430,18 +2439,17 @@ int level_vis_load(const char *level_name)
     return 0;
 }
 
-// 0x486d40  Confidence: likely (the "$layer" test inside the loop re-reads the outer name, as the code
+// 0x486d40  Confidence: likely (frame and compares as the binary, D10801; the "$layer" test inside the loop re-reads the outer name, as the code
 // does). "$vis_set" "$layerN" [$high_camera | $low_camera] then quoted set names until the next
 // "$vis_set" or "$end". Each layer gets its sets ($vis_base first) and their "HIGH" variants (the set
 // itself when there is none); layers without sets get $vis_base. A name that is not "$layer1".."$layer20"
 // stops the parse.
 void level_vis_parse(TextFile *tf)
 {
-    char set_name[0x40];
-    char layer_name[0x40];
-    char line[0x80];
-    char high_name[0x44];
-    int i;
+    char set_name[0x44];
+    char layer_name[0x44];
+    char line[0x100];
+    char high_name[0x4c];
 
     for (level_layer_vis_rec *v = level_layer_vis; v < &level_layer_vis[LEVEL_NUM_LAYERS]; v++) {
         v->count = 0;
@@ -2456,7 +2464,7 @@ void level_vis_parse(TextFile *tf)
         int layer = atoi(layer_name + 6);
         if (layer == 0 || (unsigned int)layer > LEVEL_NUM_LAYERS)
             return;
-        if (level_num_vis_sets >= LEVEL_MAX_VIS_SETS)
+        if ((unsigned int)level_num_vis_sets >= LEVEL_MAX_VIS_SETS)
             return;
         layer--;
         if (tf->Accept("$high_camera")) {
@@ -2465,11 +2473,10 @@ void level_vis_parse(TextFile *tf)
             tf->Accept("$low_camera");
             level_layer_vis_flags[layer] = 0;
         }
-        level_layer_vis_rec *rec = &level_layer_vis[layer];
-        rec->count = 1;
-        rec->sets = &level_vis_set_lists[level_num_vis_sets];
+        level_layer_vis[layer].count = 1;
+        level_layer_vis[layer].sets = &level_vis_set_lists[level_num_vis_sets];
         level_vis_set_lists[level_num_vis_sets] = &level_vis_base;
-        rec->sets_high = &level_vis_set_records[level_num_vis_sets];
+        level_layer_vis[layer].sets_high = &level_vis_set_records[level_num_vis_sets];
         level_vis_set_records[level_num_vis_sets] = &level_vis_base;
         level_num_vis_sets++;
         while (tf->Peek("\"")) {
@@ -2488,12 +2495,12 @@ void level_vis_parse(TextFile *tf)
             s3d_vis_set *high = level_vis_record_find(high_name);
             if (high == NULL)
                 high = set;
-            if (level_num_vis_sets >= LEVEL_MAX_VIS_SETS)
+            if ((unsigned int)level_num_vis_sets >= LEVEL_MAX_VIS_SETS)
                 return;
             level_vis_set_records[level_num_vis_sets] = high;
             level_vis_set_lists[level_num_vis_sets] = set;
             level_num_vis_sets++;
-            rec->count++;
+            level_layer_vis[layer].count++;
         }
     }
     tf->Expect("$end");
@@ -2502,11 +2509,11 @@ void level_vis_parse(TextFile *tf)
         level_vis_set_lists[0] = &level_vis_base;
         level_vis_set_records[0] = &level_vis_base;
     }
-    for (i = 0; i < LEVEL_NUM_LAYERS; i++) {
-        if (level_layer_vis[i].count == 0) {
-            level_layer_vis[i].count = 1;
-            level_layer_vis[i].sets = level_vis_set_lists;
-            level_layer_vis[i].sets_high = level_vis_set_records;
+    for (level_layer_vis_rec *w = level_layer_vis; w < &level_layer_vis[LEVEL_NUM_LAYERS]; w++) {
+        if (w->count == 0) {
+            w->count = 1;
+            w->sets = level_vis_set_lists;
+            w->sets_high = level_vis_set_records;
         }
     }
 }

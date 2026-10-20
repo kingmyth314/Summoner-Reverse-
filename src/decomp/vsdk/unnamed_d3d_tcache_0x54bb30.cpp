@@ -471,16 +471,15 @@ int gr_d3d_get_section_count(int bm)
     return d3d_tcache_entries[bm_get_current_frame(bm)].num_sections;
 }
 
-// 0x54d000  Confidence: likely (differs under 8966).
+// 0x54d000  Confidence: exact (the section read in place, no local pointer).
 void gr_d3d_get_section_rect(int bm, int section, int *x, int *y, int *w, int *h)
 {
     d3d_tcache_entry *e = &d3d_tcache_entries[bm_get_current_frame(bm)];
-    d3d_tcache_section *s = &e->sections[section];
 
-    *x = s->x;
-    *y = s->y;
-    *w = s->w;
-    *h = s->h;
+    *x = e->sections[section].x;
+    *y = e->sections[section].y;
+    *w = e->sections[section].w;
+    *h = e->sections[section].h;
 }
 
 // 0x54d050  Confidence: exact. FreeSpace's gr_d3d_tcache_set in shape: the stage keeps the section bound

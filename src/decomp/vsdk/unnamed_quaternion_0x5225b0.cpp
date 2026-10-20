@@ -340,8 +340,12 @@ cquat cquat::conjugate() const
 // 16383 scale (the raw components times atan2(|v|, w) / |v|).
 cquat cquat::log() const
 {
-    float fx = (float)x, fy = (float)y, fz = (float)z;
-    float sx = fx * CQUAT_TO_FLOAT, sy = fy * CQUAT_TO_FLOAT, sz = fz * CQUAT_TO_FLOAT;
+    float fx = (float)x;
+    float sx = fx * CQUAT_TO_FLOAT;
+    float fy = (float)y;
+    float sy = fy * CQUAT_TO_FLOAT;
+    float fz = (float)z;
+    float sz = fz * CQUAT_TO_FLOAT;
     float s = (float)sqrt(sx * sx + sy * sy + sz * sz);
 
     if (s > 0.0f)

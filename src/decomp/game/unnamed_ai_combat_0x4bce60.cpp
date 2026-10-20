@@ -100,7 +100,8 @@ bool ai_state::within_attack_radius(float dist)
     return false;
 }
 
-// 0x4bcea0  Confidence: likely (the temporaries). A path to a point 0.5-1 attack ranges short of the
+// 0x4bcea0  Confidence: exact (D10403: dir assigned from a vector3 temporary through a pointer to the owner's
+// position, dest = dest - dir * r, the success branch first). A path to a point 0.5-1 attack ranges short of the
 // target, on the line from the owner; the mount travels; multiplayer tells the others.
 bool ai_state::approach_random_offset(Character *target)
 {
@@ -109,24 +110,23 @@ bool ai_state::approach_random_offset(Character *target)
     vector3 dir;
     Character *mount;
 
-    dir.x = target->pos.x - owner->pos.x;
-    dir.y = 0.0f;
-    dir.z = target->pos.z - owner->pos.z;
+    vector3 *from = &owner->pos;
+    dir = vector3(target->pos.x - from->x, 0.0f, target->pos.z - from->z);
     dir.normalize();
-    dest.x -= dir.x * r;
-    dest.y -= dir.y * r;
-    dest.z -= dir.z * r;
-    if (path_find_new(&owner->pos, owner->layer, &dest, target->layer, owner->info->size, 0.0f) == NULL)
-        return false;
-    mount = owner->get_mount();
-    if (mount)
-        mount->ai.set_mode(AI_STATE_MOUNT_TRAVEL, -1);
-    if ((game_flags & GF_MULTIPLAYER) && character_is_locally_controlled(owner))
-        mp_send_character_walk(owner, 0);
-    return true;
+    dest = dest - dir * r;
+    if (path_find_new(&owner->pos, owner->layer, &dest, target->layer, owner->info->size, 0.0f)) {
+        mount = owner->get_mount();
+        if (mount)
+            mount->ai.set_mode(AI_STATE_MOUNT_TRAVEL, -1);
+        if ((game_flags & GF_MULTIPLAYER) && character_is_locally_controlled(owner))
+            mp_send_character_walk(owner, 0);
+        return true;
+    }
+    return false;
 }
 
-// 0x4bcff0  Confidence: likely. Picks the nearest free attack point of the target (bosses: only the ones
+// 0x4bcff0  Confidence: exact (D10403: each candidate point is formed in dest as bone_pos + centre_offset, the
+// best kept in best_pos and copied back). Picks the nearest free attack point of the target (bosses: only the ones
 // their stage enables) or keeps the one held (_unk7c), paths there (to the owner's layer when the
 // target's fails) and takes the point. With no free point the index stays -1 and the store below writes
 // attack_point_users[-1], the fifth attacker slot's timer (NOTES.md, game bugs).
@@ -134,7 +134,7 @@ bool ai_state::approach_target_point(Character *target)
 {
     vector3 dest;
     vector3 bone_pos;
-    vector3 p;
+    vector3 best_pos;
     matrix bone_orient;
     float best;
     float d;
@@ -143,8 +143,8 @@ bool ai_state::approach_target_point(Character *target)
 
     if (_unk7c == -1) {
         best_index = -1;
-        dest = target->pos;
         best = -1.0f;
+        best_pos = target->pos;
         for (i = 0; i < target->info->num_target_points; i++) {
             if (target->ai.attack_point_users[i] != -1)
                 continue;
@@ -152,23 +152,20 @@ bool ai_state::approach_target_point(Character *target)
                 continue;
             target->instance->get_bone_world_transform(target->info->target_points[i], &target->orient,
                                                        &target->pos, &bone_orient, &bone_pos);
-            p.x = bone_pos.x + target->centre_offset.x;
-            p.y = bone_pos.y + target->centre_offset.y;
-            p.z = bone_pos.z + target->centre_offset.z;
-            d = distance(&p, &owner->pos);
+            dest = bone_pos + target->centre_offset;
+            d = distance(&owner->pos, &dest);
             if (best < 0.0f || d < best) {
                 best_index = i;
                 best = d;
-                dest = p;
+                best_pos = dest;
             }
         }
         _unk7c = best_index;
+        dest = best_pos;
     } else {
         target->instance->get_bone_world_transform(target->info->target_points[_unk7c], &target->orient,
                                                    &target->pos, &bone_orient, &bone_pos);
-        dest.x = bone_pos.x + target->centre_offset.x;
-        dest.y = bone_pos.y + target->centre_offset.y;
-        dest.z = bone_pos.z + target->centre_offset.z;
+        dest = bone_pos + target->centre_offset;
     }
     path_find_new(&owner->pos, owner->layer, &dest, target->layer, owner->info->size, 0.0f);
     if (path == NULL) {

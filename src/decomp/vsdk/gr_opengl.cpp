@@ -1233,17 +1233,18 @@ void gr_opengl_bitmap(int bm, int x, int y, int w, int h, int sx, int sy, int sw
     if (w < 1 || h < 1)
         return;
     gr_opengl_set_bitmap(mode, bm, 0);
-    a = 255;
     if (gr_opengl_vertex_color) {
-        r = a;
-        g = a;
-        b = a;
+        r = 255;
+        g = 255;
+        b = 255;
     } else {
         r = gr_color.r;
         g = gr_color.g;
         b = gr_color.b;
     }
-    if (!gr_opengl_vertex_alpha)
+    if (gr_opengl_vertex_alpha)
+        a = 255;
+    else
         a = gr_color.a;
     bm_get_dimensions(bm, &bw, &bh);
     float u0 = (float)sx * gr_opengl_texture_u_scale / (float)bw;

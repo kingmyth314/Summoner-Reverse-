@@ -5,7 +5,8 @@
 //   node tools/link-build.mjs [--recompile] [--force] [--define NAME ...] [--out DIR]
 //
 // Objects are cached in DIR/obj and rebuilt when the source is newer (or with --recompile; a header change needs
-// --recompile). --force links even with unresolved symbols (/FORCE:UNRESOLVED), for inventories. --define adds
+// --recompile). A build with other --define options than the last one (DIR/defines.txt) recompiles everything: a
+// unit compiled without SHIPPED_NOCD asks for the CD. --force links even with unresolved symbols (/FORCE:UNRESOLVED), for inventories. --define adds
 // a /D to every game unit (for example SHIPPED_NOCD, the no-CD edit the shipped Sum.exe carries, D2600). Prints the
 // unresolved and multiply defined symbols. Needs VC6_DIR (the VC98 folder of Visual C++ 6.0 SP5).
 import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync } from "node:fs";
@@ -42,7 +43,10 @@ for (const l of readFileSync(join(src, "vc6-flags.txt"), "latin1").split(/\r?\n/
 const units = [...new Set(readFileSync(join(src, "vc6-matches.txt"), "latin1").split(/\r?\n/).filter(Boolean).map((l) => l.split(" ")[0]))];
 const objs = [];
 let compiled = 0, failed = 0;
-const fresh = (obj, source) => existsSync(obj) && !flag("--recompile") && statSync(obj).mtimeMs >= statSync(source).mtimeMs;
+const definesFile = join(out, "defines.txt"), definesNow = defines.slice().sort().join(" ");
+const definesChanged = !existsSync(definesFile) || readFileSync(definesFile, "latin1").trim() !== definesNow;
+if (definesChanged) console.log(`defines changed (now "${definesNow}"): recompiling every unit`);
+const fresh = (obj, source) => existsSync(obj) && !flag("--recompile") && !definesChanged && statSync(obj).mtimeMs >= statSync(source).mtimeMs;
 for (const u of units) {
   const cpp = join(src, u), obj = join(objDir, u.replace(/[\/\\]/g, "_").replace(/\.cpp$/, ".obj"));
   objs.push(obj);
@@ -147,3 +151,4 @@ if (existsSync(dump) && existsSync(mapPath)) {
   console.log(`address table: ${lines.length} symbols (Sum-rebuilt.addr)`);
 } else console.log("no address table: build/hybrid-all/hybrid-addrs.txt missing (run a full hybrid-build first)");
 console.log(existsSync(exe) && !/fatal error|\(exit [^0]/.test(text) ? `-> ${exe}` : "link failed (build/link/link.txt)");
+if (existsSync(exe) && !/fatal error|\(exit [^0]/.test(text)) writeFileSync(definesFile, definesNow + "\n"); // only after a complete build

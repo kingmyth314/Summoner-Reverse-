@@ -125,8 +125,8 @@ const int inventory_gold_pos[3][2]        = { { 476, 427 }, { 595, 534 }, { 762,
 //
 // 0x58c080  45 x 0x40 (*new* name). flags: 1 paper-doll hot spot (double click: info, drag: unequip, right
 // click: action popup), 2 acting on release through the Press entry after it, 4 acting on press with
-// auto-repeat (the scroll arrows), 8 shows a tooltip on hover (inventory_hover_tooltips), 0x10 still usable
-// in open mode 1. Action id = HiLite index + 1 (inventory_button_action).
+// auto-repeat (the scroll arrows), 8 shows a tooltip on hover (inventory_hover_tooltips), 0x10 not usable in
+// open mode 1 (screen and member arrows, paper-doll hot spots; inventory_handle_click 0x415a1a, w7). Action id = HiLite index + 1 (inventory_button_action).
 ui_button_def inventory_button_defs[INVENTORY_NUM_BUTTONS] = {
     { "Inv-Bkgrnd",          { { 0, 0 },     { 0, 0 },     { 0, 0 } },     0 },
     { "Inv-Name-Joseph",     { { 113, 48 },  { 141, 60 },  { 176, 76 } },  0 },   // 1-4 species name tabs
@@ -659,7 +659,7 @@ int inventory_handle_click(int key)
             if ((inventory_button_defs[i].flags & 8) && interface_input_ready())
                 inventory_hover_tooltips(i);
             if (!(inventory_buttons[i].flags & 4)
-                && (!inventory_open_mode || (inventory_button_defs[i].flags & 0x10))) {
+                && (!inventory_open_mode || !(inventory_button_defs[i].flags & 0x10))) {
                 inventory_buttons[i].flags |= 2;
                 inventory_pressed_button = i;
                 if (inventory_button_defs[i].flags & 1) {
@@ -904,7 +904,8 @@ bool inventory_can_identify()
     return false;
 }
 
-// 0x416290  Confidence: likely (marked exact; differs under VC6 8966, match27) (jump table 0x416500 for button - 18). Hot spots show the equipped item's name,
+// 0x416290  Confidence: exact (VC6 byte match, w7: the tooltip reads the button through an element pointer)
+// (jump table 0x416500 for button - 18). Hot spots show the equipped item's name,
 // the category hot spots the category name; nothing is drawn here.
 void inventory_hover_tooltips(int button)
 {
@@ -967,9 +968,10 @@ void inventory_hover_tooltips(int button)
         strcpy(text, localize_strings[644]);      // "Miscellaneous items"
         break;
     }
-    if (strlen(text))
-        ui_tooltip_set(inventory_buttons[button].x, inventory_buttons[button].y,
-                       inventory_buttons[button].w, inventory_buttons[button].h, text);
+    if (strlen(text)) {
+        ui_button_state *b = &inventory_buttons[button];
+        ui_tooltip_set(b->x, b->y, b->w, b->h, text);
+    }
 }
 
 // 0x416560  Confidence: exact. The selected list row's item, or the pressed hot spot's equipped item.
@@ -993,11 +995,12 @@ void inventory_show_item_info()
         item_info_popup_open_item(item);
 }
 
-// 0x4165c0  Confidence: likely (marked exact; differs under VC6 8966, match27).
+// 0x4165c0  Confidence: exact (VC6 byte match, w7 / D10600: `-=` then the clamp at 0 as `&= (pos <= 0) - 1`).
 void inventory_page_up()
 {
     if (inventory_scroll_pos > 0) {
-        inventory_scroll_pos = max(inventory_scroll_pos - inventory_page_size[resolution_index], 0);
+        inventory_scroll_pos -= inventory_page_size[resolution_index];
+        inventory_scroll_pos &= (inventory_scroll_pos <= 0) - 1;
         inventory_update_scrollbar();
     }
 }

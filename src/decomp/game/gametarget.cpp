@@ -241,7 +241,7 @@ int world_pick_lobj(vector3 *origin, vector3 *dir, vector3 *hit, int *face)
         ray.require_flags = 0;
         ray.exclude_flags = 0;
         lobj_raycast_draw_lists(&ray, &h, &iter, &flag, false);
-        if (h.num_hits && h.t < best && !(lobjs[h.face].flags & 0x400)
+        if (h.num_hits && best > h.t && !(lobjs[h.face].flags & 0x400)
             && (levelrender_lobj_states[h.face].flags & 0xff0) == 0xff0) {
             best = h.t;
             index = h.face;
@@ -828,10 +828,13 @@ void object_try_unlock_or_open(lobj *l)
     savegame_state.two_stage_get(&open, &locked, l);
     door_info *d = door_from_lobj(l);
     if (locked && d->key) {
-        bool has_key = party_inventory_find_type(d->key) >= 0;
-        if (!has_key) {
+        bool has_key = false;
+        if (party_inventory_find_type(d->key) >= 0)
+            has_key = true;
+        else {
             for (Player *p = party_list.next; p != &party_list; p = p->next) {
-                if (character_find_equipped_type(living_from_handle(p->handle), d->key) >= 0) {
+                Character *c = living_from_handle(p->handle);
+                if (character_find_equipped_type(c, d->key) >= 0) {
                     has_key = true;
                     break;
                 }
@@ -854,13 +857,14 @@ void object_try_unlock_or_open(lobj *l)
         }
         if (is_door) {
             if (d->lock == 0.0f) {
-                if (!d->key) {
+                if (d->key) {
+                    hud_show_message(XSTR("Locked, Cannot Pick", 624));
+                    feedback_play(cur_character->info->species, 3, &cur_character->pos);
+                } else {
                     hud_show_message(XSTR("Cannot be opened from here", 625));
                     sound_play_2d(5, 1.0f);
                     return;
                 }
-                hud_show_message(XSTR("Locked, Cannot Pick", 624));
-                feedback_play(cur_character->info->species, 3, &cur_character->pos);
             } else {
                 feedback_play(cur_character->info->species, 3, &cur_character->pos);
                 hud_show_message(XSTR("Locked", 626));
@@ -913,7 +917,8 @@ void object_try_unlock_or_open(lobj *l)
     sound_play_2d(SOUND_CLICK_BAD, 1.0f);
 }
 
-// 0x43c420  Confidence: likely (text is 0xfc bytes in the frame). A level container (lc entry): once
+// 0x43c420  Confidence: exact (D10401: the format strings read into locals before the item name call; text is
+// 0xfc bytes in the frame). A level container (lc entry): once
 // its item or gold; an emptied one says "Nothing!", one without contents shows its name text.
 void container_examine(lobj *l)
 {
@@ -933,10 +938,13 @@ void container_examine(lobj *l)
             party_inventory_add_by_name(lc_entries[i].name, lc_entries[i].gold, -1, 1);
         else
             party_gold += lc_entries[i].gold;
-        if (lc_entries[i].gold > 1)
-            sprintf(text, XSTR("Found %d %s!", 633), lc_entries[i].gold, localize_item_name(lc_entries[i].name));
-        else
-            sprintf(text, XSTR("Found %s!", 634), localize_item_name(lc_entries[i].name));
+        if (lc_entries[i].gold > 1) {
+            char *fmt = XSTR("Found %d %s!", 633);
+            sprintf(text, fmt, lc_entries[i].gold, localize_item_name(lc_entries[i].name));
+        } else {
+            char *fmt = XSTR("Found %s!", 634);
+            sprintf(text, fmt, localize_item_name(lc_entries[i].name));
+        }
         ui_message_box_show(XSTR("Examine", 631), text, -1, -1, 1, buttons, NULL, 1);
         return;
     }

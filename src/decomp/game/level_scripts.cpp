@@ -297,7 +297,8 @@ savegame_party_state savegame::read_party_state(int *off)
     return ps;
 }
 
-// 0x4cf6c0  Confidence: likely (differs under cl 8966 in match26). Party members (type 7) also save their Player's +0x178 and skill points.
+// 0x4cf6c0  Confidence: exact (D10402: lent_max_hp copied through a parenthesised float temporary and stored as
+// its bits). Party members (type 7) also save their Player's +0x178 and skill points.
 int savegame::write_character(Character *c, int *off)
 {
     unsigned int hash = name_hash_nocase(c->get_name());
@@ -313,7 +314,8 @@ int savegame::write_character(Character *c, int *off)
         return 0;
     if (c->type == 7) {
         p = player_from_handle(c->handle);
-        *(float *)(living.data + *off) = p->lent_max_hp;
+        float hp = (p->lent_max_hp);
+        *(int *)(living.data + *off) = *(int *)&hp;
         *off += 4;
         *(int *)(living.data + *off) = p->skill_points;
         *off += 4;
@@ -1212,7 +1214,7 @@ void savegame::two_stage_get(bool *open, bool *locked, lobj *obj)
 }
 
 // ---- automap labels ------------------------------------------------------------------------------------
-// 0x4d12b0  Confidence: likely (differs under cl 8966 in match26).
+// 0x4d12b0  Confidence: exact (D10402: x and z copied through parenthesised float temporaries).
 void savegame::automap_label_add(int level, int script, automap_label *label)
 {
     int count, off;
@@ -1227,9 +1229,11 @@ void savegame::automap_label_add(int level, int script, automap_label *label)
     off += 4;
     *(int *)(map_labels.data + off) = script;
     off += 4;
-    *(float *)(map_labels.data + off) = label->x;
+    float x = (label->x);
+    *(int *)(map_labels.data + off) = *(int *)&x;
     off += 4;
-    *(float *)(map_labels.data + off) = label->z;
+    float z = (label->z);
+    *(int *)(map_labels.data + off) = *(int *)&z;
     off += 4;
     *(int *)(map_labels.data + off) = label->layer;
     off += 4;
@@ -1248,19 +1252,19 @@ void savegame::automap_label_remove(int level, int script, automap_label *label)
 
     if (level == -1 || script < 0)
         return;
+    off = 4;
     count = *(int *)map_labels.data;
     if (count >= SAVEGAME_MAX_LABELS)
         return;
-    off = 4;
     for (i = 0; i < count; i++) {
         start = off;
         rlevel = *(int *)(map_labels.data + off);
         off += 4;
         rscript = *(int *)(map_labels.data + off);
         off += 4;
-        rx = *(float *)(map_labels.data + off);
+        *(int *)&rx = *(int *)(map_labels.data + off);
         off += 4;
-        rz = *(float *)(map_labels.data + off);
+        *(int *)&rz = *(int *)(map_labels.data + off);
         off += 4;
         off += 4;                    // layer (read into a dead local)
         strcpy(text, (char *)(map_labels.data + off));
@@ -1744,19 +1748,23 @@ int savegame::write_item_objects()
     *(int *)item_objects.data = SAVEGAME_TAG_CONT;
     count = 0;
     *(int *)(item_objects.data + 4) = 0;
-    for (c = containers; c < containers + MAX_CONTAINERS; c++) {
-        if (!c->type || c->num_items <= 0)
+    for (int ci = 0; ci < MAX_CONTAINERS; ci++) {
+        if (!containers[ci].type || containers[ci].num_items <= 0)
             continue;
+        c = &containers[ci];
         it = c->get_item(0);
         if (!it)
             return 0;
         if (it->level_item >= 0)
             continue;
-        *(float *)(item_objects.data + off) = c->pos.x;
+        float f = (c->pos.x);
+        *(int *)(item_objects.data + off) = *(int *)&f;
         off += 4;
-        *(float *)(item_objects.data + off) = c->pos.y;
+        f = (c->pos.y);
+        *(int *)(item_objects.data + off) = *(int *)&f;
         off += 4;
-        *(float *)(item_objects.data + off) = c->pos.z;
+        f = (c->pos.z);
+        *(int *)(item_objects.data + off) = *(int *)&f;
         off += 4;
         *(int *)(item_objects.data + off) = c->num_items;
         off += 4;
@@ -1781,11 +1789,14 @@ int savegame::write_item_objects()
         it = (item_obj *)o;
         if (it->in_container || !it->is_gold())
             continue;
-        *(float *)(item_objects.data + off) = it->pos.x;
+        float f = (it->pos.x);
+        *(int *)(item_objects.data + off) = *(int *)&f;
         off += 4;
-        *(float *)(item_objects.data + off) = it->pos.y;
+        f = (it->pos.y);
+        *(int *)(item_objects.data + off) = *(int *)&f;
         off += 4;
-        *(float *)(item_objects.data + off) = it->pos.z;
+        f = (it->pos.z);
+        *(int *)(item_objects.data + off) = *(int *)&f;
         off += 4;
         *(int *)(item_objects.data + off) = it->count;
         off += 4;

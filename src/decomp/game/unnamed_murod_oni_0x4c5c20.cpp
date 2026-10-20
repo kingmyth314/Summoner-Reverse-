@@ -35,20 +35,7 @@ boss_attack *murod_oni_move_0;        // 0x248bff0 &murod_oni_moves[0][0]
 boss_attack *murod_oni_move_3;        // 0x248bff4 [0][3]
 int  murod_oni_248bff8[2];            // 0x248bff8 never accessed
 int  murod_oni_248c000;               // 0x248c000 zeroed when the target is lost, never read
-bool murod_oni_engaged;               // 0x248c004
-boss_threat murod_oni_threat_table[BOSS_MAX_THREATS];  // 0x248c008
-int  murod_oni_offense_point_count;   // 0x248c080
-boss_offense_point murod_oni_offense_points[10];       // 0x248c084
-boss_attack murod_oni_moves[1][BOSS_MAX_OFFENSE_POINTS];   // 0x248c19c "murod_oni_boss.tbl"
-boss_attack *murod_oni_current_move;  // 0x248c2dc
-int  murod_oni_target_handle;         // 0x248c2e0
-int  murod_oni_saved_target_handle;   // 0x248c2e4
-GameTimer murod_oni_attack_timer;     // 0x248c2e8
-GameTimer murod_oni_crowd_timer;      // 0x248c2ec
-GameTimer murod_oni_248c2f0;          // 0x248c2f0 constructed, never used
-GameTimer murod_oni_timer_b;          // 0x248c2f4
-int  murod_oni_area_hit_count;        // 0x248c2f8
-int  murod_oni_area_hits[5];          // 0x248c2fc
+murod_oni_boss murod_oni;             // 0x248c004-0x248c30f: engaged .. area_hits (D10503; fields in boss_ai.h)
 boss_attack *murod_oni_move_1;        // 0x248c310 [0][1]
 boss_attack *murod_oni_move_4;        // 0x248c314 [0][4] the crowd move
 boss_attack *murod_oni_move_2;        // 0x248c318 [0][2]
@@ -70,7 +57,7 @@ void ai_state::murod_oni_ai_idle()
     }
 }
 
-// 0x4c5cc0  Confidence: likely (the offense-point packing loop as in the other loaders). One stage.
+// 0x4c5cc0  Confidence: exact (VC6 byte match, w6 pass; was likely) (the offense-point packing loop as in the other loaders). One stage.
 void ai_state::murod_oni_boss_load()
 {
     int i;
@@ -177,7 +164,7 @@ int ai_state::murod_oni_ai_select_action()
     return 3;
 }
 
-// 0x4c6010  Confidence: likely, as pyrul_update_attack_points.
+// 0x4c6010  Confidence: exact (VC6 byte match, w6 pass; was likely), as pyrul_update_attack_points.
 void murod_oni_update_offense_points(Character *c)
 {
     int i;
@@ -277,7 +264,7 @@ int murod_oni_get_attack_kind(Character *c)
     return murod_oni_current_move == murod_oni_move_4 ? 4 : -1;
 }
 
-// 0x4c6330  Confidence: likely (the normalised direction is not used). The members of cur_character's group
+// 0x4c6330  Confidence: exact (VC6 byte match, w6 pass; was likely) (the normalised direction is not used). The members of cur_character's group
 // within the current move's range (horizontally) whose defence fails.
 bool murod_oni_collect_area_hits(Character *c)
 {

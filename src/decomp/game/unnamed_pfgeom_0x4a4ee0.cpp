@@ -257,7 +257,7 @@ bool segments_intersect_xz(const vector3 *a, const vector3 *b, const vector3 *c,
     return r;
 }
 
-// 0x4a55f0  Confidence: likely (the crossing layer is kept in a's argument slot). Straight walk from a
+// 0x4a55f0  Confidence: exact (cur + hit in the midpoint sums, D10805; the crossing layer is kept in a's argument slot). Straight walk from a
 // (on a_layer) to b (on b_layer): every piece between layer-edge crossings must be clear
 // (pf_segment_hits_walls with flags) and have its midpoint in a BSP cell; the walk must end on b_layer.
 bool pf_straight_walk_clear(const vector2 *a, int a_layer, const vector2 *b, int b_layer, int flags)
@@ -274,9 +274,9 @@ bool pf_straight_walk_clear(const vector2 *a, int a_layer, const vector2 *b, int
     while (pf_first_edge_crossing(&seg, a_layer, &hit, &hit_layer)) {
         if (!pf_segment_hits_walls(&cur, &hit, a_layer, flags))
             return false;
-        mid.x = (hit.x + cur.x) * 0.5f;
+        mid.x = (cur.x + hit.x) * 0.5f;
         mid.y = 0.0f;
-        mid.z = (hit.y + cur.y) * 0.5f;
+        mid.z = (cur.y + hit.y) * 0.5f;
         if (!pf_bsp_find_cell(&mid, a_layer))
             return false;
         cur = hit;

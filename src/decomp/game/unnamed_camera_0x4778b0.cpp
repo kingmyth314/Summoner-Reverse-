@@ -311,7 +311,7 @@ void camera::update_eye_position()
     vector3 d = wanted - eye_pos;
     k = (mode == 5) ? 0.3f : 0.5f;
     if (elevation >= 4.0f) {
-        r = ((float)sqrt(d.z * d.z + d.x * d.x) + distance * zoom) / (zoom * elevation + d.y);
+        r = ((float)sqrt(d.x * d.x + d.z * d.z) + distance * zoom) / (zoom * elevation + d.y);
         if (r > 1.3f)
             k = 0.25f;
         else if (r >= 0.857f)

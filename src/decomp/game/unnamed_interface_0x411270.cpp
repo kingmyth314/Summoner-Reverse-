@@ -752,7 +752,8 @@ void ui_3d_begin(vector3 *pos)
     base = effect_get_base(ui_model_lights_vfx->id_bits >> 9);
     light = ui_model_lights_vfx->lights;
     for (track = 0; light; track += 0x70) {
-        vector3 p = light->pos + *pos;
+        vector3 p;
+        p = light->pos + *pos;
         light->sample(base->light_tracks + track, reported_frametime);
         ui_3d_lights[ui_3d_light_count++] = light_create_point(&p, 0.0f, light->range * (1.0f / 256.0f), 0.5f,
                                                                light->r * (1.0f / 255.0f),
@@ -1248,22 +1249,22 @@ void ui_draw_panel_frame(int x, int y, int w, int h)
             w - 2 * ui_frame_border[resolution_index], h - 2 * ui_frame_border[resolution_index], gr_rect_mode, 1.0f);
 }
 
-// 0x4135a0  Confidence: likely (the binary keeps the corners as four float pairs, 8 stack slots: the
-// original probably had a corner array). A filled box with a one-pixel border.
+// 0x4135a0  Confidence: exact (VC6 byte match, w6 pass: the corners are four vector2 points declared
+// top-left, top-right, bottom-left, bottom-right, D10501). A filled box with a one-pixel border.
 void ui_draw_text_box(int x, int y, int w, int h)
 {
-    float x1 = (float)x;
-    float y1 = (float)y;
-    float x2 = (float)(x + w);
-    float y2 = (float)(y + h);
+    vector2 a((float)x, (float)y);
+    vector2 d((float)(x + w), (float)y);
+    vector2 b((float)x, (float)(y + h));
+    vector2 c((float)(x + w), (float)(y + h));
 
     gr_set_color_ptr(&ui_color_text_box_bg);
     gr_rect(x, y, w, h, gr_rect_mode, 1.0f);
     gr_set_color_ptr(&ui_color_text);
-    gr_line(x1, y1, x1, y2, gr_line_mode);
-    gr_line(x1, y2, x2, y2, gr_line_mode);
-    gr_line(x2, y2, x2, y1, gr_line_mode);
-    gr_line(x2, y1, x1, y1, gr_line_mode);
+    gr_line(a.x, a.y, b.x, b.y, gr_line_mode);
+    gr_line(b.x, b.y, c.x, c.y, gr_line_mode);
+    gr_line(c.x, c.y, d.x, d.y, gr_line_mode);
+    gr_line(d.x, d.y, a.x, a.y, gr_line_mode);
 }
 
 // 0x4136a0  Confidence: likely (the clamps written with a temporary: one gr_screen_width call each).
@@ -1587,13 +1588,12 @@ int ui_message_box_handle_click(int key)
     return -1;
 }
 
-// 0x414110  Confidence: likely (marked exact; differs under VC6 8966, match27). The buttons are spread evenly over the box width, on the last text line.
+// 0x414110  Confidence: exact (VC6 byte match, w6 pass; was likely) (marked exact; differs under VC6 8966, match27). The buttons are spread evenly over the box width, on the last text line.
 int ui_message_box_hit_test()
 {
     int w, h;
-    int line_h = gr_get_font_height(-1);
-    int y = ui_message_box_text_size[resolution_index][1] + ui_message_box_text_pos[resolution_index][1]
-            + ui_message_box_y - line_h;
+    int y = ui_message_box_text_pos[resolution_index][1] + ui_message_box_text_size[resolution_index][1]
+            + ui_message_box_y - gr_get_font_height(-1);
     int i, x;
 
     for (i = 0; i < ui_message_box_button_count; i++) {

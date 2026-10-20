@@ -597,21 +597,27 @@ void item_free(item_info *item)
     items_num_allocated--;
 }
 
-// 0x44b2d0  Confidence: likely (differs under cl 8966, match24; was exact) (the switch value starts from the zeroed EAX, which is also the NULL
-// returned for other kinds).
+// 0x44b2d0  Confidence: exact (D10400: `it = NULL` after the range test; the zeroed EAX is both the switch base
+// and the NULL returned for other kinds).
 item_info *item_create(int type)
 {
+    item_info *it;
+
     if (type < 0 || type >= MAX_ITEM_TYPES)
         return NULL;
+    it = NULL;
     switch (item_types[type].kind) {
     case 0:
-        return item_create_weapon(type);
+        it = item_create_weapon(type);
+        break;
     case 1:
-        return item_create_armor(type);
+        it = item_create_armor(type);
+        break;
     case 2:
-        return item_create_misc(type);
+        it = item_create_misc(type);
+        break;
     }
-    return NULL;
+    return it;
 }
 
 // 0x44b320  Confidence: exact.
@@ -741,35 +747,35 @@ bool character_can_equip_item(Character *c, item_info *item)
     return character_meets_item_requirements(c, item->type);
 }
 
-// 0x44b550  Confidence: likely (differs under cl 8966, match24; was exact). Skill 8 is Heavy Arms; party members (type 7 without flag 0x100) also
-// need the species, the weapon class bit and the weapon skill.
+// 0x44b550  Confidence: exact (D10400: the non-party early return). Skill 8 is Heavy Arms; party members (type 7
+// without flag 0x100) also need the species, the weapon class bit and the weapon skill.
 bool character_meets_item_requirements(Character *c, ItemType *type)
 {
     if (!item_type_is_identified(type))
         return false;
     if (type->slot == -1)
         return false;
-    if (c->type == 7 && !(c->flags & 0x100)) {
-        if (!character_species_can_use_type(c, type))
-            return false;
-        switch (type->kind) {
-        case 1:
-            if (type->armour_weight > 0.0f) {
-                if (!c->skill_allowed(8) || c->get_skill(8) < type->armour_weight)
-                    return false;
-            }
-            break;
-        case 0:
-            if (!(c->info->anim_class_mask & (1 << type->weapon_class)))
+    if (c->type != 7 || (c->flags & 0x100))
+        return true;
+    if (!character_species_can_use_type(c, type))
+        return false;
+    switch (type->kind) {
+    case 1:
+        if (type->armour_weight > 0.0f) {
+            if (!c->skill_allowed(8) || c->get_skill(8) < type->armour_weight)
                 return false;
-            if (c->get_skill(type->weapon_skill) <= 0.0f)
-                return false;
-            if (type->weight > 0.0f) {
-                if (!c->skill_allowed(8) || c->get_skill(8) < type->weight)
-                    return false;
-            }
-            break;
         }
+        break;
+    case 0:
+        if (!(c->info->anim_class_mask & (1 << type->weapon_class)))
+            return false;
+        if (c->get_skill(type->weapon_skill) <= 0.0f)
+            return false;
+        if (type->weight > 0.0f) {
+            if (!c->skill_allowed(8) || c->get_skill(8) < type->weight)
+                return false;
+        }
+        break;
     }
     return true;
 }

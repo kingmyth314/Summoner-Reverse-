@@ -308,10 +308,11 @@ void mp_send_swi_sneak(Character *c)
         mp_broadcast_packet(data, packet_size, true);
 }
 
-// 0x488ab0  Confidence: likely (VC6 loads the handle into ecx, the original into eax).
+// 0x488ab0  Confidence: exact (VC6 8966 byte match with the net handle in a local, as mp_handle_swi_hide; m1019).
 void mp_handle_swi_sneak(ubyte *data, void *from)
 {
-    Character *c = living_from_handle(mp_local_handle_from_net(*(int *)data));
+    int h = *(int *)data;
+    Character *c = living_from_handle(mp_local_handle_from_net(h));
 
     if (c) {
         c->ai.enter_sneaking();

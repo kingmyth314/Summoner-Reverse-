@@ -133,7 +133,7 @@ void cmd_death()
     }
 }
 
-// 0x463540  Confidence: likely (register choice per branch). Sends the exchange to the other machines:
+// 0x463540  Confidence: exact (VC6 8966 byte match with both net handles in locals before the send, m1019). Sends the exchange to the other machines:
 // the attacking side's handles first.
 void living_combat::send_net(int state_arg, bool special)
 {
@@ -165,7 +165,8 @@ void living_combat::send_net(int state_arg, bool special)
         break;
     }
     net_a = mp_handle_to_net(a);
-    mp_send_living_combat(net_a, mp_handle_to_net(b), variant, defence, state_arg, skill_id, special);
+    int net_b = mp_handle_to_net(b);
+    mp_send_living_combat(net_a, net_b, variant, defence, state_arg, skill_id, special);
 }
 
 // 0x4635e0  Confidence: exact (store order as in the binary).
@@ -446,7 +447,7 @@ void living_combat::ai_choose_special()
     chain_skill = list[rand() % n];
 }
 
-// 0x463e20  Confidence: likely (the argument is not read). A random attack move (category 0xa, not the
+// 0x463e20  Confidence: exact (VC6 8966 byte match, m1019: the vector difference with y cleared and the inline dot) (the argument is not read). A random attack move (category 0xa, not the
 // last one) when the opponent is within about 18 degrees of the facing; in multiplayer by weapon class.
 move_info *living_combat::pick_attack_move(int allow_any)
 {
@@ -456,11 +457,10 @@ move_info *living_combat::pick_attack_move(int allow_any)
     int cls, n;
     move_info *m;
 
-    d.x = opponent->owner->pos.x - owner->pos.x;
+    d = opponent->owner->pos - owner->pos;
     d.y = 0.0f;
-    d.z = opponent->owner->pos.z - owner->pos.z;
     d.normalize();
-    if (d.z * owner->orient.fvec.z + d.y * owner->orient.fvec.y + d.x * owner->orient.fvec.x < 0.95f)
+    if (d.dot(owner->orient.fvec) < 0.95f)
         return NULL;
     cls = 0;
     if ((game_flags & 2) && owner->equipment[5])

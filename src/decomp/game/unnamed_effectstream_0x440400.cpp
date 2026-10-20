@@ -204,7 +204,7 @@ void effect_stream_pop_mempool()
     effect_stream_saved_mempool = NULL;
 }
 
-// 0x4408a0  Confidence: likely (differs under cl 8966, match24; was exact) (the 1 / 2 choice after the next open is neg / sbb / add 2). The state.
+// 0x4408a0  Confidence: exact (VC6 8966 byte match with each case storing the state and one return after the switch, m1019) (the 1 / 2 choice after the next open is neg / sbb / add 2). The state.
 int effect_stream_update()
 {
     if (effect_stream_state != EFFECT_STREAM_READING)
@@ -212,15 +212,19 @@ int effect_stream_update()
     switch (effect_stream_file.get_async_status()) {
     case 1:
         if (!effect_stream_finish_entry())
-            return effect_stream_state = EFFECT_STREAM_ERROR;
-        if (effect_stream_cur >= effect_stream_queue_count)
-            return effect_stream_state = EFFECT_STREAM_DONE;
-        return effect_stream_state = effect_stream_open_current() ? EFFECT_STREAM_READING : EFFECT_STREAM_ERROR;
+            effect_stream_state = EFFECT_STREAM_ERROR;
+        else if (effect_stream_cur >= effect_stream_queue_count)
+            effect_stream_state = EFFECT_STREAM_DONE;
+        else
+            effect_stream_state = effect_stream_open_current() ? EFFECT_STREAM_READING : EFFECT_STREAM_ERROR;
+        break;
     case 0:
-        return effect_stream_state = EFFECT_STREAM_READING;
+        effect_stream_state = EFFECT_STREAM_READING;
+        break;
     case -1:
         effect_stream_file.close();
-        return effect_stream_state = EFFECT_STREAM_ERROR;
+        effect_stream_state = EFFECT_STREAM_ERROR;
+        break;
     }
     return effect_stream_state;
 }

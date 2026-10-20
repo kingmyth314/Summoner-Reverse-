@@ -31,6 +31,7 @@
 // The packet writers and readers of the request's extra fields (names ours). The writers copy through
 // a local (a stack temporary in the code), the readers straight into the field.
 #define MP_PUT_INT(data, offset, v)  { int put_ = (v); memcpy((data) + *(offset), &put_, 4); *(offset) += 4; }
+#define MP_PUT_FLOAT(data, offset, v)  { float put_ = v; memcpy((data) + *(offset), &put_, 4); *(offset) += 4; }
 #define MP_GET_INT(data, offset, v)  { memcpy(&(v), (data) + *(offset), 4); *(offset) += 4; }
 
 // ---- .bss ------------------------------------------------------------------------------------------
@@ -38,15 +39,15 @@ int mp_summon_owner;                                          // 0x247e824
 int mp_summon_net_handle;                                     // 0x247e828
 int mp_summon_request_pending;                                // 0x247e82c
 
-// 0x4afca0  Confidence: likely (the stack temporaries).
+// 0x4afca0  Confidence: exact (VC6 byte match, w6 pass; was likely) (the stack temporaries).
 void mp_write_spell_target_point(spell_cast_request *req, ubyte *data, ushort *offset)
 {
     switch (req->spell) {
     case SPELL_TARGET_POINT_A:
     case SPELL_TARGET_POINT_B:
-        MP_PUT_INT(data, offset, req->_unk1c[0]);
-        MP_PUT_INT(data, offset, req->_unk1c[1]);
-        MP_PUT_INT(data, offset, req->_unk1c[2]);
+        MP_PUT_FLOAT(data, offset, ((vector3 *)req->_unk1c)->x);
+        MP_PUT_FLOAT(data, offset, ((vector3 *)req->_unk1c)->y);
+        MP_PUT_FLOAT(data, offset, ((vector3 *)req->_unk1c)->z);
         break;
     }
 }
@@ -64,7 +65,7 @@ void mp_read_spell_target_point(spell_cast_request *req, ubyte *data, int *offse
     }
 }
 
-// 0x4afd60  Confidence: likely (jump table 0x4aff80 for modes 1..10; the case bodies are not merged, the
+// 0x4afd60  Confidence: exact (VC6 byte match, w6 pass; was likely) (jump table 0x4aff80 for modes 1..10; the case bodies are not merged, the
 // stack temporaries differ between them). Only the handle lists of modes 4 and 5 become net handles.
 void mp_write_spell_targets(spell_cast_request *req, ubyte *data, ushort *offset)
 {
@@ -73,34 +74,34 @@ void mp_write_spell_targets(spell_cast_request *req, ubyte *data, ushort *offset
 
     switch (p->mode) {
     case 1:
-        MP_PUT_INT(data, offset, p->target[0]);
+        MP_PUT_FLOAT(data, offset, p->ftarget[0]);
         break;
     case 2:
-        MP_PUT_INT(data, offset, p->target[0]);
+        MP_PUT_FLOAT(data, offset, p->ftarget[0]);
         break;
     case 3:
         MP_PUT_INT(data, offset, p->target[0]);
-        MP_PUT_INT(data, offset, p->target[1]);
+        MP_PUT_FLOAT(data, offset, p->ftarget[1]);
         break;
     case 4:
         for (i = 0; i < 6; i++) {
             MP_PUT_INT(data, offset, mp_handle_to_net(p->target[i]));
-            MP_PUT_INT(data, offset, p->target[6 + i]);
+            MP_PUT_FLOAT(data, offset, p->ftarget[6 + i]);
         }
         break;
     case 5:
         for (i = 0; i < 6; i++)
             MP_PUT_INT(data, offset, mp_handle_to_net(p->target[i]));
         MP_PUT_INT(data, offset, p->target[6]);
-        MP_PUT_INT(data, offset, p->target[7]);
+        MP_PUT_FLOAT(data, offset, p->ftarget[7]);
         break;
     case 6:
-        MP_PUT_INT(data, offset, p->target[0]);
+        MP_PUT_FLOAT(data, offset, p->ftarget[0]);
         MP_PUT_INT(data, offset, p->target[1]);
         break;
     case 7:
-        MP_PUT_INT(data, offset, p->target[0]);
-        MP_PUT_INT(data, offset, p->target[1]);
+        MP_PUT_FLOAT(data, offset, p->ftarget[0]);
+        MP_PUT_FLOAT(data, offset, p->ftarget[1]);
         break;
     case 8:
         break;
@@ -110,7 +111,7 @@ void mp_write_spell_targets(spell_cast_request *req, ubyte *data, ushort *offset
     case 10:
         for (i = 0; i < 5; i++) {
             MP_PUT_INT(data, offset, p->target[i]);
-            MP_PUT_INT(data, offset, p->target[5 + i]);
+            MP_PUT_FLOAT(data, offset, p->ftarget[5 + i]);
         }
         break;
     }
@@ -216,7 +217,7 @@ void mp_handle_cast_anim(ubyte *data, void *from)
     c->perform_spell_cast(spell, flag != 0);
 }
 
-// 0x4b02a0  Confidence: likely (the stack temporaries of the point; the -1 constant kept in a register).
+// 0x4b02a0  Confidence: exact (VC6 byte match, w6 pass; was likely) (the stack temporaries of the point; the -1 constant kept in a register).
 // RLS_SPL: caster, spell, target, (layer, x, y, z) or -1, item index or -1, source type, the extra point,
 // the three fields of the params' first word, the targets.
 void mp_spell_cast_sync(spell_cast_request *req)
@@ -225,7 +226,6 @@ void mp_spell_cast_sync(spell_cast_request *req)
     ushort packet_size;
     int none = -1;
     int v;
-    float f;
 
     MP_BUILD_HEADER(MP_RLS_SPL);
     if (req->caster)
@@ -237,16 +237,15 @@ void mp_spell_cast_sync(spell_cast_request *req)
     MP_ADD_DATA(v);
     if (req->target_pos) {
         MP_ADD_DATA(req->layer);
-        f = req->target_pos->x;
-        MP_ADD_DATA(f);
-        f = req->target_pos->y;
-        MP_ADD_DATA(f);
-        f = req->target_pos->z;
-        MP_ADD_DATA(f);
+        MP_ADD_FLOAT(req->target_pos->x);
+        MP_ADD_FLOAT(req->target_pos->y);
+        MP_ADD_FLOAT(req->target_pos->z);
     } else {
         MP_ADD_DATA(none);
     }
-    v = req->item ? req->item - item_types : none;
+    v = none;
+    if (req->item)
+        v = req->item - item_types;
     MP_ADD_DATA(v);
     MP_ADD_DATA(req->source_type);
     mp_write_spell_target_point(req, data, &packet_size);
@@ -328,10 +327,13 @@ void mp_broadcast_summon_allowed(int player_id)
     mp_broadcast_packet(data, packet_size, 1);
 }
 
-// 0x4b06a0  Confidence: likely (differs under cl 12.00.8966, match23; was exact).
+// 0x4b06a0  Confidence: exact (VC6 byte match, w6 pass: the owner copied out with memcpy into a local, D10500).
 void mp_handle_summon_allowed(ubyte *data, void *from)
 {
-    mp_summon_owner = ((int *)data)[0];
+    int owner;
+
+    memcpy(&owner, data, 4);
+    mp_summon_owner = owner;
 }
 
 // 0x4b06b0  Confidence: exact. Unreliable, to the server; the claim stays pending until the answer.
@@ -436,10 +438,13 @@ void mp_send_summon_quick(int handle)
         mp_broadcast_packet(data, packet_size, 1);
 }
 
-// 0x4b08f0  Confidence: likely (differs under cl 12.00.8966, match23; was exact).
+// 0x4b08f0  Confidence: exact (VC6 byte match, w6 pass: the net handle copied out with memcpy, D10500).
 void mp_handle_summon_quick(ubyte *data, void *from)
 {
-    Character *c = living_from_handle(mp_local_handle_from_net(((int *)data)[0]));
+    int net;
+
+    memcpy(&net, data, 4);
+    Character *c = living_from_handle(mp_local_handle_from_net(net));
 
     if (c)
         summon_dismiss(c->handle);

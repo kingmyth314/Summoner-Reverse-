@@ -57,7 +57,7 @@ int utrack_init()
     return 1;
 }
 
-// 0x48d870  Confidence: likely (the switch over the state: jump table 0x48d9e0 for 1..5). With a request
+// 0x48d870  Confidence: exact (VC6 8966 byte match, w10: cases 1 and 2 listed for the jump table 0x48d9e0 over 1..5; the idle test positive with -3 after it). With a request
 // (only when idle): drains one waiting reply, sends the login (type 0xd, 0x4d bytes) and starts the
 // timers. Without: polls; a final state (accepted, refused, timed out) is returned once and reset to idle.
 int pxo_login_request(utrack_login_request *req, char *reply)
@@ -68,6 +68,9 @@ int pxo_login_request(utrack_login_request *req, char *reply)
     pxo_login_poll();
     if (req == NULL) {
         switch (utrack_state) {
+        case 1:
+        case 2:
+            return 0;
         case 3:
             utrack_state = 1;
             return 1;
@@ -77,27 +80,25 @@ int pxo_login_request(utrack_login_request *req, char *reply)
         case 5:
             utrack_state = 1;
             return -2;
-        case 1:
-        case 2:
-        default:
-            return 0;
         }
+        return 0;
     }
-    if (utrack_state != 1)
-        return -3;
-    if (nw_reliable_slot_status(2))
-        nw_buffer_receive(buf, sizeof(buf), 0, &from, 2);
-    utrack_reply_buffer = reply;
-    pxo_login_packet.type = 0xd;
-    pxo_login_packet.len = UTRACK_HEADER_SIZE + sizeof(utrack_login_request);
-    pxo_login_data = (utrack_login_request *)pxo_login_packet.data;
-    strcpy(pxo_login_data->login, req->login);
-    strcpy(pxo_login_data->password, req->password);
-    nw_send_packet(&pxo_login_packet, UTRACK_HEADER_SIZE + sizeof(utrack_login_request), 0, &utrack_addr, 2);
-    utrack_state = 2;
-    utrack_request_time = timer_get(1000);
-    utrack_last_send_time = timer_get(1000);
-    return 0;
+    if (utrack_state == 1) {
+        if (nw_reliable_slot_status(2))
+            nw_buffer_receive(buf, sizeof(buf), 0, &from, 2);
+        utrack_reply_buffer = reply;
+        pxo_login_packet.type = 0xd;
+        pxo_login_packet.len = UTRACK_HEADER_SIZE + sizeof(utrack_login_request);
+        pxo_login_data = (utrack_login_request *)pxo_login_packet.data;
+        strcpy(pxo_login_data->login, req->login);
+        strcpy(pxo_login_data->password, req->password);
+        nw_send_packet(&pxo_login_packet, UTRACK_HEADER_SIZE + sizeof(utrack_login_request), 0, &utrack_addr, 2);
+        utrack_state = 2;
+        utrack_request_time = timer_get(1000);
+        utrack_last_send_time = timer_get(1000);
+        return 0;
+    }
+    return -3;
 }
 
 // 0x48da00  Confidence: exact (the length test: the packet's length is decremented in place, then

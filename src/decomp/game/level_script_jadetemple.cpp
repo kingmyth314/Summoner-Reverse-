@@ -327,50 +327,46 @@ void ls_jadetemple_action(dialogue_action *action)
     }
     if (!_stricmp(action->name, "LoseScales")) {
         type = item_type_find("Red Dragon Scale");
-        t = &item_types[type];
-        slot = party_inventory_find_type(t);
+        slot = party_inventory_find_type(&item_types[type]);
         if (slot >= 0 && type >= 0) {
             if (party_inventory[slot].count > 1)
                 party_inventory[slot].count--;
             else
                 party_inventory_remove(slot, 1, 1);
-            item_get_display_name(item_name, t);
+            item_get_display_name(item_name, &item_types[type]);
             sprintf(line, XSTR("<lost item: \"%s\">", 475), item_name);
             dialogue_show_line(line, 1, NULL);
         }
         type = item_type_find("Green Dragon Scale");
-        t = &item_types[type];
-        slot = party_inventory_find_type(t);
+        slot = party_inventory_find_type(&item_types[type]);
         if (slot >= 0 && type >= 0) {
             if (party_inventory[slot].count > 1)
                 party_inventory[slot].count--;
             else
                 party_inventory_remove(slot, 1, 1);
-            item_get_display_name(item_name, t);
+            item_get_display_name(item_name, &item_types[type]);
             sprintf(line, XSTR("<lost item: \"%s\">", 475), item_name);
             dialogue_show_line(line, 1, NULL);
         }
         type = item_type_find("Blue Dragon Scale");
-        t = &item_types[type];
-        slot = party_inventory_find_type(t);
+        slot = party_inventory_find_type(&item_types[type]);
         if (slot >= 0 && type >= 0) {
             if (party_inventory[slot].count > 1)
                 party_inventory[slot].count--;
             else
                 party_inventory_remove(slot, 1, 1);
-            item_get_display_name(item_name, t);
+            item_get_display_name(item_name, &item_types[type]);
             sprintf(line, XSTR("<lost item: \"%s\">", 475), item_name);
             dialogue_show_line(line, 1, NULL);
         }
         type = item_type_find("Gray Dragon Scale");
-        t = &item_types[type];
-        slot = party_inventory_find_type(t);
+        slot = party_inventory_find_type(&item_types[type]);
         if (slot >= 0 && type >= 0) {
             if (party_inventory[slot].count > 1)
                 party_inventory[slot].count--;
             else
                 party_inventory_remove(slot, 1, 1);
-            item_get_display_name(item_name, t);
+            item_get_display_name(item_name, &item_types[type]);
             sprintf(line, XSTR("<lost item: \"%s\">", 475), item_name);
             dialogue_show_line(line, 1, NULL);
         }

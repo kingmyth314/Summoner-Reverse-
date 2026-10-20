@@ -1092,7 +1092,8 @@ int fx_create_at_camera(const char *effect, bool flag)
     return fx->handle;
 }
 
-// 0x48c220  Confidence: likely (the orient argument is never read). spell_fire_missile and the Giant
+// 0x48c220  Confidence: exact (VC6 8966 byte match, w10: the two handle tests nested with one shared -1, dir as
+// a vector3 difference; the orient argument is never read). spell_fire_missile and the Giant
 // Salamanka. Spell 0x37 (the generic arrow) is a weapon missile without an instance (trail bitmap of
 // spells[0x37].misc_effect, radius 0.1); the others load the spell's misc effect.
 int fx_create_missile(int spell, const vector3 *start, const matrix *orient, int caster, int target)
@@ -1104,36 +1105,35 @@ int fx_create_missile(int spell, const vector3 *start, const matrix *orient, int
     matrix m;
 
     t = living_from_handle(target);
-    if (!t)
-        return -1;
-    c = living_from_handle(caster);
-    if (!c)
-        return -1;
-    dir.x = t->pos.x - c->pos.x;
-    dir.y = t->pos.y - c->pos.y;
-    dir.z = t->pos.z - c->pos.z;
-    dir.normalize();
-    m.set_from_forward(dir);
-    if (spell == SPELL_GENERIC_ARROW) {
-        fx = fx_new(4);
-        if (!fx)
-            return -1;
-        fx->instance = NULL;
-        fx->fx_flags |= 8;
-        fx->pos = *start;
-        fx->start = *start;
-        fx->orient = m;
-        fx->radius = 0.1f;
-        fx->trail_bitmap = bm_load(spells[SPELL_GENERIC_ARROW].misc_effect, -1, -1);
-    } else {
-        fx = fx_create_instance(spells[spell].misc_effect, 4, start, &m, false);
-        if (!fx)
-            return -1;
+    if (t) {
+        c = living_from_handle(caster);
+        if (c) {
+            dir = t->pos - c->pos;
+            dir.normalize();
+            m.set_from_forward(dir);
+            if (spell == SPELL_GENERIC_ARROW) {
+                fx = fx_new(4);
+                if (!fx)
+                    return -1;
+                fx->instance = NULL;
+                fx->fx_flags |= 8;
+                fx->pos = *start;
+                fx->start = *start;
+                fx->orient = m;
+                fx->radius = 0.1f;
+                fx->trail_bitmap = bm_load(spells[SPELL_GENERIC_ARROW].misc_effect, -1, -1);
+            } else {
+                fx = fx_create_instance(spells[spell].misc_effect, 4, start, &m, false);
+                if (!fx)
+                    return -1;
+            }
+            fx->spell = spell;
+            fx->caster = caster;
+            fx->owner = target;
+            return fx->handle;
+        }
     }
-    fx->spell = spell;
-    fx->caster = caster;
-    fx->owner = target;
-    return fx->handle;
+    return -1;
 }
 
 // 0x48c3e0  Confidence: exact (the order of the stores: spell_effect last, D7700). An object without

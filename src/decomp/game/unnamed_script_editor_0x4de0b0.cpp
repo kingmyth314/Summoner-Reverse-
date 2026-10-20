@@ -2491,14 +2491,14 @@ void script_editor_list_ambient_sounds(navpoint *np)
     script_editor_ambient_name_inputbox.set_focus();
 }
 
-// 0x4e53a0  Confidence: likely (the order of the enable / disable calls). The door window: the .wav files of
+// 0x4e53a0  Confidence: exact (VC6 byte match, m-1019 w3; was likely; the order of the enable / disable calls). The door window: the .wav files of
 // data\sounds\Doors in both sound lists (the opening set active), the door's two sounds (name after the
 // backslash selected in the list), the lock, its pick skill (percent) and key. Game bug: the three sound
 // parameters are bytes but are printed with "%.1f", which reads a double from the four-byte argument
 // and the next stack slot, so the fields show garbage (script_editor_door_ok writes them back with atof).
 void script_editor_list_door_sounds(lobj *l)
 {
-    char buf[24];
+    char buf[8];
     file_find_node list;
     file_find_node *node;
     ui_listbox_entry *e;
@@ -2568,9 +2568,10 @@ void script_editor_list_door_sounds(lobj *l)
     }
 
     if (d->state & 8) {
+        char num[16];
         script_editor_door_locked_checkbox.set_checked(true);
-        sprintf(buf, "%d", (int)(d->lock * 100.0f));
-        script_editor_door_skill_inputbox.set_text(buf);
+        sprintf(num, "%d", (int)(d->lock * 100.0f));
+        script_editor_door_skill_inputbox.set_text(num);
         script_editor_door_skill_inputbox.set_visible(true);
         script_editor_door_key_inputbox.set_visible(true);
         script_editor_door_key_listbox.set_visible(true);
@@ -2801,7 +2802,7 @@ void script_editor_add_navpoint(int type)
     script_editor_new_button.set_latched(false);
 }
 
-// 0x4e6040  Confidence: likely (the change / edit flags as two locals; jump tables 0x4e6288 / 0x4e6298 over
+// 0x4e6040  Confidence: exact (VC6 byte match, m-1019 w3; was likely; the change / edit flags as two locals; jump tables 0x4e6288 / 0x4e6298 over
 // the action type and 0x4e62bc over the mode). Once per editor frame: the button states. A selected
 // action line shows Change (the argument is picked in the world or from a list) and Edit (it has numbers to
 // type) by its type; the pick filter follows the mode unless New or Change is latched, and a selection of
@@ -2829,18 +2830,16 @@ void script_editor_update_buttons()
             script_editor_action_down_button.set_hidden(true);
         }
         switch (script_editor_cur_script->actions[e->data].type) {
+        case SCRIPT_ACTION_WAIT_GO: case SCRIPT_ACTION_MOUNT_ANIM: case SCRIPT_ACTION_DISMOUNT_ANIM:
+            show_change = false;
+            show_edit = false;
+            break;
         case SCRIPT_ACTION_WALK_TO: case SCRIPT_ACTION_RUN_TO: case SCRIPT_ACTION_MOVE_THROUGH:
         case SCRIPT_ACTION_DO_STATE: case SCRIPT_ACTION_PLAY_ACTION: case SCRIPT_ACTION_PLAY_MVF:
         case SCRIPT_ACTION_PLAY_EFFECT: case SCRIPT_ACTION_DIE: case SCRIPT_ACTION_TELEPORT_TO:
         case SCRIPT_ACTION_REPLACE_WEAPON: case SCRIPT_ACTION_REPLACE_ARMOR:
             show_change = true;
             show_edit = false;
-            break;
-        case SCRIPT_ACTION_WAIT_AT: case SCRIPT_ACTION_WANDER: case SCRIPT_ACTION_WANDER_FOR:
-        case SCRIPT_ACTION_TRIGGER_NAV: case SCRIPT_ACTION_PASS_GO: case SCRIPT_ACTION_SYNCH_TELEPORT:
-        case SCRIPT_ACTION_FOLLOW:
-            show_change = true;
-            show_edit = true;
             break;
         case SCRIPT_ACTION_TURN_HOSTILE: case SCRIPT_ACTION_SAY: case SCRIPT_ACTION_LABEL:
         case SCRIPT_ACTION_GOTO: case SCRIPT_ACTION_NO_BLOCK: case SCRIPT_ACTION_TRIGGER:
@@ -2849,9 +2848,11 @@ void script_editor_update_buttons()
             show_change = false;
             show_edit = true;
             break;
-        case SCRIPT_ACTION_WAIT_GO: case SCRIPT_ACTION_MOUNT_ANIM: case SCRIPT_ACTION_DISMOUNT_ANIM:
-            show_change = false;
-            show_edit = false;
+        case SCRIPT_ACTION_WAIT_AT: case SCRIPT_ACTION_WANDER: case SCRIPT_ACTION_WANDER_FOR:
+        case SCRIPT_ACTION_TRIGGER_NAV: case SCRIPT_ACTION_PASS_GO: case SCRIPT_ACTION_SYNCH_TELEPORT:
+        case SCRIPT_ACTION_FOLLOW:
+            show_change = true;
+            show_edit = true;
             break;
         }
         script_editor_change_button.set_visible(show_change);
@@ -5168,7 +5169,7 @@ bool script_editor_params_window_cb(int event, int value)
     return false;
 }
 
-// 0x4eb5c0  Confidence: likely (jump tables 0x4eb72c / 0x4eb740 over type - 3). Ok of the parameter window:
+// 0x4eb5c0  Confidence: exact (VC6 byte match, m-1019 w3; was likely; jump tables 0x4eb72c / 0x4eb740 over type - 3). Ok of the parameter window:
 // the boxes back into the action (atoi), the list line updated.
 bool script_editor_params_ok_cb(int event, int value)
 {
@@ -5176,38 +5177,42 @@ bool script_editor_params_ok_cb(int event, int value)
     script_action *a;
     int n;
 
-    if (event != UI_EVENT_PRESSED)
-        return false;
-    a = &script_editor_cur_script->actions[script_editor_cur_action->data];
-    switch (a->type) {
-    case SCRIPT_ACTION_WAIT_AT: case SCRIPT_ACTION_TURN_HOSTILE: case SCRIPT_ACTION_SAY:
-    case SCRIPT_ACTION_LABEL: case SCRIPT_ACTION_GOTO: case SCRIPT_ACTION_NO_BLOCK:
-    case SCRIPT_ACTION_TRIGGER: case SCRIPT_ACTION_TRIGGER_NAV: case SCRIPT_ACTION_TRIGGER_VISIT:
-    case SCRIPT_ACTION_SHOW_HIDE: case SCRIPT_ACTION_SYNCH: case SCRIPT_ACTION_SYNCH_TELEPORT:
-    case SCRIPT_ACTION_COMBAT_MODE: case SCRIPT_ACTION_GUARD_SPLINE: case SCRIPT_ACTION_ONE_HAND:
-        a->arg0c = atoi(script_editor_param_inputboxes[0].get_text());
-        break;
-    case SCRIPT_ACTION_WANDER:
-    case SCRIPT_ACTION_WANDER_FOR:
-        n = 1;
-        a->arg0c = atoi(script_editor_param_inputboxes[0].get_text());
-        if (a->type == SCRIPT_ACTION_WANDER_FOR) {
-            n = 2;
-            a->arg10 = atoi(script_editor_param_inputboxes[1].get_text());
+    if (event == UI_EVENT_PRESSED) {
+        a = &script_editor_cur_script->actions[script_editor_cur_action->data];
+        switch (a->type) {
+        case SCRIPT_ACTION_WAIT_AT: case SCRIPT_ACTION_TURN_HOSTILE: case SCRIPT_ACTION_SAY:
+        case SCRIPT_ACTION_LABEL: case SCRIPT_ACTION_GOTO: case SCRIPT_ACTION_NO_BLOCK:
+        case SCRIPT_ACTION_TRIGGER: case SCRIPT_ACTION_TRIGGER_NAV: case SCRIPT_ACTION_TRIGGER_VISIT:
+        case SCRIPT_ACTION_SHOW_HIDE: case SCRIPT_ACTION_SYNCH: case SCRIPT_ACTION_SYNCH_TELEPORT:
+        case SCRIPT_ACTION_COMBAT_MODE: case SCRIPT_ACTION_GUARD_SPLINE: case SCRIPT_ACTION_ONE_HAND:
+            a->arg0c = atoi(script_editor_param_inputboxes[0].get_text());
+            break;
+        case SCRIPT_ACTION_WANDER:
+        case SCRIPT_ACTION_WANDER_FOR:
+            n = 1;
+            a->arg0c = atoi(script_editor_param_inputboxes[0].get_text());
+            if (a->type == SCRIPT_ACTION_WANDER_FOR) {
+                n = 2;
+                a->arg10 = atoi(script_editor_param_inputboxes[1].get_text());
+            }
+            if (atoi(script_editor_param_inputboxes[n].get_text()) == 0)
+                a->flag14 = false;
+            else
+                a->flag14 = true;
+            break;
+        case SCRIPT_ACTION_PASS_GO:
+            script_editor_store_string(a, script_editor_param_inputboxes[0].get_text());
+            break;
+        case SCRIPT_ACTION_FOLLOW:
+            script_editor_store_string(a, script_editor_param_inputboxes[0].get_text());
+            a->arg0c = atoi(script_editor_param_inputboxes[1].get_text());
+            break;
         }
-        a->flag14 = atoi(script_editor_param_inputboxes[n].get_text()) != 0;
-        break;
-    case SCRIPT_ACTION_PASS_GO:
-        script_editor_store_string(a, script_editor_param_inputboxes[0].get_text());
-        break;
-    case SCRIPT_ACTION_FOLLOW:
-        script_editor_store_string(a, script_editor_param_inputboxes[0].get_text());
-        a->arg0c = atoi(script_editor_param_inputboxes[1].get_text());
-        break;
+        SE_UPDATE_ACTION_LINE(a);
+        script_editor_params_window.set_disabled(true);
+        return true;
     }
-    SE_UPDATE_ACTION_LINE(a);
-    script_editor_params_window.set_disabled(true);
-    return true;
+    return false;
 }
 
 // 0x4eb760  Confidence: exact.
@@ -5692,7 +5697,7 @@ bool script_editor_creature_level_cb(int event, int value)
     return false;
 }
 
-// 0x4ec730  Confidence: likely (the skill test's form; the level is kept in the event argument's slot). OK of
+// 0x4ec730  Confidence: exact (VC6 byte match, m-1019 w3; was likely; the skill test's form; the level is kept in the event argument's slot). OK of
 // the creature window: team and object type (friendly / neutral 4, hostile / evil 5), the level (0 = the
 // party leader's, flag 0x400000 cleared) with its XP, and the stats scaled by level / char_info level:
 // base HP, HP, base AP, AP, the skills. Game bugs: with level 0 the scale is 0 (it uses the typed level,
@@ -5742,11 +5747,10 @@ bool script_editor_creature_ok(int event, int value)
     for (i = 0; i < 0x54; i++) {
         if (i == 2)
             continue;
-        c = (Character *)script_editor_sel.object;
-        v = c->skill[i] * scale;
-        if (v > 0.0f || v < 100.0f)
+        v = ((Character *)script_editor_sel.object)->skill[i] * scale;
+        if (0.0f < v || 100.0f > v)
             v = 100.0f;
-        c->skill[i] = (ubyte)(int)v;
+        ((Character *)script_editor_sel.object)->skill[i] = (ubyte)(int)v;
     }
     script_editor_creature_window.set_disabled(true);
     return true;

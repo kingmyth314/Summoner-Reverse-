@@ -823,7 +823,7 @@ int bm_reload(int bm)
     return bm_load_internal(e->name, e->path_id, 1);
 }
 
-// 0x5031c0  Confidence: likely (comparison order). Points an unlocked single bitmap at another file of the
+// 0x5031c0  Confidence: exact (VC6 byte match, w7: w halved before h). Points an unlocked single bitmap at another file of the
 // same size, levels and pixel count (m2v and unsupported files refused); 0 on success, -1 otherwise.
 int bm_replace_file(int bm, const char *name, int path_id)
 {
@@ -850,8 +850,8 @@ int bm_replace_file(int bm, const char *name, int path_id)
     if (e->reduced && num_levels > 1 && num_frames == 1) {
         num_levels--;
         reduced = true;
-        h >>= 1;
         w >>= 1;
+        h >>= 1;
     }
     if (e->num_levels < num_levels)
         num_levels = e->num_levels;

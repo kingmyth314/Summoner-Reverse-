@@ -358,27 +358,27 @@ void gr_d3d_page_in(int bm)
         gr_d3d_tcache_set(0, bm, 0, &gr_d3d_texture_scale_u[0], &gr_d3d_texture_scale_v[0], 0);
 }
 
-// 0x535550  Confidence: likely (differs under cl 8966 in match26).
+// 0x535550  Confidence: exact (VC6 byte match, m-1019 w1, D10000).
 // Clears the clip rectangle to black (gr_clear).
 void gr_d3d_clear()
 {
     D3DRECT rect;
     gr_d3d_set_state(gr::Mode(0, 0, 0, 0, 0, 0));
-    rect.x1 = gr_screen.offset_x + gr_screen.clip_left;
-    rect.y1 = gr_screen.offset_y + gr_screen.clip_top;
+    rect.x1 = gr_screen.clip_left + gr_screen.offset_x;
+    rect.y1 = gr_screen.clip_top + gr_screen.offset_y;
     rect.x2 = gr_screen.clip_right + gr_screen.offset_x + 1;
     rect.y2 = gr_screen.clip_bottom + gr_screen.offset_y + 1;
     IDirect3DDevice7_Clear(d3d_device, 1, &rect, D3DCLEAR_TARGET, 0, 0.0f, 0);
 }
 
-// 0x5355e0  Confidence: likely (differs under cl 8966 in match26).
+// 0x5355e0  Confidence: exact (VC6 byte match, m-1019 w1, D10000).
 // The same rectangle without the + 1, so the last column and row of the clip area keep their depth.
 void gr_d3d_zbuffer_clear()
 {
     D3DRECT rect;
     gr_d3d_set_state(gr::Mode(0, 0, 0, 0, 4, 0));
-    rect.x1 = gr_screen.offset_x + gr_screen.clip_left;
-    rect.y1 = gr_screen.offset_y + gr_screen.clip_top;
+    rect.x1 = gr_screen.clip_left + gr_screen.offset_x;
+    rect.y1 = gr_screen.clip_top + gr_screen.offset_y;
     rect.x2 = gr_screen.clip_right + gr_screen.offset_x;
     rect.y2 = gr_screen.clip_bottom + gr_screen.offset_y;
     IDirect3DDevice7_Clear(d3d_device, 1, &rect, D3DCLEAR_ZBUFFER, 0, d3d_zclear_value, 0);
@@ -544,12 +544,12 @@ void gr_d3d_line(float x1, float y1, float x2, float y2, gr::Mode mode)
     gr_d3d_draw_primitive(D3DPT_LINELIST, D3DFVF_TLVERTEX2, v, 2, 0);
 }
 
-// 0x535eb0  Confidence: likely.
+// 0x535eb0  Confidence: exact (VC6 byte match, m-1019 w1, D10000).
 // Screen-space line ends; an axis-aligned line gets half a pixel more at its far end.
 void gr_d3d_make_line_verts(d3d_tlvertex *v0, d3d_tlvertex *v1, int x0, int y0, int x1, int y1)
 {
-    v0->rhw = v1->rhw = 1.0f;
-    v0->sz = v1->sz = 0.99f;
+    v1->rhw = v0->rhw = 1.0f;
+    v1->sz = v0->sz = 0.99f;
     v0->sx = (float)(gr_screen.offset_x + x0) + d3d_line_pixel_offset;
     v0->sy = (float)(gr_screen.offset_y + y0) + d3d_line_pixel_offset;
     v1->sx = (float)(gr_screen.offset_x + x1) + d3d_line_pixel_offset;
@@ -675,10 +675,12 @@ void gr_d3d_tmapper_multipass(int nv, gr_multipass_vertex **verts, int npasses, 
     for (j = 0; j < nv; j++) {
         gr_vertex *v = verts[j]->v;
         vlist[j] = v;
-        dv[j].sx = v->sx;
-        dv[j].sy = v->sy;
-        dv[j].rhw = v->sw;
-        dv[j].sz = gr_calc_depth(v->sw);
+        float w = v->sw;
+        d3d_tlvertex *d = &dv[j];
+        d->sx = v->sx;
+        d->sy = v->sy;
+        d->rhw = w;
+        d->sz = gr_calc_depth(w);
         dv[j].specular_bytes[3] = (ubyte)gr_get_fog_alpha(v->z);
     }
 
@@ -1745,25 +1747,25 @@ void gr_d3d_noop_hook(int arg)
 // Shift, width and 255 / max of the render target's R, G, B masks (the alpha mask is walked, not kept).
 void d3d_compute_pixel_format_shifts(DDSURFACEDESC2 *desc)
 {
-    DWORD r_mask = desc->ddpfPixelFormat.dwRBitMask;
-    DWORD g_mask = desc->ddpfPixelFormat.dwGBitMask;
-    DWORD b_mask = desc->ddpfPixelFormat.dwBBitMask;
     DWORD m;
-    int r_shift = 0, r_bits = 0, g_shift = 0, g_bits = 0, b_shift = 0, b_bits = 0;
+    int r_shift, r_bits, g_shift, g_bits, b_shift, b_bits;
 
-    for (m = r_mask; !(m & 1); m >>= 1)
+    DWORD r_mask = desc->ddpfPixelFormat.dwRBitMask;
+    for (r_shift = 0, m = r_mask; !(m & 1); m >>= 1)
         r_shift++;
-    for (; m & 1; m >>= 1)
+    for (r_bits = 0; m & 1; m >>= 1)
         r_bits++;
     int r_scale = 255 / (r_mask >> r_shift);
-    for (m = g_mask; !(m & 1); m >>= 1)
+    DWORD g_mask = desc->ddpfPixelFormat.dwGBitMask;
+    for (g_shift = 0, m = g_mask; !(m & 1); m >>= 1)
         g_shift++;
-    for (; m & 1; m >>= 1)
+    for (g_bits = 0; m & 1; m >>= 1)
         g_bits++;
     int g_scale = 255 / (g_mask >> g_shift);
-    for (m = b_mask; !(m & 1); m >>= 1)
+    DWORD b_mask = desc->ddpfPixelFormat.dwBBitMask;
+    for (b_shift = 0, m = b_mask; !(m & 1); m >>= 1)
         b_shift++;
-    for (; m & 1; m >>= 1)
+    for (b_bits = 0; m & 1; m >>= 1)
         b_bits++;
     int b_scale = 255 / (b_mask >> b_shift);
     if (desc->ddpfPixelFormat.dwFlags & DDPF_ALPHAPIXELS) {
@@ -1927,7 +1929,7 @@ void gr_d3d_flip()
     gr_d3d_begin_scene();
 }
 
-// 0x53a7f0  Confidence: likely.
+// 0x53a7f0  Confidence: exact (VC6 byte match, m-1019 w1, D10000).
 // Copies a rectangle of the render target, assumed 16 bpp (returns 3, the 565 format), 0 if it cannot
 // be locked.
 int gr_d3d_read_backbuffer(int x, int y, int w, int h, void *buf)
@@ -1938,13 +1940,8 @@ int gr_d3d_read_backbuffer(int x, int y, int w, int h, void *buf)
     desc.dwSize = sizeof(desc);
     if (IDirectDrawSurface7_Lock(d3d_back_surface, NULL, &desc, DDLOCK_WAIT | DDLOCK_READONLY, NULL) != DD_OK)
         return 0;
-    ubyte *dst = (ubyte *)buf;
-    ubyte *src = (ubyte *)desc.lpSurface + desc.lPitch * y + x * 2;
-    for (int i = 0; i < h; i++) {
-        memcpy(dst, src, w * 2);
-        dst += w * 2;
-        src += desc.lPitch;
-    }
+    for (int i = 0; i < h; i++)
+        memcpy((ubyte *)buf + i * w * 2, (ubyte *)desc.lpSurface + (y + i) * desc.lPitch + x * 2, w * 2);
     IDirectDrawSurface7_Unlock(d3d_back_surface, NULL);
     gr_d3d_begin_scene();
     return 3;

@@ -91,15 +91,13 @@ void cmd_urath_combat()
     print_to_console("Setting urath' ai state to combat\n", 0);
 }
 
-// 0x4c4200  Confidence: likely (the parameter slots are reused as the two intersection parameters). True
+// 0x4c4200  Confidence: exact (start and end constructed in place, the wall count in a local, D10303). True
 // when a nav wall of the boss's size class crosses the line from the boss to the leap target (x/z). *dist
 // gets the distance to the crossing; it is written for every crossing, so it holds the last one found,
 // not the nearest (the nearest is kept in a local that is not used; NOTES, game bugs).
 bool evil_urath_leap_check_path(Character *boss, int layer, float *dist)
 {
     float nearest = 3.4028235e+38f;
-    vector2 end;
-    vector2 start;
     vector2 d;
     pf_grid_cell *cell;
     pf_edge *wall;
@@ -111,14 +109,13 @@ bool evil_urath_leap_check_path(Character *boss, int layer, float *dist)
     int i;
 
     *dist = 3.4028235e+38f;
-    start.x = boss->pos.x;
-    start.y = boss->pos.z;
-    end.x = evil_urath_leap_target->pos.x;
-    end.y = evil_urath_leap_target->pos.z;
+    vector2 start(boss->pos.x, boss->pos.z);
+    vector2 end(evil_urath_leap_target->pos.x, evil_urath_leap_target->pos.z);
     cells = pf_cells_along_segment(layer, boss->info->size, &start, &end);
     for (k = 0; k < cells; k++) {
         cell = pf_grid_cell_results[k];
-        for (i = 0; i < cell->num_walls; i++) {
+        int n = cell->num_walls;
+        for (i = 0; i < n; i++) {
             wall = cell->walls[i];
             if (!seg2d_intersect_params(&start, &end, wall->a, wall->b, &t, &u))
                 continue;
@@ -132,7 +129,9 @@ bool evil_urath_leap_check_path(Character *boss, int layer, float *dist)
                 nearest = len;
         }
     }
-    return *dist < 3.4028235e+38f;
+    if (*dist < 3.4028235e+38f)
+        return true;
+    return false;
 }
 
 // 0x4c4380  Confidence: exact. Going up: balcony 1 or 2 (frand above 0.5: balcony 1); coming down: the temple.
@@ -391,9 +390,7 @@ void ai_state::evil_urath_ai_leap_rise()
         return;
     if (evil_urath_leap_check_path(owner, owner->layer, &dist) == true) {
         dist += 3.0f;
-        vector2 d;
-        d.x = evil_urath_leap_target->pos.x - owner->pos.x;
-        d.y = evil_urath_leap_target->pos.z - owner->pos.z;
+        vector2 d(evil_urath_leap_target->pos.x - owner->pos.x, evil_urath_leap_target->pos.z - owner->pos.z);
         evil_urath_leap_peak_y = d.len() - dist;
         a = evil_urath_leap_peak_y * (1.0f / 3.0f);
         b = (owner->pos.y - (evil_urath_leap_target->pos.y + 2.0f)) * 0.5f;
@@ -426,36 +423,26 @@ void ai_state::evil_urath_ai_leap_travel()
         if (evil_urath_leap_height > top)
             evil_urath_leap_height = top;
         step = evil_urath_leap_rise_speed * reported_frametime;
-        owner->pos.x += step * owner->orient.fvec.x;
-        owner->pos.y += step * owner->orient.fvec.y;
-        owner->pos.z += step * owner->orient.fvec.z;
-        if ((evil_urath_leap_target->pos.z - owner->pos.z) * owner->orient.fvec.z
-            + (evil_urath_leap_target->pos.y - owner->pos.y) * owner->orient.fvec.y
-            + (evil_urath_leap_target->pos.x - owner->pos.x) * owner->orient.fvec.x < 0.0f)
+        owner->pos += owner->orient.fvec * step;
+        if ((evil_urath_leap_target->pos - owner->pos).dot(owner->orient.fvec) < 0.0f)
             set_mode(AI_STATE_COMBAT, AIS_URATH_LEAP_LAND);
         return;
     }
-    vector2 d;
-    d.x = evil_urath_leap_target->pos.x - owner->pos.x;
-    d.y = evil_urath_leap_target->pos.z - owner->pos.z;
+    vector2 d(evil_urath_leap_target->pos.x - owner->pos.x, evil_urath_leap_target->pos.z - owner->pos.z);
     left = d.len();
     step = evil_urath_leap_rise_speed * reported_frametime;
-    owner->pos.x += step * owner->orient.fvec.x;
-    owner->pos.y += step * owner->orient.fvec.y;
-    owner->pos.z += step * owner->orient.fvec.z;
+    owner->pos += owner->orient.fvec * step;
     if (left < evil_urath_leap_peak_y) {
         top = evil_urath_leap_target->pos.y + 2.0f;
         evil_urath_leap_height = evil_urath_leap_height - evil_urath_leap_fall_speed * reported_frametime;
         if (evil_urath_leap_height < top)
             evil_urath_leap_height = top;
-        if ((evil_urath_leap_target->pos.z - owner->pos.z) * owner->orient.fvec.z
-            + (evil_urath_leap_target->pos.y - owner->pos.y) * owner->orient.fvec.y
-            + (evil_urath_leap_target->pos.x - owner->pos.x) * owner->orient.fvec.x < 0.0f)
+        if ((evil_urath_leap_target->pos - owner->pos).dot(owner->orient.fvec) < 0.0f)
             set_mode(AI_STATE_COMBAT, AIS_URATH_LEAP_LAND);
     }
 }
 
-// 0x4c4ca0  Confidence: likely. Sinks 2 units per second to the target's height while turning to the
+// 0x4c4ca0  Confidence: exact (facing assigned from the sum: the copy through a temporary, D10302). Sinks 2 units per second to the target's height while turning to the
 // navpoint's heading; then the boss is on the floor or a balcony again (sub-mode -1).
 void ai_state::evil_urath_ai_leap_land()
 {
@@ -469,8 +456,8 @@ void ai_state::evil_urath_ai_leap_land()
     else
         reached = false;
     m.set_from_angles(0.0f, 0.0f, evil_urath_leap_target->heading);
-    vector3 facing(m.fvec.x + evil_urath_leap_target->pos.x, m.fvec.y + evil_urath_leap_target->pos.y,
-                   m.fvec.z + evil_urath_leap_target->pos.z);
+    vector3 facing;
+    facing = m.fvec + evil_urath_leap_target->pos;
     if (turn_towards(&facing, 0) == true)
         return;
     if (reached != true)

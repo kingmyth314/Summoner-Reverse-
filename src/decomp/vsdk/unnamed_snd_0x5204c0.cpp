@@ -510,7 +510,7 @@ float sound_emitter_calc_volume(int handle, const vector3 *a, const vector3 *b, 
     return v;
 }
 
-// 0x5211f0  Confidence: likely. The listener's right vector against the direction to the sound,
+// 0x5211f0  Confidence: exact (VC6 8966 byte match with the dot product assigned to pan, m1019). The listener's right vector against the direction to the sound,
 // 0 within 0.5 units.
 float snd_calc_pan(const vector3 *pos)
 {
@@ -521,11 +521,11 @@ float snd_calc_pan(const vector3 *pos)
     vector3 dir;
     pan = 0.0f;
     if (vector3_normalized_dir(&dir, pos, &snd_listener_pos) > 0.5f)
-        return snd_listener_orient.rvec.dot(dir);
+        pan = snd_listener_orient.rvec.dot(dir);
     return pan;
 }
 
-// 0x521270  Confidence: likely. The direction to the nearest point of the segment is not normalised,
+// 0x521270  Confidence: exact (VC6 8966 byte match with the dot product assigned to pan, m1019). The direction to the nearest point of the segment is not normalised,
 // so the pan exceeds -1..1 beyond one unit (NOTES.md).
 float sound_emitter_calc_pan(const vector3 *a, const vector3 *b)
 {
@@ -538,7 +538,7 @@ float sound_emitter_calc_pan(const vector3 *a, const vector3 *b)
     vector3 d = p - snd_listener_pos;
     pan = 0.0f;
     if (d.len_sq() > 0.25f)
-        return snd_listener_orient.rvec.dot(d);
+        pan = snd_listener_orient.rvec.dot(d);
     return pan;
 }
 
@@ -807,7 +807,7 @@ int snd_get_sound_info(int handle, snd_sound *out)
     return 0;
 }
 
-// 0x521a60  Confidence: likely (EH frame for the TextFile).
+// 0x521a60  Confidence: exact (VC6 8966 byte match with the index incremented after the call, m1019) (EH frame for the TextFile).
 void sounds_parse_table()
 {
     TextFile tf;
@@ -816,8 +816,10 @@ void sounds_parse_table()
     snd_init_sounds();
     if (tf.Open("sounds.tbl", 9999999) == 0) {
         tf.Expect("#Sounds Start");
-        while (!tf.Accept("#Sounds End"))
-            sounds_parse_entry(&tf, i++);
+        while (!tf.Accept("#Sounds End")) {
+            sounds_parse_entry(&tf, i);
+            i++;
+        }
         tf.Close();
     }
 }

@@ -1053,7 +1053,7 @@ void saveload_draw_scrollbar()
                      saveload_thumb_y - saveload_thumb_bm_h + saveload_thumb_h, gr_bitmap_wrap_mode);
 }
 
-// 0x427100  Confidence: likely (the 32-bit conversion written with unsigned short parts, for the
+// 0x427100  Confidence: exact (the fov passed through a float local: fld / fstp, D10307; the 32-bit conversion written with unsigned short parts, for the
 // movzx dx, dl; the row / column counters count down in the binary). The level is rendered into a
 // 201x151 clip with game_flags 0x20000 set and read back; any format but 3 (565) and 7 (32-bit) gives
 // a black picture.
@@ -1064,7 +1064,8 @@ void saveload_capture_thumbnail()
 
     gr_get_clip(&clip_x, &clip_y, &clip_w, &clip_h);
     gr__set_clip(0, 0, SAVELOAD_THUMB_W, SAVELOAD_THUMB_H);
-    gr_setup_3d(&camera_view_orient, &camera_view_pos, camera_fov, 1, 1);
+    float fov = camera_fov;
+    gr_setup_3d(&camera_view_orient, &camera_view_pos, fov, 1, 1);
     gr_clear();
     game_flags |= 0x20000;
     levelrender_render_scene();

@@ -488,7 +488,7 @@ const char *offense_point_name(int i);                // 0x4487f0
 void  characterinfo_alloc_level_buffers();            // 0x448800
 void  characterinfo_level_unload(bool reset_player_pool);   // 0x448c10
 Mempool *charinfo_select_mempool(int species, int summon);  // 0x448f20 (summon int: D5901)
-void  statscreen_load_anim(Character *c, bool heavy); // 0x448f60
+void  statscreen_load_anim(Character *c, int heavy); // 0x448f60 (int: D10001)
 void  chain_config_set(int species, int slot, int skill);   // 0x449200 savegame "chainconfig%d%d"
 int   chain_config_get(int species, int slot);        // 0x449240 (resets the defaults when 0)
 void  chain_points_set(int species, int slot, int points);  // 0x449290 savegame "chainpts%d%d"

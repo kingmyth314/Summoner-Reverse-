@@ -33,7 +33,7 @@ void os_stub_ret_531c40()
 }
 
 // 0x531c50  Confidence: exact. The net rate hook (multi_process_packet, multi_send_packet...): always 0.
-int debug_return_zero(int a, const char *name, int size, int display)
+int debug_return_zero(int a, const char *name, int size, unsigned char display)
 {
     return 0;
 }
@@ -54,6 +54,6 @@ void debug_noop_cleanup()
 }
 
 // 0x531c90  Confidence: exact (cmd_disp_rate).
-void debug_noop_disp_rate(int a, const char *name, int display)
+void debug_noop_disp_rate(int a, const char *name, unsigned char display)
 {
 }

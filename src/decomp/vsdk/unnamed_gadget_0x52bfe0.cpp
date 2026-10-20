@@ -188,18 +188,17 @@ bool ui_gadget::send_event(int event, int value)
     return window->send_event(event, value);
 }
 
-// 0x52c390  vtable slot 5. Confidence: likely (D8200: the binary reloads key from its argument slot for each
-// child; 8966 caches it in EDI). LOGIC FIX (D8200): with at least one child the result is the last child's
-// result (0x52c3bc returns EAX from the last call); hidden or childless gadgets return key.
+// 0x52c390  vtable slot 5. Confidence: exact. LOGIC FIX (D10700): each child gets the previous child's
+// result (the loop jumps back to 0x52c3aa, past the load of key at 0x52c3a6, and pushes EAX, the last
+// call's result); the result is the last child's; hidden or childless gadgets return key.
 int ui_gadget::process(int key)
 {
     if (!is_hidden()) {
         ui_gadget *g = first_child;
         if (g) {
-            int r;
             for (; g; g = g->next_sibling)
-                r = g->process(key);
-            return r;
+                key = g->process(key);
+            return key;
         }
     }
     return key;

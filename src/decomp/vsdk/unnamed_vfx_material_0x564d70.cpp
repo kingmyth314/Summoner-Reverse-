@@ -36,7 +36,8 @@ int vfx_tex_layer::get_frame_bitmap(float t)
         n = bm_get_num_frames(bitmap, &secs);
         if (n == 1)
             return bitmap;
-        f = imax(0, (int)floor((t - start) * (n / secs * rate) * (1.0f / 15.0f)));
+        float fps = n / secs * rate;
+        f = imax(0, (int)floor((t - start) * fps * (1.0f / 15.0f)));
         switch (mode) {
         case 0:
         case 2:

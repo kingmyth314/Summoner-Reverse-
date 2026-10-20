@@ -148,7 +148,8 @@ int http_get::get_total_bytes()
     return total_bytes;
 }
 
-// 0x55abd0  Confidence: likely (the header loop's form). Through a proxy the request names the full URL.
+// 0x55abd0  Confidence: likely (w10, D10903: nested tests give the binary's block order; 8966 still merges the
+// loop-exit error into the final else). Through a proxy the request names the full URL.
 void http_get::send_get()
 {
     char req[1000];
@@ -169,50 +170,51 @@ void http_get::send_get()
             use_proxy ? "" : "/", use_proxy ? url : path, host);
     send(sock, req, strlen(req), 0);
     line = get_line();
-    if (_strnicmp("HTTP/", line, 5) != 0) {
-        state = HTTP_STATE_UNKNOWN_ERROR;
-        fclose(file);
-        return;
-    }
-    p = strchr(line, ' ') + 1;
-    if (p == NULL) {
-        state = HTTP_STATE_UNKNOWN_ERROR;
-        fclose(file);
-        return;
-    }
-    p[3] = '\0';
-    code = atoi(p);
-    if (code == 0) {
-        state = HTTP_STATE_UNKNOWN_ERROR;
-        fclose(file);
-        return;
-    }
-    if (code != 200) {
-        state = HTTP_STATE_FILE_NOT_FOUND;
-        fclose(file);
-        return;
-    }
-    line = get_line();
-    while (line != NULL) {
-        if (line[0] == '\0') {
-            read_data_channel();
+    if (_strnicmp("HTTP/", line, 5) == 0) {
+        p = strchr(line, ' ') + 1;
+        if (p == NULL) {
+            state = HTTP_STATE_UNKNOWN_ERROR;
+            fclose(file);
             return;
         }
-        if (_strnicmp(line, "Content-Length:", strlen("Content-Length:")) == 0) {
-            p = strchr(line, ' ') + 1;
-            if (p != NULL) {
-                for (line = p; *line != '\0'; line++) {
-                    if (!isdigit(*line))
-                        *line = '\0';
-                }
-                total_bytes = atoi(p);
-            }
+        p[3] = '\0';
+        code = atoi(p);
+        if (code == 0) {
+            state = HTTP_STATE_UNKNOWN_ERROR;
+            fclose(file);
+            return;
         }
-        Sleep(1);
-        line = get_line();
+        if (code == 200) {
+            line = get_line();
+            while (line != NULL) {
+                if (line[0] == '\0') {
+                    read_data_channel();
+                    return;
+                }
+                if (_strnicmp(line, "Content-Length:", strlen("Content-Length:")) == 0) {
+                    line = strchr(line, ' ') + 1;
+                    p = line;
+                    if (line != NULL) {
+                        for (; *line != '\0'; line++) {
+                            if (!isdigit(*line))
+                                *line = '\0';
+                        }
+                        total_bytes = atoi(p);
+                    }
+                }
+                Sleep(1);
+                line = get_line();
+            }
+            state = HTTP_STATE_UNKNOWN_ERROR;
+            fclose(file);
+        } else {
+            state = HTTP_STATE_FILE_NOT_FOUND;
+            fclose(file);
+        }
+    } else {
+        state = HTTP_STATE_UNKNOWN_ERROR;
+        fclose(file);
     }
-    state = HTTP_STATE_UNKNOWN_ERROR;
-    fclose(file);
 }
 
 // 0x55ae20  Confidence: likely (the lookup and connect loops' forms). A failed lookup is never seen:

@@ -282,7 +282,7 @@ int  ds_find_free_channel(int priority);          // 0x55d0a0 (the argument is n
 int  ds_play(int buffer, float volume, float pan, int looping, int a);   // 0x55d110
 // decomp66 (D4603): the third argument is the pan (it was int a); the fifth goes to
 // ds_find_free_channel (the sound unit passes 1.0f).
-int  ds_play_streamed(int buffer, float volume, float pan, int looping, float priority);   // 0x55d2b0
+int  ds_play_streamed(int buffer, float volume, float pan, bool looping, float priority);   // 0x55d2b0
 int  ds_stream_open(int buffer, int channel);     // 0x55d400 a 2-second ring buffer, the first part filled
 int  ds_stream_read_chunk(HMMIO h, MMCKINFO *ck, HACMSTREAM s, IDirectSoundBuffer *buf, unsigned int size);   // 0x55d530
 void ds_stop(int sig);                            // 0x55d620

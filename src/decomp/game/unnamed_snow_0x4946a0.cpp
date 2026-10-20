@@ -15,8 +15,8 @@
 // (the tu-split2 cut at 0x4950b0 put them into the serpent unit; source-map.md).
 // Data: .bss 0x2444598-0x2451d78 (grid origin, ccmd_snow_render 0x24445a0, the cell records, the flake
 // directions, the cell pointers, the pool, ccmd_snow 0x2451d50, ...), .data 0x59c5e8-0x59c65b (the two
-// toggles, snow_flake_bm, "SnowFlake.tga" and the console strings). The literals 2.6666667 (0x581b0c)
-// and 0.2 (0x581b10) are this unit's; 5.0, 32.0, 0.375, 0.5, 1.5, -0.5, pi/180 are pooled.
+// toggles, snow_flake_bm, "SnowFlake.tga" and the console strings). The constant snow_fall_rate (0x581b0c)
+// and the literal 0.2 (0x581b10) are this unit's; 5.0, 32.0, 0.375, 0.5, 1.5, -0.5, pi/180 are pooled.
 
 #include <math.h>
 #include <stdio.h>
@@ -30,7 +30,10 @@
 #include "vsdk/os/console.h"
 #include "vsdk/math/vector.h"
 
-#define SNOW_FALL_RATE 2.6666667f     // flakes respawned per cell per second (scroll rows)
+// Flakes respawned per cell per second (scroll rows). A const variable, not a literal: fill_count divides
+// by it in memory (fdiv [0x581b0c]); VC6 turns a division by a literal into a multiplication (D10301).
+const float snow_fall_rate = 2.6666667f;                      // 0x581b0c
+#define SNOW_FALL_RATE snow_fall_rate
 
 // ---- .bss / .data ----------------------------------------------------------------------------------
 int snow_grid_x;                                              // 0x2444598
@@ -117,7 +120,7 @@ void snow_cell::fill()
     }
 }
 
-// 0x4948a0  Confidence: likely. (n): n new flakes at the top, from the scroll row on (the step per
+// 0x4948a0  Confidence: exact. (n): n new flakes at the top, from the scroll row on (the step per
 // flake works out at 0.375 s, as in fill).
 void snow_cell::fill_count(int n)
 {
@@ -224,7 +227,7 @@ void snow_update(float frametime)
         }
     } else {
         float h_fov, v_fov;
-        float pitch = (float)atan(fvec.y / horiz);
+        float pitch = atanf(fvec.y / horiz);
         gr_get_view_fov(&h_fov, &v_fov);
         float half = (float)(v_fov * 0.017453292f) * 0.5f;
         float top = (float)sin(half + pitch) * fog_far + camera_view_pos.y;

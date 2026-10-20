@@ -146,15 +146,15 @@ float frametime_get_divisor()
     return frametime_divisor;
 }
 
-// 0x5016f0  Confidence: likely (8966 loads b on the FPU; the binary copies it as an integer, D6905). FLD a / FCOM b; the smaller value becomes the minimum.
+// 0x5016f0  Confidence: exact (VC6 byte match, m-1019 w3; was likely; b is copied as an integer through int pointers, D10202). FLD a / FCOM b; the smaller value becomes the minimum.
 void frametime_set_limits(float a, float b)
 {
     if (a < b) {
         min_reported_frametime = a;
-        max_reported_frametime = b;
+        *(int *)&max_reported_frametime = *(int *)&b;
     } else {
         max_reported_frametime = a;
-        min_reported_frametime = b;
+        *(int *)&min_reported_frametime = *(int *)&b;
     }
 }
 

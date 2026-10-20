@@ -506,8 +506,8 @@ mp_player *mp_player_alloc()
     return p;
 }
 
-// 0x441660  Confidence: likely (the membership test is an inline loop; the unlink is guarded by both
-// pointers, the append to the free list stores next before prev).
+// 0x441660  Confidence: exact (VC6 byte match, w7: the append to the free list is list_append, prev
+// stored first). The membership test is an inline loop; the unlink is guarded by both pointers.
 void mp_player_disconnect(mp_player *p)
 {
     mp_player *q;
@@ -530,11 +530,7 @@ void mp_player_disconnect(mp_player *p)
     }
     if (p->next && p->prev)
         list_remove(p);
-    mp_player *last = mp_player_free_list.prev;
-    p->next = &mp_player_free_list;
-    p->prev = last;
-    mp_player_free_list.prev->next = p;
-    mp_player_free_list.prev = p;
+    list_append(&mp_player_free_list, p);
 }
 
 // 0x441710  Confidence: exact (fild / fmul 0.1f / _ftol). The respawn penalty (new_playmenu.cpp): 10% of

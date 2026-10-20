@@ -31,7 +31,7 @@ void experience_parse_table()
     tf.Close();
 }
 
-// 0x4899d0  Confidence: likely (differs under cl 8966, match24; was exact). One line after the level number: xp, skill points, skill cap, then per
+// 0x4899d0  Confidence: exact (VC6 byte match, m-1019 w1, D10000). One line after the level number: xp, skill points, skill cap, then per
 // species group the HP+ and AP+ gains.
 void experience_parse_level(TextFile *tf, xp_level *level)
 {
@@ -40,9 +40,10 @@ void experience_parse_level(TextFile *tf, xp_level *level)
     level->xp = tf->ParseInt();
     level->skill_points = (ubyte)tf->ParseInt();
     level->skill_cap = (ubyte)tf->ParseInt();
-    for (i = 0; i < 4; i++) {
-        experience_parse_stat_gain(tf, &level->groups[i].hp, &level->groups[i].hp_random);
-        experience_parse_stat_gain(tf, &level->groups[i].ap, &level->groups[i].ap_random);
+    xp_level_gain *g = level->groups;
+    for (i = 0; i < 4; i++, g++) {
+        experience_parse_stat_gain(tf, &g->hp, &g->hp_random);
+        experience_parse_stat_gain(tf, &g->ap, &g->ap_random);
     }
 }
 

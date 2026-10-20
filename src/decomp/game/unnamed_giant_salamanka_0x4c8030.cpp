@@ -288,7 +288,7 @@ void ai_state::giant_salamanka_ai_idle()
 {
 }
 
-// 0x4c86b0  Confidence: likely (the result switch is a table of 5, 0x4c87c4). Gated by the combat flag. The
+// 0x4c86b0  Confidence: exact (the combat target copied from the AI record's, D10304; the result switch is a table of 5, 0x4c87c4). Gated by the combat flag. The
 // move id is the stage's default unless a move was chosen (then its variation); the attack runs on the AI
 // record's own target.
 void ai_state::giant_salamanka_ai_frame()
@@ -312,7 +312,7 @@ void ai_state::giant_salamanka_ai_frame()
     case 3:
         if (giant_salamanka_target_handle != target) {
             target = giant_salamanka_target_handle;
-            owner->combat.target = giant_salamanka_target_handle;
+            owner->combat.target = target;
             t = living_from_handle(target);
         }
         move_id = giant_salamanka_current_move->variation;

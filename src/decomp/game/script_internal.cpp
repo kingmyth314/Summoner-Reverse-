@@ -820,12 +820,17 @@ bool script_action_combat_mode(script_action *a, script_object *so, Character *c
     if (c->type == 9 && c->info->species == 0x93)
         skip = true;
     for (i = 0; i < so->cur_action; i++) {
-        int t;
         if (!teleports_only)
             break;
-        t = so->actions[i].type;
-        if (t != SCRIPT_ACTION_TELEPORT_TO && t != SCRIPT_ACTION_SYNCH && t != SCRIPT_ACTION_SYNCH_TELEPORT)
+        switch (so->actions[i].type) {
+        case SCRIPT_ACTION_TELEPORT_TO:
+        case SCRIPT_ACTION_SYNCH:
+        case SCRIPT_ACTION_SYNCH_TELEPORT:
+            break;
+        default:
             teleports_only = false;
+            break;
+        }
     }
     if (!teleports_only && !(c->ai.flags & 0x40) && !(c->flags & 8) && !skip)
         return c->ai.set_combat_mode_goal(on, 100) != -1;

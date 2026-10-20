@@ -438,7 +438,7 @@ void file_list_files(file_find_list *list, const char *dir)
 {
     char ext[8];
     file_find_node found;
-    char full_dir[240];
+    char full_dir[256];
     int i;
     file_path_entry *p;
 
@@ -653,129 +653,130 @@ int FileReader::error()
     return file->error();
 }
 
-// 0x513b40  Confidence: likely. In memory a read that would reach the last byte fails (pos + len must
+// 0x513b40  Confidence: exact (VC6 byte match, w6 pass; was likely). In memory a read that would reach the last byte fails (pos + len must
 // stay below size; the typed readers below have the same bound).
 int FileReader::read(void *buf, int len)
 {
     if (mode != 0) {
-        int p = pos;
-        if (p + len >= size)
+        if (pos + len >= size)
             return 0;
-        pos = p + len;
-        memcpy(buf, buffer + p, len);
+        memcpy(buf, buffer + pos, len);
+        pos += len;
         return len;
     }
     return file->read(buf, len, 0, 0);
 }
 
-// 0x513bb0  Confidence: likely (differs under cl 8966 in match26).
+// 0x513bb0  Confidence: exact (VC6 byte match, w6 pass; was likely) (differs under cl 8966 in match26).
 int FileReader::read_int()
 {
     if (mode != 0) {
-        int p = pos;
-        if (p + 4 >= size)
+        if (pos + 4 >= size)
             return 0;
-        pos = p + 4;
-        return *(int *)(buffer + p);
+        int v = *(int *)(buffer + pos);
+        pos += 4;
+        return v;
     }
     return file->read_int(0, 0);
 }
 
-// 0x513bf0  Confidence: likely (differs under cl 8966 in match26; 0.0f is the constant 0x57eb84).
+// 0x513bf0  Confidence: exact (VC6 byte match, w6 pass; was likely) (differs under cl 8966 in match26; 0.0f is the constant 0x57eb84).
 float FileReader::read_float()
 {
     if (mode != 0) {
-        int p = pos;
-        if (p + 4 >= size)
+        if (pos + 4 >= size)
             return 0.0f;
-        pos = p + 4;
-        return *(float *)(buffer + p);
+        float v;
+        memcpy(&v, buffer + pos, 4);
+        pos += 4;
+        return v;
     }
     return file->read_float(0, 0.0f);
 }
 
-// 0x513c40  Confidence: likely (differs under cl 8966 in match26).
+// 0x513c40  Confidence: exact (VC6 byte match, w6 pass; was likely) (differs under cl 8966 in match26).
 short FileReader::read_int16()
 {
     if (mode != 0) {
-        int p = pos;
-        if (p + 2 >= size)
+        if (pos + 2 >= size)
             return 0;
-        pos = p + 2;
-        return *(short *)(buffer + p);
+        short v = *(short *)(buffer + pos);
+        pos += 2;
+        return v;
     }
     return file->read_int16(0, 0);
 }
 
-// 0x513c80  Confidence: likely (differs under cl 8966 in match26).
+// 0x513c80  Confidence: exact (VC6 byte match, w6 pass; was likely) (differs under cl 8966 in match26).
 ushort FileReader::read_uint16()
 {
     if (mode != 0) {
-        int p = pos;
-        if (p + 2 >= size)
+        if (pos + 2 >= size)
             return 0;
-        pos = p + 2;
-        return *(ushort *)(buffer + p);
+        ushort v = *(ushort *)(buffer + pos);
+        pos += 2;
+        return v;
     }
     return file->read_uint16(0, 0);
 }
 
-// 0x513cc0  Confidence: likely (differs under cl 8966 in match26).
+// 0x513cc0  Confidence: exact (VC6 byte match, w6 pass; was likely) (differs under cl 8966 in match26).
 char FileReader::read_int8()
 {
     if (mode != 0) {
-        int p = pos;
-        if (p + 1 >= size)
+        if (pos + 1 >= size)
             return 0;
-        pos = p + 1;
-        return *(char *)(buffer + p);
+        char v = *(char *)(buffer + pos);
+        pos += 1;
+        return v;
     }
     return file->read_int8(0, 0);
 }
 
-// 0x513d00  Confidence: likely (differs under cl 8966 in match26).
+// 0x513d00  Confidence: exact (VC6 byte match, w6 pass; was likely) (differs under cl 8966 in match26).
 ubyte FileReader::read_uint8()
 {
     if (mode != 0) {
-        int p = pos;
-        if (p + 1 >= size)
+        if (pos + 1 >= size)
             return 0;
-        pos = p + 1;
-        return buffer[p];
+        ubyte v = buffer[pos];
+        pos += 1;
+        return v;
     }
     return file->read_uint8(0, 0);
 }
 
-// 0x513d40  Confidence: likely (the three dword copies). Past the end the vector is left as it is.
+// 0x513d40  Confidence: exact (VC6 byte match, w6 pass; was likely) (the three dword copies). Past the end the vector is left as it is.
 void FileReader::read_vector(vector3 *out)
 {
     if (mode != 0) {
-        int p = pos;
-        if (p + 12 >= size)
+        if (pos + 12 >= size)
             return;
-        float *src = (float *)(buffer + p);
-        out->x = src[0];
-        out->y = src[1];
-        out->z = src[2];
-        pos = p + 12;
+        out->x = *(float *)(buffer + pos);
+        pos += 4;
+        out->y = *(float *)(buffer + pos);
+        pos += 4;
+        out->z = *(float *)(buffer + pos);
+        pos += 4;
         return;
     }
     file->read_vector(out, 0, &file_zero_vector);
 }
 
-// 0x513da0  Confidence: likely (as read_vector).
+// 0x513da0  Confidence: exact (VC6 byte match, w6 pass; was likely) (as read_vector).
 void FileReader::read_quaternion(quaternion *out)
 {
     if (mode != 0) {
-        int p = pos;
-        if (p + 16 >= size)
+        if (pos + 16 >= size)
             return;
-        float *src = (float *)(buffer + p);
-        out->x = src[0];
-        out->y = src[1];
-        out->z = src[2];
-        out->w = src[3];
-        pos = p + 16;
+        out->x = *(float *)(buffer + pos);
+        pos += 4;
+        out->y = *(float *)(buffer + pos);
+        pos += 4;
+        out->z = *(float *)(buffer + pos);
+        pos += 4;
+        out->w = *(float *)(buffer + pos);
+        pos += 4;
         return;
     }
     file->read_quaternion(out, 0, &file_identity_quaternion);
