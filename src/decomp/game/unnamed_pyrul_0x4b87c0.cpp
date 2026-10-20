@@ -279,7 +279,7 @@ void ai_state::pyrul_ai_frame()
         go_idle();
 }
 
-// 0x4b8da0  Confidence: unsure (the shape of the three stage blocks: the pick / retarget code is the same
+// 0x4b8da0  Confidence: unsure (D15903: the two-weight arrays of stages 2 and 3 are block-scoped, which gives the binary's 0x68 frame with the array over the attackers slot; still differs in the order of the timer / retarget pick blocks; the shape of the three stage blocks: the pick / retarget code is the same
 // template three times, and the compiler shares the tails; the order of the tests matches). Returns 0 (no
 // target: the caller goes idle), 3 (a new move was chosen) or 5 (the current move goes on). The stage 1
 // third weight (attackers * 0.1) only counts when the target has filter flag 1.
@@ -287,7 +287,6 @@ int ai_state::pyrul_choose_attack()
 {
     boss_target list[BOSS_MAX_THREATS];
     float weights[3];
-    float weights2[2];
     Character *target;
     bool moving;
     bool busy;
@@ -402,6 +401,7 @@ int ai_state::pyrul_choose_attack()
             if (index != -1 && (list[index].flags & 8)) {
                 pyrul_cur_move = pyrul_move_2_2;
             } else {
+                float weights2[2];
                 weights2[0] = 0.4f;
                 weights2[1] = 0.4f;
                 index = rand_weighted_index(weights2, 2);
@@ -459,6 +459,7 @@ int ai_state::pyrul_choose_attack()
                     pyrul_timer_set_random(20000, 30000);
                 }
             }
+            float weights2[2];
             weights2[0] = 0.5f;
             weights2[1] = 0.5f;
             index = rand_weighted_index(weights2, 2);

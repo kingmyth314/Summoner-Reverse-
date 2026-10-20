@@ -142,7 +142,8 @@ void mp_gamelist_free()
     list_init(&mp_gamelist_used);
 }
 
-// 0x470860  Confidence: likely (VC6 keeps the sender pointer in ebx and spills the version byte; the reads
+// 0x470860  Confidence: likely (the ping clamp as a ternary gives the binary's two stores, D15703; the list
+// unlink still differs: the binary keeps &e->prev in EAX; VC6 keeps the sender pointer in ebx and spills the version byte; the reads
 // go through memcpy, which keeps the six ints in memory as the original does). ACTV_GM {version, min
 // version, name\0, level, players, max players, difficulty, lowest and highest character level, from
 // version 7 on the session state and the connection speed bytes} from a server not yet listed goes into a
@@ -204,7 +205,7 @@ void mp_handle_actv_gm(ubyte *data, void *from)
     e->min_level = (ubyte)min_level;
     memcpy(e->addr, from, 8);
     e->ping = timer_get(1000) - mp_gamelist_request_time;
-    e->ping &= (e->ping <= 0) - 1;
+    e->ping = e->ping > 0 ? e->ping : 0;
     e->last_seen = timer_get(1000);
     if (version >= 7) {
         e->status = state;

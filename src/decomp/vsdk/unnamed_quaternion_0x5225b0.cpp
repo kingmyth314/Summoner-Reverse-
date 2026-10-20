@@ -155,7 +155,7 @@ quaternion quaternion::multiply(const quaternion &q) const
     return quaternion(r);
 }
 
-// 0x522a40  Confidence: likely. The same product in floats (components / 16383), rounded back.
+// 0x522a40  Confidence: likely (D15801: the cross product in a named local; the conversions' order differs). The same product in floats (components / 16383), rounded back.
 cquat cquat::multiply(const cquat &q) const
 {
     vector3 v1;
@@ -170,7 +170,8 @@ cquat cquat::multiply(const cquat &q) const
     v2.z = q.z * CQUAT_TO_FLOAT;
     w1 = w * CQUAT_TO_FLOAT;
     w2 = q.w * CQUAT_TO_FLOAT;
-    vector3 v = v2 * w1 + v1 * w2 + v1.cross(v2);
+    vector3 c = v1.cross(v2);
+    vector3 v = v2 * w1 + v1 * w2 + c;
     cquat r;
     r.w = (short)((w1 * w2 - v1.dot(v2)) * 16383.0f);
     r.x = (short)(v.x * 16383.0f);

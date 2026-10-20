@@ -266,13 +266,14 @@ gr_multipass_vertex *gr_poly_split_edge_vertex(gr_multipass_vertex *a, gr_multip
     return n;
 }
 
-// 0x55fb00  Confidence: likely (the order of the float temporaries). The section of the bitmap (in
-// card-sized pieces) that holds the polygon's mean uv, and the uv offset and scale into it.
+// 0x55fb00  Confidence: exact. The section of the bitmap (in card-sized pieces) that holds the polygon's
+// mean uv, and the uv offset and scale into it. The bitmap size is clamped in place (bw / bh hold the
+// imax results; D16201). LOGIC FIX (D16201): the scales are bitmap size / card size (0x55fc1e and
+// 0x55fc3c: fdiv st, st(1) with st = the bitmap size), not the inverse.
 int gr_poly_get_section(int nv, gr_multipass_vertex **verts, int pass, int bm, float *u_offset,
                         float *v_offset, float *u_scale, float *v_scale)
 {
     int bw, bh;
-    int sw, sh;
     int cols, rows;
     int col, row;
     float su, sv;
@@ -280,22 +281,23 @@ int gr_poly_get_section(int nv, gr_multipass_vertex **verts, int pass, int bm, f
     int i;
 
     bm_get_dimensions(bm, &bw, &bh);
-    sw = imax(bw, gr_screen.max_bitmap_w);
-    sh = imax(bh, gr_screen.max_bitmap_h);
+    bw = imax(bw, gr_screen.max_bitmap_w);
+    bh = imax(bh, gr_screen.max_bitmap_h);
     su = 0.0f;
     sv = 0.0f;
     for (i = 0; i < nv; i++) {
-        su += verts[i]->pass[pass].u;
-        sv += verts[i]->pass[pass].v;
+        gr_multipass_vertex *v = verts[i];
+        su += v->pass[pass].u;
+        sv += v->pass[pass].v;
     }
-    cols = (gr_screen.max_bitmap_w + sw - 1) / gr_screen.max_bitmap_w;
+    cols = (gr_screen.max_bitmap_w + bw - 1) / gr_screen.max_bitmap_w;
     n = (float)nv;
-    rows = (gr_screen.max_bitmap_h + sh - 1) / gr_screen.max_bitmap_h;
-    col = (int)floor(su / n * sw / gr_screen.max_bitmap_w);
-    row = (int)floor(sv / n * sh / gr_screen.max_bitmap_h);
-    *u_offset = (float)col * gr_screen.max_bitmap_w / sw;
-    *u_scale = (float)gr_screen.max_bitmap_w / sw;
-    *v_offset = (float)row * gr_screen.max_bitmap_h / sh;
-    *v_scale = (float)gr_screen.max_bitmap_h / sh;
+    rows = (gr_screen.max_bitmap_h + bh - 1) / gr_screen.max_bitmap_h;
+    col = (int)floor(su / n * bw / gr_screen.max_bitmap_w);
+    row = (int)floor(sv / n * bh / gr_screen.max_bitmap_h);
+    *u_offset = (float)col * gr_screen.max_bitmap_w / bw;
+    *u_scale = (float)bw / gr_screen.max_bitmap_w;
+    *v_offset = (float)row * gr_screen.max_bitmap_h / bh;
+    *v_scale = (float)bh / gr_screen.max_bitmap_h;
     return abs(row) % rows * cols + abs(col) % cols;
 }

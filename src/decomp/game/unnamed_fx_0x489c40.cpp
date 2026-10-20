@@ -981,8 +981,9 @@ int fx_add_effect(const char *effect, const vector3 *pos, const matrix *orient, 
     return fx->handle;
 }
 
-// 0x48bdc0  Confidence: likely (the defaults for a NULL position / orientation are written as locals; the
-// node walk's form). Takes an object, links it last, loads the effect; nodes whose descriptor has
+// 0x48bdc0  Confidence: exact (VC6 8966 byte match, D16601: the default orientation as a conditional
+// expression (the binary copies from the constructor's return), the yaw as a float and a named matrix, the
+// reset_flags call as if / else; the default position as a local, the node walk's form). Takes an object, links it last, loads the effect; nodes whose descriptor has
 // flag 0x40 get a lamp glow; base flag 1 turns the orientation by a random yaw.
 effect_object *fx_create_instance(const char *effect, int kind, const vector3 *pos, const matrix *orient, bool flag)
 {
@@ -992,7 +993,6 @@ effect_object *fx_create_instance(const char *effect, int kind, const vector3 *p
     vfx_node_desc *desc;
     int i;
     vector3 zero;
-    matrix ident;
 
     fx = fx_alloc();
     if (!fx)
@@ -1033,19 +1033,21 @@ effect_object *fx_create_instance(const char *effect, int kind, const vector3 *p
         pos = &zero;
     }
     fx->pos = *pos;
-    if (!orient) {
-        ident = matrix(vector3(1.0f, 0.0f, 0.0f), vector3(0.0f, 1.0f, 0.0f), vector3(0.0f, 0.0f, 1.0f));
-        orient = &ident;
+    fx->orient = orient ? *orient : matrix(vector3(1.0f, 0.0f, 0.0f), vector3(0.0f, 1.0f, 0.0f), vector3(0.0f, 0.0f, 1.0f));
+    if (base->flags & 1) {
+        float a = frand() * 6.2831855f;
+        matrix rot(0.0f, 0.0f, a);
+        fx->orient = rot * fx->orient;
     }
-    fx->orient = *orient;
-    if (base->flags & 1)
-        fx->orient = matrix(0.0f, 0.0f, frand() * 6.2831855f) * fx->orient;
     fx->spell = -1;
     fx->owner = -1;
     fx->avoid_area = -1;
     fx->sound = -1;
     fx->fx_flags = 0;
-    fx->instance->reset_flags(flag ? 0 : 1, 0);
+    if (flag)
+        fx->instance->reset_flags(0, 0);
+    else
+        fx->instance->reset_flags(1, 0);
     fx->spell_effect = NULL;
     return fx;
 }
@@ -1072,17 +1074,20 @@ int fx_attach_to_character(const char *effect, int handle, int tag, int source, 
     return -1;
 }
 
-// 0x48c140  Confidence: likely. cutscene_events_frame. The camera orientation is copied and negated, but
-// the copy is never used: the instance is made with camera_view_orient itself (fx_frame turns kind 3
-// around every frame).
+// 0x48c140  Confidence: exact (VC6 8966 byte match, D16600: the turn written as fx_frame's kind 3, old up and
+// forward copied first). cutscene_events_frame. The camera orientation is copied and turned around (right
+// negated, up and forward swapped and negated, 0x48c14b-0x48c1ff), but the copy is never used: the instance is
+// made with camera_view_orient itself (fx_frame turns kind 3 around every frame).
 int fx_create_at_camera(const char *effect, bool flag)
 {
     effect_object *fx;
     matrix m(camera_view_orient);
 
+    vector3 u(m.uvec);
+    vector3 f(m.fvec);
     m.rvec = -m.rvec;
-    m.uvec = -m.uvec;
-    m.fvec = -m.fvec;
+    m.uvec = -f;
+    m.fvec = -u;
     fx = fx_create_instance(effect, 3, &camera_view_pos, &camera_view_orient, flag);
     if (!fx)
         return -1;

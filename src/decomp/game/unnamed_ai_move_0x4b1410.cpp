@@ -491,29 +491,36 @@ void ai_state::steer_jitter(float dt)
     travel_dest = owner->pos + owner->centre_offset + owner->orient.fvec * 2.0f + owner->orient.rvec * steer_offset;
 }
 
-// 0x4b2670  Confidence: likely. The look-ahead point is two seconds of the forward speed along the facing;
+// 0x4b2670  Confidence: exact (m-1020d w9, D16300: the segment is a pf_edge, 16 bytes, as in
+// ai_find_nearest_wall_hit, which gives the 0x60 frame; found / n before the profile label; p and q in
+// two sibling blocks; best and closest zeroed by `x = y = 0` chains, best first; pos + centre_offset).
+// The look-ahead point is two seconds of the forward speed along the facing;
 // the closest point on the first five path segments (from 50 units behind the first node) replaces
 // travel_dest's x / z when it is farther than max_dist. q is initialised in its declaration (an assignment
 // went through operator= and rounded the other component of dir * 50) and seg.b is set in the loop (D9510).
 void ai_state::path_closest_point(float max_dist)
 {
-    profile_label label("ai_path_closest_point");
     bool found = false;
     int n = 5;
+    profile_label label("ai_path_closest_point");
     float best_d = 0.0f;
-    vector2 closest(0.0f, 0.0f);
-    vector2 best(0.0f, 0.0f);
+    vector2 closest;
+    vector2 best;
     vector2 look, prev, cur;
-    seg2d seg;
+    pf_edge seg;
     ai_path *node;
 
+    best.x = best.y = 0.0f;
+    closest.x = closest.y = 0.0f;
     timer_get(1000000);
     if (!path)
         return;
     {
         float ahead = owner->forward_speed * 2.0f / owner->speed_scale;
-        vector3 p = owner->centre_offset + owner->pos + owner->orient.fvec * ahead;
+        vector3 p = owner->pos + owner->centre_offset + owner->orient.fvec * ahead;
         look.from_xz(&p);
+    }
+    {
         vector3 q = path->pos - path->dir * 50.0f;
         prev.from_xz(&q);
     }
@@ -948,7 +955,10 @@ moving:
     return true;
 }
 
-// 0x4b3c80  Confidence: likely. Sub-mode AIS_TRAVEL_STEER: turns at twice the moving turn rate (the
+// 0x4b3c80  Confidence: likely (m-1020d w9, D16303: one function-scope d for the party member offset and
+// the final distance, whose dead (dx, 0, dz) stores the binary keeps; a dest pointer to travel_dest held in a
+// frame slot. Still differs: 8966 orders the facing dot product y, z, x where the binary has z, y, x, and
+// the y / z adds of the side vector). Sub-mode AIS_TRAVEL_STEER: turns at twice the moving turn rate (the
 // char_info value itself is doubled and halved again); single player only, the party members walking
 // ahead of the owner within 3 units step aside (sub-mode 0x2b), and the speed is capped by the slowest
 // awake party member (0.8 of it while one of them is not marked 0x8000000).
@@ -960,9 +970,11 @@ void ai_state::travel_steer_update()
     float max_speed;
     Character *o;
     float dist, speed;
+    vector3 d;
 
     owner->info->moving_turn_rate = owner->info->moving_turn_rate + owner->info->moving_turn_rate;
-    turning = turn_towards(&travel_dest, false);
+    vector3 *dest = &travel_dest;
+    turning = turn_towards(dest, false);
     owner->info->moving_turn_rate = owner->info->moving_turn_rate * 0.5f;
     if (!(game_flags & 2)) {
         Character *c;
@@ -989,14 +1001,14 @@ void ai_state::travel_steer_update()
             if (!c->ai.is_mode(AI_STATE_TRAVELING, -1))
                 continue;
             {
-                vector3 d = c->pos - owner->pos - owner->centre_offset;
+                d = c->pos - owner->pos - owner->centre_offset;
                 float len = d.normalize_safe_length();
                 if (d.z * owner->orient.fvec.z + d.y * owner->orient.fvec.y + d.x * owner->orient.fvec.x > 0.5f
                     && len < 3.0f) {
                     vector3 dest;
                     int layer;
                     if (d.z * owner->orient.fvec.x - d.x * owner->orient.fvec.z < 0.0f)
-                        d = owner->orient.rvec + owner->orient.fvec;
+                        d = owner->orient.fvec + owner->orient.rvec;
                     else
                         d = owner->orient.fvec - owner->orient.rvec;
                     dest = c->pos + d * 3.0f;
@@ -1010,11 +1022,8 @@ void ai_state::travel_steer_update()
         }
     }
     o = owner;
-    {
-        float dx = travel_dest.x - o->pos.x;
-        float dz = travel_dest.z - o->pos.z;
-        dist = (float)sqrt(dz * dz + dx * dx);
-    }
+    d = vector3(dest->x - o->pos.x, 0.0f, dest->z - o->pos.z);
+    dist = (float)sqrt(d.z * d.z + d.x * d.x);
     speed = dist * o->speed_scale;
     if (dist < 0.25f)
         speed = 0.0f;

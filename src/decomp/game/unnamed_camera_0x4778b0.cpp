@@ -250,7 +250,8 @@ vector3 camera::get_target_offset()
     return v;
 }
 
-// 0x477f60  Confidence: likely (the three ring walks). Outside orient mode 2 the view looks straight at
+// 0x477f60  Confidence: exact (VC6 byte match, D16808: each ring step as `i = i - 1 < 0 ? 3 : i - 1`, which
+// gives the binary's dec / test / jge; `if (--i < 0)` uses the flags of the dec). Outside orient mode 2 the view looks straight at
 // the target and the history restarts; in mode 2 the last four offsets are averaged, weighted by their
 // frame times.
 void camera::update_orientation()
@@ -277,22 +278,19 @@ void camera::update_orientation()
     total = 0.0f;
     i = history_index;
     for (n = history_count; n > 0; n--) {
-        if (--i < 0)
-            i = 3;
+        i = i - 1 < 0 ? 3 : i - 1;
         total += dt_history[i];
     }
     i = history_index;
     for (n = history_count; n > 0; n--) {
-        if (--i < 0)
-            i = 3;
+        i = i - 1 < 0 ? 3 : i - 1;
         w[i] = dt_history[i] / total;
     }
     avg.zero();
     n = history_count;
     i = history_index;
     for (int k = n; k > 0; k--) {
-        if (--i < 0)
-            i = 3;
+        i = i - 1 < 0 ? 3 : i - 1;
         avg += dir_history[i] * w[i];
     }
     avg *= 1.0f / n;

@@ -654,20 +654,24 @@ void mp_levelselect_update_buttons()
     mp_levelselect_mouse_mode = 0;
 }
 
-// 0x41ce50  Confidence: likely (three stores of the element, as mp_charselect_drag_scrollbar).
+// 0x41ce50  Confidence: exact (VC6 byte match, m-1020d w10; three stores of the element, as mp_charselect_drag_scrollbar; the list index
+// read from the global at each use, the count loaded again after the clamp to 0 and the offset as
+// `thumb + (mouse_y - track - start)`, D16400).
 void mp_levelselect_drag_scrollbar()
 {
-    int list = mp_levelselect_drag_list;
-    int count = mp_levelselect_list_count[list];
-
-    mp_levelselect_scroll_pos[list] = (int)((float)(game_mouse_y - mp_levelselect_track_pos[resolution_index][list][1]
-                                                    - mp_levelselect_drag_start_mouse_y
-                                                    + mp_levelselect_drag_start_thumb_y)
-                                            / mp_levelselect_track_h[resolution_index][list] * count + 0.5f);
-    mp_levelselect_scroll_pos[list] = mp_levelselect_scroll_pos[list] > 0 ? mp_levelselect_scroll_pos[list] : 0;
-    count -= mp_levelselect_list_page[resolution_index][list];
-    mp_levelselect_scroll_pos[list] = mp_levelselect_scroll_pos[list] < count ? mp_levelselect_scroll_pos[list] : count;
-    mp_levelselect_update_scrollbar(list);
+    mp_levelselect_scroll_pos[mp_levelselect_drag_list] =
+        (int)((float)(mp_levelselect_drag_start_thumb_y
+                      + (game_mouse_y - mp_levelselect_track_pos[resolution_index][mp_levelselect_drag_list][1]
+                         - mp_levelselect_drag_start_mouse_y))
+              / mp_levelselect_track_h[resolution_index][mp_levelselect_drag_list]
+              * mp_levelselect_list_count[mp_levelselect_drag_list] + 0.5f);
+    mp_levelselect_scroll_pos[mp_levelselect_drag_list] =
+        mp_levelselect_scroll_pos[mp_levelselect_drag_list] > 0 ? mp_levelselect_scroll_pos[mp_levelselect_drag_list] : 0;
+    int count = mp_levelselect_list_count[mp_levelselect_drag_list];
+    count -= mp_levelselect_list_page[resolution_index][mp_levelselect_drag_list];
+    mp_levelselect_scroll_pos[mp_levelselect_drag_list] =
+        mp_levelselect_scroll_pos[mp_levelselect_drag_list] < count ? mp_levelselect_scroll_pos[mp_levelselect_drag_list] : count;
+    mp_levelselect_update_scrollbar(mp_levelselect_drag_list);
 
     if (!mouse_is_down(0))
         mp_levelselect_mouse_mode = 0;

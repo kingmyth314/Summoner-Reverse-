@@ -829,7 +829,8 @@ ai_path *tiger_path_to_target(Character *self, Character *t)
 }
 
 // 0x49b6e0  Confidence: unsure (the closing-speed arithmetic is transcribed from the x87 code; see
-// NOTES.md). Sub-mode 0x1f, the mounted charge: the roar at the start, the mount follows its path, the
+// NOTES.md; D15604: nested ifs with one go_idle at the end give the binary's block layout, fire still
+// differs). Sub-mode 0x1f, the mounted charge: the roar at the start, the mount follows its path, the
 // strike when the target is close enough for the time left to the move's trigger, then the melee update
 // and the attack slots of both sides.
 void ai_state::tiger_combat_update(Character *t)
@@ -839,73 +840,70 @@ void ai_state::tiger_combat_update(Character *t)
     if (tiger.charge_state == 4)
         go_idle();
     Character *m = owner->get_mount();
-    if (m == NULL) {
-        go_idle();
-        return;
-    }
-    if (tiger.charge_state == -1) {
-        t->get_hit_by_spell(SPELL_TIGER_ROAR, owner->handle, NULL, NULL, 0, NULL, 0.0f, false);
-        tiger.charge_state = 2;
-    } else if (tiger.charge_state != 2) {
-        go_idle();
-        return;
-    }
-    if (!follow_path(0)) {
-        if (tiger.charging == true && owner->get_current_move() == tiger_cached_move && owner->combat.state != 0) {
-            // living_combat::update takes the move id in its float-typed argument (D3404).
-            owner->combat.update(charge_move);
-            m->ai.go_mount_idle();
-            return;
+    if (m != NULL) {
+        if (tiger.charge_state == -1) {
+            t->get_hit_by_spell(SPELL_TIGER_ROAR, owner->handle, NULL, NULL, 0, NULL, 0.0f, false);
+            tiger.charge_state = 2;
         }
-        go_idle();
-        return;
-    }
-
-    bool fire = false;
-    if (tiger.charging == false || (tiger.charging == true && !tiger.charge_fired)) {
-        vector3 self = owner->pos;
-        self.y = 0;
-        vector3 dest = m->ai.path->pos;
-        vector3 closest;
-        dest.y = 0;
-        float dist = ix_point_linesegment(&t->pos, &self, &dest, &closest);
-        float trigger_time = tiger.charge_trigger_time;
-        float accel = m->info->speedup_rate * m->speed_scale;
-        float v = m->velocity.len();
-        float disc = v * v + accel * dist * 2.0f;
-        float reach;
-        if (disc > 100.0f) {
-            float coast = dist - (100.0f - v * v) / (accel * 2.0f);
-            if (coast * 0.1f > trigger_time) {
-                reach = trigger_time * 10.0f;
+        if (tiger.charge_state == 2) {
+            if (!follow_path(0)) {
+                if (tiger.charging == true && owner->get_current_move() == tiger_cached_move && owner->combat.state != 0) {
+                    // living_combat::update takes the move id in its float-typed argument (D3404).
+                    owner->combat.update(charge_move);
+                    m->ai.go_mount_idle();
+                    return;
+                }
             } else {
-                float accel_time = trigger_time - coast * 0.1f;
-                reach = ((10.0f - accel * accel_time) + 10.0f) * accel_time * 0.5f + coast;
-            }
-        } else {
-            float vmax = (float)sqrt(disc);
-            float w = vmax - trigger_time * accel;
-            reach = (vmax * vmax - w * w) / (accel * 2.0f);
-        }
-        if (tiger.charging == false) {
-            if (reach < dist)
+                bool fire = false;
+                if (tiger.charging == false || (tiger.charging == true && !tiger.charge_fired)) {
+                    vector3 self = owner->pos;
+                    self.y = 0;
+                    vector3 dest = m->ai.path->pos;
+                    vector3 closest;
+                    dest.y = 0;
+                    float dist = ix_point_linesegment(&t->pos, &self, &dest, &closest);
+                    float trigger_time = tiger.charge_trigger_time;
+                    float accel = m->info->speedup_rate * m->speed_scale;
+                    float v = m->velocity.len();
+                    float disc = v * v + accel * dist * 2.0f;
+                    float reach;
+                    if (disc > 100.0f) {
+                        float coast = dist - (100.0f - v * v) / (accel * 2.0f);
+                        if (coast * 0.1f > trigger_time) {
+                            reach = trigger_time * 10.0f;
+                        } else {
+                            float accel_time = trigger_time - coast * 0.1f;
+                            reach = ((10.0f - accel * accel_time) + 10.0f) * accel_time * 0.5f + coast;
+                        }
+                    } else {
+                        float vmax = (float)sqrt(disc);
+                        float w = vmax - trigger_time * accel;
+                        reach = (vmax * vmax - w * w) / (accel * 2.0f);
+                    }
+                    if (tiger.charging == false) {
+                        if (reach < dist)
+                            return;
+                        tiger.charging = true;
+                        goto strike;
+                    }
+                    if (!tiger.charge_fired && dist <= 0.01f)
+                        fire = true;
+                }
+                if (!tiger.charge_fired && fire == true) {
+                    tiger.charge_fired = fire;
+                    tiger_move_trigger_pending = fire;
+                }
+            strike:
+                ai_move_flags |= 4;
+                owner->combat.update(charge_move);
+                claim_attack_slot(owner, t, 0, -1);
+                t->ai.claim_attack_slot(t, owner, 0, -1);
+                t->ai.alert_guards_of_target(owner);
                 return;
-            tiger.charging = true;
-            goto strike;
+            }
         }
-        if (!tiger.charge_fired && dist <= 0.01f)
-            fire = true;
     }
-    if (!tiger.charge_fired && fire == true) {
-        tiger.charge_fired = fire;
-        tiger_move_trigger_pending = fire;
-    }
-strike:
-    ai_move_flags |= 4;
-    owner->combat.update(charge_move);
-    claim_attack_slot(owner, t, 0, -1);
-    t->ai.claim_attack_slot(t, owner, 0, -1);
-    t->ai.alert_guards_of_target(owner);
+    go_idle();
 }
 
 // 0x49b9e0  Confidence: exact (VC6 byte match). Sub-mode 0x1e: a charge (sub-mode 0x1f, the mount travels) when the

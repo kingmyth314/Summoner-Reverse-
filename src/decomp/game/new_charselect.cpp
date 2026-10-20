@@ -411,7 +411,8 @@ void mp_charselect_update_create_button()
         mp_charselect_buttons[15].flags |= 4;
 }
 
-// 0x406bf0  Confidence: likely (the "if (!focus) return 0" after each key block, as in
+// 0x406bf0  Confidence: likely (the button flags shifted unsigned with info_open on the left, D15703; frame 8
+// against 0x14 and register choice left; the "if (!focus) return 0" after each key block, as in
 // gamecreate_handle_click; the list loop skips list 2 with a test inside the loop; the row loop of list 1
 // is skipped but the list still becomes the wheel target; the ESC case is a one-case switch). The typing
 // paths share their timer tails in the binary. Names: letters, digits, '_' and '-', starting with a letter
@@ -428,7 +429,7 @@ int mp_charselect_handle_click(int key)
 
     for (i = 0; i < CHARSELECT_NUM_BUTTONS; i++) {
         if (!(mp_charselect_buttons[i].flags & 4)
-            && ((mp_charselect_button_defs[i].flags >> 3) & 1) == mp_charselect_info_open
+            && mp_charselect_info_open == (((unsigned)mp_charselect_button_defs[i].flags >> 3) & 1)
             && (mp_charselect_button_defs[i].flags & 7)
             && point_in_rect(game_mouse_x, game_mouse_y, mp_charselect_buttons[i].x, mp_charselect_buttons[i].y,
                              mp_charselect_buttons[i].w, mp_charselect_buttons[i].h)) {
@@ -673,15 +674,16 @@ void mp_charselect_page_up(int list)
     }
 }
 
-// 0x407410  Confidence: likely (as journal_list_page_down).
+// 0x407410  Confidence: exact (VC6 byte match, m-1020d w3: the page size in a local, rows - page computed at each use, D15700).
 void mp_charselect_page_down(int list)
 {
     if (list == -1)
         return;
-    int last = mp_charselect_row_counts[list] - mp_charselect_list_page[resolution_index][list];
-    if (mp_charselect_scroll_pos[list] < last) {
-        mp_charselect_scroll_pos[list] += mp_charselect_list_page[resolution_index][list];
-        mp_charselect_scroll_pos[list] = mp_charselect_scroll_pos[list] < last ? mp_charselect_scroll_pos[list] : last;
+    int page = mp_charselect_list_page[resolution_index][list];
+    if (mp_charselect_scroll_pos[list] < mp_charselect_row_counts[list] - page) {
+        mp_charselect_scroll_pos[list] += page;
+        mp_charselect_scroll_pos[list] = mp_charselect_scroll_pos[list] < mp_charselect_row_counts[list] - page
+                                         ? mp_charselect_scroll_pos[list] : mp_charselect_row_counts[list] - page;
         mp_charselect_update_scrollbar(list);
     }
 }

@@ -87,14 +87,17 @@ void pf_debug_search_step(float sx, float sy, float gx, float gy, pf_vis_node *t
 // Draws one nav segment at the debug height (the shared tail of obstacles_debug_render's loops).
 #define OBSTACLE_LINE(pa, pb)                                                                           \
     do {                                                                                                \
-        vector3 p0 = (pa)->to_vector3();                                                                \
-        vector3 p1 = (pb)->to_vector3();                                                                \
+        vector3 a = (pa)->to_vector3();                                                                 \
+        p0 = a;                                                                                         \
+        vector3 b = (pb)->to_vector3();                                                                 \
+        p1 = b;                                                                                         \
         p0.y = p1.y = obstacle_height_offset + cur_character->pos.y + 0.01f;                             \
         gr_line_3d_world(&p0, &p1, gr_line_3d_mode);                                                    \
     } while (0)
 
-// 0x4a3890  Confidence: likely (the point temporaries; the midpoint of the normal tick keeps a stale y
-// in the code, written as the debug height here). game_render_frame when Render_3d_obstacles is set:
+// 0x4a3890  Confidence: likely (D16702: the segment loop in vector2 operators, the macro's points assigned
+// from named to_vector3 results; the frame is 0xc bytes larger than the binary's). The midpoint of the
+// normal tick keeps a stale y: the code never writes mid.y, so neither does this. game_render_frame when Render_3d_obstacles is set:
 // the cell walls of the debug size class (the highlighted layer, or all with obstacles_debug_all_layers),
 // the layer-transition edges, then for every used segment list of the highlighted layer its segments,
 // their normals and the corner offsets. With obstacles_debug_axis_lines the second corner's offset is
@@ -107,10 +110,8 @@ void obstacles_debug_render()
     avoid_seglist *sl;
     avoid_seg_ref *s;
     avoid_corner *ca, *cb;
-    vector2 *off;
-    vector3 p0, p1, mid, tick;
-    float y, mx, mz, nx, nz;
-    int layer, i, k;
+    vector3 p0, p1, mid;
+    int layer, i, j, k, n_segs, ia, ib;
 
     if (obstacles_debug_follow)
         obstacles_debug_highlight = cur_character->layer;
@@ -131,7 +132,8 @@ void obstacles_debug_render()
     w = pf_walls;
     for (i = 0; i < pf_wall_count; i++, w++)
         OBSTACLE_LINE(w->a, w->b);
-    for (sl = avoid_seglists; sl < &avoid_seglists[AVOID_NUM_SEGLISTS]; sl++) {
+    for (j = 0; j < AVOID_NUM_SEGLISTS; j++) {
+        sl = &avoid_seglists[j];
         if (!(sl->flags & AVOID_SEGLIST_USED))
             continue;
         if (sl->flags & AVOID_SEGLIST_DOOR)
@@ -140,48 +142,45 @@ void obstacles_debug_render()
             gr_set_color(0x80, 0x20, 0x20, 0xff);
         if (sl->layer != obstacles_debug_highlight || sl->size != obstacles_debug_size)
             continue;
-        for (k = 0; k < sl->num_segs; k++) {
+        n_segs = sl->num_segs;
+        for (k = 0; k < n_segs; k++) {
             s = &sl->segs[k];
-            ca = &sl->corners[s->a];
-            cb = &sl->corners[s->b];
-            y = obstacle_height_offset + cur_character->pos.y + 0.01f;
+            ia = s->a;
+            ca = &sl->corners[ia];
+            ib = s->b;
+            cb = &sl->corners[ib];
             p0.x = ca->pos.x;
-            p0.y = y;
             p0.z = ca->pos.y;
             p1.x = cb->pos.x;
-            p1.y = y;
             p1.z = cb->pos.y;
+            p0.y = p1.y = obstacle_height_offset + cur_character->pos.y + 0.01f;
             gr_line_3d_world(&p0, &p1, gr_line_3d_mode);
-            mx = (cb->pos.x + ca->pos.x) * 0.5f;
-            mz = (cb->pos.y + ca->pos.y) * 0.5f;
-            nx = s->normal.x * 0.5f;
-            nz = s->normal.y * 0.5f;
-            mid.x = mx;
-            mid.y = y;
-            mid.z = mz;
-            tick.x = mx + nx;
-            tick.y = y;
-            tick.z = mz + nz;
-            gr_line_3d_world(&mid, &tick, gr_line_3d_mode);
-            if (obstacles_debug_axis_lines) {
-                off = avoid_record_axis_at(sl, s->a);
-                p0.x = off->x * 0.5f + ca->pos.x;
-                p0.z = off->y * 0.5f + ca->pos.y;
-                off = avoid_record_axis_at(sl, s->b);
-                p1.x = off->x * 0.5f + ca->pos.x;
-                p1.z = off->y * 0.5f + ca->pos.y;
-            } else {
-                p0.x = ca->offset.x * 0.5f + ca->pos.x;
-                p0.z = ca->offset.y * 0.5f + ca->pos.y;
-                p1.x = cb->offset.x * 0.5f + cb->pos.x;
-                p1.z = cb->offset.y * 0.5f + cb->pos.y;
-            }
-            mid.x = ca->pos.x;
-            mid.z = ca->pos.y;
+            vector2 m = 0.5f * (cb->pos + ca->pos);
+            vector2 n = 0.5f * s->normal;
+            vector2 t = m + n;
+            mid.x = m.x;
+            mid.z = m.y;
+            p0.x = t.x;
+            p0.z = t.y;
             gr_line_3d_world(&mid, &p0, gr_line_3d_mode);
-            mid.x = cb->pos.x;
-            mid.z = cb->pos.y;
-            gr_line_3d_world(&mid, &p1, gr_line_3d_mode);
+            vector2 a, b;
+            if (obstacles_debug_axis_lines) {
+                a = 0.5f * *avoid_record_axis_at(sl, ia) + ca->pos;
+                b = 0.5f * *avoid_record_axis_at(sl, ib) + ca->pos;
+            } else {
+                a = 0.5f * ca->offset + ca->pos;
+                b = 0.5f * cb->offset + cb->pos;
+            }
+            p0.x = ca->pos.x;
+            p0.z = ca->pos.y;
+            p1.x = a.x;
+            p1.z = a.y;
+            gr_line_3d_world(&p0, &p1, gr_line_3d_mode);
+            p0.x = cb->pos.x;
+            p0.z = cb->pos.y;
+            p1.x = b.x;
+            p1.z = b.y;
+            gr_line_3d_world(&p0, &p1, gr_line_3d_mode);
         }
     }
 }
@@ -386,8 +385,9 @@ struct shadow_vertex_buffer {
     ~shadow_vertex_buffer() {}
 };
 
-// 0x4a46a0  Confidence: likely (the vertex buffer type; D14603: pr and world built in place, the alpha clamp
-// through float_min / float_max give the binary's frame and clamp; the vertex pointer register differs). Clips the face to the frustum, then per vertex
+// 0x4a46a0  Confidence: exact (VC6 byte match, m-1020d, D16700: the vertex indexed as buf.v[i], d a
+// block-scoped vector3 from operator-, world as l->pos + the unrotated point; D14603: pr and world built in
+// place, the alpha clamp through float_min / float_max). Clips the face to the frustum, then per vertex
 // the view-space vertex (pushed 0.07 towards the viewer), the projected uv and the alpha (255 in
 // full_alpha mode, else fading over the depth range). Returns the buffer and *count, NULL when clipped
 // away.
@@ -395,8 +395,6 @@ gr_vertex *shadow_project_face(lobj *l, s3d_face *face, blob_shadow *s, const ve
 {
     static shadow_vertex_buffer buf;          // 0x245ed98 (guard byte 0x245ce10)
     vector3 clipped[32];
-    vector3 d;
-    gr_vertex *v;
     float f;
     int i;
 
@@ -404,22 +402,19 @@ gr_vertex *shadow_project_face(lobj *l, s3d_face *face, blob_shadow *s, const ve
     *count = polygon_clip_to_planes(3, points, clipped, s->proj.local_planes, s->proj.num_planes);
     if (!*count)
         return NULL;
-    v = buf.v;
-    for (i = 0; i < *count; i++, v++) {
-        d.x = clipped[i].x - s->local_pos.x;
-        d.y = clipped[i].y - s->local_pos.y;
-        d.z = clipped[i].z - s->local_pos.z;
+    for (i = 0; i < *count; i++) {
+        vector3 d = clipped[i] - s->local_pos;
         vector3 pr = d.rotated(s->local_orient);
-        vector3 world = clipped[i].unrotated(l->orient) + l->pos;
-        gr_rotate_vertex(v, &world);
-        gr_offset_point_depth(v, -0.07f);
-        v->u = (pr.x / (pr.y * s->tan_fov) + 1.0f) * 0.5f;
-        v->v = 0.5f - pr.z / (pr.y * s->tan_fov) * 0.5f;
+        vector3 world = l->pos + clipped[i].unrotated(l->orient);
+        gr_rotate_vertex(&buf.v[i], &world);
+        gr_offset_point_depth(&buf.v[i], -0.07f);
+        buf.v[i].u = (pr.x / (pr.y * s->tan_fov) + 1.0f) * 0.5f;
+        buf.v[i].v = 0.5f - pr.z / (pr.y * s->tan_fov) * 0.5f;
         if (s->full_alpha) {
-            v->a = 0xff;
+            buf.v[i].a = 0xff;
         } else {
             f = 1.5f - (pr.y - s->near_dist) * 1.5f / (s->far_dist - s->near_dist);
-            v->a = (ubyte)((float)sqrt(float_min(float_max(f, 0.0f), 1.0f)) * 255.0f);
+            buf.v[i].a = (ubyte)((float)sqrt(float_min(float_max(f, 0.0f), 1.0f)) * 255.0f);
         }
     }
     (void)face;
@@ -429,7 +424,9 @@ gr_vertex *shadow_project_face(lobj *l, s3d_face *face, blob_shadow *s, const ve
 // 0x4a4880 atexit_nop_4a4880  Confidence: likely. The static's atexit destructor
 // (shadow_vertex_buffer's empty destructor, expanded).
 
-// 0x4a4890  Confidence: likely (the discarded vector3 copies before each rotate are the code's). The
+// 0x4a4890  Confidence: likely (the discarded vector3 copies before each rotate are the code's; D16704:
+// the door pose and local position through the vector3 operators give the binary's frame; left: which
+// inline members 8966 calls out of line). The
 // record's frame relative to the level object: doors use their current pose (the move timer eased in
 // and out between the closed and the open pose, or the resting pose).
 void shadow_transform_to_lobj(blob_shadow *s, lobj *l)
@@ -456,26 +453,17 @@ void shadow_transform_to_lobj(blob_shadow *s, lobj *l)
             else
                 f = f * f * 2.0f;
             g = 1.0f - f;
-            pos.x = g * door->closed_pos.x + f * door->open_pos.x;
-            pos.y = g * door->closed_pos.y + f * door->open_pos.y;
-            pos.z = g * door->closed_pos.z + f * door->open_pos.z;
+            pos = door->closed_pos * g + door->open_pos * f;
             quaternion_slerp(&q, &door->open_orient, &door->closed_orient, g);
             q.to_matrix_b(&m);
         } else if (open) {
-            pos.x = door->open_pos.x;
-            pos.y = door->open_pos.y;
-            pos.z = door->open_pos.z;
+            pos = door->open_pos;
             door->open_orient.to_matrix_b(&m);
         } else {
-            pos.x = door->closed_pos.x;
-            pos.y = door->closed_pos.y;
-            pos.z = door->closed_pos.z;
+            pos = door->closed_pos;
             door->closed_orient.to_matrix_b(&m);
         }
-        s->local_pos.x = s->pos.x - pos.x;
-        s->local_pos.y = s->pos.y - pos.y;
-        s->local_pos.z = s->pos.z - pos.z;
-        vector3 unused(s->local_pos);
+        s->local_pos = s->pos - pos;
         s->local_pos.rotate(m);
         s->local_orient.rvec = s->orient.rvec;
         s->local_orient.uvec = s->orient.uvec;

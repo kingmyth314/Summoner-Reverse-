@@ -322,8 +322,10 @@ void itemtrade_update_scroll_buttons()
     }
 }
 
-// 0x419710  Confidence: likely (the digit and Backspace paths share the cursor restart tail; the
-// flag-8 test compares bytes, "shr 3 / and 1 / cmp cl, al"). While the gold box is open only its buttons
+// 0x419710  Confidence: exact (VC6 8966 byte match, m-1020d w4 / D15800: block-scoped d / b button
+// pointers, d first; `(flags & 8) >> 3` for the "shr 3 / and 1 / cmp cl, al" flag-8 test; the gold limit
+// as a clamped local; the rectangles read into locals before each point_in_rect call; Esc as a one-case
+// switch). While the gold box is open only its buttons
 // react and the keys edit the amount (digits up to min(party_gold, 9999999), Backspace, Enter submits,
 // Esc closes); otherwise list 1 / party rows, Esc cancels the trade, the wheel pages the party list.
 int itemtrade_handle_click(int key)
@@ -336,19 +338,20 @@ int itemtrade_handle_click(int key)
     itemtrade_buttons[0].flags |= 2;
 
     for (i = 0; i < ITEMTRADE_NUM_BUTTONS; i++) {
-        if (!(itemtrade_buttons[i].flags & 4) && (itemtrade_button_defs[i].flags & 5)
-            && itemtrade_gold_input_active == (bool)((itemtrade_button_defs[i].flags >> 3) & 1)
-            && point_in_rect(game_mouse_x, game_mouse_y, itemtrade_buttons[i].x, itemtrade_buttons[i].y,
-                             itemtrade_buttons[i].w, itemtrade_buttons[i].h)) {
-            itemtrade_buttons[i].flags |= 2;
+        ui_button_def *d = &itemtrade_button_defs[i];
+        ui_button_state *b = &itemtrade_buttons[i];
+        if (!(b->flags & 4) && (d->flags & 5)
+            && itemtrade_gold_input_active == (bool)((d->flags & 8) >> 3)
+            && point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h)) {
+            b->flags |= 2;
             itemtrade_pressed_button = i;
-            if (itemtrade_button_defs[i].flags & 1) {
+            if (d->flags & 1) {
                 if (mouse_was_pressed(0)) {
                     itemtrade_mouse_mode = 1;
                     itemtrade_repeat_timer.invalidate();
                     return key;
                 }
-            } else if (itemtrade_button_defs[i].flags & 4) {
+            } else if (d->flags & 4) {
                 if (mouse_was_pressed(0)) {
                     itemtrade_mouse_mode = 1;
                     itemtrade_button_action(itemtrade_pressed_button + 1);
@@ -375,7 +378,10 @@ int itemtrade_handle_click(int key)
             if (c != 0xff) {
                 if (isdigit(c)) {
                     int amount = itemtrade_gold_amount * 10 + (c - '0');
-                    if (amount <= min(party_gold, ITEMTRADE_MAX_GOLD)) {
+                    int limit = party_gold;
+                    if (limit >= ITEMTRADE_MAX_GOLD)
+                        limit = ITEMTRADE_MAX_GOLD;
+                    if (amount <= limit) {
                         itemtrade_gold_amount = amount;
                         itemtrade_cursor_timer.SetTimeout(500);
                         itemtrade_cursor_on = 1;
@@ -407,13 +413,15 @@ int itemtrade_handle_click(int key)
     if (rows >= itemtrade_list1_page[resolution_index])
         rows = itemtrade_list1_page[resolution_index];
     int fh = gr_get_font_height(-1);
-    if (point_in_rect(game_mouse_x, game_mouse_y, itemtrade_list1_pos[resolution_index][0],
-                      itemtrade_list1_pos[resolution_index][1], itemtrade_list1_width[resolution_index],
-                      fh * rows)) {
+    int x = itemtrade_list1_pos[resolution_index][0];
+    int y = itemtrade_list1_pos[resolution_index][1];
+    int w = itemtrade_list1_width[resolution_index];
+    if (point_in_rect(game_mouse_x, game_mouse_y, x, y, w, fh * rows)) {
         for (i = 0; i < rows; i++) {
-            if (point_in_rect(game_mouse_x, game_mouse_y, itemtrade_list1_pos[resolution_index][0],
-                              itemtrade_list1_pos[resolution_index][1] + i * fh,
-                              itemtrade_list1_width[resolution_index], fh)) {
+            int rx = itemtrade_list1_pos[resolution_index][0];
+            int ry = itemtrade_list1_pos[resolution_index][1] + i * fh;
+            int rw = itemtrade_list1_width[resolution_index];
+            if (point_in_rect(game_mouse_x, game_mouse_y, rx, ry, rw, fh)) {
                 itemtrade_list1_hover_row = i;
                 if (mouse_was_pressed(0)) {
                     itemtrade_mouse_in_list = 1;
@@ -429,13 +437,15 @@ int itemtrade_handle_click(int key)
     if (rows >= itemtrade_party_page[resolution_index])
         rows = itemtrade_party_page[resolution_index];
     fh = gr_get_font_height(-1);
-    if (point_in_rect(game_mouse_x, game_mouse_y, itemtrade_party_pos[resolution_index][0],
-                      itemtrade_party_pos[resolution_index][1], itemtrade_party_width[resolution_index],
-                      fh * rows)) {
+    x = itemtrade_party_pos[resolution_index][0];
+    y = itemtrade_party_pos[resolution_index][1];
+    w = itemtrade_party_width[resolution_index];
+    if (point_in_rect(game_mouse_x, game_mouse_y, x, y, w, fh * rows)) {
         for (i = 0; i < rows; i++) {
-            if (point_in_rect(game_mouse_x, game_mouse_y, itemtrade_party_pos[resolution_index][0],
-                              itemtrade_party_pos[resolution_index][1] + i * fh,
-                              itemtrade_party_width[resolution_index], fh)) {
+            int rx = itemtrade_party_pos[resolution_index][0];
+            int ry = itemtrade_party_pos[resolution_index][1] + i * fh;
+            int rw = itemtrade_party_width[resolution_index];
+            if (point_in_rect(game_mouse_x, game_mouse_y, rx, ry, rw, fh)) {
                 itemtrade_party_hover_row = i;
                 if (mouse_was_pressed(0)) {
                     itemtrade_mouse_in_list = 1;
@@ -447,7 +457,8 @@ int itemtrade_handle_click(int key)
         }
     }
 
-    if (key == KEY_ESC) {
+    switch (key) {
+    case KEY_ESC:
         itemtrade_cancel();
         game_play_sound(0x24, 1.0f, 0, 0, 0);
         return 0;

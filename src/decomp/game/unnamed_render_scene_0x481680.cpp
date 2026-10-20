@@ -979,7 +979,10 @@ void levelrender_add_bone_attachment(Character *c, ItemType *item, int tag)
 }
 
 // 0x483430  Confidence: likely (the depth uses the mesh's bounding centre without the bone transform;
-// the alpha argument is not read: levelrender_draw_list takes it from the character again).
+// the alpha argument is not read: levelrender_draw_list takes it from the character again). D16900: the
+// centre and radius copied to locals and the depth through operator- / dot() use the inline budget as the
+// binary does (two matrix rows expanded with an out-of-line copy constructor, the third row's operator=
+// called); only the radius store is scheduled two instructions earlier than the binary's.
 void levelrender_push_attachment(ItemType *item, Character *c, const vector3 *pos, const matrix *orient,
                                  ubyte alpha, float light)
 {
@@ -996,12 +999,12 @@ void levelrender_push_attachment(ItemType *item, Character *c, const vector3 *po
     e->character = c;
     e->pos = *pos;
     e->orient = *orient;
-    vim *mesh = item->mesh;
-    float cy = mesh->center.y, cz = mesh->center.z;
-    e->depth = (cz - levelrender_eye_pos.z) * levelrender_eye_orient.fvec.z
-             + (cy - levelrender_eye_pos.y) * levelrender_eye_orient.fvec.y
-             + (mesh->center.x - levelrender_eye_pos.x) * levelrender_eye_orient.fvec.x;
-    e->dist = e->depth - mesh->radius;
+    vector3 center = item->mesh->center;
+    float radius = item->mesh->radius;
+    vector3 d = center - levelrender_eye_pos;
+    float depth = d.dot(levelrender_eye_orient.fvec);
+    e->depth = depth;
+    e->dist = depth - radius;
 }
 
 // 0x483570  Confidence: likely. Only "Gold" item objects are drawn from here, and only those lying in

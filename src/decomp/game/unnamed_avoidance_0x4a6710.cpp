@@ -182,7 +182,8 @@ bool avoid_box_contains_point(const vector2 *p, const avoid_obstacle *ob, float 
     return false;
 }
 
-// 0x4a6bf0  Confidence: likely (the 1.1717894 factor, about 1 / cos(22.5 deg) squared, as a literal).
+// 0x4a6bf0  Confidence: likely (the 1.1717894 factor, about 1 / cos(22.5 deg) squared, as a literal; D15503:
+// r2 as the sum squared gives the binary's `fld st(0) / fmulp`; left: r's slot, ob's dead slot in the binary).
 // Inside the radius, or inside the octagon of the four axes when within the circumscribed radius.
 bool avoid_circle_contains_point(const vector2 *p, const avoid_obstacle *ob, float margin)
 {
@@ -193,7 +194,7 @@ bool avoid_circle_contains_point(const vector2 *p, const avoid_obstacle *ob, flo
     d.y = p->y - ob->centre.y;
     lsq = d.len_sq();
     r = margin + ob->half_b;
-    r2 = r * r;
+    r2 = (margin + ob->half_b) * (margin + ob->half_b);
     if (lsq < r2)
         return true;
     if (lsq <= r2 * 1.1717894f) {
@@ -292,24 +293,26 @@ bool avoid_segment_hits_prim(const avoid_obstacle *ob, const vector2 *a, const v
     return avoid_prim_overlap(ob, &seg, margin);
 }
 
-// 0x4a6f90  Confidence: likely. Separating-axis test of two oriented boxes.
+// 0x4a6f90  Confidence: likely (D15502: d through vector2::operator-, three of the k products as inline dots,
+// gives the binary's registers and k slots; left: the x term of k_ab and the order of the two k terms of the
+// first two tests). Separating-axis test of two oriented boxes.
 bool avoid_box_box_overlap(const avoid_obstacle *a, const avoid_obstacle *b)
 {
-    float dx, dy, k_aa, k_ab, k_ba, k_bb;
+    vector2 d;
+    float k_aa, k_ab, k_ba, k_bb;
 
-    dx = a->centre.x - b->centre.x;
-    dy = a->centre.y - b->centre.y;
+    d = a->centre - b->centre;
     k_bb = fabs(b->axis_b.y * a->axis_b.y + b->axis_b.x * a->axis_b.x);
-    k_ab = fabs(b->axis_a.y * a->axis_b.y + b->axis_a.x * a->axis_b.x);
-    k_ba = fabs(b->axis_b.y * a->axis_a.y + b->axis_b.x * a->axis_a.x);
-    k_aa = fabs(b->axis_a.y * a->axis_a.y + b->axis_a.x * a->axis_a.x);
-    if (fabs(dy * a->axis_b.y + dx * a->axis_b.x) > k_bb * b->half_b + k_ab * b->half_a + a->half_b)
+    k_ab = fabs(b->axis_a.dot(a->axis_b));
+    k_ba = fabs(a->axis_a.dot(b->axis_b));
+    k_aa = fabs(a->axis_a.dot(b->axis_a));
+    if (fabs(d.y * a->axis_b.y + d.x * a->axis_b.x) > k_bb * b->half_b + k_ab * b->half_a + a->half_b)
         return false;
-    if (fabs(dy * a->axis_a.y + dx * a->axis_a.x) > k_ba * b->half_b + k_aa * b->half_a + a->half_a)
+    if (fabs(d.y * a->axis_a.y + d.x * a->axis_a.x) > k_ba * b->half_b + k_aa * b->half_a + a->half_a)
         return false;
-    if (fabs(dy * b->axis_b.y + dx * b->axis_b.x) > k_ba * a->half_a + k_bb * a->half_b + b->half_b)
+    if (fabs(d.y * b->axis_b.y + d.x * b->axis_b.x) > k_ba * a->half_a + k_bb * a->half_b + b->half_b)
         return false;
-    if (fabs(dy * b->axis_a.y + dx * b->axis_a.x) > k_aa * a->half_a + k_ab * a->half_b + b->half_a)
+    if (fabs(d.y * b->axis_a.y + d.x * b->axis_a.x) > k_aa * a->half_a + k_ab * a->half_b + b->half_a)
         return false;
     return true;
 }
@@ -1186,7 +1189,7 @@ avoid_seg_ref *avoid_ref_entry(const avoid_seg_ref_entry *e)
     return &e->list->segs[e->index];
 }
 
-// 0x4a8aa0  Confidence: likely. Sorts the references by where their wall-side corner lies along the
+// 0x4a8aa0  Confidence: exact (D15500: the corner pointer as if / else). Sorts the references by where their wall-side corner lies along the
 // wall (major axis; reversed for walls with PF_EDGE_SIDE).
 void avoid_sort_refs_along_segment(int count, avoid_seg_ref_entry *refs)
 {
@@ -1204,7 +1207,10 @@ void avoid_sort_refs_along_segment(int count, avoid_seg_ref_entry *refs)
         use_x = 1;
     for (i = 0; i < count; i++) {
         s = avoid_ref_entry(&refs[i]);
-        p = &refs[i].list->corners[s->side ? s->a : s->b].pos;
+        if (s->side)
+            p = &refs[i].list->corners[s->a].pos;
+        else
+            p = &refs[i].list->corners[s->b].pos;
         if (use_x)
             t = (p->x - w->a->x) / dx;
         else

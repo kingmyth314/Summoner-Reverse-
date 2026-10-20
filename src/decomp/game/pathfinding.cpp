@@ -660,14 +660,15 @@ bool pf_door_index_is_open(int door, float fraction)
 }
 
 // 0x49dc20  Confidence: likely (the clamp expressions and the kind variable, which the compiler also
-// uses as the constant 2 of the door-flag test). Tests the sweep against s->wall, once per search id:
+// uses as the constant 2 of the door-flag test; the vector2 operator forms are D15601's closer shape, the
+// first 34 instructions exact; the frame is still 0x58 against the binary's 0x48). Tests the sweep against s->wall, once per search id:
 // from in front of the wall, to at most 0.03 behind it; the move shifted back by 0.03 along the normal
 // must cross the wall (kind 0), or pass within 0.03 of an end point that is not s->last_corner
 // (kind 1, corner hit). Fills s->hit, s->t, s->hit_kind and s->hit_corner.
 bool pf_sweep_test_wall(pf_sweep *s)
 {
     pf_edge *wall = s->wall;
-    vector2 a, b, dir, n, rel, off, p, q, cp;
+    vector2 dir, n, rel, off, p, q, cp;
     vector2 *corner;
     float len, eps, t, u, tt, c;
     int kind;
@@ -676,12 +677,9 @@ bool pf_sweep_test_wall(pf_sweep *s)
     if (wall->search_id == s->search_id)
         return false;
     wall->search_id = s->search_id;
-    a.x = wall->a->x;
-    a.y = wall->a->y;
-    b.x = wall->b->x;
-    b.y = wall->b->y;
-    dir.x = b.x - a.x;
-    dir.y = b.y - a.y;
+    vector2 a(wall->a->x, wall->a->y);
+    vector2 b(wall->b->x, wall->b->y);
+    dir = b - a;
     len = dir.normalize();
     n.x = dir.y;
     n.y = -dir.x;
@@ -690,18 +688,14 @@ bool pf_sweep_test_wall(pf_sweep *s)
     kind = 2;
     if ((wall->flags & PF_EDGE_DOOR) && pf_door_index_is_open(wall->door, 0.4f))
         return false;
-    if ((s->from.x - a.x) * n.x + (s->from.y - a.y) * n.y <= 0.0f)
+    rel = s->to - a;
+    if ((s->from - a).dot(n) <= 0.0f)
         return false;
-    rel.x = s->to.x - a.x;
-    rel.y = s->to.y - a.y;
     if (rel.y * n.y + rel.x * n.x > 0.03f)
         return false;
-    off.x = n.x * 0.03f;
-    off.y = n.y * 0.03f;
-    p.x = s->from.x - off.x;
-    p.y = s->from.y - off.y;
-    q.x = s->to.x - off.x;
-    q.y = s->to.y - off.y;
+    off = 0.03f * n;
+    p = s->from - off;
+    q = s->to - off;
     eps = 0.03f / len;
     if (seg2d_intersect_params(&p, &q, &a, &b, &t, &u) && u >= eps * -0.5f && u <= 1.0 + eps * 0.5
         && t >= -0.001f && t <= 1.001f) {
@@ -728,8 +722,7 @@ bool pf_sweep_test_wall(pf_sweep *s)
         else
             c = (tt > 0.0f) ? tt : 0.0f;
         s->hit_kind = 1;
-        s->hit.x = (s->to.x - s->from.x) * c + s->from.x;
-        s->hit.y = (s->to.y - s->from.y) * c + s->from.y;
+        s->hit = c * (s->to - s->from) + s->from;
         s->t = c;
         if (u > 0.5f)
             s->hit_corner = wall->b;
@@ -740,8 +733,7 @@ bool pf_sweep_test_wall(pf_sweep *s)
     if (kind == 0) {
         c = (t < 1.0f) ? ((t > 0.0f) ? t : 0.0f) : 1.0f;
         s->hit_kind = 0;
-        s->hit.x = (s->to.x - s->from.x) * c + s->from.x;
-        s->hit.y = (s->to.y - s->from.y) * c + s->from.y;
+        s->hit = c * (s->to - s->from) + s->from;
         s->t = t;
         s->hit_corner = NULL;
         return true;
@@ -922,7 +914,12 @@ bool pf_check_direct_walk(const vector3 *from, const vector3 *to, int layer, int
     if (!pf_layer_lists[layer].count)
         return false;
     end = *to;
-    d = end - *from;
+    // D15600: the height term is to->y itself, not to->y - from->y (0x49e663 copies end.y into d.y with no
+    // fsub; the clipped end.y, from->y + to->y * k, is not used). So *max_len clips a length that counts
+    // the destination's absolute height.
+    d.x = end.x - from->x;
+    d.y = end.y;
+    d.z = end.z - from->z;
     len = d.len();
     if (len > *max_len)
         end = *from + d * (*max_len / len);

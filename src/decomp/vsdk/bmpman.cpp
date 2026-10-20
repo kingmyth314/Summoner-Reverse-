@@ -542,9 +542,8 @@ int bm_load_internal(const char *name, int path_id, int force_new)
     if (type == BM_TYPE_NONE)
         return bm_create_missing(name);
 
-    reduced = false;
-    if (bm_reduce_textures && num_levels > 1 && num_frames == 1) {
-        reduced = true;
+    reduced = bm_reduce_textures && num_levels > 1 && num_frames == 1;
+    if (reduced) {
         num_levels--;
         w >>= 1;
         h >>= 1;

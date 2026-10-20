@@ -612,18 +612,18 @@ vector3 character_instance::get_root_offset(float unused)
     return root_offset;
 }
 
-// 0x51abd0  Confidence: likely.
+// 0x51abd0  Confidence: exact (D16502: the NULL test reads character->skeletons[i]; the skeleton local starts after it).
 // Weight-sum of the state anims' root velocities (the held anim only until its end). A NULL skeleton is a
 // fatal error, line 1435.
 vector3 character_instance::sum_root_velocity()
 {
     root_velocity = vector3(0.0f, 0.0f, 0.0f);
     for (int i = 0; i < character->num_anims; i++) {
-        skeleton *s = character->skeletons[i];
-        if (!s) {
+        if (!character->skeletons[i]) {
             sprintf(string_buffer, "Character has NULL anim: %s (%d)\n", character->name, i);
             VSDK_ERROR(CHARACTER_INSTANCE_CPP, 1435, string_buffer);
         }
+        skeleton *s = character->skeletons[i];
         if (s->is_state) {
             vector3 v = s->get_root_velocity();
             if (i != held_anim || times[i] < character->skeletons[i]->end)

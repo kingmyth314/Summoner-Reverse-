@@ -576,16 +576,16 @@ bool gr_cull_bounding_box(vector3 *mins, vector3 *maxs)
     return false;
 }
 
-// 0x50ee70  Confidence: likely (the transformed plane local has no constructor call in the binary).
+// 0x50ee70  Confidence: exact (VC6 byte match, m-1020d w10, D16401: plane::transform returns the plane by
+// value, so the local is its hidden result and gets no constructor call).
 bool gr_cull_bounding_box_transformed(const vector3 *pos, const matrix *orient, const vector3 *mins,
                                       const vector3 *maxs)
 {
     vector3 corner;
 
     for (int i = 0; i < gr_num_frustum_planes; i++) {
-        plane p;
+        plane p = gr_frustum_planes[i].pl.transform(pos, orient);
         int near_index, far_index;
-        gr_frustum_planes[i].pl.transform(&p, pos, orient);
         bbox_corner_indices_from_normal(&p.normal, &near_index, &far_index);
         bbox_get_corner(&corner, near_index, mins, maxs);
         if (p.distance_to_point(&corner) > 0.0f)
@@ -787,7 +787,8 @@ int gr_light_record::read(File *f)
 // 0x50f800 plane::set_from_points (vsdk/math/ix.h)  Confidence: exact.
 // 0x50f840 vector3::operator-= (vsdk/math/vector.h)  Confidence: exact.
 // 0x50f860 plane::distance_to_point (vsdk/math/ix.h)  Confidence: exact.
-// 0x50f880 plane::transform (vsdk/math/ix.h)  Confidence: likely.
+// 0x50f880 plane::transform (vsdk/math/ix.h; returns by value, D16401)  Confidence: likely (one fstp of p.d
+// is scheduled two pushes later in the binary).
 // 0x50f900 gr_clip_plane::operator= (implicit; copies +0x18 before +0x14)  Confidence: likely (copy order).
 // 0x50f930 gr_instance_entry::operator= (implicit)  Confidence: exact.
 // 0x50f990 quaternion::quaternion(x, y, z, w) (vsdk/math/quaternion.h)  Confidence: exact.

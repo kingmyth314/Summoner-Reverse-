@@ -247,7 +247,8 @@ struct vfx_inst21c {                          // the instance record of a vfx_de
                                               //       decomp67: 2 placed by get_node_world_transform, 4 bound,
                                               //       8 hidden (get_tag_transform); decomp72: 1 in use,
                                               //       0x20 particles from the heap (level effects)
-    short tag;                                // +0x6a the mesh tag it is bound to (decomp67)
+    ushort tag;                               // +0x6a the mesh tag it is bound to (decomp67); unsigned: its only
+                                              //       load, vif_emitter_update 0x533048, zero-extends (D15603)
     character_instance *ci;                   // +0x6c
     ushort count;                             // +0x70 particles (decomp72)
     ushort num_live;                          // +0x72 live particles (decomp67)

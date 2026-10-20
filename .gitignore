@@ -43,3 +43,4 @@ summonerfix.log
 
 # Claude Code local settings (permissions)
 /.claude/
+*.vc6try-orig

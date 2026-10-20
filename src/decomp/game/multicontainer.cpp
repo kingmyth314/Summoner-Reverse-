@@ -210,8 +210,9 @@ void container_spawn_loot(int count, item_obj **items, int handle, float lock, c
 
 // 0x489120  Confidence: unsure (match29, D8801: LOGIC FIX, the second packet field is the container lock as a float
 // (container_spawn_loot sends it with MP_ADD_FLOAT); it was read as an int and converted. The orientation is
-// assigned from a matrix temporary (operator=, nine dword moves as the binary). Still differs: the vectors'
-// store order and register choice). (the three vectors are plain stores, i.e. inline vector3 constructors, and
+// assigned from a matrix temporary (operator=, nine dword moves as the binary); its three vectors are
+// temporaries of the constructor call, built right to left as the binary stores them (D16403). Still differs:
+// the position goes through a temporary copied into pos in the binary, and register choice). (the three vectors are plain stores, i.e. inline vector3 constructors, and
 // the matrix goes through a temporary copied member by member; the spawned items are stored through a
 // running pointer, so the skipped invalid types leave the later slots unset). A single gold drop becomes
 // the gold item itself, anything else a container at the first item (0.2 higher) holding the items.
@@ -219,11 +220,8 @@ void container_spawn_loot(int count, item_obj **items, int handle, float lock, c
 void mp_handle_item_drop(ubyte *data, void *from)
 {
     item_obj *items[MP_MAX_DROP_ITEMS];
-    vector3 rvec(1.0f, 0.0f, 0.0f);
-    vector3 uvec(0.0f, 1.0f, 0.0f);
-    vector3 fvec(0.0f, 0.0f, 1.0f);
     matrix orient;
-    orient = matrix(rvec, uvec, fvec);
+    orient = matrix(vector3(1.0f, 0.0f, 0.0f), vector3(0.0f, 1.0f, 0.0f), vector3(0.0f, 0.0f, 1.0f));
     int gold = item_type_find("Gold");
     int count = ((int *)data)[0];
     float lock = ((float *)data)[1];

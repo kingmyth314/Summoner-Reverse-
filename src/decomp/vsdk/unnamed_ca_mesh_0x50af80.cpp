@@ -80,17 +80,17 @@ void gr_load_reflection_map()
     gr_reflection_map_bm = bm_load("refmap01.tga", -1, -1);
 }
 
-// 0x50b150  Confidence: likely (the key search: the cached key +8 first, then from key 1).
+// 0x50b150  Confidence: likely (the key search: the cached key +8 first, then from key 1; D16701: the
+// float view mv of the buffer is a device for the binary's v * 3 index scaled by 4; left: the binary keeps
+// ca_render_instance in no register and delays its pushes).
 void ca_render_morph_vertices(vim_submesh *sm)
 {
     int anim;
 
-    if (ca_render_instance->action_anim != -1)
-        anim = ca_render_instance->action_anim;
-    else
-        anim = ca_render_instance->state_anim;
+    anim = ca_render_instance->action_anim != -1 ? ca_render_instance->action_anim : ca_render_instance->state_anim;
     memcpy(ca_morph_vertices, sm->block0, sm->size0 * sizeof(vector3));
 
+    float *mv = (float *)ca_morph_vertices;
     skeleton *s = ca_render_character->skeletons[anim];
     for (int i = 0; i < s->num_morphs; i++) {
         int v = ((short *)sm->vertex_extra)[s->morph_ids[i]];
@@ -100,16 +100,15 @@ void ca_render_morph_vertices(vim_submesh *sm)
         float frame = (float)(ca_render_instance->times[anim] - s->start) / (s->end - s->start)
                       * s->num_morph_frames;
         if ((int)frame >= s->num_morph_frames - 1) {
-            anim_vec_key *last = &m->keys[m->num_keys - 1];
-            ca_morph_vertices[v].x = last->v.x;
-            ca_morph_vertices[v].y = last->v.y;
-            ca_morph_vertices[v].z = last->v.z;
+            mv[v * 3] = m->keys[m->num_keys - 1].v.x;
+            mv[v * 3 + 1] = m->keys[m->num_keys - 1].v.y;
+            mv[v * 3 + 2] = m->keys[m->num_keys - 1].v.z;
             continue;
         }
 
         int key;
         for (key = m->_unk08; key < m->num_keys; key++) {
-            if (m->keys[key].time >= frame && m->keys[key - 1].time < frame)
+            if (m->keys[key].time >= frame && frame > m->keys[key - 1].time)
                 break;
         }
         if (key == m->num_keys) {
@@ -119,11 +118,12 @@ void ca_render_morph_vertices(vim_submesh *sm)
         m->_unk08 = key;
 
         anim_vec_key *k = &m->keys[key];
-        float t = (k->time - frame) / (k->time - k[-1].time);
+        anim_vec_key *p = &m->keys[key - 1];
+        float t = (k->time - frame) / (k->time - p->time);
         float u = 1.0f - t;
-        ca_morph_vertices[v].x = u * k->v.x + t * k[-1].v.x;
-        ca_morph_vertices[v].y = u * k->v.y + t * k[-1].v.y;
-        ca_morph_vertices[v].z = u * k->v.z + t * k[-1].v.z;
+        mv[v * 3] = u * k->v.x + t * p->v.x;
+        mv[v * 3 + 1] = u * k->v.y + t * p->v.y;
+        mv[v * 3 + 2] = u * k->v.z + t * p->v.z;
     }
 }
 

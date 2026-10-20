@@ -1713,7 +1713,8 @@ void script_editor_pick_hover()
     }
 }
 
-// 0x4e2f30  Confidence: likely (D12410: centre at function scope, assigned through a temporary: 75 -> 36 differing lines, the rest is the partly expanded matrix copy; the exception frame is a profile_label, D9808; and t: the sphere test's
+// 0x4e2f30  Confidence: exact (D12410: centre at function scope, assigned through a temporary; D16103: the distance kept in
+// the radius parameter as well, which also gives the binary's partly expanded matrix copy; the exception frame is a profile_label, D9808; and t: the sphere test's
 // second output is written into the stack slot of the radius argument, as if t were the parameter itself). The mouse ray hits the
 // bounding sphere (within 1000 units) and the box (its centre half the box height up the up axis), nearer
 // than the best hit so far: the hover record takes the object's position, orientation and size.
@@ -1721,16 +1722,15 @@ bool script_editor_ray_hit_object(vector3 *pos, matrix *orient, vector3 *size, f
 {
     profile_label label("script_editor_ray_hit_object");
     vector3 centre, hit;
-    float d;
 
     if (!ix_ray_sphere(&hit, &radius, &script_editor_mouse_ray, 1000.0f, pos, radius))
         return false;
     centre = *pos + orient->uvec * (size->y * 0.5f);
     if (!ix_ray_box_oriented(&script_editor_mouse_ray, &centre, orient, size, &hit))
         return false;
-    d = distance(pos, &hit);
-    if (d < script_editor_pick_distance) {
-        script_editor_pick_distance = d;
+    radius = distance(pos, &hit);
+    if (radius < script_editor_pick_distance) {
+        script_editor_pick_distance = radius;
         script_editor_hover.pos = *pos;
         script_editor_hover.orient = *orient;
         script_editor_hover.size = *size;
@@ -2187,7 +2187,8 @@ void script_editor_store_string(script_action *a, const char *s)
         a->text = level_script_stringpool.Add(s);
 }
 
-// 0x4e4910  Confidence: likely (the tail merges of the sprintf cases; jump table 0x4e4b50). The action list
+// 0x4e4910  Confidence: exact (D16100: the type read once, case bodies in the binary's order, an explicit
+// `default: break;`; jump table 0x4e4b50). The action list
 // line of one action: its type name into name, its arguments into args. Moves (play action, die) are
 // shown by their $Variation id (the move of c's char_info with that anim), "-1" when c has none. Game
 // bug: a type above 0x20 leaves args as the uninitialised buffer (script_parse_objects never stores one).
@@ -2196,8 +2197,10 @@ void script_action_format(char *name, char *args, script_action *a, Character *c
     char buf[0x400];
     move_info *move;
 
-    strcpy(name, script_action_names[a->type]);
-    switch (a->type) {
+    int type = a->type;
+
+    strcpy(name, script_action_names[type]);
+    switch (type) {
     case SCRIPT_ACTION_WALK_TO:
     case SCRIPT_ACTION_RUN_TO:
     case SCRIPT_ACTION_MOVE_THROUGH:
@@ -2207,16 +2210,6 @@ void script_action_format(char *name, char *args, script_action *a, Character *c
     case SCRIPT_ACTION_WAIT_AT:
     case SCRIPT_ACTION_TRIGGER_NAV:
         sprintf(buf, "\"%s\" %d", a->nav->name, a->arg0c);
-        break;
-    case SCRIPT_ACTION_WANDER:
-        sprintf(buf, "\"%s\" %d", a->nav->name, a->arg0c);
-        if (!a->flag14)
-            strcat(buf, " run");
-        break;
-    case SCRIPT_ACTION_WANDER_FOR:
-        sprintf(buf, "\"%s\" %d %d", a->nav->name, a->arg0c, a->arg10);
-        if (!a->flag14)
-            strcat(buf, " run");
         break;
     case SCRIPT_ACTION_DO_STATE:
         sprintf(buf, "\"%s\"", locomotion_anim_names[a->arg0c]);
@@ -2233,6 +2226,9 @@ void script_action_format(char *name, char *args, script_action *a, Character *c
     case SCRIPT_ACTION_PLAY_EFFECT:
         sprintf(buf, "\"%s\"", a->text);
         break;
+    case SCRIPT_ACTION_SAY:
+        sprintf(buf, "\"%s\" %d", a->text, a->arg0c);
+        break;
     case SCRIPT_ACTION_TURN_HOSTILE:
     case SCRIPT_ACTION_LABEL:
     case SCRIPT_ACTION_GOTO:
@@ -2246,19 +2242,26 @@ void script_action_format(char *name, char *args, script_action *a, Character *c
     case SCRIPT_ACTION_ONE_HAND:
         sprintf(buf, "%d", a->arg0c);
         break;
+    case SCRIPT_ACTION_SYNCH_TELEPORT:
+        sprintf(buf, "%d \"%s\"", a->arg0c, a->nav->name);
+        break;
+    case SCRIPT_ACTION_WANDER:
+        sprintf(buf, "\"%s\" %d", a->nav->name, a->arg0c);
+        if (!a->flag14)
+            strcat(buf, " run");
+        break;
+    case SCRIPT_ACTION_WANDER_FOR:
+        sprintf(buf, "\"%s\" %d %d", a->nav->name, a->arg0c, a->arg10);
+        if (!a->flag14)
+            strcat(buf, " run");
+        break;
     case SCRIPT_ACTION_WAIT_GO:
     case SCRIPT_ACTION_MOUNT_ANIM:
     case SCRIPT_ACTION_DISMOUNT_ANIM:
         buf[0] = 0;
         break;
-    case SCRIPT_ACTION_SAY:
-        sprintf(buf, "\"%s\" %d", a->text, a->arg0c);
-        break;
     case SCRIPT_ACTION_PASS_GO:
         sprintf(buf, "\"%s\"", a->text);
-        break;
-    case SCRIPT_ACTION_SYNCH_TELEPORT:
-        sprintf(buf, "%d \"%s\"", a->arg0c, a->nav->name);
         break;
     case SCRIPT_ACTION_FOLLOW:
         sprintf(buf, "\"%s\" %d", a->text, a->arg0c);
@@ -2269,6 +2272,8 @@ void script_action_format(char *name, char *args, script_action *a, Character *c
             sprintf(buf, "\"(none)\"");
         else
             sprintf(buf, "\"%s\"", item_types[a->arg0c].name);
+        break;
+    default:
         break;
     }
     strcpy(args, buf);
@@ -2689,9 +2694,9 @@ void script_editor_place_creature()
     script_editor_new_button.set_latched(false);
 }
 
-// 0x4e5b10  Confidence: likely (the type dispatch is a second switch: `cmp 0 / jl`, `cmp 1 / jle`, `cmp 3 /
-// jne`, the ambient case laid out first; the first 0x365 bytes now match. Still differs: the level case's
-// `ray.start + ray.dir * hit.t` temporaries take each other's slots and operand order, D12502).
+// 0x4e5b10  Confidence: exact (the type dispatch is a second switch: `cmp 0 / jl`, `cmp 1 / jle`, `cmp 3 /
+// jne`, the ambient case laid out first, D12502; the second raycast's point as `ray.dir * hit.t + ray.start`:
+// the binary loads the product's components first, D16101).
 // A navpoint where the mouse ray meets the level (1000 units): a level navpoint ("$npc%.3d", on a
 // layer-flagged floor the pathfinder can use), a cutscene navpoint ("$cut%.3d", 512 at most although the
 // table holds 726), or an ambient navpoint ("$ambient%.3d", on any geometry, no layer: the layer
@@ -2787,7 +2792,7 @@ void script_editor_add_navpoint(int type)
         lobj_raycast_all(&ray, &hit);
         if (hit.num_hits == 0)
             return;
-        pos = ray.start + ray.dir * hit.t;
+        pos = ray.dir * hit.t + ray.start;
         lobj_from_index(hit.face)->pick_layer(&pos, 1);
         np = &navpoints[navpoint_count++];
         np->pos = pos;
@@ -3510,29 +3515,24 @@ void script_editor_select_prev()
     }
 }
 
-// 0x4e75c0  Confidence: likely (the orientation copy expands its first two rows inline and calls the copy
-// for the third). The selection record from its object; New and Change unlatch.
+// 0x4e75c0  Confidence: exact (D16104: the orientation copy expands its first two rows inline and calls the
+// copy for the third; VC6's inline budget gives that with the selection object read at each use, the size
+// row copied as a vector3 and the navpoint size through vector3::set). The selection record from its object; New and Change unlatch.
 void script_editor_focus_selection()
 {
     if (script_editor_sel.kind == SE_PICK_CHARACTER) {
-        Character *c = (Character *)script_editor_sel.object;
-        script_editor_sel.pos = c->pos;
-        script_editor_sel.orient = c->orient;
+        script_editor_sel.pos = ((Character *)script_editor_sel.object)->pos;
+        script_editor_sel.orient = ((Character *)script_editor_sel.object)->orient;
         if (((Character *)script_editor_sel.object)->type == 9) {
             script_editor_sel.size.x = script_editor_sel.size.z
                 = ((Character *)script_editor_sel.object)->size_radius() * 2.0f;
             script_editor_sel.size.y = ((Character *)script_editor_sel.object)->size_height();
         } else {
-            int s = ((Character *)script_editor_sel.object)->info->size;
-            script_editor_sel.size.x = script_editor_char_sizes[s][0];
-            script_editor_sel.size.y = script_editor_char_sizes[s][1];
-            script_editor_sel.size.z = script_editor_char_sizes[s][2];
+            script_editor_sel.size = *(vector3 *)script_editor_char_sizes[((Character *)script_editor_sel.object)->info->size];
         }
     } else if (script_editor_sel.kind == SE_PICK_NAVPOINT) {
         navpoint *np = (navpoint *)script_editor_sel.object;
-        script_editor_sel.size.x = 0.8f;
-        script_editor_sel.size.y = 0.4f;
-        script_editor_sel.size.z = 0.8f;
+        script_editor_sel.size.set(0.8f, 0.4f, 0.8f);
         script_editor_sel.pos = np->pos;
         script_editor_sel.orient.set_from_angles(0, 0, np->heading);
     }

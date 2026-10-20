@@ -236,7 +236,8 @@ void vif_emitter_update(vfx_inst21c *em, vfx_desc21c *rec, int flag, const vecto
             attract.y = rec->attract_offset.y + em->emit_pos.y;
             attract.z = rec->attract_offset.z + em->emit_pos.z;
         }
-        force = vif_curve__evaluate(&rec->force_curve, em->time, false) * reported_frametime;
+        force = vif_curve__evaluate(&rec->force_curve, em->time, false);
+        force *= reported_frametime;
     }
     interval = vif_curve__evaluate(&rec->interval_curve, em->time, true);
     if (em->interval <= 0.0f && interval > 0.0f)
@@ -346,8 +347,9 @@ void vif_emitter_update(vfx_inst21c *em, vfx_desc21c *rec, int flag, const vecto
     em->time = elapsed;
 }
 
-// 0x533620  Confidence: likely (D12602: the fog point as operator+'s result, args register rotation left; the two ramps as nested ifs; the second ramp's middle value 1.0 is loaded
-// after dropping the fraction). Each live particle as a bitmap of size * 2 scaled by the size ramp, white with
+// 0x533620  Confidence: exact (VC6 byte match, D15602: the blend mode as an if / else of two gr_bitmap_3d calls;
+// D12602: the fog point as operator+'s result, the two ramps as nested ifs; the second ramp's middle value 1.0 is
+// loaded after dropping the fraction). Each live particle as a bitmap of size * 2 scaled by the size ramp, white with
 // the alpha ramp * alpha * the point fog of the record (* 128), additive or alpha blended.
 void vif_draw_particles(vfx_inst21c *em, vfx_desc21c *rec)
 {
@@ -385,7 +387,10 @@ void vif_draw_particles(vfx_inst21c *em, vfx_desc21c *rec)
         pt.z = p->z;
         gr_set_color(0xff, 0xff, 0xff, (int)(a * rec->alpha * fog * 128.0f) & 0xff);
         gr_set_texture(rec->bitmap, -1);
-        gr_bitmap_3d(&pt, 0.0f, s, (rec->vis_flags & VIF_ADDITIVE) ? gr_mode_particle_additive : gr_mode_particle_alpha);
+        if (rec->vis_flags & VIF_ADDITIVE)
+            gr_bitmap_3d(&pt, 0.0f, s, gr_mode_particle_additive);
+        else
+            gr_bitmap_3d(&pt, 0.0f, s, gr_mode_particle_alpha);
     }
 }
 

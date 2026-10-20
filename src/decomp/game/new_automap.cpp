@@ -281,19 +281,20 @@ void automap_select_label(int index)
     }
 }
 
-// 0x4023b0  Confidence: likely (differs under cl 12.00.8966, match23; was exact).
+// 0x4023b0  Confidence: exact (D15501: the player's map pixel as an int pair array; with two int locals 8966
+// sinks both conversions into the centred branch).
 void automap_center_on_player()
 {
     float zoom = automap_get_zoom();
     float map_x, map_y;
-    int x, y;
+    int xy[2];
 
     automap_world_to_map(&map_x, &map_y, cur_character->pos.x, cur_character->pos.z);
-    x = (int)(automap_layer_w * map_x * zoom + 0.5f);
-    y = (int)(automap_layer_h * map_y * zoom + 0.5f);
+    xy[0] = (int)(automap_layer_w * map_x * zoom + 0.5f);
+    xy[1] = (int)(automap_layer_h * map_y * zoom + 0.5f);
     if (automap_centered) {
-        automap_scroll_x = automap_view_size[resolution_index][0] / 2 - x;
-        automap_scroll_y = automap_view_size[resolution_index][1] / 2 - y;
+        automap_scroll_x = automap_view_size[resolution_index][0] / 2 - xy[0];
+        automap_scroll_y = automap_view_size[resolution_index][1] / 2 - xy[1];
     } else {
         automap_scroll_x = automap_saved_scroll_x;
         automap_scroll_y = automap_saved_scroll_y;

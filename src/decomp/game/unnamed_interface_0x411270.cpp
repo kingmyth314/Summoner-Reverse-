@@ -300,8 +300,9 @@ int   ui_3d_light_count;                                // 0x5bd964
 vfx_instance *ui_model_lights_vfx;                      // 0x5bd968
 float leader_marker_phase;                              // 0x5bd96c
 
-// 0x4116c0  Confidence: likely (the two resolution switches: the first is lowered as range tests with the
-// 0 / 1 cases and the default on one block). GameInit: the UI scale, the 3D view, the screens' one-time
+// 0x4116c0  Confidence: likely (the first resolution switch is lowered as range tests with the 0 / 1 cases
+// and the default on one block; the screen width is an if / else if chain kept on the x87 stack, base_w in
+// memory and the fov through a float local, D16503; the 640 stores' block placement still differs). GameInit: the UI scale, the 3D view, the screens' one-time
 // set-up in file order (the empty bodies are folded into empty_function) and the cursor / popup bitmaps.
 void interface_init_global()
 {
@@ -309,6 +310,7 @@ void interface_init_global()
     float screen_w;
     float h_fov;
 
+    base_w = 640.0f;
     switch (resolution_index) {
     case 2:
         ui_hires = 1;
@@ -317,28 +319,23 @@ void interface_init_global()
     case 0:
     case 1:
         ui_hires = 0;
-        base_w = 640.0f;
         break;
     default:
         ui_hires = 0;
-        base_w = 640.0f;
         break;
     }
     screen_w = 640.0f;
-    switch (resolution_index) {
-    case 1:
+    if (resolution_index == 1)
         screen_w = 800.0f;
-        break;
-    case 2:
+    else if (resolution_index == 2)
         screen_w = 1024.0f;
-        break;
-    }
     ui_scale = screen_w / base_w;
     status_character = NULL;
     interface_cur_screen = 0;
     ui_scale_640 = screen_w * 0.0015625f;
     gr::set_clip(0, 0, gr_screen_width(), (int)(gr_screen_height() * 0.875f + 0.5f));
-    gr_setup_3d(&camera_view_orient, &camera_view_pos, camera_fov, 1, 1);
+    float fov = camera_fov;
+    gr_setup_3d(&camera_view_orient, &camera_view_pos, fov, 1, 1);
     gr_get_view_fov(&h_fov, &interface_view_fov);
     ui_choice_popup_flags = 0;
     ui_message_box_flags = 0;
@@ -1305,7 +1302,8 @@ void ui_choice_popup_show(const char *title, int x, int y, int num, char **items
         gr_get_string_size(&ui_choice_popup_w, &ui_choice_popup_h, ui_choice_popup_title, -1, -1);
     for (i = 0; i < ui_choice_popup_count; i++) {
         gr_get_string_size(&w, &h, ui_choice_popup_choices[i], -1, -1);
-        ui_choice_popup_w = max(w, ui_choice_popup_w);
+        lim = max(ui_choice_popup_w, w);
+        ui_choice_popup_w = lim;
         ui_choice_popup_h += h;
     }
     if (!ui_choice_popup_w)

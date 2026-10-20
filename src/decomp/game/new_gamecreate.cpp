@@ -241,7 +241,9 @@ void gamecreate_update_create_button()
 // 0x409de0  Confidence: unsure (the text input part: the binary tests field_active[i] again after the
 // key handling and returns 0 when it is clear, which no path can reach; written as the guard below. The
 // default case of the field switch zeroes key, so the buffer pointer is never used uninitialised).
-// The backspace and typing paths share their timer tail in the binary (cross-jumping).
+// The backspace and typing paths share their timer tail in the binary (cross-jumping). D16902: the final
+// Escape test is a one-case switch (the binary's `mov eax, ecx; dec eax; je` with key kept in ECX); the tail
+// now matches. Still differs: the field-check block after the default case is laid out right after it.
 int gamecreate_handle_click(int key)
 {
     int i;
@@ -336,11 +338,13 @@ int gamecreate_handle_click(int key)
         }
     }
 
-    if (key != KEY_ESC)
-        return key;
-    gamecreate_cancel();
-    game_play_sound(0x24, 1.0f, 0, 0, 0);
-    return 0;
+    switch (key) {
+    case KEY_ESC:
+        gamecreate_cancel();
+        game_play_sound(0x24, 1.0f, 0, 0, 0);
+        return 0;
+    }
+    return key;
 }
 
 // 0x40a020  Confidence: exact. Back to the game list (state 12).

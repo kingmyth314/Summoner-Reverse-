@@ -99,15 +99,22 @@ bool ix_linesegment_triangle_front(ix_ray *seg, vector3 **tri, plane *pl, vector
     return ix_point_in_polygon(hit, 3, tri, pl);
 }
 
-// 0x53af40  Confidence: likely (the two corner temporaries are named here; the binary builds the
-// plane's third point first). No caller. The hit must lie within the edge's span and on the positive
-// side of b; *u is its distance from that edge over |b|.
+// 0x53af40  Confidence: exact (VC6 byte match, m-1020d, D15902: the plane's two corners are `&(a + b)`
+// temporaries, a VC6 extension, so the binary builds the third point first; one float t for both
+// parameters; the edge point at s is a named local; the division of the second parameter is written
+// with each side parenthesised, else 8966 stores the dot product before the two lea of perp). No
+// caller. The hit must lie within the edge's span and on the positive side of b; *u is its distance
+// from that edge over |b|.
 bool ix_ray_parallelogram(ix_ray *ray, ix_ray *edge, const vector3 *b, vector3 *hit, float *u)
 {
-    float t, s;
+    float t;
+#ifdef _MSC_VER
+    plane pl(&edge->origin, &(edge->origin + edge->dir), &(edge->origin + *b));
+#else
     vector3 c2 = edge->origin + *b;
     vector3 c1 = edge->origin + edge->dir;
     plane pl(&edge->origin, &c1, &c2);
+#endif
 
     if (!ix_ray_plane_t(ray, &pl, &t))
         return false;
@@ -115,17 +122,18 @@ bool ix_ray_parallelogram(ix_ray *ray, ix_ray *edge, const vector3 *b, vector3 *
         return false;
     *hit = ray->origin + ray->dir * t;
     vector3 perp = edge->dir - (edge->dir.dot(*b) / b->dot(*b)) * *b;
-    s = (*hit - edge->origin).dot(perp) / perp.dot(perp);
-    if (s < 0.0f || s > 1.0f)
+    t = ((*hit - edge->origin).dot(perp)) / (perp.dot(perp));
+    if (t < 0.0f || t > 1.0f)
         return false;
-    vector3 r = *hit - (edge->origin + edge->dir * s);
+    vector3 q = edge->origin + edge->dir * t;
+    vector3 r = *hit - q;
     if (r.dot(*b) <= 0.0f)
         return false;
     *u = r.len() / b->len();
     return *u >= 0.0f && *u <= 1.0f;
 }
 
-// 0x53b130  Confidence: likely. No caller. The quad p0 p1 p3 p2 is tried as two triangle pairs; the hit
+// 0x53b130  Confidence: likely (D15904: the retries build the plane from tri[0..2] as the binary reloads them; still differs in the scheduling of the final mean). No caller. The quad p0 p1 p3 p2 is tried as two triangle pairs; the hit
 // is the ray point at the mean of the two t, *w the mean of its positions along p0-p2 and p1-p3.
 // 0x53b3e0 atexit_nop_53b3e0: the atexit handler of db (compiler-generated). Confidence: exact.
 // 0x53b3f0 atexit_nop_53b3f0: the atexit handler of da (compiler-generated). Confidence: exact.
@@ -143,7 +151,7 @@ bool ix_ray_quad(ix_ray *ray, vector3 *p0, vector3 *p1, vector3 *p2, vector3 *p3
     pl.set_from_points(p0, p1, p2);
     if (!ix_ray_plane_point(ray, tri, &pl, hit, &t1)) {
         tri[0] = p3;
-        pl.set_from_points(p3, p1, p2);
+        pl.set_from_points(tri[0], tri[1], tri[2]);
         if (!ix_ray_plane_point(ray, tri, &pl, hit, &t1))
             return false;
     }
@@ -153,7 +161,7 @@ bool ix_ray_quad(ix_ray *ray, vector3 *p0, vector3 *p1, vector3 *p2, vector3 *p3
     pl.set_from_points(p0, p1, p3);
     if (!ix_ray_plane_point(ray, tri, &pl, hit, &t2)) {
         tri[1] = p2;
-        pl.set_from_points(p0, p2, p3);
+        pl.set_from_points(tri[0], tri[1], tri[2]);
         if (!ix_ray_plane_point(ray, tri, &pl, hit, &t2))
             return false;
     }

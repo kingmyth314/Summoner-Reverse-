@@ -191,7 +191,8 @@ void cmd_slowdown_scaler()
 }
 
 // ---- ai_state --------------------------------------------------------------------------------------
-// 0x472200  Confidence: likely (the team / type test is a branch-free AND: `sete dl; sete al; test eax,
+// 0x472200  Confidence: exact (VC6 byte match, m-1020d w3: the distance in a block-scoped local, so owner is read
+// again after the call, D15701; the team / type test is a branch-free AND: `sete dl; sete al; test eax,
 // edx`, read as && of two side-effect-free tests). The alert sound, then for monsters every other
 // monster of the team that is not fighting and has no target, within the detection range, travels to
 // the caller (character_ai_add_goal9, priority 1000).
@@ -210,9 +211,11 @@ void ai_state::call_for_help()
         if (c == owner)
             continue;
         if ((c->get_team() == team) & (c->type == CHAR_TYPE_MONSTER)) {
-            if (!c->ai.is_mode(AI_STATE_COMBAT, -1) && c->ai.target == -1 &&
-                distance(&owner->pos, &c->pos) < owner->info->detection_range)
-                c->ai_add_goal9(&owner->pos, owner->layer, 1000, 1);
+            if (!c->ai.is_mode(AI_STATE_COMBAT, -1) && c->ai.target == -1) {
+                float d = distance(&owner->pos, &c->pos);
+                if (d < owner->info->detection_range)
+                    c->ai_add_goal9(&owner->pos, owner->layer, 1000, 1);
+            }
         }
     }
 }

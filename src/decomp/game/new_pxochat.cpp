@@ -1376,19 +1376,24 @@ void pxochat_update_buttons()
     pxochat_state = 0;
 }
 
-// 0x4244f0  Confidence: likely (as mp_charselect_drag_scrollbar, three stores of the element).
+// 0x4244f0  Confidence: exact (VC6 byte match, m-1020d, D15900: mp_charselect_drag_scrollbar's form: the list
+// index read from the global each time, the thumb offset first in the sum, the row count loaded again after
+// the clamp to 0; three stores of the element).
 void pxochat_drag_scrollbar()
 {
-    int list = pxochat_active_list;
-    int count = pxochat_list_count[list];
-
-    pxochat_scroll_pos[list] = (int)((float)(game_mouse_y - pxochat_track_pos[resolution_index][list][1]
-                                             - pxochat_drag_start_mouse_y + pxochat_drag_start_thumb_y)
-                                     / pxochat_track_h[resolution_index][list] * count + 0.5f);
-    pxochat_scroll_pos[list] = pxochat_scroll_pos[list] > 0 ? pxochat_scroll_pos[list] : 0;
-    count -= pxochat_list_page[resolution_index][list];
-    pxochat_scroll_pos[list] = pxochat_scroll_pos[list] < count ? pxochat_scroll_pos[list] : count;
-    pxochat_update_scrollbar(list);
+    pxochat_scroll_pos[pxochat_active_list] =
+        (int)((float)(pxochat_drag_start_thumb_y
+                      + (game_mouse_y - pxochat_track_pos[resolution_index][pxochat_active_list][1]
+                         - pxochat_drag_start_mouse_y))
+              / pxochat_track_h[resolution_index][pxochat_active_list]
+              * pxochat_list_count[pxochat_active_list] + 0.5f);
+    pxochat_scroll_pos[pxochat_active_list] =
+        pxochat_scroll_pos[pxochat_active_list] > 0 ? pxochat_scroll_pos[pxochat_active_list] : 0;
+    int count = pxochat_list_count[pxochat_active_list];
+    count -= pxochat_list_page[resolution_index][pxochat_active_list];
+    pxochat_scroll_pos[pxochat_active_list] =
+        pxochat_scroll_pos[pxochat_active_list] < count ? pxochat_scroll_pos[pxochat_active_list] : count;
+    pxochat_update_scrollbar(pxochat_active_list);
 
     if (!mouse_is_down(0))
         pxochat_state = 0;

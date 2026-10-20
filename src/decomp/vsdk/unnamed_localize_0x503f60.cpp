@@ -81,18 +81,20 @@ int localize_level_loaded;                               // 0x25d8890
 int localize_max_string_id;                              // 0x25d8894
 Mempool *localize_current_pool;                          // 0x25d8898
 
-// 0x503fe0  Confidence: likely (if/else chain in the compare order n, r, ", x; the hex buffer is
-// "0x" + two digits, the 'x' stored from the register that holds it).
+// 0x503fe0  Confidence: exact (m-1020d w9, D16301: indexed with i, not a walking pointer, so the empty-string
+// test reads text[0] apart and 8966 shrink-wraps ESI around the loop; the digits as text[i++] / text[i]; if/else
+// chain in the compare order n, r, ", x; the hex buffer is "0x" + two digits, the 'x' stored from the register
+// that holds it).
 // \" keeps the quote, any other escaped character stays itself; \xHH reads exactly two digits.
 void localize_unescape(char *text)
 {
     int out = 0;
-    char *p;
+    int i;
 
-    for (p = text; *p; p++) {
-        char c = *p;
+    for (i = 0; text[i]; i++) {
+        char c = text[i];
         if (c == '\\') {
-            c = *++p;
+            c = text[++i];
             if (c == 'n') {
                 c = '\n';
             } else if (c == 'r') {
@@ -101,12 +103,11 @@ void localize_unescape(char *text)
                 c = '"';
             } else if (c == 'x') {
                 char hex[8];
-                p++;
+                i++;
                 hex[0] = '0';
                 hex[1] = c;
-                hex[2] = p[0];
-                hex[3] = p[1];
-                p++;
+                hex[2] = text[i++];
+                hex[3] = text[i];
                 hex[4] = '\0';
                 c = (char)strtol(hex, NULL, 16);
             }
@@ -336,7 +337,9 @@ void localize_add_if_missing(localize_node **table, int *hashes, const char *eng
     localize_table_add(translation, hash, table);
 }
 
-// 0x504870  Confidence: likely (if/else for the two ParseString forms, merged into one call by VC6; locals).
+// 0x504870  Confidence: exact (m-1020d w9, D16302: the language name and both hash passes indexed with i, which
+// 8966 strength-reduces after the first loop test as the binary has it; braces = false after the strcat in the
+// script branch; if/else for the two ParseString forms, merged into one call by VC6).
 // The section is "<level>_dlg.tbl" / "<level>_script.tbl" inside topic_names.tbl / script_names.tbl. English
 // lines are taken in order (the id is parsed and ignored), so the n-th translation pairs with the n-th
 // English line. Topics drop everything from a '#'. A missing section only prints.
@@ -352,8 +355,6 @@ void localize_load_level_table(const char *name, int type)
     localize_node **table;
     bool braces;
     int i;
-    char *p;
-    int *h;
 
     if (type == LOCALIZE_LEVEL_TOPICS) {
         strcpy(filename, "topic_names.tbl");
@@ -365,8 +366,8 @@ void localize_load_level_table(const char *name, int type)
         strcpy(filename, "script_names.tbl");
         table = localize_script_table;
         strcpy(section, name);
-        braces = false;
         strcat(section, "_script.tbl");
+        braces = false;
     } else {
         return;
     }
@@ -380,7 +381,7 @@ void localize_load_level_table(const char *name, int type)
     tf.Expect("#english");
     if (tf.SkipTo(section, NULL)) {
         tf.SkipToNextLine();
-        h = hashes;
+        i = 0;
         while (!tf.Accept("#Stop File")) {
             tf.ParseInt();
             tf.Accept(",");
@@ -390,19 +391,19 @@ void localize_load_level_table(const char *name, int type)
                 tf.ParseString(text, sizeof(text), '"', '"');
             localize_unescape(text);
             localize_remap_charset(text, 1);
-            *h++ = localize_hash(text);
+            hashes[i++] = localize_hash(text);
         }
 
         strcpy(lang, "#");
         strcat(lang, localize_language_names[localize_language].name);
-        for (p = lang; *p; p++)
-            *p = tolower(*p);
+        for (i = 0; lang[i]; i++)
+            lang[i] = tolower(lang[i]);
         tf.Rewind();
         tf.SkipTo(lang, NULL);
         tf.Expect(lang);
         tf.SkipTo(section, NULL);
         tf.SkipToNextLine();
-        h = hashes;
+        i = 0;
         while (!tf.Accept("#Stop File")) {
             tf.ParseInt();
             tf.Accept(",");
@@ -417,7 +418,7 @@ void localize_load_level_table(const char *name, int type)
             }
             localize_unescape(text);
             localize_remap_charset(text, 1);
-            localize_table_add(text, *h++, table);
+            localize_table_add(text, hashes[i++], table);
         }
     } else {
         printf("!!!Not found!!! section: %s in file: %s\n", section, filename);
@@ -556,40 +557,40 @@ void localize_get_language_code_buf(char *out)
     strcpy(out, localize_language_names[localize_language].code);
 }
 
-// 0x5051a0  Confidence: likely (the order of the French and German cases; case order inside each switch
-// follows the jump targets).
+// 0x5051a0  Confidence: exact (m-1020d w9, D16301: the three loops indexed with i, so the first test reads
+// text[0] before the walking register is set up; case order inside each switch follows the jump targets).
 // German: to_font != 0 maps Windows-1252 to the font's CP437 positions, 0 maps back (ß goes to 0xbc but
 // comes back from 0xe1). French has one direction only (to_font is ignored), so French text read back from
 // the font is not converted; capitals with accents become the lower-case glyphs, several go to 0xff, and Ä
 // (0xc4) becomes 0x90 (É in CP437).
 char *localize_remap_charset(char *text, int to_font)
 {
-    char *p;
+    int i;
 
     switch (localize_language) {
     case LANGUAGE_FRENCH:
-        for (p = text; *p; p++) {
-            switch (*p) {
-            case '\xe1': *p = '\xa0'; break;
-            case '\xe0': *p = '\x85'; break;
-            case '\xe2': *p = '\x83'; break;
-            case '\xe5': *p = '\x86'; break;
-            case '\xc5': *p = '\x8f'; break;
-            case '\xeb': *p = '\x89'; break;
-            case '\xea': *p = '\x88'; break;
+        for (i = 0; text[i] != 0; i++) {
+            switch (text[i]) {
+            case '\xe1': text[i] = '\xa0'; break;
+            case '\xe0': text[i] = '\x85'; break;
+            case '\xe2': text[i] = '\x83'; break;
+            case '\xe5': text[i] = '\x86'; break;
+            case '\xc5': text[i] = '\x8f'; break;
+            case '\xeb': text[i] = '\x89'; break;
+            case '\xea': text[i] = '\x88'; break;
             case '\xc9':
-            case '\xe9': *p = '\x82'; break;
+            case '\xe9': text[i] = '\x82'; break;
             case '\xc8':
-            case '\xe8': *p = '\x8a'; break;
-            case '\xc4': *p = '\x90'; break;
-            case '\xef': *p = '\x8b'; break;
-            case '\xee': *p = '\x8c'; break;
-            case '\xf2': *p = '\x95'; break;
-            case '\xf3': *p = '\xa2'; break;
-            case '\xf4': *p = '\x93'; break;
-            case '\xfa': *p = '\xa3'; break;
-            case '\xf9': *p = '\x97'; break;
-            case '\xfb': *p = '\x96'; break;
+            case '\xe8': text[i] = '\x8a'; break;
+            case '\xc4': text[i] = '\x90'; break;
+            case '\xef': text[i] = '\x8b'; break;
+            case '\xee': text[i] = '\x8c'; break;
+            case '\xf2': text[i] = '\x95'; break;
+            case '\xf3': text[i] = '\xa2'; break;
+            case '\xf4': text[i] = '\x93'; break;
+            case '\xfa': text[i] = '\xa3'; break;
+            case '\xf9': text[i] = '\x97'; break;
+            case '\xfb': text[i] = '\x96'; break;
             case '\xc0':
             case '\xc1':
             case '\xc2':
@@ -598,39 +599,39 @@ char *localize_remap_charset(char *text, int to_font)
             case '\xcf':
             case '\xd9':
             case '\xda':
-            case '\xdb': *p = '\xff'; break;
-            case '\xe7': *p = '\x87'; break;
-            case '\xc7': *p = '\x80'; break;
-            case '\xe6': *p = '\x91'; break;
-            case '\xc6': *p = '\x92'; break;
-            case '\x9c': *p = '\x9b'; break;
-            case '\x8c': *p = '\x9c'; break;
+            case '\xdb': text[i] = '\xff'; break;
+            case '\xe7': text[i] = '\x87'; break;
+            case '\xc7': text[i] = '\x80'; break;
+            case '\xe6': text[i] = '\x91'; break;
+            case '\xc6': text[i] = '\x92'; break;
+            case '\x9c': text[i] = '\x9b'; break;
+            case '\x8c': text[i] = '\x9c'; break;
             }
         }
         return text;
     case LANGUAGE_GERMAN:
         if (!to_font) {
-            for (p = text; *p; p++) {
-                switch (*p) {
-                case '\x81': *p = '\xfc'; break;
-                case '\x84': *p = '\xe4'; break;
-                case '\x94': *p = '\xf6'; break;
-                case '\x9a': *p = '\xdc'; break;
-                case '\x8e': *p = '\xc4'; break;
-                case '\x99': *p = '\xd6'; break;
-                case '\xe1': *p = '\xdf'; break;
+            for (i = 0; text[i] != 0; i++) {
+                switch (text[i]) {
+                case '\x81': text[i] = '\xfc'; break;
+                case '\x84': text[i] = '\xe4'; break;
+                case '\x94': text[i] = '\xf6'; break;
+                case '\x9a': text[i] = '\xdc'; break;
+                case '\x8e': text[i] = '\xc4'; break;
+                case '\x99': text[i] = '\xd6'; break;
+                case '\xe1': text[i] = '\xdf'; break;
                 }
             }
         } else {
-            for (p = text; *p; p++) {
-                switch (*p) {
-                case '\xfc': *p = '\x81'; break;
-                case '\xe4': *p = '\x84'; break;
-                case '\xf6': *p = '\x94'; break;
-                case '\xdc': *p = '\x9a'; break;
-                case '\xc4': *p = '\x8e'; break;
-                case '\xd6': *p = '\x99'; break;
-                case '\xdf': *p = '\xbc'; break;
+            for (i = 0; text[i] != 0; i++) {
+                switch (text[i]) {
+                case '\xfc': text[i] = '\x81'; break;
+                case '\xe4': text[i] = '\x84'; break;
+                case '\xf6': text[i] = '\x94'; break;
+                case '\xdc': text[i] = '\x9a'; break;
+                case '\xc4': text[i] = '\x8e'; break;
+                case '\xd6': text[i] = '\x99'; break;
+                case '\xdf': text[i] = '\xbc'; break;
                 }
             }
         }

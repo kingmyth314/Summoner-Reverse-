@@ -194,8 +194,8 @@ void cmd_eax_save_props()
     }
 }
 
-// 0x4caa00  Confidence: likely (the vector temporaries; the radius test loads the radius once more after
-// distance_squared, as `r * r` against a copy). Runs while no exit is pending: a crossed spline trigger
+// 0x4caa00  Confidence: exact (VC6 byte match, m-1020d w3: the squared distance in a local before the radius
+// test, and the exit name stored before the trigger index, D15702). Runs while no exit is pending: a crossed spline trigger
 // or an entered radius trigger either calls the level's use handler (LEVEL_TRIGGER_SCRIPT_USE) or becomes
 // the pending level exit. Then the exit is blocked (level_exit_block_flags) when, outside towns, the world
 // map and the "rand" levels, a party member is more than 10 units away or a hostile in combat with a party
@@ -235,8 +235,8 @@ void level_check_triggers()
                 }
             }
         } else if (level_triggers[i].type == 1) {
-            if (distance_squared(&level_triggers[i].nav->pos, &cur_character->pos)
-                <= level_triggers[i].radius * level_triggers[i].radius) {
+            float d = distance_squared(&level_triggers[i].nav->pos, &cur_character->pos);
+            if (d <= level_triggers[i].radius * level_triggers[i].radius) {
                 dir = cur_character->pos - level_triggers[i].nav->pos;
                 dir.normalize();
                 dir *= level_triggers[i].radius + 0.3f;
@@ -254,8 +254,8 @@ void level_check_triggers()
 
     level_exit_block_flags = 0;
     level_exit_trigger = level_triggers[i].name;
-    level_exit_trigger_index = level_triggers[i].index;
     level_pending_exit_name = level_triggers[i].script;
+    level_exit_trigger_index = level_triggers[i].index;
     if (!level_is_town && cur_level_index != 4 && _strnicmp(level_filename, "rand-", 4) != 0) {
         Player *p;
         Character *c;

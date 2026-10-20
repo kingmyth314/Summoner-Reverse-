@@ -36,17 +36,18 @@ public:
     }
     float distance_to_point(const vector3 *p)        // 0x50f860 Plane__distance_to_point
     { return p->dot(normal) + d; }
-    // (out, pos, orient): the plane in the frame at pos / orient (gr_cull_bounding_box_transformed); the
-    // copy into out goes through the plane assignment 0x4c0a20, not 0x50f760 (D4502). Returns out.
-    plane *transform(plane *out, const vector3 *pos, const matrix *orient)   // 0x50f880 Plane__transform
+    // The plane in the frame at pos / orient (gr_cull_bounding_box_transformed). Returned by value
+    // (D16401): the caller's local is the hidden result (no constructor call there), and `return p`
+    // copy-constructs into it through the implicit copy constructor, the COMDAT 0x4c0a20 (four dword
+    // moves; folded with the projector object's plane assignment, D4502).
+    plane transform(const vector3 *pos, const matrix *orient)   // 0x50f880 Plane__transform
     {
         plane p;
         vector3 pt = normal * d;
         pt += *pos;
         p.d = normal.dot(pt);
         p.normal = normal.rotated(*orient);
-        *out = p;
-        return out;
+        return p;
     }
 
     vector3 normal;                                  // +0x00

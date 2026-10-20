@@ -16,14 +16,16 @@
 #include "vsdk/gr/gr.h"
 #include "vsdk/os/mouse.h"
 
-// 0x55e040  Confidence: likely (VC6 keeps each of x1, x1 + 1, y1, y1 + 1, x2, y2, y2 - 1 as its own
-// induction variable). width rings of lines, the dark (bottom, right) ones first.
-void ui_draw_bevel(int x, int y, int w, int h, Color *light, Color *dark, int width, int inset)
+// 0x55e040  Confidence: exact (VC6 keeps each of x1, x1 + 1, y1, y1 + 1, x2, y2, y2 - 1 as its own
+// induction variable). width rings of lines, the dark (bottom, right) ones first. The corners are
+// computed into the parameters (the binary keeps x1, y1, x2, y2 in the x, y, w, h argument slots;
+// D16200): x2 / y2 arrive as the width and height.
+void ui_draw_bevel(int x1, int y1, int x2, int y2, Color *light, Color *dark, int width, int inset)
 {
-    int x1 = x + inset;
-    int y1 = y + inset;
-    int x2 = x + w - 1 - inset;
-    int y2 = y + h - 1 - inset;
+    x2 = x1 + x2 - 1 - inset;
+    y2 = y1 + y2 - 1 - inset;
+    x1 += inset;
+    y1 += inset;
 
     while (width-- != 0) {
         gr_set_color_ptr(dark);

@@ -697,8 +697,9 @@ navpoint *ls_worldmap1_nearest_orenian_nav(float *out_dist)
     return &navpoints[found];
 }
 
-// 0x4fce40  Confidence: likely (shared suffix tails; the compares against the first roll are scheduled
-// before the strcpys). Stage 15+: the Tome Page 8 quest first, then by terrain (hills gives the iceland
+// 0x4fce40  Confidence: exact (VC6 byte match, m-1020d, D15901: the grassland roll is a block-scoped local,
+// which gives the binary's frame order dist, r2, best, r1; shared suffix tails; the compares against the
+// first roll are scheduled before the strcpys). Stage 15+: the Tome Page 8 quest first, then by terrain (hills gives the iceland
 // maps).
 void ls_worldmap1_pick_encounter_stage15()
 {
@@ -780,12 +781,12 @@ void ls_worldmap1_pick_encounter_stage15()
                 strcat(level_script_name, "_v7");
         }
     } else if (terrain == 2) {
-        r2 = frand();
-        if (r2 < 0.1f && savegame_state.get_flag(23, "ready_for_end")
+        float r = frand();
+        if (r < 0.1f && savegame_state.get_flag(23, "ready_for_end")
             && savegame_state.get_flag(34, "got_laharah_spirit")) {
             strcpy(level_filename, "rand-grassland01");
             strcpy(level_script_name, "rand-grassland01_v5");
-        } else if (r2 < 0.5f && !savegame_state.get_flag(2, "extra_1")) {
+        } else if (r < 0.5f && !savegame_state.get_flag(2, "extra_1")) {
             savegame_state.set_flag(2, "extra_1", true);
             strcpy(level_filename, "rand-grassland01");
             strcpy(level_script_name, "rand-grassland01_v4");

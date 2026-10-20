@@ -594,7 +594,7 @@ int ai_state::serpent_choose_attack()
     int idx = serpent_part_index(owner);
     if (owner->combat.is_busy() == true && serpent_part_busy[idx])
         return 5;
-    if (is_mode(AI_STATE_COMBAT, 0x38) || is_mode(AI_STATE_COMBAT, 0x39) || is_mode(AI_STATE_COMBAT, 0x20))
+    if (owner->ai.is_mode(AI_STATE_COMBAT, 0x38) || owner->ai.is_mode(AI_STATE_COMBAT, 0x39) || owner->ai.is_mode(AI_STATE_COMBAT, 0x20))
         return 5;
     boss_attack **busy_slot = &serpent_part_busy[idx];
     if (*busy_slot)

@@ -984,7 +984,7 @@ void gr_bitmap(int bm, int x, int y, gr::Mode mode)
     }
 }
 
-// 0x507100  Confidence: likely (the vertex array is built by the vector constructor iterator after
+// 0x507100  Confidence: likely (D16003: the corner sums grouped `(a - b) + x`; the vertex array is built by the vector constructor iterator after
 // gr_set_texture, D12103; the FPU schedule of the corner sums still differs).
 // The bitmap as a quad of its size times scale, centred on (x, y) and rotated by angle, through
 // gr_tmapper (no clipping here). Only sx, sy, sw = 1, uv and the "uv given" flag are set. The polygon
@@ -1015,29 +1015,29 @@ void gr_bitmap_float(int bm, float x, float y, float scale, float angle, gr::Mod
     verts[0].u = 0.0f;
     verts[0].v = 0.0f;
     verts[0]._unk1a = 1;
-    verts[0].sx = hs - wc + x;
-    verts[0].sy = -ws - hc + y;
+    verts[0].sx = (hs - wc) + x;
+    verts[0].sy = (-ws - hc) + y;
 
     verts[1].sw = 1.0f;
     verts[1].u = 1.0f;
     verts[1].v = 0.0f;
     verts[1]._unk1a = 1;
-    verts[1].sx = wc + hs + x;
-    verts[1].sy = ws - hc + y;
+    verts[1].sx = (wc + hs) + x;
+    verts[1].sy = (ws - hc) + y;
 
     verts[2].sw = 1.0f;
     verts[2].u = 1.0f;
     verts[2].v = 1.0f;
     verts[2]._unk1a = 1;
-    verts[2].sx = wc - hs + x;
-    verts[2].sy = hc + ws + y;
+    verts[2].sx = (wc - hs) + x;
+    verts[2].sy = (hc + ws) + y;
 
     verts[3].sw = 1.0f;
     verts[3].u = 0.0f;
     verts[3].v = 1.0f;
     verts[3]._unk1a = 1;
-    verts[3].sx = -wc - hs + x;
-    verts[3].sy = hc - ws + y;
+    verts[3].sx = (-wc - hs) + x;
+    verts[3].sy = (hc - ws) + y;
 
     gr_tmapper(4, vlist, mode);
 }

@@ -1347,7 +1347,9 @@ void gr_d3d_begin_scene()
     }
 }
 
-// 0x5395c0  Confidence: unsure (long; block layout, the shared failure exit and the Voodoo message that
+// 0x5395c0  Confidence: unsure (D16204: the clipper, fog and video-memory locals are block-scoped, which
+// shares their slots as the binary does: the frame is 0x2067c and the first difference moves from +0 to
+// the texture-caps tests, where the binary masks with 0xff before each shift; long; block layout, the shared failure exit and the Voodoo message that
 // the binary places after the epilogue, 0x53a125).
 // Loads ddraw.dll, picks the last hardware device of the primary driver, creates the surfaces (windowed:
 // primary + offscreen render target with a clipper; fullscreen: a flipping chain at 16 bpp), the z-buffer
@@ -1355,7 +1357,6 @@ void gr_d3d_begin_scene()
 // gr_d3d_close and exit(0).
 void gr_d3d_init_device()
 {
-    IDirectDrawClipper *clipper;
     DDSCAPS2 caps;
     DWORD optimizations;
     D3DVIEWPORT7 vp;
@@ -1370,8 +1371,6 @@ void gr_d3d_init_device()
     HWND hwnd;
     DWORD raster;
     int missing;
-    DWORD total_mem, free_mem;
-    float fog_start, fog_end;
 
     ddraw_dll = LoadLibraryA("ddraw.dll");
     if (!ddraw_dll)
@@ -1408,6 +1407,8 @@ void gr_d3d_init_device()
         goto failed;
 
     if (d3d_windowed) {
+        IDirectDrawClipper *clipper;
+
         GetClientRect(hwnd, &d3d_screen_rect);
         GetClientRect(hwnd, &d3d_window_rect);
         ClientToScreen(hwnd, (POINT *)&d3d_screen_rect.left);
@@ -1585,6 +1586,8 @@ void gr_d3d_init_device()
         else
             d3d_fog_mode = 1;
     } else {
+        float fog_start, fog_end;
+
         fog_start = 1.0f;
         fog_end = 1.0f;
         if (raster & D3DPRASTERCAPS_FOGVERTEX) {
@@ -1634,18 +1637,22 @@ void gr_d3d_init_device()
     if (cmdline_param_vertexfog.found())
         d3d_fog_mode = 3;
 
-    memset(&caps, 0, sizeof(caps));
-    caps.dwCaps = DDSCAPS_TEXTURE;
-    d3d_flag_2dc2960 = 1;
-    if (IDirectDraw7_GetAvailableVidMem(d3d_ddraw, &caps, &total_mem, &free_mem) != DD_OK)
-        free_mem = 0;
-    if (free_mem < 0x500000) {
-        gr_d3d_close();
-        MessageBox(NULL, XSTR("At least 8 MB of available video memory required.", 944),
-                   XSTR("Missing Features", 942), D3D_MB_FLAGS);
-        exit(1);
+    {
+        DWORD total_mem, free_mem;
+
+        memset(&caps, 0, sizeof(caps));
+        caps.dwCaps = DDSCAPS_TEXTURE;
+        d3d_flag_2dc2960 = 1;
+        if (IDirectDraw7_GetAvailableVidMem(d3d_ddraw, &caps, &total_mem, &free_mem) != DD_OK)
+            free_mem = 0;
+        if (free_mem < 0x500000) {
+            gr_d3d_close();
+            MessageBox(NULL, XSTR("At least 8 MB of available video memory required.", 944),
+                       XSTR("Missing Features", 942), D3D_MB_FLAGS);
+            exit(1);
+        }
+        gr_d3d_video_memory_mb = free_mem;
     }
-    gr_d3d_video_memory_mb = free_mem;
 
     gr_d3d_set_render_state(D3DRENDERSTATE_DITHERENABLE, FALSE);
     gr_d3d_set_render_state(D3DRENDERSTATE_CULLMODE, D3DCULL_NONE);

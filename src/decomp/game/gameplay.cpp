@@ -803,7 +803,7 @@ vector3 world_last_click_pos;                                 // 0x609ff8 (gamet
 // .data 0x593f50: between level_load_layers' "$layer%02d" and game_render_frame's "Fog_near" literal.
 int world_mouse_target_handle = -1;                           // 0x593f50 (gametarget.h)
 
-// 0x438dc0  Confidence: likely (the cursor_visible expression). The move target decal, the 3D scene
+// 0x438dc0  Confidence: exact (the cursor_visible expression is a device, D16500). The move target decal, the 3D scene
 // (unless a full-screen interface screen is up), the obstacle debug view, the interface (with the depth
 // test inverted on a full-screen screen), the script editor. The fog text below can never show: the
 // timer is a function-local static that only this block starts, and only while it is already valid.
@@ -818,7 +818,9 @@ void game_render_frame()
         levelrender_render_scene();
     if (Render_3d_obstacles)
         obstacles_debug_render();
-    cursor_visible = !(game_flags & GF_CUTSCENE);
+    // Device (D16500): a volatile dword read and a byte-wide not / shr give the binary's `not al; shr al, 5`;
+    // the plain !(game_flags & GF_CUTSCENE) gives shr eax, 5 first. Same value.
+    cursor_visible = (unsigned char)~*(volatile int *)&game_flags >> 5 & 1;
     if (interface_screen_is_fullscreen())
         gr_d3d_invert_depth_test();
     interface_draw();

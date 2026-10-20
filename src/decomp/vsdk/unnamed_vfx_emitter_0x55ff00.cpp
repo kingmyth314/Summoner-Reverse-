@@ -317,7 +317,9 @@ void fx_recb0::apply_forces(vfx_emitter_desc *desc, fx_rec28 *p, vfx_force_param
     }
 }
 
-// 0x560a00  Confidence: likely (the macros; the loop counter is `first` itself). Without forces one step
+// 0x560a00  Confidence: likely (the macros; the loop counter is `first` itself; D16703: ceil reads last_t,
+// as in spawn, which gives the binary's frame; left: spawn's prev store order and one load in the second
+// force block). Without forces one step
 // of dt. Otherwise the part of the first frame, the whole frames (modulo the loop length) and the part
 // of the last frame each get the forces at their frame and a 1/15 s budget of steps; once the effect has
 // wrapped and the emitter is stopped, frames past the end only drift.
@@ -336,7 +338,7 @@ void fx_recb0::move_particles(vfx_emitter_desc *desc, float t, float dt)
 
     if (desc->num_links > 0) {
         prev = last_t;
-        first = (int)ceil(prev);
+        first = (int)ceil(last_t);
         last = (int)floor(t);
         vfx_force_params forces[3];
         wrapped = t < prev;

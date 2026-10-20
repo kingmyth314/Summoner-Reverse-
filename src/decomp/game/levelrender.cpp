@@ -172,7 +172,9 @@ void cmd_small_mesh_threshold()
 
 // ---- waving level objects ----------------------------------------------------------------------------
 
-// 0x48de60  Confidence: likely (unsure for the corner normals' temporaries). Callers: the three draw
+// 0x48de60  Confidence: likely (D15803: p a copy-constructed block local, the noise in a float local with
+// Space_mult * p first, the corner indices in ints and n0's second edge named: frame and the out-of-line calls
+// are the binary's; left: a few instructions' order in each loop). Callers: the three draw
 // lists, with out = levelrender_wave_vertices, for level objects with flag 0x20. Each vertex is
 // copied, then moved up by Perlin noise sampled at the world position (scaled by the record and
 // Space_mult), animated along z by the elapsed time (Time_mult) and weighted per vertex. The vector
@@ -185,7 +187,6 @@ void cmd_small_mesh_threshold()
 void levelrender_wave_lobj(lobj *l, vector3 *out)
 {
     s3d_textured_record *rec;
-    vector3 p;
     float t;
     int i;
     s3d_face *face;
@@ -198,24 +199,26 @@ void levelrender_wave_lobj(lobj *l, vector3 *out)
         timer.SetTimeout(0);
     t = (float)timer.GetElapsedTime() * 0.001f / rec->period;
     for (i = 0; i < l->mesh->num_vertices; i++) {
-        p = l->mesh->vertices[i];
+        vector3 p = l->mesh->vertices[i];
         p.rotate(l->orient);
         p += l->pos;
         out[i] = l->mesh->vertices[i];
         p.x /= rec->scale_x;
         p.z /= rec->scale_z;
-        out[i].y += perlin_noise3(vector3(0.0f, 0.0f, Time_mult * t) + Space_mult * p) * rec->weights[i]
-                    * rec->amplitude;
+        float n = perlin_noise3(Space_mult * p + vector3(0.0f, 0.0f, Time_mult * t));
+        out[i].y += n * rec->weights[i] * rec->amplitude;
     }
 
     for (i = 0; i < l->mesh->num_faces; i++) {
         face = &l->mesh->faces[i];
-        n0 = (levelrender_wave_vertices[face->v[1]] - levelrender_wave_vertices[face->v[0]])
-                 .cross(levelrender_wave_vertices[face->v[2]] - levelrender_wave_vertices[face->v[0]]);
-        n1 = (levelrender_wave_vertices[face->v[2]] - levelrender_wave_vertices[face->v[1]])
-                 .cross(levelrender_wave_vertices[face->v[0]] - levelrender_wave_vertices[face->v[1]]);
-        n2 = (levelrender_wave_vertices[face->v[0]] - levelrender_wave_vertices[face->v[2]])
-                 .cross(levelrender_wave_vertices[face->v[1]] - levelrender_wave_vertices[face->v[2]]);
+        int a = face->v[0];
+        int b = face->v[1];
+        int c = face->v[2];
+        vector3 e2 = levelrender_wave_vertices[c] - levelrender_wave_vertices[a];
+        vector3 e1 = levelrender_wave_vertices[b] - levelrender_wave_vertices[a];
+        n0 = e1.cross(e2);
+        n1 = (levelrender_wave_vertices[c] - levelrender_wave_vertices[b]).cross(levelrender_wave_vertices[a] - levelrender_wave_vertices[b]);
+        n2 = (levelrender_wave_vertices[a] - levelrender_wave_vertices[c]).cross(levelrender_wave_vertices[b] - levelrender_wave_vertices[c]);
         n0.normalize();
         n1.normalize();
         n2.normalize();

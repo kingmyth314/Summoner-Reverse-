@@ -177,26 +177,28 @@ void matrix3_pack_orientation(mp_packed_orient *out, const matrix *m)
 }
 
 // 0x475430  Confidence: likely (the x87 schedule keeps 1 - r0^2 for m[6]; the order of the five square
-// roots is the code's). The dropped terms are rebuilt as unit-length rows and columns, then signed.
+// roots is the code's; D16203: the two pairs are vector2 copies, as in the packer: 111 -> 55 differing
+// lines, the sign multiplies and the frame (0x14 against 0xc) left). The dropped terms are rebuilt as unit-length rows and columns, then signed.
 void matrix3_unpack_orientation(const mp_packed_orient *in, matrix *out)
 {
-    float r0 = in->r0, r1 = in->r1, u0 = in->u0, u1 = in->u1;
+    vector2 r = *(const vector2 *)&in->r0;
+    vector2 u = *(const vector2 *)&in->u0;
     float a, rz, uz, fz, fx, fy;
 
-    out->rvec.x = r0;
-    out->rvec.y = r1;
-    out->uvec.x = u0;
-    out->uvec.y = u1;
-    a = 1.0f - r0 * r0;
-    rz = (float)sqrt(fabsf(a - r1 * r1));
+    out->rvec.x = r.x;
+    out->rvec.y = r.y;
+    out->uvec.x = u.x;
+    out->uvec.y = u.y;
+    a = 1.0f - r.x * r.x;
+    rz = (float)sqrt(fabsf(a - r.y * r.y));
     out->rvec.z = rz;
-    uz = (float)sqrt(fabsf(1.0f - u0 * u0 - u1 * u1));
+    uz = (float)sqrt(fabsf(1.0f - u.x * u.x - u.y * u.y));
     out->uvec.z = uz;
     fz = (float)sqrt(fabsf(1.0f - rz * rz - uz * uz));
     out->fvec.z = fz;
-    fx = (float)sqrt(fabsf(a - u0 * u0));
+    fx = (float)sqrt(fabsf(a - u.x * u.x));
     out->fvec.x = fx;
-    fy = (float)sqrt(fabsf(1.0f - r1 * r1 - u1 * u1));
+    fy = (float)sqrt(fabsf(1.0f - r.y * r.y - u.y * u.y));
     out->fvec.y = fy;
     out->rvec.z = rz * ((in->signs & 1) ? -1.0f : 1.0f);
     out->uvec.z = uz * ((in->signs & 2) ? -1.0f : 1.0f);

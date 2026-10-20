@@ -677,7 +677,12 @@ bool tentacle_target_in_reach(Character *boss, Character *target)
 }
 
 // 0x4c7960  Confidence: likely (the landing's vector temporaries: the position is rebuilt through the
-// out-of-line vector3 constructor and copied once more through the copy constructor). boss_ai_do_frame_hook
+// out-of-line vector3 constructor and copied once more through the copy constructor; D16901: step as
+// `throw_velocity * reported_frametime` (one frametime load), ray / hit declared after the thrown test (the
+// ray constructor's store comes there), the landing and the miss through vector3 operators and fwd assigned
+// with operator= (the binary's discarded out-of-line copy); first 60 instructions now the binary's, the
+// landing still expands the constructors the binary calls, the binary keeps &r->pos in EBP, frame 0xb4 against
+// 0xa8). boss_ai_do_frame_hook
 // case 0x93: a held victim hangs 1.5 below the grab bone (its orientation is the bone's); a thrown one
 // flies with the throw velocity (horizontal damping 0.75 per second, gravity growing by 9.8 per second)
 // until the level ray from its position along this frame's step hits ground with flag 0x40. On landing it
@@ -687,10 +692,7 @@ void tentacle_beast_frame_hook(Character *c)
     tentacle_info *t = tentacle_find(c);
     Character *v;
     Character *r;
-    lobj_ray ray;
-    lobj_hit hit;
     vector3 p;
-    vector3 step;
     bool landed;
     float damp;
 
@@ -708,10 +710,10 @@ void tentacle_beast_frame_hook(Character *c)
     r = living_from_handle(t->thrown);
     if (r == NULL)
         return;
-    step.x = reported_frametime * t->throw_velocity.x;
-    step.y = reported_frametime * t->throw_velocity.y;
-    step.z = reported_frametime * t->throw_velocity.z;
+    vector3 step = t->throw_velocity * reported_frametime;
     landed = false;
+    lobj_ray ray;
+    lobj_hit hit;
     ray.start = r->pos;
     ray.dir = step;
     ray._unk18 = 0.01f;
@@ -720,13 +722,11 @@ void tentacle_beast_frame_hook(Character *c)
     ray.exclude_flags = 0;
     lobj_raycast_all(&ray, &hit);
     if (hit.num_hits) {
-        r->pos = vector3(ray.dir.x * hit.t + r->pos.x, ray.dir.y * hit.t + r->pos.y, ray.dir.z * hit.t + r->pos.z);
+        r->pos = ray.dir * hit.t + r->pos;
         r->pos.y += 0.5f;
         landed = true;
     } else {
-        r->pos.x += ray.dir.x;
-        r->pos.y += ray.dir.y;
-        r->pos.z += ray.dir.z;
+        r->pos += ray.dir;
     }
     damp = 1.0f - reported_frametime * 0.75f;
     t->throw_velocity.x *= damp;
@@ -737,7 +737,8 @@ void tentacle_beast_frame_hook(Character *c)
         return;
     r->flags &= ~CF_TENTACLE_HELD;
     r->ai.go_idle();
-    vector3 fwd = r->orient.fvec;
+    vector3 fwd;
+    fwd = r->orient.fvec;
     vector3 up(0.0f, 1.0f, 0.0f);
     fwd.y = 0.0f;
     r->orient.set_from_forward_up(fwd, up);

@@ -117,9 +117,11 @@ void dialogue_leave()
 }
 
 // 0x409000  Confidence: likely. The mode update after the scroll tests appears twice with different code
-// (once kept in EAX for the switch, once as two stores), written the same way both times; the Esc and
+// (once kept in EAX for the switch, once as two stores); the Esc and
 // close-button exits differ in order (sound before / after the mode store) and in the value returned,
-// exactly as in the binary.
+// exactly as in the binary. D16803: the second mode update as `if (!built) { mode = 3; if (count) return
+// key; } mode = 1;` gives the binary's store of 3 overwritten by 1; still differs in where `key` is loaded
+// before the tail's mode test (the binary shares one exit with the mode == 0 path).
 int dialogue_frame(int key)
 {
     int i;
@@ -270,10 +272,12 @@ int dialogue_frame(int key)
             dialogue_mode = 4;
             return key;
         }
-        if (!dialogue_topic_box_built && dialogue_topic_box.count != 0)
+        if (!dialogue_topic_box_built) {
             dialogue_mode = 3;
-        else
-            dialogue_mode = 1;
+            if (dialogue_topic_box.count != 0)
+                return key;
+        }
+        dialogue_mode = 1;
     }
     return key;
 }

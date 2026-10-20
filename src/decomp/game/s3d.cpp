@@ -972,7 +972,7 @@ int s3d_read_faces(File *f, s3d_face *faces, int count)
     return 0;
 }
 
-// 0x46ffe0  Confidence: likely. Before version 0x10012 each face reference carried its lightmap box;
+// 0x46ffe0  Confidence: likely (D16003: the byte stored as `(ubyte)hi`; left: the corner copies). Before version 0x10012 each face reference carried its lightmap box;
 // it is kept (in the object's box array, allocated on first use) when the face has a lightmap. The
 // lightmap index and the byte share a dword (bit fields, D801); the corner copies are vector3's inline
 // operator= (D500).
@@ -1002,7 +1002,7 @@ int s3d_read_mesh_ref(File *f, lobj *mesh, lobj_face *ref)
         f->sync_int(&lightmap, 0, 0);
         f->sync_int16(&hi, 0, 0);
         ref->lightmap = lightmap;
-        ref->_unk7 = hi;
+        ref->_unk7 = (ubyte)hi;
     }
     if (f->get_version() < 0x10012 && ref->lightmap >= 0) {
         if (!mesh->lightmap_boxes)
@@ -1089,23 +1089,22 @@ int s3d_read_door(s3d_level *level, File *f, door_info *door)
     return f->error() ? 0 : -1;
 }
 
-// 0x470300  Confidence: likely (the clamp shape). The colour is clamped to 0..1 with a local copy;
-// the third clamp reads green but stores into blue, with the upper bound 0.998: green is never
-// clamped and blue is replaced by the clamped green (bug; the records are not read anywhere, NOTES).
+// The colour clamp of s3d_read_color_record (D16000): a macro over vector.h's float_min / float_max; its
+// parenthesised argument and result are what give the binary's code.
+#define S3D_CLAMP(x, hi) (float_min(float_max((x), 0.0f), (hi)))
+
+// 0x470300  Confidence: exact (D16000: the clamp as the S3D_CLAMP macro). The colour is clamped to 0..1; the
+// third clamp reads green but stores into blue, with the upper bound 0.998: green is never clamped and blue
+// is replaced by the clamped green (bug; the records are not read anywhere, NOTES).
 void s3d_read_color_record(File *f, s3d_color_record *rec)
 {
-    float v;
-
     f->sync_float(&rec->r, 0, 0);
     f->sync_float(&rec->g, 0, 0);
     f->sync_float(&rec->b, 0, 0);
     f->sync_int(&rec->_unk0c, 0, 0);
-    v = rec->r;
-    rec->r = (v > 0.0f) ? ((v < 1.0f) ? v : 1.0f) : 0.0f;
-    v = rec->b;
-    rec->b = (v > 0.0f) ? ((v < 1.0f) ? v : 1.0f) : 0.0f;
-    v = rec->g;
-    rec->b = (v > 0.0f) ? ((v < 0.998f) ? v : 0.998f) : 0.0f;
+    rec->r = S3D_CLAMP(rec->r, 1.0f);
+    rec->b = S3D_CLAMP(rec->b, 1.0f);
+    rec->b = S3D_CLAMP(rec->g, 0.998f);
 }
 
 // 0x470410  Confidence: exact (the name write as an if / else of two calls, D7700). The bitmap is stored by

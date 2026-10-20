@@ -810,19 +810,19 @@ bool script_action_follow(script_object *so, Character *c, const char *leader, i
     return true;
 }
 
-// 0x4dcbc0  Confidence: likely (the scan of the earlier actions: types 20, 23 and 24 keep it as a
+// 0x4dcbc0  Confidence: exact (D16501: teleports_only declared after the species test). The scan of the earlier actions: types 20, 23 and 24 keep it as a
 // teleport-only prefix). A combat-mode goal, unless every earlier action was a teleport or synch, the
 // AI is held (flag 0x40), the character has flag 8 or it is the boss of species 0x93; then the mode is
 // switched directly (flag 1 and the prop tag).
 bool script_action_combat_mode(script_action *a, script_object *so, Character *c)
 {
-    bool skip = false;
     bool on = a->arg0c == 1;
-    bool teleports_only = true;
+    bool skip = false;
     int i;
 
     if (c->type == 9 && c->info->species == 0x93)
         skip = true;
+    bool teleports_only = true;                               // declared here: BL, and on in a's slot (D16501)
     for (i = 0; i < so->cur_action; i++) {
         if (!teleports_only)
             break;

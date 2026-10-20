@@ -235,25 +235,13 @@ void conversation_controller::open_dialogue()
     busy = 0;
 }
 
-// The point transform of an inline matrix43 operator of the original math header (name and form not
-// known; matrix43::transform 0x511c70 is the out-of-line one). Expanded in conversation_camera_capture.
-static inline vector3 conversation_transform(const matrix43 &m, const vector3 &v)
-{
-    vector3 r;
-    r.x = v.x * m.m[0][0] + v.y * m.m[1][0] + v.z * m.m[2][0] + m.m[3][0];
-    r.y = v.x * m.m[0][1] + v.y * m.m[1][1] + v.z * m.m[2][1] + m.m[3][1];
-    r.z = v.x * m.m[0][2] + v.y * m.m[1][2] + v.z * m.m[2][2] + m.m[3][2];
-    return r;
-}
-
-// 0x4d8e10  Confidence: likely (the transform helper above is a guess at the source form).
+// 0x4d8e10  Confidence: exact (VC6 byte match, m-1020d w10, D16402: matrix43::transform expanded inline on
+// a temporary forward vector, whose constructor stays a call; a named local was folded to constants).
 // The game camera's eye and forward this frame; it is the blend start unless the shot changed sides
 // (only while moving out).
 void conversation_controller::camera_capture()
 {
-    vector3 fwd(0.0f, 0.0f, 1.0f);
-
-    game.set(game_camera.get_pos(), conversation_transform(matrix43(game_camera.get_orient()), fwd));
+    game.set(game_camera.get_pos(), matrix43(game_camera.get_orient()).transform(vector3(0.0f, 0.0f, 1.0f)));
     if (!shot_cut || cam_mode == 3)
         start = game;
 }

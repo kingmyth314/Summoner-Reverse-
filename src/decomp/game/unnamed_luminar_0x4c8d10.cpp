@@ -154,7 +154,9 @@ void luminar_free_bitmap()
     level_light_scale = 1.0f;
 }
 
-// 0x4c9000  Confidence: likely (the landing's vector temporaries as in tentacle_beast_frame_hook). The
+// 0x4c9000  Confidence: likely (D15802: the vector operators as the binary's inline budget shows them, its
+// copy constructor and (x, y, z) constructor called out of line from ray.start on; the landing in an if block;
+// left: ray.start's loads go through EDI, the binary reads them off ESI). The
 // carried character follows the grab bone (pickup tag height below it), and its velocity is measured for
 // the throw; a thrown one flies (horizontal damping 0.75 per second, gravity 9.8 per second per second)
 // until the level ray hits (any flag) or it leaves the navigable area (it is put on the nearest navigable
@@ -163,10 +165,7 @@ void luminar_frame_hook(Character *c)
 {
     Character *t;
     Character *h;
-    lobj_ray ray;
-    lobj_hit hit;
     vector3 p;
-    float ft;
     float damp;
     bool landed;
     int tag;
@@ -175,35 +174,29 @@ void luminar_frame_hook(Character *c)
     if (t) {
         tag = c->instance->character->find_mesh_tag("$tag-grab-point");
         c->instance->get_bone_world_transform(tag, &c->orient, &c->pos, &t->orient, &p);
-        vector3 down(luminar_pickup_tag_pos.y * t->orient.uvec.x, luminar_pickup_tag_pos.y * t->orient.uvec.y,
-                     luminar_pickup_tag_pos.y * t->orient.uvec.z);
-        ft = reported_frametime;
-        p.x -= down.x;
-        p.y -= down.y;
-        p.z -= down.z;
-        vector3 d(p.x - t->pos.x, p.y - t->pos.y, p.z - t->pos.z);
+        p -= t->orient.uvec * luminar_pickup_tag_pos.y;
+        vector3 d;
+        d = p - t->pos;
         luminar_throw_gravity = 0.0f;
-        luminar_throw_velocity.x = d.x / ft;
-        luminar_throw_velocity.y = d.y / ft;
-        luminar_throw_velocity.z = d.z / ft;
+        luminar_throw_velocity = d / reported_frametime;
         t->pos = p;
     }
     h = living_from_handle(luminar_thrown_handle);
     if (h == NULL)
         return;
     landed = false;
+    lobj_ray ray;
+    lobj_hit hit;
     ray.start = h->pos;
-    ray.dir.x = reported_frametime * luminar_throw_velocity.x;
-    ray.dir.y = reported_frametime * luminar_throw_velocity.y;
-    ray.dir.z = reported_frametime * luminar_throw_velocity.z;
+    ray.dir = luminar_throw_velocity * reported_frametime;
     ray._unk18 = 0.01f;
     ray.flags = 0;
     ray.require_flags = 0;
     ray.exclude_flags = 0;
     lobj_raycast_all(&ray, &hit);
     if (hit.num_hits) {
-        vector3 step(ray.dir.x * hit.t, ray.dir.y * hit.t, ray.dir.z * hit.t);
-        h->pos = vector3(step.x + h->pos.x, step.y + h->pos.y, step.z + h->pos.z);
+        vector3 step = ray.dir * hit.t;
+        h->pos = step + h->pos;
         h->pos.y += 0.5f;
         landed = true;
     } else {
@@ -220,21 +213,25 @@ void luminar_frame_hook(Character *c)
     luminar_throw_velocity.z *= damp;
     luminar_throw_velocity.y = luminar_throw_velocity.y - luminar_throw_gravity * reported_frametime;
     luminar_throw_gravity = reported_frametime * 9.8f + luminar_throw_gravity;
-    if (!landed)
-        return;
-    h->flags &= ~CF_LUMINAR_HELD;
-    h->ai.go_idle();
-    vector3 fwd = h->orient.fvec;
-    vector3 up(0.0f, 1.0f, 0.0f);
-    fwd.y = 0.0f;
-    h->orient.set_from_forward_up(fwd, up);
-    h->find_ground();
-    luminar_thrown_handle = -1;
-    move_info *m = h->find_move(8, 1);
-    if (m)
-        h->set_flag_2_4(h->play_move((int)m, 1.0f, false, false, false));
-    else
-        h->clear_flag_2_4();
+    if (landed) {
+        h->flags &= ~CF_LUMINAR_HELD;
+        h->ai.go_idle();
+        vector3 fwd;
+        fwd = h->orient.fvec;
+        vector3 up;
+        up.x = 0.0f;
+        up.y = 1.0f;
+        up.z = 0.0f;
+        fwd.y = 0.0f;
+        h->orient.set_from_forward_up(fwd, up);
+        h->find_ground();
+        luminar_thrown_handle = -1;
+        move_info *m = h->find_move(8, 1);
+        if (m)
+            h->set_flag_2_4(h->play_move((int)m, 1.0f, false, false, false));
+        else
+            h->clear_flag_2_4();
+    }
 }
 
 // 0x4c9410  Confidence: exact (VC6 byte match) (no return value: the eax left by the grab branch is not read). The stage

@@ -252,8 +252,8 @@ int savegame::report_read_sizes(int *off)
 }
 
 // ---- LENT helpers -----------------------------------------------------------------------------------
-// 0x4cf500  Confidence: likely (the first seven bit-field stores and selected / summon = -1 are merged
-// into two or-masks in the binary; combat_mode goes through setne).
+// 0x4cf500  Confidence: exact (VC6 byte match, D16800: solo as `!= 0` and selected as one conditional
+// store, so 8966 merges selected and summon = -1 into `(sel | -8) << 7`; the solo bit is shr 7 / and 0x20).
 void savegame::write_party_state(int *off)
 {
     savegame_party_state ps;
@@ -262,12 +262,9 @@ void savegame::write_party_state(int *off)
 
     ps.members = 0;
     ps.combat_mode = combat_mode != 0;
-    ps.solo = (game_flags & GF_SOLO_MODE) >> 12;
+    ps.solo = (game_flags & GF_SOLO_MODE) != 0;
     ps.summon_controlled = 0;
-    if (cur_character->flags & CF_SUMMON)
-        ps.selected = -1;
-    else
-        ps.selected = cur_character->info->species;
+    ps.selected = (cur_character->flags & CF_SUMMON) ? -1 : cur_character->info->species;
     ps.summon = -1;
     ps.summon_name[0] = 0;
     for (p = party_list.next; p != &party_list; p = p->next) {
@@ -836,7 +833,8 @@ bool savegame::has_conversation_data(int level, int slot)
     return v != 0;
 }
 
-// 0x4d05f0  Confidence: likely (differs under cl 8966 in match26). Nothing is read before the level has been entered once.
+// 0x4d05f0  Confidence: likely (D16806: the byte-offset search and the count read through the macro in the
+// loop and the re-test give the binary's re-test; only the data / bits_off registers are swapped). Nothing is read before the level has been entered once.
 int savegame::get_speaker_bit(int level, int slot, const char *speaker, int kind)
 {
     conversation_save_info *info;
@@ -855,19 +853,19 @@ int savegame::get_speaker_bit(int level, int slot, const char *speaker, int kind
     if (*(int *)data == 0)
         return 0;
     hash = name_hash_nocase(speaker);
-    n = CONVERSATION_SAVE_INFO(level, slot)->num_speakers;
     {
-        unsigned int *p = (unsigned int *)(data + 4);
-        for (i = 0; i < n; i++) {
-            unsigned int h = *p++;
+        int off = 4;
+        for (i = 0; i < CONVERSATION_SAVE_INFO(level, slot)->num_speakers; i++) {
+            unsigned int h = *(unsigned int *)(data + off);
+            off += 4;
             if (hash == h)
                 break;
         }
     }
-    if (i >= n)
+    if (i >= CONVERSATION_SAVE_INFO(level, slot)->num_speakers)
         return 0;
-    i += kind;
-    return (data[bits_off + (i >> 3)] & (1 << (i & 7))) != 0;
+    int bit = i + kind;
+    return ((1 << (bit & 7)) & (data + (bit >> 3))[bits_off]) != 0;
 }
 
 // 0x4d06e0  Confidence: likely (differs under cl 8966 in match26). propagate copies the bit to the level's other non-"_m1" slots that have data.
@@ -1049,8 +1047,59 @@ void savegame::quest_evaluate(unsigned int flag_hash)
     }
 }
 
-// 0x4d0d00  Confidence: likely (differs under cl 8966 in match26).
+// 0x4d0d00  Confidence: exact (VC6 byte match, D16807: every access through level_item_hashes.data, no data
+// local, gives the binary's [data + off] base / index order).
 int savegame::level_item_add(const char *name)
+{
+    unsigned int hash = name_hash_nocase(name);
+    int count = *(int *)level_item_hashes.data;
+    int i;
+    int off = 4;
+
+    for (i = 0; i < count; i++) {
+        unsigned int h = *(unsigned int *)(level_item_hashes.data + off);
+        off += 4;
+        if (hash == h)
+            return 1;
+    }
+    if (i < SAVEGAME_MAX_LEVEL_ITEMS) {
+        *(unsigned int *)(level_item_hashes.data + off) = hash;
+        *(int *)level_item_hashes.data = count + 1;
+        return 1;
+    }
+    return 0;
+}
+
+// 0x4d0d60  Confidence: exact (VC6 byte match, D16805: the search at a byte offset of the data as in
+// level_item_add).
+int savegame::level_item_remove(const char *name)
+{
+    unsigned int hash = name_hash_nocase(name);
+    ubyte *data = level_item_hashes.data;
+    int count = *(int *)data;
+    int i, n;
+    int off = 4;
+
+    for (i = 0; i < count; i++) {
+        unsigned int h = *(unsigned int *)(data + off);
+        off += 4;
+        if (h == hash)
+            break;
+    }
+    if (i != count) {
+        n = count - i - 1;
+        if (n > 0) {
+            unsigned int *dst = (unsigned int *)(data + 4) + i;
+            memmove(dst, dst + 1, n * 4);
+        }
+        LEVEL_ITEM_LIST->count = count - 1;
+    }
+    return 1;
+}
+
+// 0x4d0dd0  Confidence: exact (VC6 byte match, D16805: the hashes read at a byte offset as in level_item_add,
+// each into a local before the compare).
+int savegame::level_item_has(const char *name)
 {
     unsigned int hash = name_hash_nocase(name);
     ubyte *data = level_item_hashes.data;
@@ -1064,53 +1113,6 @@ int savegame::level_item_add(const char *name)
         if (hash == h)
             return 1;
     }
-    if (i < SAVEGAME_MAX_LEVEL_ITEMS) {
-        *(unsigned int *)(data + off) = hash;
-        *(int *)level_item_hashes.data = count + 1;
-        return 1;
-    }
-    return 0;
-}
-
-// 0x4d0d60  Confidence: likely (differs under cl 8966 in match26).
-int savegame::level_item_remove(const char *name)
-{
-    unsigned int hash = name_hash_nocase(name);
-    savegame_level_item_list *list = LEVEL_ITEM_LIST;
-    int count = list->count;
-    int i, n;
-
-    {
-        unsigned int *p = list->hashes;
-        for (i = 0; i < count; i++) {
-            unsigned int h = *p++;
-            if (h == hash)
-                break;
-        }
-    }
-    if (i != count) {
-        n = count - i - 1;
-        if (n > 0) {
-            unsigned int *dst = &list->hashes[i];
-            memmove(dst, dst + 1, n * 4);
-        }
-        LEVEL_ITEM_LIST->count = count - 1;
-    }
-    return 1;
-}
-
-// 0x4d0dd0  Confidence: likely (differs under cl 8966 in match26).
-int savegame::level_item_has(const char *name)
-{
-    unsigned int hash = name_hash_nocase(name);
-    savegame_level_item_list *list = LEVEL_ITEM_LIST;
-    int i;
-    int count = list->count;
-    unsigned int *p;
-
-    for (i = 0, p = list->hashes; i < count; i++)
-        if (hash == *p++)
-            return 1;
     return 0;
 }
 
@@ -2250,7 +2252,8 @@ int savegame::read_item_objects()
     return 1;
 }
 
-// 0x4d33f0  Confidence: likely (the next object is fetched before the list test). Level items whose name is
+// 0x4d33f0  Confidence: exact (VC6 byte match, D16805: the level item through a record pointer, the list
+// searched at a byte offset as in level_item_add; the next object is fetched before the list test). Level items whose name is
 // no longer in the level item list (picked up) are deleted, with their container.
 int savegame::read_level_items()
 {
@@ -2266,16 +2269,16 @@ int savegame::read_level_items()
         it = (item_obj *)o;
         if (it->level_item < 0)
             continue;
-        hash = name_hash_nocase(level_items[it->level_item].name);
-        savegame_level_item_list *list = LEVEL_ITEM_LIST;
-        count = list->count;
-        {
-            unsigned int *p = list->hashes;
-            for (i = 0; i < count; i++) {
-                unsigned int h = *p++;
-                if (hash == h)
-                    break;
-            }
+        level_item_rec *r = &level_items[it->level_item];
+        hash = name_hash_nocase(r->name);
+        ubyte *data = level_item_hashes.data;
+        count = *(int *)data;
+        int off = 4;
+        for (i = 0; i < count; i++) {
+            unsigned int h = *(unsigned int *)(data + off);
+            off += 4;
+            if (hash == h)
+                break;
         }
         if (i != count)
             continue;
@@ -3226,6 +3229,9 @@ void script_object_resume_index(int index)
 }
 
 // 0x4d5990  Confidence: likely (jump table 0x4d5dec; the tails of kinds 7 and 11 are shared in the binary).
+// D16802: the two formats read into `fmt` before the sprintf with a call argument (EBX is then saved only
+// in kind 1, as in the binary) and kind 11 as `>= : true / false`; only kind 7's false call still differs
+// (the binary jumps back into kind 7's own call, 8966 merges it with kind 9's).
 // The +Action: kinds of a dialogue line: 0 the level script's action hook, 1 xp, 2 skill points, 3 gold,
 // 4 gain an item, 5 lose an item, 6 set a flag, 7-12 make the current speaker's topic `name` available
 // (or not) by item, flag or gold.
@@ -3236,6 +3242,7 @@ void conversation_execute_action(dialogue_action *a)
     Player *p;
     Character *c;
     int amount, slot;
+    char *fmt;
 
     switch (a->kind) {
     case 0:
@@ -3264,10 +3271,10 @@ void conversation_execute_action(dialogue_action *a)
             conversation_db.set_topic_available(conversation_db.speaker->name, a->name, false);
         break;
     case 11:
-        if (party_gold < a->value)
-            conversation_db.set_topic_available(conversation_db.speaker->name, a->name, false);
-        else
+        if (party_gold >= a->value)
             conversation_db.set_topic_available(conversation_db.speaker->name, a->name, true);
+        else
+            conversation_db.set_topic_available(conversation_db.speaker->name, a->name, false);
         break;
     case 12:
         if (party_gold >= a->value)
@@ -3282,7 +3289,8 @@ void conversation_execute_action(dialogue_action *a)
                 c->add_xp(a->value, 0, 0);
             else if (c->info->species == a->species) {
                 c->add_xp(a->value, 0, 0);
-                sprintf(buf, XSTR("<%s gained %d XP>", 469), c->get_name(), a->value);
+                fmt = XSTR("<%s gained %d XP>", 469);
+                sprintf(buf, fmt, c->get_name(), a->value);
                 dialogue_show_line(buf, 1, 0);
                 break;
             }
@@ -3301,7 +3309,8 @@ void conversation_execute_action(dialogue_action *a)
                 continue;
             if (c->info->species == a->species) {
                 p->skill_points += a->value;
-                sprintf(buf, XSTR("<%s gained %d skill points>", 471), c->get_name(), a->value);
+                fmt = XSTR("<%s gained %d skill points>", 471);
+                sprintf(buf, fmt, c->get_name(), a->value);
                 dialogue_show_line(buf, 1, 0);
                 break;
             }

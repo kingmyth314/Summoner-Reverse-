@@ -1,6 +1,6 @@
 game/ai.cpp 0x4720e0 match
 game/ai.cpp 0x472190 match
-game/ai.cpp 0x472200 differs
+game/ai.cpp 0x472200 match
 game/ai.cpp 0x4722f0 match
 game/ai.cpp 0x472380 match
 game/ai.cpp 0x472420 match
@@ -312,7 +312,7 @@ game/conversationctl.cpp 0x4d8ca0 match
 game/conversationctl.cpp 0x4d8cc0 match
 game/conversationctl.cpp 0x4d8ce0 match
 game/conversationctl.cpp 0x4d8db0 match
-game/conversationctl.cpp 0x4d8e10 differs
+game/conversationctl.cpp 0x4d8e10 match
 game/conversationctl.cpp 0x4d8f50 differs
 game/conversationctl.cpp 0x4d9ad0 differs
 game/conversationctl.cpp 0x4d9d90 differs
@@ -348,7 +348,7 @@ game/gameplay.cpp 0x438880 match
 game/gameplay.cpp 0x4389f0 match
 game/gameplay.cpp 0x438a90 match
 game/gameplay.cpp 0x438c80 match
-game/gameplay.cpp 0x438dc0 differs
+game/gameplay.cpp 0x438dc0 match
 game/gameplay.cpp 0x438f30 differs
 game/gameplay.cpp 0x439370 match
 game/gameplay.cpp 0x439450 match
@@ -785,14 +785,14 @@ game/level_script_worldmap.cpp 0x4fc4b0 match
 game/level_script_worldmap.cpp 0x4fcaf0 differs
 game/level_script_worldmap.cpp 0x4fcce0 match
 game/level_script_worldmap.cpp 0x4fcd90 match
-game/level_script_worldmap.cpp 0x4fce40 differs
+game/level_script_worldmap.cpp 0x4fce40 match
 game/level_script_worldmap.cpp 0x4fd560 match
 game/level_script_worldmap.cpp 0x4fd5f0 match
 game/level_script_worldmap.cpp 0x4fd630 match
 game/level_scripts.cpp 0x4cef30 match
 game/level_scripts.cpp 0x4ceff0 match
 game/level_scripts.cpp 0x4cf260 match
-game/level_scripts.cpp 0x4cf500 differs
+game/level_scripts.cpp 0x4cf500 match
 game/level_scripts.cpp 0x4cf680 match
 game/level_scripts.cpp 0x4cf6c0 match
 game/level_scripts.cpp 0x4cf790 match
@@ -824,9 +824,9 @@ game/level_scripts.cpp 0x4d09e0 differs
 game/level_scripts.cpp 0x4d0c00 match
 game/level_scripts.cpp 0x4d0c40 match
 game/level_scripts.cpp 0x4d0c90 match
-game/level_scripts.cpp 0x4d0d00 differs
-game/level_scripts.cpp 0x4d0d60 differs
-game/level_scripts.cpp 0x4d0dd0 differs
+game/level_scripts.cpp 0x4d0d00 match
+game/level_scripts.cpp 0x4d0d60 match
+game/level_scripts.cpp 0x4d0dd0 match
 game/level_scripts.cpp 0x4d0e20 differs
 game/level_scripts.cpp 0x4d1110 differs
 game/level_scripts.cpp 0x4d12b0 match
@@ -870,7 +870,7 @@ game/level_scripts.cpp 0x4d2c90 match
 game/level_scripts.cpp 0x4d2dc0 match
 game/level_scripts.cpp 0x4d3100 match
 game/level_scripts.cpp 0x4d31e0 match
-game/level_scripts.cpp 0x4d33f0 differs
+game/level_scripts.cpp 0x4d33f0 match
 game/level_scripts.cpp 0x4d34e0 differs
 game/level_scripts.cpp 0x4d3740 differs
 game/level_scripts.cpp 0x4d3870 match
@@ -916,7 +916,7 @@ game/level_scripts.cpp 0x4d6600 match
 game/level_scripts_common.cpp 0x4ca790 match
 game/level_scripts_common.cpp 0x4ca880 match
 game/level_scripts_common.cpp 0x4ca970 match
-game/level_scripts_common.cpp 0x4caa00 differs
+game/level_scripts_common.cpp 0x4caa00 match
 game/level_scripts_common.cpp 0x4caed0 differs
 game/level_scripts_common.cpp 0x4caf40 match
 game/level_scripts_common.cpp 0x4cb010 match
@@ -1279,7 +1279,7 @@ game/new_assess.cpp 0x401e50 match
 game/new_automap.cpp 0x401ef0 match
 game/new_automap.cpp 0x402250 match
 game/new_automap.cpp 0x402280 match
-game/new_automap.cpp 0x4023b0 differs
+game/new_automap.cpp 0x4023b0 match
 game/new_automap.cpp 0x402490 match
 game/new_automap.cpp 0x402560 match
 game/new_automap.cpp 0x4025a0 match
@@ -1361,7 +1361,7 @@ game/new_charselect.cpp 0x406bb0 match
 game/new_charselect.cpp 0x406bf0 differs
 game/new_charselect.cpp 0x4072e0 match
 game/new_charselect.cpp 0x4073c0 match
-game/new_charselect.cpp 0x407410 differs
+game/new_charselect.cpp 0x407410 match
 game/new_charselect.cpp 0x407460 match
 game/new_charselect.cpp 0x4074b0 match
 game/new_charselect.cpp 0x4074d0 match
@@ -1599,7 +1599,7 @@ game/new_itemtrade.cpp 0x419550 match
 game/new_itemtrade.cpp 0x419560 match
 game/new_itemtrade.cpp 0x419610 match
 game/new_itemtrade.cpp 0x419670 match
-game/new_itemtrade.cpp 0x419710 differs
+game/new_itemtrade.cpp 0x419710 match
 game/new_itemtrade.cpp 0x419bb0 match
 game/new_itemtrade.cpp 0x419be0 match
 game/new_itemtrade.cpp 0x419c10 match
@@ -1671,7 +1671,7 @@ game/new_levelselect.cpp 0x41cc90 match
 game/new_levelselect.cpp 0x41ccc0 match
 game/new_levelselect.cpp 0x41cd10 match
 game/new_levelselect.cpp 0x41cd80 match
-game/new_levelselect.cpp 0x41ce50 differs
+game/new_levelselect.cpp 0x41ce50 match
 game/new_levelselect.cpp 0x41cf00 match
 game/new_levelselect.cpp 0x41cf80 match
 game/new_levelselect.cpp 0x41d1d0 match
@@ -1825,7 +1825,7 @@ game/new_pxochat.cpp 0x424390 match
 game/new_pxochat.cpp 0x4243e0 match
 game/new_pxochat.cpp 0x424400 match
 game/new_pxochat.cpp 0x424410 match
-game/new_pxochat.cpp 0x4244f0 differs
+game/new_pxochat.cpp 0x4244f0 match
 game/new_pxochat.cpp 0x4245b0 match
 game/new_pxochat.cpp 0x424600 match
 game/new_pxochat.cpp 0x4246d0 match
@@ -2164,7 +2164,7 @@ game/s3d.cpp 0x470150 match
 game/s3d.cpp 0x470190 match
 game/s3d.cpp 0x4701e0 match
 game/s3d.cpp 0x470220 differs
-game/s3d.cpp 0x470300 differs
+game/s3d.cpp 0x470300 match
 game/s3d.cpp 0x470410 match
 game/s3d.cpp 0x470560 match
 game/script_internal.cpp 0x4db250 match
@@ -2184,7 +2184,7 @@ game/script_internal.cpp 0x4dc990 match
 game/script_internal.cpp 0x4dca10 match
 game/script_internal.cpp 0x4dca90 match
 game/script_internal.cpp 0x4dcb10 match
-game/script_internal.cpp 0x4dcbc0 differs
+game/script_internal.cpp 0x4dcbc0 match
 game/script_internal.cpp 0x4dccb0 differs
 game/script_internal.cpp 0x4dce60 differs
 game/script_internal.cpp 0x4dd0b0 differs
@@ -2308,7 +2308,7 @@ game/unnamed_ai_move_0x4b1410.cpp 0x4b18e0 match
 game/unnamed_ai_move_0x4b1410.cpp 0x4b1a00 match
 game/unnamed_ai_move_0x4b1410.cpp 0x4b1aa0 differs
 game/unnamed_ai_move_0x4b1410.cpp 0x4b2510 match
-game/unnamed_ai_move_0x4b1410.cpp 0x4b2670 differs
+game/unnamed_ai_move_0x4b1410.cpp 0x4b2670 match
 game/unnamed_ai_move_0x4b1410.cpp 0x4b2890 match
 game/unnamed_ai_move_0x4b1410.cpp 0x4b2af0 differs
 game/unnamed_ai_move_0x4b1410.cpp 0x4b3010 differs
@@ -2404,7 +2404,7 @@ game/unnamed_avoidance_0x4a6710.cpp 0x4a89b0 match
 game/unnamed_avoidance_0x4a6710.cpp 0x4a89e0 match
 game/unnamed_avoidance_0x4a6710.cpp 0x4a8a60 match
 game/unnamed_avoidance_0x4a6710.cpp 0x4a8a80 match
-game/unnamed_avoidance_0x4a6710.cpp 0x4a8aa0 differs
+game/unnamed_avoidance_0x4a6710.cpp 0x4a8aa0 match
 game/unnamed_avoidance_0x4a6710.cpp 0x4a8b80 differs
 game/unnamed_avoidance_0x4a6710.cpp 0x4a8df0 differs
 game/unnamed_avoidance_0x4a6710.cpp 0x4a93c0 match
@@ -2427,7 +2427,7 @@ game/unnamed_camera_0x4778b0.cpp 0x477af0 match
 game/unnamed_camera_0x4778b0.cpp 0x477ca0 match
 game/unnamed_camera_0x4778b0.cpp 0x477ea0 match
 game/unnamed_camera_0x4778b0.cpp 0x477f10 match
-game/unnamed_camera_0x4778b0.cpp 0x477f60 differs
+game/unnamed_camera_0x4778b0.cpp 0x477f60 match
 game/unnamed_camera_0x4778b0.cpp 0x478130 match
 game/unnamed_camera_0x4778b0.cpp 0x478450 match
 game/unnamed_camera_0x4778b0.cpp 0x4784e0 match
@@ -2592,14 +2592,14 @@ game/unnamed_effectstream_0x440400.cpp 0x440440 match
 game/unnamed_effectstream_0x440400.cpp 0x440480 match
 game/unnamed_effectstream_0x440400.cpp 0x4404a0 match
 game/unnamed_effectstream_0x440400.cpp 0x440510 match
-game/unnamed_effectstream_0x440400.cpp 0x440560 differs
+game/unnamed_effectstream_0x440400.cpp 0x440560 match
 game/unnamed_effectstream_0x440400.cpp 0x4405e0 match
 game/unnamed_effectstream_0x440400.cpp 0x440650 match
 game/unnamed_effectstream_0x440400.cpp 0x4406d0 match
 game/unnamed_effectstream_0x440400.cpp 0x440860 match
 game/unnamed_effectstream_0x440400.cpp 0x440880 match
 game/unnamed_effectstream_0x440400.cpp 0x4408a0 match
-game/unnamed_effectstream_0x440400.cpp 0x440930 differs
+game/unnamed_effectstream_0x440400.cpp 0x440930 match
 game/unnamed_effectstream_0x440400.cpp 0x440b20 match
 game/unnamed_effectstream_0x440400.cpp 0x440b30 match
 game/unnamed_equip_packets_0x4878a0.cpp 0x4878a0 match
@@ -2694,9 +2694,9 @@ game/unnamed_fx_0x489c40.cpp 0x48b7a0 differs
 game/unnamed_fx_0x489c40.cpp 0x48bac0 differs
 game/unnamed_fx_0x489c40.cpp 0x48bd40 match
 game/unnamed_fx_0x489c40.cpp 0x48bd80 match
-game/unnamed_fx_0x489c40.cpp 0x48bdc0 differs
+game/unnamed_fx_0x489c40.cpp 0x48bdc0 match
 game/unnamed_fx_0x489c40.cpp 0x48c080 match
-game/unnamed_fx_0x489c40.cpp 0x48c140 differs
+game/unnamed_fx_0x489c40.cpp 0x48c140 match
 game/unnamed_fx_0x489c40.cpp 0x48c220 match
 game/unnamed_fx_0x489c40.cpp 0x48c3e0 match
 game/unnamed_fx_0x489c40.cpp 0x48c470 match
@@ -3444,12 +3444,12 @@ game/unnamed_script_editor_0x4de0b0.cpp 0x4e2990 match
 game/unnamed_script_editor_0x4de0b0.cpp 0x4e2a90 match
 game/unnamed_script_editor_0x4de0b0.cpp 0x4e2ad0 match
 game/unnamed_script_editor_0x4de0b0.cpp 0x4e2bb0 match
-game/unnamed_script_editor_0x4de0b0.cpp 0x4e2f30 differs
+game/unnamed_script_editor_0x4de0b0.cpp 0x4e2f30 match
 game/unnamed_script_editor_0x4de0b0.cpp 0x4e30d0 differs
 game/unnamed_script_editor_0x4de0b0.cpp 0x4e3700 match
 game/unnamed_script_editor_0x4de0b0.cpp 0x4e3a20 differs
 game/unnamed_script_editor_0x4de0b0.cpp 0x4e4890 match
-game/unnamed_script_editor_0x4de0b0.cpp 0x4e4910 differs
+game/unnamed_script_editor_0x4de0b0.cpp 0x4e4910 match
 game/unnamed_script_editor_0x4de0b0.cpp 0x4e4be0 match
 game/unnamed_script_editor_0x4de0b0.cpp 0x4e4cf0 match
 game/unnamed_script_editor_0x4de0b0.cpp 0x4e4f10 match
@@ -3458,7 +3458,7 @@ game/unnamed_script_editor_0x4de0b0.cpp 0x4e50f0 match
 game/unnamed_script_editor_0x4de0b0.cpp 0x4e53a0 match
 game/unnamed_script_editor_0x4de0b0.cpp 0x4e57a0 match
 game/unnamed_script_editor_0x4de0b0.cpp 0x4e58a0 match
-game/unnamed_script_editor_0x4de0b0.cpp 0x4e5b10 differs
+game/unnamed_script_editor_0x4de0b0.cpp 0x4e5b10 match
 game/unnamed_script_editor_0x4de0b0.cpp 0x4e6040 match
 game/unnamed_script_editor_0x4de0b0.cpp 0x4e62e0 differs
 game/unnamed_script_editor_0x4de0b0.cpp 0x4e68e0 match
@@ -3478,7 +3478,7 @@ game/unnamed_script_editor_0x4de0b0.cpp 0x4e7380 match
 game/unnamed_script_editor_0x4de0b0.cpp 0x4e73d0 match
 game/unnamed_script_editor_0x4de0b0.cpp 0x4e7410 match
 game/unnamed_script_editor_0x4de0b0.cpp 0x4e7460 differs
-game/unnamed_script_editor_0x4de0b0.cpp 0x4e75c0 differs
+game/unnamed_script_editor_0x4de0b0.cpp 0x4e75c0 match
 game/unnamed_script_editor_0x4de0b0.cpp 0x4e7740 match
 game/unnamed_script_editor_0x4de0b0.cpp 0x4e7800 match
 game/unnamed_script_editor_0x4de0b0.cpp 0x4e7920 match
@@ -3607,7 +3607,7 @@ game/unnamed_shadows_0x4a37d0.cpp 0x4a3eb0 match
 game/unnamed_shadows_0x4a37d0.cpp 0x4a3ef0 differs
 game/unnamed_shadows_0x4a37d0.cpp 0x4a4360 match
 game/unnamed_shadows_0x4a37d0.cpp 0x4a44b0 match
-game/unnamed_shadows_0x4a37d0.cpp 0x4a46a0 differs
+game/unnamed_shadows_0x4a37d0.cpp 0x4a46a0 match
 game/unnamed_shadows_0x4a37d0.cpp 0x4a4890 differs
 game/unnamed_shadows_0x4a37d0.cpp 0x4a4b40 match
 game/unnamed_shadows_0x4a37d0.cpp 0x4a4bb0 differs
@@ -3765,7 +3765,7 @@ game/unnamed_worldmap_automap_0x42f1e0.cpp 0x42f500 differs
 game/unnamed_worldmap_automap_0x42f1e0.cpp 0x42f6f0 match
 game/unnamed_worldmap_automap_0x42f1e0.cpp 0x42f750 match
 game/unnamed_worldmap_automap_0x42f1e0.cpp 0x42f7d0 match
-game/unnamed_worldmap_automap_0x42f1e0.cpp 0x42f870 differs
+game/unnamed_worldmap_automap_0x42f1e0.cpp 0x42f870 match
 game/unnamed_worldmap_automap_0x42f1e0.cpp 0x42fa50 match
 game/unnamed_worldmap_automap_0x42f1e0.cpp 0x42fa80 match
 game/unnamed_worldmap_automap_0x42f1e0.cpp 0x42fac0 match
@@ -3902,7 +3902,7 @@ vsdk/character_instance.cpp 0x51a890 match
 vsdk/character_instance.cpp 0x51a950 match
 vsdk/character_instance.cpp 0x51aab0 match
 vsdk/character_instance.cpp 0x51abb0 match
-vsdk/character_instance.cpp 0x51abd0 differs
+vsdk/character_instance.cpp 0x51abd0 match
 vsdk/character_instance.cpp 0x51acb0 match
 vsdk/character_instance.cpp 0x51ad00 match
 vsdk/character_instance.cpp 0x51adc0 match
@@ -4248,7 +4248,7 @@ vsdk/gr_opengl.cpp 0x54e690 match
 vsdk/gr_opengl.cpp 0x54e740 match
 vsdk/gr_opengl.cpp 0x54e7a0 match
 vsdk/gr_opengl.cpp 0x54e800 match
-vsdk/gr_opengl.cpp 0x54e840 differs
+vsdk/gr_opengl.cpp 0x54e840 match
 vsdk/gr_opengl.cpp 0x54ed50 match
 vsdk/gr_opengl.cpp 0x54ed90 match
 vsdk/gr_opengl.cpp 0x54eed0 match
@@ -4871,7 +4871,7 @@ vsdk/unnamed_gr_3d_0x50d9b0.cpp 0x50ecc0 match
 vsdk/unnamed_gr_3d_0x50d9b0.cpp 0x50ecd0 match
 vsdk/unnamed_gr_3d_0x50d9b0.cpp 0x50ed60 differs
 vsdk/unnamed_gr_3d_0x50d9b0.cpp 0x50edc0 match
-vsdk/unnamed_gr_3d_0x50d9b0.cpp 0x50ee70 differs
+vsdk/unnamed_gr_3d_0x50d9b0.cpp 0x50ee70 match
 vsdk/unnamed_gr_3d_0x50d9b0.cpp 0x50ef30 match
 vsdk/unnamed_gr_3d_0x50d9b0.cpp 0x50ef60 match
 vsdk/unnamed_gr_3d_0x50d9b0.cpp 0x50f120 match
@@ -4895,7 +4895,7 @@ vsdk/unnamed_gr_line_0x53e520.cpp 0x53f060 match
 vsdk/unnamed_gr_line_0x53e520.cpp 0x53f3b0 match
 vsdk/unnamed_gr_line_0x53e520.cpp 0x53f410 match
 vsdk/unnamed_gr_line_0x53e520.cpp 0x53f470 match
-vsdk/unnamed_gr_line_0x53e520.cpp 0x53f720 differs
+vsdk/unnamed_gr_line_0x53e520.cpp 0x53f720 match
 vsdk/unnamed_gr_line_0x53e520.cpp 0x53faf0 match
 vsdk/unnamed_gr_line_0x53e520.cpp 0x53fff0 match
 vsdk/unnamed_gr_line_0x53e520.cpp 0x5400a0 match
@@ -4968,7 +4968,7 @@ vsdk/unnamed_ix_0x53ac20.cpp 0x53ad40 match
 vsdk/unnamed_ix_0x53ac20.cpp 0x53adf0 match
 vsdk/unnamed_ix_0x53ac20.cpp 0x53ae60 match
 vsdk/unnamed_ix_0x53ac20.cpp 0x53aec0 match
-vsdk/unnamed_ix_0x53ac20.cpp 0x53af40 differs
+vsdk/unnamed_ix_0x53ac20.cpp 0x53af40 match
 vsdk/unnamed_ix_0x53ac20.cpp 0x53b130 differs
 vsdk/unnamed_ix_0x53ac20.cpp 0x53b400 match
 vsdk/unnamed_ix_0x53ac20.cpp 0x53b6f0 differs
@@ -5152,7 +5152,7 @@ vsdk/unnamed_listbox_0x52ca60.cpp 0x52f050 match
 vsdk/unnamed_listbox_0x52ca60.cpp 0x52f060 match
 vsdk/unnamed_listbox_0x52ca60.cpp 0x52f080 differs
 vsdk/unnamed_listbox_0x52ca60.cpp 0x52f3d0 match
-vsdk/unnamed_localize_0x503f60.cpp 0x503fe0 differs
+vsdk/unnamed_localize_0x503f60.cpp 0x503fe0 match
 vsdk/unnamed_localize_0x503f60.cpp 0x504070 match
 vsdk/unnamed_localize_0x503f60.cpp 0x5040e0 match
 vsdk/unnamed_localize_0x503f60.cpp 0x504190 match
@@ -5164,7 +5164,7 @@ vsdk/unnamed_localize_0x503f60.cpp 0x5044d0 match
 vsdk/unnamed_localize_0x503f60.cpp 0x504520 differs
 vsdk/unnamed_localize_0x503f60.cpp 0x5047f0 match
 vsdk/unnamed_localize_0x503f60.cpp 0x504830 match
-vsdk/unnamed_localize_0x503f60.cpp 0x504870 differs
+vsdk/unnamed_localize_0x503f60.cpp 0x504870 match
 vsdk/unnamed_localize_0x503f60.cpp 0x504ed0 match
 vsdk/unnamed_localize_0x503f60.cpp 0x504f10 match
 vsdk/unnamed_localize_0x503f60.cpp 0x504f60 match
@@ -5176,7 +5176,7 @@ vsdk/unnamed_localize_0x503f60.cpp 0x505090 match
 vsdk/unnamed_localize_0x503f60.cpp 0x5050b0 match
 vsdk/unnamed_localize_0x503f60.cpp 0x505120 match
 vsdk/unnamed_localize_0x503f60.cpp 0x505160 match
-vsdk/unnamed_localize_0x503f60.cpp 0x5051a0 differs
+vsdk/unnamed_localize_0x503f60.cpp 0x5051a0 match
 vsdk/unnamed_localize_0x503f60.cpp 0x5054e0 match
 vsdk/unnamed_localize_0x503f60.cpp 0x5054f0 match
 vsdk/unnamed_localize_0x503f60.cpp 0x505510 match
@@ -5288,7 +5288,7 @@ vsdk/unnamed_poly_split_0x55f110.cpp 0x55f110 differs
 vsdk/unnamed_poly_split_0x55f110.cpp 0x55f580 differs
 vsdk/unnamed_poly_split_0x55f110.cpp 0x55f8b0 match
 vsdk/unnamed_poly_split_0x55f110.cpp 0x55f900 differs
-vsdk/unnamed_poly_split_0x55f110.cpp 0x55fb00 differs
+vsdk/unnamed_poly_split_0x55f110.cpp 0x55fb00 match
 vsdk/unnamed_progress_0x503dd0.cpp 0x503dd0 match
 vsdk/unnamed_progress_0x503dd0.cpp 0x503e80 match
 vsdk/unnamed_quaternion_0x5225b0.cpp 0x522610 match
@@ -5552,7 +5552,7 @@ vsdk/unnamed_ui_manager_0x52f570.cpp 0x530930 match
 vsdk/unnamed_ui_manager_0x52f570.cpp 0x530970 match
 vsdk/unnamed_ui_manager_0x52f570.cpp 0x530b70 match
 vsdk/unnamed_ui_manager_0x52f570.cpp 0x530b80 match
-vsdk/unnamed_ui_slider_0x55e040.cpp 0x55e040 differs
+vsdk/unnamed_ui_slider_0x55e040.cpp 0x55e040 match
 vsdk/unnamed_ui_slider_0x55e040.cpp 0x55e1a0 match
 vsdk/unnamed_ui_slider_0x55e040.cpp 0x55e210 match
 vsdk/unnamed_ui_slider_0x55e040.cpp 0x55e280 match
@@ -5875,7 +5875,7 @@ vsdk/unnamed_vif_0x5329f0.cpp 0x532e30 match
 vsdk/unnamed_vif_0x5329f0.cpp 0x532e80 match
 vsdk/unnamed_vif_0x5329f0.cpp 0x532ea0 match
 vsdk/unnamed_vif_0x5329f0.cpp 0x532f40 differs
-vsdk/unnamed_vif_0x5329f0.cpp 0x533620 differs
+vsdk/unnamed_vif_0x5329f0.cpp 0x533620 match
 vsdk/unnamed_vif_0x5329f0.cpp 0x5337a0 match
 vsdk/unnamed_vif_0x5329f0.cpp 0x5339b0 match
 vsdk/unnamed_vif_0x5329f0.cpp 0x533aa0 differs

@@ -344,49 +344,52 @@ int File::read_line(char *buf, int size, int min_ver)
 }
 
 // 0x525fe0  Confidence: unsure (the refill block; m-1020 w11, D12008: len copied at entry and decremented, as the
-// binary's frame has it). The slot's 32 KB buffer first; the rest of a request of
+// binary's frame has it; D16202: the request copied before the slot lookup, the remainder in its own
+// variable and the refill size written back into len, as the binary's slots show: 84 -> 54 differing lines).
+// The slot's 32 KB buffer first; the rest of a request of
 // 32 KB or more is read directly (the buffer is dropped), a smaller one refills the buffer from the
 // current position. After the fread refill buf_len is the requested count, not the count read (a short
 // read sets -99999 unless at end of file). Decrypts in place, counts, and sets -1 when fewer than len
 // bytes came. The binary passes a fifth argument 0 to packfile_fread (never read; D4106).
 int File::read(void *buf, int len, int min_ver, int unused)
 {
+    int total = len;
     file_slot *s = &file_slots[slot];
 
     s->num_ops++;
     if (s->version < min_ver || s->error)
         return 0;
 
-    int n = imin(s->buf_len - s->buf_pos, len);
+    int avail = s->buf_len - s->buf_pos;
+    int n = imin(avail, len);
     memcpy(buf, s->buffer + s->buf_pos, max(0, n));
     s->buf_pos += n;
-    int total = len;
-    len -= n;
-    if (len > 0) {
+    int rem = len - n;
+    if (rem > 0) {
         char *dst = (char *)buf + n;
         int got;
-        if (len >= FILE_BUFFER_SIZE) {
+        if (rem >= FILE_BUFFER_SIZE) {
             s->buf_pos = 0;
             s->buf_len = 0;
             s->buf_start = -1;
             if (s->fp)
-                got = fread(dst, 1, len, s->fp);
+                got = fread(dst, 1, rem, s->fp);
             else
-                got = packfile_fread(dst, 1, len, packentry, 0);
+                got = packfile_fread(dst, 1, rem, packentry, 0);
         } else {
             int left = s->size - n - s->pos;
-            int want = imin(left, FILE_BUFFER_SIZE);
+            len = imin(left, FILE_BUFFER_SIZE);
             if (s->fp) {
-                s->buf_len = fread(s->buffer, 1, want, s->fp);
-                if (s->buf_len < want && !eof())
+                s->buf_len = fread(s->buffer, 1, len, s->fp);
+                if (s->buf_len < len && !eof())
                     file_slots[slot].error = FILE_ERR_IO;
-                got = want;
+                got = len;
             } else {
-                got = packfile_fread(s->buffer, 1, want, packentry, 0);
+                got = packfile_fread(s->buffer, 1, len, packentry, 0);
             }
             s->buf_len = got;
             s->buf_start = n + s->pos;
-            got = imin(left, len);
+            got = imin(left, rem);
             if (got < 0)
                 got = 0;
             memcpy(dst, s->buffer, got);

@@ -423,8 +423,8 @@ with mingw (syntax only). They are in [`src/decomp/`](../src/decomp/README.md):
   `conversationctl`.
 
 `node tools/decomp-progress.mjs` counts the result (2026-10-20): 7,726 functions written (89.4%). 5,906 of them are
-compiled and compared by VC6 SP5, and 5,385 of those give the original bytes and call / data targets (the sweep list
-`src/decomp/vc6-matches.txt` has 5,404: 19 compared functions are not `func` lines in sum.symbols).
+compiled and compared by VC6 SP5, and 5,426 of those give the original bytes and call / data targets (the sweep list
+`src/decomp/vc6-matches.txt` has 5,445: 19 compared functions are not `func` lines in sum.symbols).
 
 **Byte-match round 2026-10-19 (ten workers, D10000-D10999).** The 962 functions that still differed, split by file
 over ten agents, each in its own copy, merged with `decomp-merge.mjs` and swept strictly: 4,963 -> 5,077 matches,
@@ -484,7 +484,21 @@ as one: `ui_window::send_event` without its final `return false` (the binary ret
 EAX, D15400); `#pragma optimize("w", on)` from 0x518ce0 to the end of the net unit (D14204); the footstep sound table
 as two arrays, as the binary indexes it from two bases (D14305). No behaviour error was found. The leftover
 `vc6cmp-*` compile folders (5,974, 2.2 GB in Temp, mostly from `vc6-try --side`, which kept one per variant) were
-removed by exact name; `vc6-try` now removes its own, and `vc6-side` reads up to 5,000 instructions. The
+removed by exact name; `vc6-try` now removes its own, and `vc6-side` reads up to 5,000 instructions.
+
+**Byte-match round 2026-10-20, fourth (fifteen workers, D15500-D16999).** 5,404 -> 5,445, none lost (notes in
+`src/decomp/NOTES-match-2026-10-20d.md`); the yield is falling (114, 178, 62, 87, 41). Behaviour fixes, each checked:
+`gr_poly_get_section` had its u / v scales inverted (the binary divides the bitmap size by the card size, 0x55fc1e and
+0x55fc3c; D16201, now a byte match); `fx_create_at_camera` negated all three rows of a copy that is never read (the
+same misreading as D9815; D16600, now a byte match); `pf_check_direct_walk` clips the move by a length built with
+`to->y` itself, not `to->y - from->y` (the binary never reads `from->y`: 0x49e663-0x49e667 copy `to->y` with no
+subtraction, while x and z subtract; D15600, read in the listing); `obstacles_debug_render` leaves the tick midpoint's y
+unset, as the binary does and as an earlier reading had already noted (debug drawing only). Game-bug candidate, not
+checked in game: `pf_check_direct_walk`'s length is wrong whenever the start is not at height 0. New devices, each
+recorded: `&(a+b)` temporaries under `#ifdef _MSC_VER` (a VC6 extension, D15902), a volatile dword read to stop a
+byte narrowing (D16500), a `float *` view of a buffer (D16704). `vc6-try` writes each variant into the file itself;
+two workers' interrupted runs left a variant or an empty file in their copies, so it now keeps `<file>.vc6try-orig`
+until the restore and restores from it on the next start. The
 `Confidence:` markers follow the sweep (`tools/decomp-confidence.mjs`): every compared function that matches is
 `exact`, none that differs is. The other 1,819 written functions are not compared (`tools/decomp-uncompared.mjs`):
 about 1,130 are the compiler-generated helpers of global objects (static initialiser, constructor call, atexit

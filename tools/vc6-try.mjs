@@ -7,7 +7,7 @@
 // --side <mangled-name substring>: for a variant that still differs, also print the first differing lines
 // (tools/vc6-side.mjs), N lines (default 12).
 // Uses VC6_DIR (the SP5 VC98 folder) and the tree's include/ and vc6-flags.txt. Run from PowerShell or cmd.
-import { readFileSync, writeFileSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, rmSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { resolve, dirname, join, basename } from "node:path";
@@ -22,7 +22,18 @@ const nlines = +take("--lines", 12);
 const [rel, addr, vf] = args;
 if (!vf) { console.error("usage: node tools/vc6-try.mjs [--root DIR] <file> <address> <variants.json> [--side NAME] [--lines N]"); process.exit(2); }
 const file = join(root, rel);
+// The variants are written into the file itself and the original is restored at the end; a run killed in between
+// (a pipe closed early, a timeout) would leave a variant or an empty file. The original is therefore also kept in
+// <file>.vc6try-orig until the restore, and a run that finds one restores it first and stops.
+const backup = file + ".vc6try-orig";
+if (existsSync(backup)) {
+  writeFileSync(file, readFileSync(backup));
+  rmSync(backup);
+  console.error(`${rel}: restored from ${basename(backup)}, left by an interrupted run; run again`);
+  process.exit(1);
+}
 const orig = readFileSync(file, "utf8");
+writeFileSync(backup, orig);
 const env = { ...process.env, DECOMP_INCLUDE: join(root, "include"), VC6_FLAGS_FILE: join(root, "vc6-flags.txt") };
 
 function run(label) {
@@ -53,4 +64,4 @@ try {
     writeFileSync(file, orig.replace(v.from, v.to));
     run(v.name);
   }
-} finally { writeFileSync(file, orig); }
+} finally { writeFileSync(file, orig); rmSync(backup, { force: true }); }

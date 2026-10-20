@@ -90,25 +90,26 @@ int effect_stream_queue_contains(const char *name)
     return 0;
 }
 
-// 0x440560  Confidence: likely (differs under cl 8966, match24; was exact). effect_stream_next never returns a negative value, so its test is dead.
+// 0x440560  Confidence: exact (VC6 byte match, D16804: one `return 1` after nested ifs, so the READING store is
+// not merged with the return value; 8966 copies the return into each path). effect_stream_next never returns a negative value, so its test is dead.
 int effect_stream_start()
 {
     if (effect_stream_state != EFFECT_STREAM_IDLE)
         return 0;
     effect_stream_cur = -1;
-    if (effect_stream_queue_count <= 0) {
+    if (effect_stream_queue_count <= 0)
         effect_stream_state = EFFECT_STREAM_DONE;
-        return 1;
+    else {
+        if (effect_stream_next() < 0)
+            return 0;
+        if (effect_stream_cur >= effect_stream_queue_count)
+            effect_stream_state = EFFECT_STREAM_DONE;
+        else {
+            if (!effect_stream_open_current())
+                return 0;
+            effect_stream_state = EFFECT_STREAM_READING;
+        }
     }
-    if (effect_stream_next() < 0)
-        return 0;
-    if (effect_stream_cur >= effect_stream_queue_count) {
-        effect_stream_state = EFFECT_STREAM_DONE;
-        return 1;
-    }
-    if (!effect_stream_open_current())
-        return 0;
-    effect_stream_state = EFFECT_STREAM_READING;
     return 1;
 }
 
@@ -229,17 +230,17 @@ int effect_stream_update()
     return effect_stream_state;
 }
 
-// 0x440930  Confidence: likely (jump table on type + 1; the .vim case shares the .mvf case's tail). The
-// read data goes to its owner: the .rfx base is relocated (effect_base_finish_stream), an .mvf is parsed
-// into the target skeleton, a .vim loaded into *target, each with the entry's mempool current.
+// 0x440930  Confidence: exact (VC6 byte match, D16801: the `case -1` written last, so its return 0 is
+// merged with the error tail after the switch; jump table on type + 1; the .vim case shares the .mvf
+// case's tail). The read data goes to its owner: the .rfx base is relocated (effect_base_finish_stream),
+// an .mvf is parsed into the target skeleton, a .vim loaded into *target, each with the entry's mempool
+// current.
 int effect_stream_finish_entry()
 {
     FileReader reader;
     int size;
 
     switch (file_type_from_ext(effect_stream_queue[effect_stream_cur].name)) {
-    case -1:
-        return 0;
     case EFFECT_FILE_RFX:
         effect_stream_file.close();
         if (effect_stream_base < 0)
@@ -273,6 +274,8 @@ int effect_stream_finish_entry()
         }
         effect_stream_pop_mempool();
         break;
+    case -1:
+        return 0;
     }
     if (effect_stream_next() < 0) {
         effect_stream_state = EFFECT_STREAM_ERROR;

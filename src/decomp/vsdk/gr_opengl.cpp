@@ -574,7 +574,7 @@ void gr_opengl_tcache_frame()
         t->used = 0;
 }
 
-// 0x54e840  Confidence: likely (the format switch; register use and the level loop match).
+// 0x54e840  Confidence: exact (D16002: the square size through a local m, the scales divided by `((float)tex_w)`).
 // Uploads bitmap bm into the bound texture of slot e: rounds the size up to a power of two (clamped to
 // gl_min_texture_w/h and GL_MAX_TEXTURE_SIZE), converts each level into gl_convert_buffer and calls
 // glTexImage2D. With update set, level 0 is also sent with glTexSubImage2D first (both calls are made).
@@ -626,17 +626,17 @@ void gr_opengl_create_texture(int bm, gl_tcache_entry *e, int update, int unused
     else if (tex_h > gr_screen.max_bitmap_h)
         tex_h = gr_screen.max_bitmap_h;
     if (gl_square_textures) {
-        if (tex_w > tex_h)
-            tex_h = tex_w;
-        tex_w = tex_h;
+        int m = tex_w > tex_h ? tex_w : tex_h;
+        tex_w = m;
+        tex_h = m;
     }
     if (tex_w < 1 || tex_h < 1) {
         bm_unlock(bm);                                // the memory pool is not restored here
         return;
     }
 
-    e->u_scale = (float)w / (float)tex_w;
-    e->v_scale = (float)h / (float)tex_h;
+    e->u_scale = (float)w / ((float)tex_w);
+    e->v_scale = (float)h / ((float)tex_h);
     if (levels > 1) {
         src = gl_convert_buffer;
         dst = gl_build_mipmaps(format, levels, w, h, data, gl_convert_buffer);

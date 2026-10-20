@@ -322,7 +322,7 @@ void worldmap_marker_place_on_edge(worldmap_location *loc)
                         : worldmap_center_y - worldmap_screen_edge_y[resolution_index][0]) * s + worldmap_center_y;
 }
 
-// 0x42f870  Confidence: likely (VC6: one load of resolution_index is scheduled after the fcos; same size). Places
+// 0x42f870  Confidence: exact (D16001: the cos / sin factors of the last two lines parenthesised). Places
 // the label next to the marker:
 // the direction to the border is normalised, both half-diagonals of the label box are projected onto it,
 // and the box corner is offset by the projection with the smaller dot product (subtracted when it is
@@ -364,8 +364,8 @@ void worldmap_marker_clamp_to_edge(worldmap_location *loc)
             loc->label_y = loc->y - pb.y;
         }
     }
-    loc->label_x -= worldmap_marker_label_offset[resolution_index] * (float)cos(loc->angle) + loc->label_w * 0.5f;
-    loc->label_y -= worldmap_marker_label_offset[resolution_index] * (float)sin(loc->angle) + loc->label_h * 0.5f;
+    loc->label_x -= worldmap_marker_label_offset[resolution_index] * ((float)cos(loc->angle)) + loc->label_w * 0.5f;
+    loc->label_y -= worldmap_marker_label_offset[resolution_index] * ((float)sin(loc->angle)) + loc->label_h * 0.5f;
 }
 
 // 0x42fa50  Confidence: exact.

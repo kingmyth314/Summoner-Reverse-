@@ -528,8 +528,9 @@ bool gr_line_quad_3d(const vector3 *p0, const vector3 *p1, float width, gr::Mode
     return true;
 }
 
-// 0x53f720  Confidence: likely (the eye matrix copies are dead: each axis replaces the matrix; the first
-// point is formed from sin / cos of 0.0 computed at run time). Three circles of 5 to 32 segments (the
+// 0x53f720  Confidence: exact (D16102: the two scaled radii in float locals rs / rc, as the binary stores them
+// to the frame, and angle = 0 before step; the eye matrix copies are dead: each axis replaces the matrix; the
+// first point is formed from sin / cos of 0.0 computed at run time). Three circles of 5 to 32 segments (the
 // projected size) around the axes, and a diameter along each circle's normal.
 bool gr_draw_sphere(const vector3 *pos, float radius, gr::Mode mode)
 {
@@ -537,7 +538,7 @@ bool gr_draw_sphere(const vector3 *pos, float radius, gr::Mode mode)
     gr_vertex first, prev, cur, tmp;
     matrix m, m_saved;
     int nsegs, axis, i;
-    float sa, ca, step, angle;
+    float sa, ca, step, angle, rs, rc;
 
     m = gr_eye_matrix;
     m_saved = gr_eye_matrix;
@@ -558,13 +559,17 @@ bool gr_draw_sphere(const vector3 *pos, float radius, gr::Mode mode)
             m.set_from_unit_forward(vector3(0.0f, 0.0f, 1.0f));
             break;
         }
-        step = GR_LINE_2PI / nsegs;
         angle = 0.0f;
-        p = *pos + m.rvec * (sa * radius) + m.uvec * (ca * radius);
+        step = GR_LINE_2PI / nsegs;
+        rs = sa * radius;
+        rc = ca * radius;
+        p = *pos + m.rvec * rs + m.uvec * rc;
         gr_rotate_vertex(&first, &p);
         prev = first;
         for (i = 0; i < nsegs; i++) {
-            p = *pos + m.rvec * ((float)sin(angle) * radius) + m.uvec * ((float)cos(angle) * radius);
+            rs = (float)sin(angle) * radius;
+            rc = (float)cos(angle) * radius;
+            p = *pos + m.rvec * rs + m.uvec * rc;
             gr_rotate_vertex(&cur, &p);
             gr_line_3d(&prev, &cur, mode);
             tmp = prev;
