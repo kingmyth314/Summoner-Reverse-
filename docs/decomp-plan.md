@@ -398,6 +398,15 @@ belong to an unnamed neighbour in one exe and another variable in the other) and
 names); one long help string had been compared over 64 bytes only (now 256, in `link-datacheck.mjs` too). As the
 docs of the tool say, this check cannot see rendering or timing errors: D9815 and D9817 would have passed it.
 
+**Screen check (2026-10-19, `tools/link-screencheck.mjs`).** The same screens in both exes, compared pixel by pixel;
+pixels that differ between the original's own runs are masked. Pixel-identical: the main menu, the load list, the
+options menu, the multiplayer "connection speed" box, the credits, the prologue at 4 s and 12 s (where D9815 had been),
+the village cinematic, and in game the help and options screens. The game view and the character, inventory, spells,
+automap and play-menu screens over it differed only where something moves between runs: the Lenele gate guard
+stood in five places in six original runs, so two original runs were too few for the mask; with four, the
+character and spells screens are identical and what is left is that guard and the edge of the animated paper doll.
+No rendering difference found.
+
 A read-through against the disassembly of the 47 functions that `[Fixes] Enabled=0` replaces (the 22 non-matching
 ones of the 71 above, and 25 that match), fx_frame's other cases included, found two more errors, in rare branches: the level-drain spell tested the spell's level instead of the target's, and a beneficial armour-triggered spell had the wrong target (D9816, fixed). The same read-through of the other 49, kept original even with `[Fixes] Enabled=0` (display, widescreen and key-binding patch sites), found one more: the multiplayer Create Game numbers were centred with the height on both axes, which the original does not do (game bug K9 withdrawn); with the fix both functions now match byte for byte (D9817). All 71 non-matching functions the hybrid never ran have now been read against the listing.
 

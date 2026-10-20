@@ -152,7 +152,7 @@ functions with no caller, and a few rare branches. Details: [the hybrid game](de
 SummonerFix's agent mode drives it through an address table. Comparing its data with the original's found three more
 errors that the hybrid could not see, because there the byte-matched functions used Sum.exe's own data (D9811,
 D9813, D9814). A new game reaches Masad and plays. A 75-minute play-test through the start of Act 1 found one
-more error, the stalled prologue cinematic (D9815, fixed), and a review of the functions it ran for the first time two more (D9816), the rest of those functions one more (D9817); with the same SummonerFix timing fix, it runs at the original's frame rate. Two more play-tests (party members, the first summon, shops, compared pixel for pixel) and the level save check over 28 levels (`tools/link-savecheck.mjs`: saves and run-time memory against three original runs) found no further error. Next: an automated screen comparison, since the save check cannot see rendering. See [the standalone link](decomp-plan.md).
+more error, the stalled prologue cinematic (D9815, fixed), and a review of the functions it ran for the first time two more (D9816), the rest of those functions one more (D9817); with the same SummonerFix timing fix, it runs at the original's frame rate. Two more play-tests (party members, the first summon, shops, compared pixel for pixel) and the level save check over 28 levels (`tools/link-savecheck.mjs`: saves and run-time memory against three original runs) found no further error. An automated screen comparison (`tools/link-screencheck.mjs`, 16 screens) found no rendering difference either. See [the standalone link](decomp-plan.md).
 
 ## Future projects
 
