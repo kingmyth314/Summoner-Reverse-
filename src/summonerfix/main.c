@@ -122,7 +122,7 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID reserved)
     LoadConfig();
     if (RebuiltInit()) {
         // The standalone rebuilt exe (rebuilt.c): only what works without code patches, through the address table.
-        Log("rebuilt exe: registry, OpenGL, display, timing, test saves, keys, agent mode, and the fixes whose patch site matches.");
+        Log("rebuilt exe: registry, OpenGL, display, timing, test saves, keys, controller, agent mode, and the fixes whose patch site matches.");
         if (GetPrivateProfileIntA("Debug", "Diagnostics", 0, g_cfg.iniPath))
             DiagInstall(GetModuleHandleA(NULL));
         RegHookInstall(GetModuleHandleA(NULL));
@@ -134,6 +134,7 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID reserved)
         TimingFixInstall();
         TestSavesInstall();
         KeyBindInstall();
+        ControllerInstall();
         // Fixes whose patch site is byte-identical in the rebuilt code apply (PatchBytes checks the original bytes);
         // the unconditional no-sound crash guard is one. [Fixes] Enabled=0 keeps the gameplay fixes off.
         BugFixesInstall();
@@ -160,6 +161,7 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID reserved)
     BugFixesInstall();
     TentacleGrabInstall();
     KeyBindInstall();
+    ControllerInstall(); // after KeyBindInstall: it injects through key_mark / mouse_mark_button
     if (g_cfg.renderer == RENDERER_OPENGL)
         WidescreenInstall();
     AgentInstall();

@@ -285,6 +285,90 @@ taken from an unused buffer.
 
 A binding adds a key; the default key keeps working. If the new key already belonged to another action, that action loses it, and the app says so. The list shows "(moved)" next to a default key that now does something else.
 
+## Controller (gamepad) support (`[Controller]`)
+
+{: .warning }
+Not yet tested with a real controller, and not yet run in the game. Only the input logic was checked, by a host
+test of `controller.c` with the game calls stubbed out (2026-10-21).
+
+SummonerFix can let an XInput controller (an Xbox-style gamepad, or any pad that Steam or DS4Windows presents as
+one) play the game. This is tier 1: no game logic changes. The controller drives the game's existing mouse and
+keyboard input:
+
+- the **left stick** moves the cursor. Its speed grows with how far the stick is pushed beyond the dead zone;
+- the **right stick** holds the camera arrow keys: left/right turn the camera, up/down zoom in and out
+  (see [Camera](../sum-exe/camera.md#input-turning-and-zoom));
+- the **buttons** press game keys and mouse buttons: press on button down, release on button up.
+
+It goes through the same paths as agent mode: the cursor position replaces the real one in the `ScreenToClient`
+hook, keys go into `key_mark` and mouse buttons into `mouse_mark_button` (`src/summonerfix/controller.c`,
+`display.c`, `keys.c`). The pad is read once per frame from the `SwapBuffers` hook, on the game thread. So it needs
+the OpenGL renderer (the default).
+
+The mouse and keyboard keep working. While the controller is idle (left stick in the dead zone, nothing pressed)
+SummonerFix touches neither the cursor nor the keys. When the stick moves the cursor, the Windows cursor is moved
+along with it. As soon as the real mouse moves, the mouse takes over again from that point.
+
+Off by default. Turn it on with `[Controller] Enabled=1`, or in `SummonerFixConfig.exe` with **Controller...** →
+**Use a controller**. It is read when the game starts. XInput is loaded at run time (`xinput1_4.dll`, then
+`xinput1_3.dll`, then `xinput9_1_0.dll`). Without it, or without a controller, nothing changes; the log says so
+once. A controller plugged in later is found within a second.
+
+### Default mapping
+
+| Input | Game key | Action |
+|---|---|---|
+| Left stick | | Cursor |
+| Right stick left / right | Left / Right | Turn the camera |
+| Right stick up / down | Up / Down | Zoom in / out |
+| A | left mouse button | Move, attack, talk; menus |
+| B | right mouse button | Chain attack |
+| X | X | Interact with the nearest object |
+| Y | I | Inventory |
+| LB | Tab | Next party member (with LT held: previous, Shift+Tab) |
+| RB | H | Solo mode on/off |
+| LT (hold) | LShift | Shift: with B, chain attack slot 1; Shift+click |
+| RT | Space | Pause |
+| Start | Esc | Play menu |
+| Back | M | Automap |
+| D-pad up / right / down / left | 1 / 2 / 3 / 4 | Quick slots 1-4 |
+| LS (click) | C | Spells panel |
+| RS (click) | F12 | Camera mode (low / high / automatic) |
+
+The keys are the game's own (see [Controls](../sum-exe/controls.md)). `[KeyBindings]` do not apply to them:
+`LB=Tab` always sends the game's Tab, whatever Tab is bound to. When a modifier (Shift, Ctrl, Alt, CapsLock) and
+another button change in the same frame, the modifier goes down first and up last, so LT+B gives Shift+right click.
+
+### Settings
+
+| Key | Default | Meaning |
+|---|---|---|
+| `[Controller] Enabled` | 0 | 1 = use an XInput controller (OpenGL renderer only) |
+| `[Controller] DeadZone` | 7849 | Left stick dead zone, radial, of 32767 (0-30000) |
+| `[Controller] CursorSpeed` | 800 | Cursor speed at full deflection, in game pixels per second (the screen is 1024 wide); 50-5000 |
+| `[Controller] CameraThreshold` | 16000 | How far (of 32767) the right stick must be pushed to hold a camera key; it lets go at three quarters of that |
+| `[Controller] TriggerThreshold` | 30 | How far (of 255) a trigger must be pressed to count as pressed |
+| `[Controller] A`, `B`, `X`, `Y`, `LB`, `RB`, `LT`, `RT`, `Start`, `Back`, `DPadUp`, `DPadRight`, `DPadDown`, `DPadLeft`, `LS`, `RS`, `CameraLeft`, `CameraRight`, `CameraUp`, `CameraDown` | see the table above | A game key name (as in `[KeyBindings]`, or a hex scan code), `MouseLeft`, `MouseRight`, `MouseMiddle`, or `none` |
+
+### Testing without a controller: agent mode `pad`
+
+Agent mode has a command that feeds a synthetic pad state into the same code, for MS milliseconds (default 100). It
+works with `Enabled=0` too, and uses the `[Controller]` mapping:
+
+```
+pad LX LY RX RY BUTTONS [MS]
+```
+
+The sticks are -32768..32767 (up is positive for LY and RY, as in XInput). BUTTONS is the `XINPUT_GAMEPAD` bit mask
+in hex: `1000` A, `2000` B, `4000` X, `8000` Y, `100` LB, `200` RB, `10` Start, `20` Back, `1`/`2`/`4`/`8` D-pad
+up/down/left/right, `40`/`80` stick clicks, plus `10000` LT and `20000` RT (not XInput bits: they press the
+triggers fully). The command returns after the state has ended and its keys are released, and prints the cursor.
+Give the agent cursor a position first with `move X Y`; otherwise the stick moves the real Windows cursor.
+
+Examples: `pad 32767 0 0 0 0 500` (cursor right for half a second), `pad 0 0 0 0 1000` (A: a left click),
+`pad 0 0 0 0 12000 200` (LT+B: Shift + right click), `pad 0 0 -32768 0 0 400` (turn the camera left).
+
+
 ## Configuration (`summonerfix.ini`)
 
 | Key | Default | Meaning |

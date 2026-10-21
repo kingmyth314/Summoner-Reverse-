@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "../summonerfix/keynames.h"
+#include "../summonerfix/padmap.h"
 
 // The game's hard-coded key map (docs/sum-exe/controls.md). gameKey is the code the game reacts to.
 typedef struct { unsigned short gameKey; const char *action; } Action;
@@ -45,7 +46,8 @@ static const Hotkey k_hotkeys[] = {
 #define ROW_COUNT (ACTION_COUNT + HOTKEY_COUNT)
 
 enum { ID_LIST = 100, ID_CHANGE, ID_CLEAR, ID_RESET, ID_CLOSE, ID_STATUS, ID_SKIPMOVIES, ID_ZOOM, ID_INTERACT, ID_CONTAINER, ID_APPLY, ID_SPEEDTOGGLE,
-       ID_CONSOLE_CMD, ID_CONSOLE_BIND, ID_FIXALL, ID_FIXLIST, ID_FIXSAVE, ID_FIXCLOSE, ID_TENTACLE, ID_TENTCHANCE };
+       ID_CONSOLE_CMD, ID_CONSOLE_BIND, ID_FIXALL, ID_FIXLIST, ID_FIXSAVE, ID_FIXCLOSE, ID_TENTACLE, ID_TENTCHANCE,
+       ID_PADOPEN, ID_PADENABLED, ID_PADSAVE, ID_PADRESET, ID_PADCLOSE };
 
 // [ConsoleKeys] Key=command entries (keys that run a developer console command). Shown as list rows after the
 // hotkeys; Change key / Clear work on them, and "Bind key..." adds one for the command typed in the box.
@@ -123,7 +125,7 @@ static const FixOption k_fixes[] = {
 
 static char g_ini[MAX_PATH];
 static Bindings g_b; // physical key/button -> game key/button
-static HWND g_wnd, g_list, g_status, g_fixWnd;
+static HWND g_wnd, g_list, g_status, g_fixWnd, g_padWnd;
 static HHOOK g_hook, g_mouseHook;
 static int g_capturing = -1; // action row waiting for a key
 
@@ -647,6 +649,148 @@ static void OpenFixWindow(void)
     ShowWindow(g_fixWnd, SW_SHOW);
 }
 
+// The "Controller" window: [Controller] (src/summonerfix/controller.c), read when the game starts. The numbers and
+// one edit box per input (a game key name, MouseLeft/MouseRight/MouseMiddle or none), saved with its own Save button.
+#define ID_PADNUM0 400
+#define ID_PADMAP0 420
+typedef struct { const char *iniKey, *label; int def, lo, hi; } PadNumber;
+static const PadNumber k_padNumbers[] = {
+    {"DeadZone", "Left stick dead zone (of 32767):", PAD_DEF_DEADZONE, 0, 30000},
+    {"CursorSpeed", "Cursor speed (game px/s):", PAD_DEF_CURSOR_SPEED, 50, 5000},
+    {"CameraThreshold", "Right stick camera push (of 32767):", PAD_DEF_CAMERA_THRESHOLD, 1000, 32000},
+    {"TriggerThreshold", "Trigger press (of 255):", PAD_DEF_TRIGGER_THRESHOLD, 1, 254},
+};
+#define PAD_NUMBER_COUNT (int)(sizeof k_padNumbers / sizeof k_padNumbers[0])
+#define PAD_COL_W 340
+#define PAD_ROWS ((PAD_INPUT_COUNT + 1) / 2)
+#define PAD_MAP_Y 132
+#define PAD_WND_W (2 * PAD_COL_W + 20)
+#define PAD_WND_H (PAD_MAP_Y + PAD_ROWS * 26 + 50)
+
+static void PadFill(HWND w, BOOL defaults)
+{
+    CheckDlgButton(w, ID_PADENABLED, !defaults && GetPrivateProfileIntA("Controller", "Enabled", 0, g_ini) ? BST_CHECKED : BST_UNCHECKED);
+    for (int i = 0; i < PAD_NUMBER_COUNT; i++) {
+        char v[16];
+        snprintf(v, sizeof v, "%d", defaults ? k_padNumbers[i].def : (int)GetPrivateProfileIntA("Controller", k_padNumbers[i].iniKey, k_padNumbers[i].def, g_ini));
+        SetDlgItemTextA(w, ID_PADNUM0 + i, v);
+    }
+    for (int i = 0; i < PAD_INPUT_COUNT; i++) {
+        char v[32];
+        if (defaults)
+            lstrcpynA(v, k_padInputs[i].def, sizeof v);
+        else
+            GetPrivateProfileStringA("Controller", k_padInputs[i].iniKey, k_padInputs[i].def, v, sizeof v, g_ini);
+        SetDlgItemTextA(w, ID_PADMAP0 + i, v);
+    }
+}
+
+static BOOL PadSave(HWND w)
+{
+    char v[32];
+    for (int i = 0; i < PAD_NUMBER_COUNT; i++) {
+        GetDlgItemTextA(w, ID_PADNUM0 + i, v, sizeof v);
+        int n = atoi(v);
+        if (!v[0] || n < k_padNumbers[i].lo || n > k_padNumbers[i].hi) {
+            MessageBoxA(w, "A number is out of range; nothing was saved.", k_padNumbers[i].label, MB_OK | MB_ICONWARNING);
+            return FALSE;
+        }
+    }
+    for (int i = 0; i < PAD_INPUT_COUNT; i++) {
+        GetDlgItemTextA(w, ID_PADMAP0 + i, v, sizeof v);
+        int code = v[0] && _stricmp(v, "none") ? KeyParse(v) : 0;
+        if (code < 0 || code >= KEY_MOUSE_BASE + 3) {
+            char msg[128];
+            snprintf(msg, sizeof msg, "\"%s\" for %s is not a game key, MouseLeft, MouseRight, MouseMiddle or none; nothing was saved.", v,
+                     k_padInputs[i].iniKey);
+            MessageBoxA(w, msg, "SummonerFix - Controller", MB_OK | MB_ICONWARNING);
+            return FALSE;
+        }
+    }
+    WritePrivateProfileStringA("Controller", "Enabled", IsDlgButtonChecked(w, ID_PADENABLED) ? "1" : "0", g_ini);
+    for (int i = 0; i < PAD_NUMBER_COUNT; i++) {
+        GetDlgItemTextA(w, ID_PADNUM0 + i, v, sizeof v);
+        snprintf(v, sizeof v, "%d", atoi(v));
+        WritePrivateProfileStringA("Controller", k_padNumbers[i].iniKey, v, g_ini);
+    }
+    for (int i = 0; i < PAD_INPUT_COUNT; i++) {
+        GetDlgItemTextA(w, ID_PADMAP0 + i, v, sizeof v);
+        WritePrivateProfileStringA("Controller", k_padInputs[i].iniKey, v[0] ? v : "none", g_ini);
+    }
+    return TRUE;
+}
+
+static HWND PadEdit(HWND parent, int id, int x, int y, int width)
+{
+    HWND e = CreateWindowExA(WS_EX_CLIENTEDGE, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL, x, y, width, 22, parent,
+                             (HMENU)(INT_PTR)id, NULL, NULL);
+    SendMessageA(e, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
+    return e;
+}
+
+static LRESULT CALLBACK PadWndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
+{
+    switch (msg) {
+    case WM_CREATE: {
+        Label(w, "An XInput (Xbox-style) controller drives the mouse and keys. OpenGL renderer only; read when the game", 10, 10, PAD_WND_W - 20);
+        Label(w, "starts. Keys are the game's own (key bindings do not change them). Not yet tested with a real controller.", 10, 26, PAD_WND_W - 20);
+        HWND cb = CreateWindowA("BUTTON", "Use a controller", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 10, 48, 200, 20, w,
+                                (HMENU)(INT_PTR)ID_PADENABLED, NULL, NULL);
+        SendMessageA(cb, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
+        for (int i = 0; i < PAD_NUMBER_COUNT; i++) {
+            int x = 10 + (i % 2) * PAD_COL_W, y = 76 + (i / 2) * 26;
+            Label(w, k_padNumbers[i].label, x, y + 3, 200);
+            PadEdit(w, ID_PADNUM0 + i, x + 205, y, 60);
+        }
+        for (int i = 0; i < PAD_INPUT_COUNT; i++) {
+            int x = 10 + (i / PAD_ROWS) * PAD_COL_W, y = PAD_MAP_Y + (i % PAD_ROWS) * 26;
+            char label[96];
+            snprintf(label, sizeof label, "%s (default %s: %s)", k_padInputs[i].iniKey, k_padInputs[i].def, k_padInputs[i].label);
+            Label(w, label, x + 95, y + 3, PAD_COL_W - 100);
+            PadEdit(w, ID_PADMAP0 + i, x, y, 90);
+        }
+        int y = PAD_MAP_Y + PAD_ROWS * 26 + 10;
+        Button(w, ID_PADSAVE, "&Save", 10, y, 100);
+        Button(w, ID_PADRESET, "&Defaults", 120, y, 100);
+        Button(w, ID_PADCLOSE, "Close", 230, y, 100);
+        PadFill(w, FALSE);
+        return 0;
+    }
+    case WM_COMMAND:
+        if (LOWORD(wp) == ID_PADSAVE) {
+            if (PadSave(w)) {
+                SetStatus("Controller settings saved. They apply the next time the game starts.");
+                DestroyWindow(w);
+            }
+        } else if (LOWORD(wp) == ID_PADRESET) {
+            PadFill(w, TRUE); // shown only; Save writes them
+        } else if (LOWORD(wp) == ID_PADCLOSE) {
+            DestroyWindow(w);
+        }
+        return 0;
+    case WM_DESTROY:
+        g_padWnd = NULL;
+        return 0;
+    }
+    return DefWindowProcA(w, msg, wp, lp);
+}
+
+static void OpenPadWindow(void)
+{
+    if (g_padWnd) {
+        SetForegroundWindow(g_padWnd);
+        return;
+    }
+    RECT r = {0, 0, PAD_WND_W, PAD_WND_H};
+    DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU;
+    AdjustWindowRect(&r, style, FALSE);
+    RECT m;
+    GetWindowRect(g_wnd, &m);
+    g_padWnd = CreateWindowExA(WS_EX_TOPMOST, "SummonerFixPad", "SummonerFix - Controller", style, m.left + 40, m.top + 40,
+                               r.right - r.left, r.bottom - r.top, g_wnd, NULL, GetModuleHandleA(NULL), NULL);
+    ShowWindow(g_padWnd, SW_SHOW);
+}
+
 static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
 {
     switch (msg) {
@@ -718,6 +862,8 @@ static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
                                   w, (HMENU)(INT_PTR)ID_CONSOLE_CMD, NULL, NULL);
         SendMessageA(ce, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
         Button(w, ID_CONSOLE_BIND, "&Bind key...", 540, 418, 120);
+        Label(w, "Controller (next game start):", 770, 372, 230);
+        Button(w, ID_PADOPEN, "Co&ntroller...", 770, 390, 120);
         Button(w, ID_CLOSE, "Close", 540, 472, 120);
         g_status = CreateWindowA("STATIC", "", WS_CHILD | WS_VISIBLE, 10, 510, 990, 20, w, (HMENU)ID_STATUS, NULL, NULL);
         SendMessageA(g_status, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
@@ -743,6 +889,7 @@ static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         case ID_RESET: ResetAll(); break;
         case ID_APPLY: ApplyOptions(); break;
         case ID_FIXLIST: OpenFixWindow(); break;
+        case ID_PADOPEN: OpenPadWindow(); break;
         case ID_CONSOLE_BIND: StartConsoleBind(); break;
         case ID_CLOSE: DestroyWindow(w); break;
         }
@@ -775,6 +922,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show)
     wc.lpfnWndProc = FixWndProc;
     wc.lpszClassName = "SummonerFixFixes";
     RegisterClassA(&wc);
+    wc.lpfnWndProc = PadWndProc;
+    wc.lpszClassName = "SummonerFixPad";
+    RegisterClassA(&wc);
     wc.lpszClassName = "SummonerFixConfig"; // the main window below is created by this name
     RECT r = {0, 0, 1010, 540};
     DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
@@ -784,7 +934,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show)
     ShowWindow(g_wnd, show);
     MSG m;
     while (GetMessageA(&m, NULL, 0, 0) > 0) {
-        if (!IsDialogMessageA(g_wnd, &m) && !(g_fixWnd && IsDialogMessageA(g_fixWnd, &m))) {
+        if (!IsDialogMessageA(g_wnd, &m) && !(g_fixWnd && IsDialogMessageA(g_fixWnd, &m)) &&
+            !(g_padWnd && IsDialogMessageA(g_padWnd, &m))) {
             TranslateMessage(&m);
             DispatchMessageA(&m);
         }

@@ -10,6 +10,7 @@
 //   - map mouse coordinates between window pixels and game pixels.
 #include "summonerfix.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define GL_COLOR_BUFFER_BIT 0x00004000
@@ -213,9 +214,12 @@ static void CaptureFrame(const Map *m)
 }
 
 // Agent mode (agent.c): one-shot capture requests, and a cursor position that replaces the real one.
+// g_agentCursor: 0 = the real cursor; 1 = agent mode set the position (it keeps it); 2 = the controller moved it
+// (controller.c): the real cursor is moved along, and the override ends as soon as the real mouse moves.
 static char g_capturePath[MAX_PATH];
 static volatile LONG g_captureWanted;
 static volatile LONG g_agentCursor, g_agentX, g_agentY; // client pixels
+static volatile LONG g_padRealX, g_padRealY;            // mode 2: where the real cursor was put (screen pixels)
 
 void DisplayRequestCapture(const char *path)
 {
@@ -236,6 +240,54 @@ void DisplayGetAgentCursor(int *clientX, int *clientY)
 {
     *clientX = g_agentX;
     *clientY = g_agentY;
+}
+
+// Controller (controller.c, game thread): move the cursor by (dx, dy) game pixels, kept inside the game picture.
+// Fractions are carried over, so slow stick movements still move the cursor.
+void DisplayMoveCursor(double dxGame, double dyGame)
+{
+    static double fracX, fracY;
+    Map m;
+    if (!GetMap(&m))
+        return;
+    double fx = dxGame * m.scale + fracX, fy = dyGame * m.scale + fracY;
+    int ix = (int)fx, iy = (int)fy; // toward zero; the rest is kept
+    fracX = fx - ix;
+    fracY = fy - iy;
+    if (!ix && !iy)
+        return;
+    LONG mode = g_agentCursor;
+    int x, y;
+    if (mode) {
+        x = g_agentX;
+        y = g_agentY;
+    } else { // start from the real cursor (this DLL's ScreenToClient import is not hooked)
+        POINT p;
+        if (!GetCursorPos(&p) || !ScreenToClient(g_wnd, &p))
+            return;
+        x = p.x;
+        y = p.y;
+    }
+    int usedW = (int)((m.menuShift ? 1024 : g_cfg.width) * m.scale + 0.5), usedH = (int)(g_cfg.height * m.scale + 0.5);
+    int left = m.offX, right = m.offX + usedW - 1, top = m.offY, bottom = m.offY + usedH - 1;
+    if (right > m.cw - 1) right = m.cw - 1;
+    if (bottom > m.ch - 1) bottom = m.ch - 1;
+    x += ix;
+    y += iy;
+    x = x < left ? left : x > right ? right : x;
+    y = y < top ? top : y > bottom ? bottom : y;
+    InterlockedExchange(&g_agentX, x);
+    InterlockedExchange(&g_agentY, y);
+    if (mode == 1)
+        return; // agent mode owns the cursor: leave the real one alone
+    // Move the real cursor along, so the mouse carries on from here; remember where it landed (it may be clipped).
+    POINT s = {x, y};
+    ClientToScreen(g_wnd, &s);
+    SetCursorPos(s.x, s.y);
+    GetCursorPos(&s);
+    InterlockedExchange(&g_padRealX, s.x);
+    InterlockedExchange(&g_padRealY, s.y);
+    InterlockedExchange(&g_agentCursor, 2);
 }
 
 // Fast-mode indicator: a small "FAST x3" badge at the top-left of the game picture while the speed key's fast
@@ -352,6 +404,7 @@ static void DrawSpeedIndicator(HDC dc, const Map *m)
 
 static BOOL WINAPI Hook_SwapBuffers(HDC dc)
 {
+    ControllerFrame(); // once per frame, on the game thread; does nothing while the pad is idle
     Map m;
     if (g_cfg.captureEvery > 0 && GetMap(&m))
         CaptureFrame(&m);
@@ -462,8 +515,16 @@ static BOOL WINAPI Hook_SetWindowPos(HWND w, HWND after, int x, int y, int cx, i
 // with ClientToScreen + SetCursorPos (0x500ca7/0x500cb7). Convert between window and game pixels.
 static BOOL WINAPI Hook_ScreenToClient(HWND w, LPPOINT p)
 {
+    POINT screen = *p;
     BOOL ok = real_ScreenToClient(w, p);
     Map m;
+    // Controller cursor (mode 2): the game's cursor poll sees the real cursor somewhere else, so the real mouse has
+    // moved. It takes over again.
+    if (ok && w == g_wnd && g_agentCursor == 2) {
+        DWORD va = OrigVa((DWORD)(UINT_PTR)__builtin_return_address(0));
+        if (va >= 0x500b00 && va < 0x500d00 && (abs(screen.x - g_padRealX) > 1 || abs(screen.y - g_padRealY) > 1))
+            InterlockedExchange(&g_agentCursor, 0);
+    }
     if (ok && w == g_wnd && g_agentCursor) {
         p->x = g_agentX;
         p->y = g_agentY;
@@ -487,6 +548,12 @@ static BOOL WINAPI Hook_ClientToScreen(HWND w, LPPOINT p)
             InterlockedExchange(&g_agentX, p->x);
             InterlockedExchange(&g_agentY, p->y);
         }
+        BOOL ok = real_ClientToScreen(w, p);
+        if (ok && g_agentCursor == 2) { // the game's SetCursorPos puts the real cursor here: not a mouse movement
+            InterlockedExchange(&g_padRealX, p->x);
+            InterlockedExchange(&g_padRealY, p->y);
+        }
+        return ok;
     }
     return real_ClientToScreen(w, p);
 }

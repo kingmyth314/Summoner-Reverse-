@@ -424,6 +424,7 @@ node tools/agent.mjs stop                    # quit (kill after 15 s)
   `skeleton_read_tag_record` (2026-10-17);
 - `goldpile N` leaves a loose gold pile of N gold 2 units beside the current character (`item_create_by_name("Gold")`,
   `item_obj_spawn`, on the game thread; the object's address is in the log). For G40;
+- `pad LX LY RX RY BUTTONS [MS]` feeds a synthetic XInput controller state through SummonerFix's controller code for MS ms (default 100): sticks -32768..32767, BUTTONS the XINPUT_GAMEPAD mask in hex plus 10000 for LT and 20000 for RT. Works with `[Controller] Enabled=0`; see [SummonerFix](summonerfix/index.md#controller-gamepad-support-controller) (2026-10-21, not yet run);
 - `summon SPELL` raises a summon for the current character, 2 units beside it, as the summon spells do
   (`summon_create(cur_character, pos, layer, SPELL, -1)`, game thread; `cur_summon` is in the log). SPELL is the
   decimal index in `spells.tbl` order (38 golem ... 45 mist elemental ... 53 forest dragon). The summon then waits

@@ -12,6 +12,11 @@
 //   click [left|right|middle] [X Y] [ms]   move (optional), press, hold (default 80 ms), release
 //   down BUTTON / up BUTTON                mouse button 0-2 or left/right/middle
 //   drag X1 Y1 X2 Y2   left-button drag
+//   pad LX LY RX RY BUTTONS [MS]   a synthetic controller state for MS ms (default 100), through controller.c's
+//                      own code: sticks -32768..32767 (LY/RY up is positive), BUTTONS the XINPUT_GAMEPAD bit mask
+//                      in hex (1000 A, 2000 B, 4000 X, 8000 Y, 100 LB, 200 RB, 10 Start, 20 Back, 1/2/4/8 D-pad
+//                      up/down/left/right, 40/80 stick clicks) plus 10000 LT and 20000 RT. Waits until the state has
+//                      ended and its keys are released. Works with [Controller] Enabled=0; uses its mapping.
 //   wait MS
 //   capture NAME       screenshot to agent\NAME.bmp (waits until written)
 //   info               game state, screen, fps, cursor
@@ -500,6 +505,20 @@ static void RunLine(char *line)
         Sleep(60);
         KeysInjectMouse(0, 0);
         Out("drag: ok");
+    } else if (!_stricmp(c, "pad") && argc >= 6) {
+        // pad LX LY RX RY BUTTONS [MS]: e.g. "pad 32767 0 0 0 0 500" (cursor right for 0.5 s), "pad 0 0 0 0 1000"
+        // (A: a left click). The game thread polls it once per frame (the SwapBuffers hook).
+        DWORD ms = argc > 6 ? (DWORD)atoi(argv[6]) : 100;
+        ControllerSetSynthetic(atoi(argv[1]), atoi(argv[2]), atoi(argv[3]), atoi(argv[4]),
+                               (unsigned)strtoul(argv[5], NULL, 16), ms);
+        Sleep(ms);
+        int i;
+        for (i = 0; i < 100 && !ControllerSyntheticDone(); i++)
+            Sleep(10);
+        int cx, cy;
+        DisplayGetAgentCursor(&cx, &cy);
+        Out(ControllerSyntheticDone() ? "pad: ok (cursor %d,%d)" : "pad: not released after 1 s (is the game drawing?) (cursor %d,%d)",
+            cx / 2, cy / 2);
     } else if (!_stricmp(c, "wait") && argc >= 2) {
         Sleep((DWORD)atoi(argv[1]));
     } else if (!_stricmp(c, "capture") && argc >= 2) {

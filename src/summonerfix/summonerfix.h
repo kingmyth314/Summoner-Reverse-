@@ -95,6 +95,13 @@ void DisplayRequestCapture(const char *path);
 BOOL DisplayCapturePending(void);
 void DisplaySetAgentCursor(int clientX, int clientY);
 void DisplayGetAgentCursor(int *clientX, int *clientY);
+void DisplayMoveCursor(double dxGame, double dyGame); // controller: move the cursor by game pixels
+
+// controller.c ([Controller], XInput gamepad, tier 1: drives the existing mouse and key input)
+void ControllerInstall(void);
+void ControllerFrame(void); // once per frame, on the game thread (display.c SwapBuffers hook)
+void ControllerSetSynthetic(int lx, int ly, int rx, int ry, unsigned buttons, DWORD ms); // agent mode "pad"
+BOOL ControllerSyntheticDone(void); // the synthetic state has ended and its inputs are released
 
 // agent.c
 void AgentInstall(void);
