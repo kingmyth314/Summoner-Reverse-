@@ -391,12 +391,26 @@ decompilation error showed. What fell outside the original runs' spread:
   treat a monster's level, HP and AP after entry as random;
 - in Eleh nine NPCs' script-object timers were 8 ms lower, and in Wolong eight NPCs' AI goal times about 17 ms
   lower, where the three original runs agree to the millisecond: one or two frames more of game time before the
-  level's opening pause. **Open** (timing, low priority).
+  level's opening pause. **Open** (timing, low priority). Narrowed 2026-10-20: `GameTimer` counts on
+  `Timestamp_ticker` (`GameTimer::SetTimeout` / `elapsed`), which keeps running through the opening cutscene;
+  sampled every 100 ms after a warp to `eleh`, both exes finish the load (game flags 0x201) and enter the opening
+  narration (0x221) in the same sample window. One or two frames are below what agent sampling can resolve; a
+  frame-by-frame trace in the game loop would be needed.
 
 The memory dumps differed every time in a few symbols only through layout (the bytes past a variable's own size
 belong to an unnamed neighbour in one exe and another variable in the other) and in `install_path` (the exe
 names); one long help string had been compared over 64 bytes only (now 256, in `link-datacheck.mjs` too). As the
 docs of the tool say, this check cannot see rendering or timing errors: D9815 and D9817 would have passed it.
+
+**The static data check, every difference explained (2026-10-20).** `tools/link-datacheck.mjs` reported 34
+differences. The two not yet traced were both checks, not code: `tutorial_entries` (`0x592aa8`) had no
+sum.symbols entry, so the address table gave `tutorial_unused_592aa4` 0x20c bytes and never compared the table
+(its first dword is each exe's own `tutorial_cond_basic_controls`, the constants match; the symbol is added, and the
+check now reports 33); and `c_dfDIMouse` (`0x5832c8`, from DirectInput's `dinput.lib`) points at the library's
+unnamed object-format array, which no table can translate. That array and the three axis GUIDs it points to are
+byte-identical in both exes. The other 31 are the known kinds: tables that Sum.exe fills at start-up and the
+rebuilt exe holds as initialised data (skill, spell, status and dialogue name tables; the runtime dumps compare them
+after start-up and agree), and bytes past a variable's end that belong to a different neighbour in each exe.
 
 **Screen check (2026-10-19, `tools/link-screencheck.mjs`).** The same screens in both exes, compared pixel by pixel;
 pixels that differ between the original's own runs are masked. Pixel-identical: the main menu, the load list, the
@@ -535,9 +549,9 @@ in [game bugs](sum-exe/game-bugs.md) yet):
   compares with is set to -1 first (`0x4c3cd8`), so the same helper can be picked again.
 - `gr_d3d_init_device`: the video-memory test rejects below 5 MB (`cmp eax, 0x500000` at `0x53a01f`), but the
   message says 8 MB (L944).
-- Reported by the review, not yet re-read: `character_learn_chain_skill` (`0x449650`): a chain threshold message calls `get_display_name` on a character
+- `character_learn_chain_skill` (`0x449650`, re-read: `c` is at frame +0x18, stored at `0x44968e`, read back at `0x4497b1` with two pushes outstanding; the only NULL test, `0x449692`, skips the AP block alone): a chain threshold message calls `get_display_name` on a character
   that can be NULL (`0x4497b1`).
-- Reported by the review, not yet re-read: `script_parse_objects` (`0x4dba30`): the "+No create" path copies an unfilled stack `trigger` name.
+- `script_parse_objects` (`0x4dba30`, re-read: the buffer at `esp+0x194` is written only on the other branch, `0x4dbc30` / `0x4dbc5d` / `0x4dbd10`, and its one reader `0x4dc0d8` is guarded by `trigger_level != -1`, so the copy at `0x4dc06c` is all that happens): the "+No create" path copies an unfilled stack `trigger` name.
 - `pf_check_direct_walk` (D15600): see the [roadmap](roadmap.md); the door look-ahead shrinks on levels far from
   height 0.
 
