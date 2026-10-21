@@ -881,6 +881,11 @@ void TentacleGrabInstall(void)
         Log("tentacle grab is off ([Experimental] TentacleGrab=0)");
         return;
     }
+    if (RebuiltFixInSource("TentacleGrab")) {
+        // The experimental build has the grab in its source (unnamed_tentacle_beast_0x4c6480.cpp).
+        Log("tentacle grab: in this exe's source (EXPERIMENTAL_BUILD), not patched");
+        return;
+    }
     int chance = (int)GetPrivateProfileIntA("Experimental", "TentacleGrabChance", 10, g_cfg.iniPath);
     if (chance < 0)
         chance = 0;

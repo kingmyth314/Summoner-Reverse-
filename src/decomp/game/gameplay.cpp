@@ -77,6 +77,7 @@
 #include "summoner/multi/multisave.h"
 #include "summoner/interface/interface.h"
 #include "summoner/interface/new_hud.h"
+#include "experimental/experimental.h"   // EXPERIMENTAL_BUILD only (docs/experimental-build.md)
 
 #define OBJ_TYPE_PARTY 7              // obj +0xc of a party member (objects.h)
 #define AI_DIRECT_PRIORITY 999999     // the goal priority of direct orders (ai.cpp)
@@ -578,6 +579,9 @@ bool level_load()
     loading_screen_load_bitmap(num_models, 0);
     localize_level_init(level_script_name);
     bool ok = (level_load_files() == true);
+#ifdef EXPERIMENTAL_BUILD
+    exp_level_loaded(ok);              // experimental build: a level was loaded (autosave)
+#endif
     return ok;
 }
 

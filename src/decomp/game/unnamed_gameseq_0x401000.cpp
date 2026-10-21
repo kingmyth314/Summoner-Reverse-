@@ -25,6 +25,7 @@
 #include "summoner/multi/unnamed_mpmenus_0x43eb00.h"
 #include "summoner/multi/unnamed_lobby_0x43ef30.h"
 #include "summoner/unnamed_mlayout_0x43f9d0.h"
+#include "experimental/experimental.h"   // EXPERIMENTAL_BUILD only (docs/experimental-build.md)
 
 // ---- .data (0x588a70) ----------------------------------------------------------------------------------
 // {enter, frame, leave} per state (main-loop.md). States 0 and 3 (quit) are empty; the title, credits and
@@ -112,6 +113,9 @@ int GameTick()
         FrameDone();
     mouse_update();
     mouse_get_pos(&game_mouse_x, &game_mouse_y, &game_mouse_z);
+#ifdef EXPERIMENTAL_BUILD
+    exp_frame_begin();                 // experimental build: input for this frame (controller)
+#endif
     if (game_flags & GF_MULTIPLAYER) {
         for (i = 0; i < MP_NUM_PACKET_TYPES; i++)
             mp_packet_table[i].sent = 0;
@@ -127,6 +131,9 @@ int GameTick()
                 sprintf(string_buffer, "Packet type %d created %d time(s)\n", i, mp_packet_table[i].sent);
     }
     editor_dialogs_free_closed();
+#ifdef EXPERIMENTAL_BUILD
+    exp_frame_end();                   // experimental build: per-frame work after the state ran (autosave, display)
+#endif
     FrameEnd();
     return gameseq_state_cur;
 }

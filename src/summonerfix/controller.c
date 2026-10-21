@@ -272,6 +272,12 @@ void ControllerInstall(void)
         Log("controller: off ([Controller] Enabled=0)");
         return;
     }
+    if (RebuiltFixInSource("Controller")) {
+        // The experimental build reads the controller itself (src/decomp/experimental/controller.cpp).
+        Log("controller: in this exe's source (EXPERIMENTAL_BUILD), not driven by SummonerFix");
+        g_enabled = 0;
+        return;
+    }
     if (g_cfg.renderer != RENDERER_OPENGL) {
         Log("controller: needs the OpenGL renderer (cursor and per-frame poll are in its display hooks); off");
         g_enabled = 0;

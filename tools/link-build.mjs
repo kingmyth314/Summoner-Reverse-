@@ -70,6 +70,19 @@ for (const u of units) {
   compiled++;
   if (/error C\d+|\(exit/.test(text)) { failed++; console.log(`compile failed: ${u}\n${text.split("\n").filter((x) => /error/.test(x)).slice(0, 5).join("\n")}`); }
 }
+// The experimental build's own units (src/decomp/experimental/*.cpp, docs/experimental-build.md): not part of
+// Sum.exe, so not in vc6-matches.txt; compiled only with EXPERIMENTAL_BUILD.
+if (defines.includes("EXPERIMENTAL_BUILD")) {
+  const xdir = join(src, "experimental");
+  for (const f of existsSync(xdir) ? readdirSync(xdir).filter((n) => n.endsWith(".cpp")).sort() : []) {
+    const cpp = join(xdir, f), obj = join(objDir, "experimental_" + f.replace(/\.cpp$/, ".obj"));
+    objs.push(obj);
+    if (fresh(obj, cpp)) continue;
+    const text = run("CL.EXE", ["/nologo", "/c", "/O2", "/GX", "/MT", ...defines.map((d) => `/D${d}`), `/Fo${obj}`, cpp]);
+    compiled++;
+    if (/error C\d+|\(exit/.test(text)) { failed++; console.log(`compile failed: experimental/${f}\n${text.split("\n").filter((x) => /error/.test(x)).slice(0, 5).join("\n")}`); }
+  }
+}
 // libjpeg 6b (Sum.exe links it statically): built from the IJG source when it is in third_party/jpeg6b/jpeg-6b
 // (jpegsrc.v6b.tar.gz, not in the repository; docs/reference/sources.md), its common and compression objects as
 // the IJG's makefile.vc lists them, with jconfig.vc as jconfig.h. Without it the no-op stub is linked.
@@ -173,7 +186,8 @@ const fixesPath = join(out, `${exeName}.fixes`);
 if (defines.includes("FIXED_BUILD")) {
   const keys = [];
   const walk = (d) => { for (const f of readdirSync(d)) { const p = join(d, f); if (statSync(p).isDirectory()) walk(p); else if (/\.(cpp|h)$/.test(f))
-    for (const m of readFileSync(p, "latin1").matchAll(/\/\/\s*FIXED_BUILD:\s+(\S+)\s+([A-Za-z0-9]+)/g)) keys.push(`${m[2]} # ${m[1]} ${p.slice(src.length + 1).replace(/\\/g, "/")}`); } };
+    for (const m of readFileSync(p, "latin1").matchAll(/\/\/\s*(FIXED_BUILD|EXPERIMENTAL_BUILD):\s+(\S+)\s+([A-Za-z0-9]+)/g))
+      if (m[1] === "FIXED_BUILD" || defines.includes("EXPERIMENTAL_BUILD")) keys.push(`${m[3]} # ${m[2]} ${p.slice(src.length + 1).replace(/\\/g, "/")}`); } };
   walk(src);
   writeFileSync(fixesPath, keys.sort().join("\n") + (keys.length ? "\n" : ""));
   console.log(`source fixes: ${keys.length} ([Fixes] keys in ${exeName}.fixes)`);
