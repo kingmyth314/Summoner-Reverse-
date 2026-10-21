@@ -91,6 +91,12 @@ reproductions in [Bugs in the original game](sum-exe/game-bugs.md); the workers'
   already builds instead of searching the folder again; C310 keeps the long path when the short one is not shorter.
 - Not changed, as SummonerFix also leaves them: the offensive armour branch of `trigger_reflex_ability`, and the
   128-byte buffers behind C310 (a volume without 8.3 names still crashes with a long path).
-- Found during the port, outside the fixes: `ai_group_think_caster`'s target list has 5 records in our source and 6
-  in the binary (its frame), while an AI group can hold 6 members; and K61's original out-of-bounds read means the
-  shipped rebuild shows whatever the linker put after the colour table. Both are checks for the reference build.
+- Raised during the port and checked afterwards (2026-10-21):
+  - `ai_group_think_caster`'s target list: the binary has the same 5 records as our source, not 6. The loop's
+    records start at `esp+0x38` (`lea esi, [esp+0x3c]` at `0x4938f9`, the record at `esi-4`) after four pushes,
+    and the return address is at `esp+0x90`, so 5 records and 8 bytes fit. Our source is right. In the original
+    a sixth member's record would overwrite the return address. AI groups hold up to six members
+    (`ai_group_add_member`), but the party has at most five, so only an enemy group of six with a caster could
+    reach it. That is a game-bug candidate, not yet traced to a retail group.
+  - K61's out-of-bounds read: in both exes the four bytes after `world_tint_gold` are the text "gold"
+    (`67 6f 6c 64`), read as a float, so the shipped rebuild tints exactly as retail does.
