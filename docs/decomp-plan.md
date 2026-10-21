@@ -541,6 +541,43 @@ in [game bugs](sum-exe/game-bugs.md) yet):
 - `pf_check_direct_walk` (D15600): see the [roadmap](roadmap.md); the door look-ahead shrinks on levels far from
   height 0.
 
+**Boss play-test of the rebuilt exe (2026-10-20 evening).** The first time any boss fight ran on the standalone exe.
+The user played it windowed (`[Display] Mode=Window` in the test folder), warped by agent mode from boss to boss with
+the full party, raised levels (`party_set_level`, later with `Max_skills`), `Players_immortal` set, and gold piles for
+equipment. A passive watcher reported crashes, dialogs and saves; at each stage the agent took a screenshot and a dump
+of every global without touching the input. Played through: the Serpent, Phoenix, Ghost and Tiger Riders, the
+Tentacle Beast, the Act 2 outro, the Serpent and Phoenix together (Liangshan), the Tiger and Ghost together, Murod and
+Murod Oni (Jade Temple) and Pyrul. One crash, which turned out to be the original game's:
+
+- **C317, a bug in Summoner.** Summoning the Mist Elemental just before the Ghost Rider's dismount cutscene crashed in
+  `summon_stash_for_cutscene` (`0x44807e`, a byte match): the cutscene forces the waiting summon's emerge, and the Mist
+  Elemental's table is the only summon table without an emerge move, so its current move stays NULL. Reproduced in the
+  original Sum.exe with the same fault address (new agent command `summon`). See [game bugs](sum-exe/game-bugs.md).
+
+What looked odd during play, each settled on the original exe from the same save:
+
+| Seen in the rebuilt exe | Result |
+|---|---|
+| "-6 AP" on arrival | from the `party_set_level` cheat (AP reset to base); the original shows it too |
+| only two party members in the Temple | `TempleInt_v2`'s init removes Jekhar and Rosalind (`0x4f5e90`, a byte match) |
+| a rider's stage drops after its escape | the stage follows the HP fraction each frame (`ghost_update_stage`, a byte match) |
+| the Phoenix (Liangshan) idle, then mostly magic | same in the original: from summoner25 with the leader put on `$sptrigger`, both idle about 25 s after the intro and then attack in 19 of 40 samples, at the same target handles; the ranged attacks came later in the user's fight |
+| the Tiger (Temple) idle behind a pillar | same in the original: from summoner23 at `$tigertrigger`, both stay out of combat (state -1) long after the intro (the original longer, about 57 s against 35 s) and then fight the same two targets |
+| "!!" against a plain bubble over the speakers after the finale | the quest icon `cursoricon-quest.vbm` is a three-frame animation; both show it over the same speakers |
+
+**The bosses the user did not reach, on both exes.** From the same save (level 40, `Max_skills`, immortal), the agent
+warped to each, triggered the fight as its level script does (`navgoto` the trigger navpoint, `npcgoto` the boss, or
+none), waited out the intro and then stepped the boss's HP down with the new agent command `npchp` (60 % or 50 %, 25 %
+or 20 %, then `npckill`), sampling the cutscene flag and the stage variable every 3 s. The Giant Salamanka (intro,
+Trans1, Trans2, Death; stages 1-2-3), Titus (intro, Death; 1-2-3), Luminar (intro, Death; 1-2-3), the finale (the Act 4
+narration and Machival-intro, Trans1 when Evil Urath dies, Trans2 when Evil Joseph dies, Machival-Death; afterwards only
+Joseph is in the party, as the end callback does) and General Pijian (PIJN-Intro, PIJN-Death; a scripted fight that
+is not a boss species, so it is not in [Bosses](sum-exe/bosses.md)) ran the same in both: the same cutscene sequence at
+the same samples, the same stages within one sample, no crash or dialog. The bosses' maximum HP differed (the
+clock-seeded monster levels). Not compared: the party's pathing around Murod's throne, which the user found poor
+(party movement differs from run to run, so it needs a measure that tolerates that). K310 was tried in the sewer the
+user suggested and is still latent (see [game bugs](sum-exe/game-bugs.md)).
+
 The
 `Confidence:` markers follow the sweep (`tools/decomp-confidence.mjs`): every compared function that matches is
 `exact`, none that differs is. The other 1,819 written functions are not compared (`tools/decomp-uncompared.mjs`):

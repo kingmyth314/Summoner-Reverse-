@@ -154,6 +154,13 @@ errors that the hybrid could not see, because there the byte-matched functions u
 D9813, D9814). A new game reaches Masad and plays. A 75-minute play-test through the start of Act 1 found one
 more error, the stalled prologue cinematic (D9815, fixed), and a review of the functions it ran for the first time two more (D9816), the rest of those functions one more (D9817); with the same SummonerFix timing fix, it runs at the original's frame rate. Two more play-tests (party members, the first summon, shops, compared pixel for pixel) and the level save check over 28 levels (`tools/link-savecheck.mjs`: saves and run-time memory against three original runs) found no further error. An automated screen comparison (`tools/link-screencheck.mjs`, 16 screens) found no rendering difference either. See [the standalone link](decomp-plan.md).
 
+**Status 2026-10-20: every boss fight has run on the rebuilt exe.** The user played the riders, the Tentacle Beast,
+the Jade Temple and Pyrul on the rebuilt exe in a window; the agent ran the Giant Salamanka, Titus, Luminar, the finale
+and General Pijian through all their stages on both exes. The one crash was the original game's own (C317, the Mist
+Elemental and cutscenes, reproduced in Sum.exe); every other oddity behaved the same in the original. Still not
+compared: party pathing around Murod's throne, multiplayer, and playing the later acts from end to end rather than
+warping in.
+
 ## Future projects
 
 Added 2026-10-16 at the user's request.

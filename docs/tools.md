@@ -420,6 +420,14 @@ node tools/agent.mjs stop                    # quit (kill after 15 s)
   `skeleton_read_tag_record` (2026-10-17);
 - `goldpile N` leaves a loose gold pile of N gold 2 units beside the current character (`item_create_by_name("Gold")`,
   `item_obj_spawn`, on the game thread; the object's address is in the log). For G40;
+- `summon SPELL` raises a summon for the current character, 2 units beside it, as the summon spells do
+  (`summon_create(cur_character, pos, layer, SPELL, -1)`, game thread; `cur_summon` is in the log). SPELL is the
+  decimal index in `spells.tbl` order (38 golem ... 45 mist elemental ... 53 forest dragon). The summon then waits
+  for its appearance effect before it emerges, as after a cast. Used to reproduce C317 (2026-10-20);
+- `npchp FRACTION NAME` damages a level script character (a boss, by its script object name, e.g. `Giant Salamanka`)
+  down to FRACTION of its base max HP, through `character_add_hp` as `npckill` does, so a boss passes its HP stages one
+  at a time and its stage checks and transition cutscenes run as after real damage (game thread; HP before and after in
+  the log). Used for the boss progression runs of 2026-10-20;
 - `firewall N [START] [summon]` places N walls of fire (spell `0x1d`, `spell_place_ground_effect`) in a row, the first START units (default 6) beside the current
   character, cast by it or with `summon` by the active summon (game thread; the count placed is in the log). Used to show that C270 cannot happen and to reproduce G270;
 - `spellhit TARGET SPELL POWER` runs `living_entity_get_hit_by_spell` on the character at TARGET (hex address,

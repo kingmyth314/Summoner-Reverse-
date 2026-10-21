@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 354 in all. [Bug fix priorities](bug-priorities.md) ranks the unfixed ones.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 355 in all. [Bug fix priorities](bug-priorities.md) ranks the unfixed ones.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -26,7 +26,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
-| Crash or hang | 6 | 82 | 7 |
+| Crash or hang | 7 | 82 | 7 |
 | Gameplay | 48 | 25 | 26 |
 | Cosmetic | 56 | 36 | 23 |
 | Invisible | 43 | 58 | 0 |
@@ -126,6 +126,7 @@ does (see [SummonerFix](../summonerfix/index.md)).
 | C314 | Latent: the Giant Salamanka hangs the game when it flinches while one of its moves has no action | `giant_salamanka_set_flinch` `0x4c8280` | **Observed** code, *inferred* hang | No |
 | C315 | Latent: in multiplayer, a fifth character asking for a character-info slot shows an error that repeats for ever | `characterinfo_find_multi_slot` `0x449a30` | **Observed** code, *inferred* hang | No |
 | C316 | Latent: removing a spell's avoidance area from a merged area of five or more overwrites saved registers of the caller (memory corruption, probably a crash) | `avoid_area_rebuild` `0x4a7cb0` | **Observed** code, *inferred* effect | No |
+| C317 | Summoning the Mist Elemental just before a scripted cutscene starts crashes the game (access violation). Seen in the Ghost Rider fight, when the dismount cutscene began while the elemental was still appearing | `summon_stash_for_cutscene` `0x448000` | **Observed** code, retail data and in game: first in the rebuilt exe during play (2026-10-20), then reproduced in the original Sum.exe | No |
 
 **C1. No `snd_disabled` after a failed `ds_init`.** When `ds_init` fails, `snd_init` returns -1 without
 setting `snd_disabled` (`jne 0x520672` at `0x520644` jumps past `mov byte [0x2cbf480], 1`). Later
@@ -2901,7 +2902,7 @@ no face took the unclipped branch, so every lit face there went through the clip
 channels correctly. The faulty branch needs a light-node effect next to a level object whose faces are drawn
 unclipped; no such scene has been found yet. The Phoenix Rider ambush on the road to Lenele (`play_and_load_cutscene PHNX-Intro`, full
 party, Rosalind's Light active during the fight) gave 25,214 lit calls with up to six lights and again no face on
-the faulty branch. Filed as latent: real in the code, but not reached in any scene tried.
+the faulty branch. The Tentacle Beast's sewer (`sewerboss`, 2026-10-20, a scene the user picked for its close walls; Light on the leader through agent `spellhit`, standing and then moved along the walkway) gave 41,594 of 83,665 draw-list calls with a light and again no face on the faulty branch. Filed as latent: real in the code, but not reached in any scene tried.
 
 ## Invisible
 
@@ -4550,6 +4551,7 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | C314 Salamanka flinch loop | `giant_salamanka_set_flinch` `0x4c829d`, `0x4c8381`, `0x4c8384` |
 | C315 multi slot error | `characterinfo_find_multi_slot` `0x449ac5`..`0x449adc` |
 | C316 avoid area indices | `avoid_area_rebuild` `0x4a7cb0`, frame and stores `0x4a7d5d`; `avoid_area_add` |
+| C317 Mist Elemental cutscene crash | `summon_stash_for_cutscene` `0x448056`..`0x44807e` (after `ai_begin_emerge`, `cur_move` `+0x6d0` is read without a NULL test); `ai_begin_emerge` `0x473970` (`find_move(0xc)` NULL: no `play_move`); the summon waits for its appearance effect before it emerges (`fx_frame` kind 8 timer, `ai_frame` disable timer); `Mist Elemental.tbl` has no `"emerge"` move (every other summon table checked has one); reproduced with agent `summon 45` then `cutscene_play("Nar-KhosaniStronghold")` one second later: access violation reading `0x8` at `0x44807e`, caller `0x4362c1`. With the elemental fully emerged the same cutscene stashes it normally |
 | G310 summon update | `mp_send_local_updates` `0x47f9fd`..`0x47fa00`, `0x47fa14`..`0x47fa6f`; `ai_frame` `0x472db1` |
 | G311 receive go | `script_object_receive_go` `0x4ce280`..`0x4ce283`, `0x4ce2b8`..`0x4ce2c1` |
 | K310 GL point-light colour | `levelrender_draw_list_opengl` `0x491c0a`..`0x491c2e`, `0x491e06`..`0x491e14`, `0x491f90`..`0x491fe2`, `0x492669`..`0x4926c4`; `levelrender_sum_point_lights` `0x48fcc7`..`0x48fd0e`; `levelrender_draw_list_glide` `0x48ee57`..`0x48ee92`; `levelrender_draw_list_d3d` `0x4907cd`..`0x490805`; `vfx_node_create_light` `0x51fbe0`..`0x51fc5b`; `attached_light_create` `0x5201b2`..`0x5201e0`; `vfx_node_relocate` `0x536c74`..`0x536ca0`; retail `effects.vpp` `.rfx` files |

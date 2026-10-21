@@ -358,6 +358,11 @@ flag is 1, and the Intro cutscene end callback sets it. **Observed.** See [Level
 | Tentacle Beast | `sewerboss` | TB-Intro | end callback raises 4 tentacles and starts the battle |
 | Luminar | `ionaext02` | Luminar-Intro, Luminar-Death | 30 s timer, then IonaExt2 music after the death |
 
+Some story fights are not boss species and so are not in this table: **General Pijian** in `Wolong2` (script
+`Wolong2`, "battle of Wolong"; `lsf_wolong2_pijian_intro` `0x4f1d00` plays PIJN-Intro when Pijian is within 15 of the
+party; when he dies he is resurrected to play PIJN-Death, whose end callback leads to Truth-About-Aoqi) is an ordinary character with a scripted intro and death. Added 2026-10-20 after
+the user pointed out the missing fight; other scripted fights of this kind may exist in the level scripts.
+
 So the four riders flee at 0 HP in their first fight and are fought again on foot later. *Inferred* from the
 Escape cutscenes, the `*_killed` flags and the forced stage 3 in `Liangshan` / `Jadetemple`.
 The Salamanka intro callback also gives the party the Ring of Fire (`script_party_acquire_item`).

@@ -35,6 +35,7 @@
 #define VA_CUR_LEVEL_INDEX 0x59f120u
 #define VA_NAVPOINT_GET_POSITION 0x4dc600u // cdecl (name, vector3 *pos, matrix *orient) -> bool
 #define VA_CUR_CHARACTER 0x5fcc88u         // Character *; position at +0x10
+#define VA_CUR_SUMMON 0x5fcc8cu            // Character *
 #define VA_SCRIPT_OBJECT_FIND_CHARACTER 0x4cde70u // cdecl (name) -> Character * of a level script object
 
 static char g_dir[MAX_PATH];
@@ -162,6 +163,27 @@ static void GoldPileOnGameThread(void *unused)
     Log("agent: goldpile %d at %.2f %.2f %.2f: object %p", g_goldAmount, pos[0], pos[1], pos[2], obj);
 }
 
+// "summon SPELL": summon_create(cur_character, a point 2 units beside it, its layer, SPELL, -1), as the summon spells
+// call it (spells.cpp 0x47e900), so a summon can be raised without the cast animation. Testing only.
+#define VA_SUMMON_CREATE 0x47e900u // cdecl (caster, pos, layer, spell, existing)
+static volatile int g_summonSpell;
+static void SummonOnGameThread(void *unused)
+{
+    (void)unused;
+    BYTE *ch = *(BYTE *volatile *)(UINT_PTR)SumVa(VA_CUR_CHARACTER);
+    if (!ch) {
+        Log("agent: summon: no character");
+        return;
+    }
+    float pos[3];
+    memcpy(pos, ch + 0x10, sizeof pos);
+    pos[0] += 2.0f;
+    int layer = *(int *)(ch + 0x68c);
+    ((void(__cdecl *)(void *, float *, int, int, int))(UINT_PTR)SumVa(VA_SUMMON_CREATE))(ch, pos, layer, g_summonSpell, -1);
+    Log("agent: summon spell %d at %.2f %.2f %.2f layer %d: cur_summon %08lX", g_summonSpell, pos[0], pos[1], pos[2], layer,
+        *(DWORD volatile *)(UINT_PTR)SumVa(VA_CUR_SUMMON));
+}
+
 // A loot bag with N items 2 units beside the current character, built as monster_drop_loot builds one: item objects
 // from item_obj_spawn, then container_obj_create (unlocked) and container_add_item (game-bugs K12).
 #define VA_CONTAINER_OBJ_CREATE 0x4897f0u // cdecl (pos, lock) -> container
@@ -218,7 +240,6 @@ static void KnockOnGameThread(void *unused)
 // character, as spell_cast_execute places them. The caster is the current character, or the active summon
 // (cur_summon) with "summon" (game-bugs C270: how many areas can burn; G270: an area whose caster is gone).
 #define VA_SPELL_PLACE_GROUND_EFFECT 0x47e100u // cdecl (spell, caster handle, pos, layer, orient) -> fx handle
-#define VA_CUR_SUMMON 0x5fcc8cu                // Character *
 static volatile int g_fireWalls, g_fireWallsBySummon;
 static volatile float g_fireWallStart = 6.0f;
 
@@ -299,6 +320,28 @@ static void NpcKillOnGameThread(void *arg)
             *(DWORD *)(npc + 0x320));
     }
     HeapFree(GetProcessHeap(), 0, name);
+}
+
+// "npchp FRACTION NAME": damage a level script character down to FRACTION of its base max HP (+0x5f4) through
+// character_add_hp, as npckill does, so a boss passes its HP stages one at a time (its stage checks and transition
+// cutscenes run as after real damage). The request block is a float followed by the name. Testing only.
+static void NpcHpOnGameThread(void *arg)
+{
+    float frac = *(float *)arg;
+    char *name = (char *)arg + sizeof(float);
+    typedef BYTE *(__cdecl * FindChar)(const char *);
+    typedef char(__attribute__((thiscall)) * AddHp)(void *, float, int, int, int);
+    BYTE *npc = ((FindChar)(UINT_PTR)SumVa(VA_SCRIPT_OBJECT_FIND_CHARACTER))(name);
+    if (!npc) {
+        Log("agent: npchp %s: no such character", name);
+    } else {
+        float hp = *(float *)(npc + 0x5f8), want = frac * *(float *)(npc + 0x5f4);
+        if (want < hp)
+            ((AddHp)(UINT_PTR)SumVa(0x450850u))(npc, want - hp, -1, 0, 0);
+        Log("agent: npchp %s %.2f: %p, hp %.0f -> %.0f of %.0f", name, (double)frac, (void *)npc, (double)hp,
+            (double)*(float *)(npc + 0x5f8), (double)*(float *)(npc + 0x5f4));
+    }
+    HeapFree(GetProcessHeap(), 0, arg);
 }
 
 // "calli ADDR A [B]": cdecl fn(A, B) with two integer arguments; eax logged.
@@ -662,6 +705,11 @@ static void RunLine(char *line)
         // goldpile N: a loose gold pile with N gold beside the current character (game thread; result in the log).
         g_goldAmount = atoi(argv[1]);
         Out("goldpile %d: %s", g_goldAmount, AgentRunSync(GoldPileOnGameThread, NULL) ? "requested" : "no window");
+    } else if (!_stricmp(c, "summon") && argc >= 2) {
+        // summon SPELL: summon_create for the current character with spell index SPELL (decimal; 45 = summon mist
+        // elemental in spells.tbl order), game thread, result in the log.
+        g_summonSpell = atoi(argv[1]);
+        Out("summon %d: %s", g_summonSpell, AgentRunSync(SummonOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "knock") && argc >= 2) {
         // knock MS: knock the current character down for MS ms (game thread; mode and result in the log).
         g_knockMs = atoi(argv[1]);
@@ -695,6 +743,17 @@ static void RunLine(char *line)
             strncat(name, argv[i], 63 - strlen(name));
         }
         Out("npckill %s: %s", name, AgentRunSync(NpcKillOnGameThread, name) ? "requested" : "no window");
+    } else if (!_stricmp(c, "npchp") && argc >= 3) {
+        // npchp FRACTION NAME: damage a script character down to FRACTION of its base max HP (game thread).
+        char *block = (char *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(float) + 64); // freed there
+        *(float *)block = (float)atof(argv[1]);
+        char *name = block + sizeof(float);
+        for (int i = 2; i < argc; i++) {
+            if (i > 2)
+                strncat(name, " ", 63 - strlen(name));
+            strncat(name, argv[i], 63 - strlen(name));
+        }
+        Out("npchp %s %s: %s", argv[1], name, AgentRunSync(NpcHpOnGameThread, block) ? "requested" : "no window");
     } else if (!_stricmp(c, "npcdead") && argc >= 2) {
         // npcdead NAME: script_object_find (0x4cddf0) and script_npc_is_dead (0x4ce600) for a script character.
         char name[64] = "";
