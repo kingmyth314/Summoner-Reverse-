@@ -902,7 +902,9 @@ float combat_position_modifier(Character *attacker, Character *defender)
 
 // 0x464de0  Confidence: likely (the armour terms are summed in the order level, 6, 8, 7, 4, 3). Without
 // armour in slots 3, 4, 6, 7, 8: protection skill + level %; with armour: level % + sum of material
-// protection multiplier x item protection. An active bless adds its value.
+// protection multiplier x item protection. An active bless adds its value. D21801: the bless tail written
+// in both branches puts the armour block after the epilogue, as in the binary (closer, 82 -> 53; left: e6
+// kept in EDX and the two tails not cross-jumped).
 float living_combat::get_protection()
 {
     Character *c = owner;
@@ -913,9 +915,13 @@ float living_combat::get_protection()
     item_info *e6 = c->equipment[6];
     float prot;
 
-    if (!e3 && !e4 && !e7 && !e8 && !e6)
+    if (!e3 && !e4 && !e7 && !e8 && !e6) {
         prot = c->get_skill(SKILL_PROTECTION) + c->level * 0.01f;
-    else {
+        if (c->has_status(STATUS_BLESS))
+            return owner->status_value(STATUS_BLESS) + prot;
+        return prot;
+    }
+    {
         float p3 = e3 ? materials[e3->type->material].protection_mult * e3->type->protection : 0.0f;
         float p4 = e4 ? materials[e4->type->material].protection_mult * e4->type->protection : 0.0f;
         float p7 = e7 ? materials[e7->type->material].protection_mult * e7->type->protection : 0.0f;
@@ -923,10 +929,10 @@ float living_combat::get_protection()
         float p6 = c->equipment[6] ? materials[c->equipment[6]->type->material].protection_mult *
                                      c->equipment[6]->type->protection : 0.0f;
         prot = c->level * 0.01f + p6 + p8 + p7 + p4 + p3;
+        if (c->has_status(STATUS_BLESS))
+            return owner->status_value(STATUS_BLESS) + prot;
+        return prot;
     }
-    if (c->has_status(STATUS_BLESS))
-        return owner->status_value(STATUS_BLESS) + prot;
-    return prot;
 }
 
 // The self-cast of a combat skill (mend, steelskin, overpower, bless, revitalize, prayer): through the

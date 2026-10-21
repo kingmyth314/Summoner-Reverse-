@@ -1117,12 +1117,16 @@ void levelrender_add_lobjs(s3d_vis_set **sets, int count)
 // applied only with levelrender_no_lighting (never set). Partly faded objects go to the sorted list,
 // objects with alpha faces to the opaque list, the rest to the attach list. A lamp object fades its
 // glow out here; lamp_glow_update_lobjs fades it in again when the eye sees it.
+// D21000: exact with the small-mesh flag as `? true : false` (the binary's mov al, 1), the centre pointer
+// assigned inside the cull call (lea at the push), d.y / d.z as double copies for the distance (D19402's
+// form, y / z pair first) and a float copy of d.z for the depth's first product.
 void levelrender_add_lobj(lobj *l, int index)
 {
     lobj_render_state *states = levelrender_lobj_states;
     vector3 d;
     float radius;
     levelrender_entry *e;
+    vector3 *c;
 
     if (!(states[index].flags & LRS_ALPHA_MASK))
         return;
@@ -1131,19 +1135,20 @@ void levelrender_add_lobj(lobj *l, int index)
         door_info *door = door_from_lobj(l);
         if (door->moving)
             radius += (door->closed_pos - door->open_pos).len();
-        if (gr_cull_sphere(&l->centre, radius, l->mesh->_unk30 > Small_mesh_threshold))
+        if (gr_cull_sphere(c = &l->centre, radius, l->mesh->_unk30 > Small_mesh_threshold ? true : false))
             return;
     } else {
-        if (gr_cull_sphere(&l->centre, radius, radius > Small_mesh_threshold))
+        if (gr_cull_sphere(c = &l->centre, radius, radius > Small_mesh_threshold ? true : false))
             return;
         if (gr_cull_bounding_box(&l->bbox_min, &l->bbox_max))
             return;
     }
-    d.x = l->centre.x - levelrender_eye_pos.x;
-    d.y = l->centre.y - levelrender_eye_pos.y;
-    d.z = l->centre.z - levelrender_eye_pos.z;
+    d.x = c->x - levelrender_eye_pos.x;
+    d.y = c->y - levelrender_eye_pos.y;
+    d.z = c->z - levelrender_eye_pos.z;
     if (levelrender_no_lighting) {
-        float dist_sq = d.z * d.z + d.y * d.y + d.x * d.x - radius * radius;
+        double dz = d.z, dy = d.y;
+        float dist_sq = (dy * dy + dz * dz) + d.x * d.x - radius * radius;
         if (!(dist_sq < fog_far_distance * fog_far_distance))
             return;
         if (radius < 3.0f) {
@@ -1164,7 +1169,8 @@ void levelrender_add_lobj(lobj *l, int index)
         levelrender_attach_list[levelrender_attach_count++] = e;
     e->type = LRE_LOBJ;
     e->lobj = (short)index;
-    e->depth = d.z * levelrender_eye_orient.fvec.z + levelrender_eye_orient.fvec.y * d.y
+    float tz = d.z;
+    e->depth = tz * levelrender_eye_orient.fvec.z + levelrender_eye_orient.fvec.y * d.y
              + levelrender_eye_orient.fvec.x * d.x;
     e->dist = e->depth - radius;
     if (l->flags & 8) {

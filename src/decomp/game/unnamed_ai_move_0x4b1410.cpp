@@ -612,7 +612,9 @@ bool ai_state::turn_towards(vector3 *point, bool boss_rate)
     profile_label label("ai_turn_towards");
     float dt = owner->frametime;
     float max_turn, side, cos_a, angle, t;
-    vector3 d, want, fwd, right;
+    // D21302: fr[0] = right, fr[1] = forward: the array puts the forward above the right in the frame, as
+    // in the binary (separate locals give the opposite order).
+    vector3 d, want, fr[2];
 
     if (owner->is_mount() && owner->frametime == 0.0f) {
         Character *rider = owner->get_rider();
@@ -629,18 +631,18 @@ bool ai_state::turn_towards(vector3 *point, bool boss_rate)
     if (d.normalize_length() == 0.0f)
         return false;
     want = d;
-    fwd = owner->orient.fvec;
-    right = owner->orient.rvec;
+    fr[1] = owner->orient.fvec;
+    fr[0] = owner->orient.rvec;
     if (boss_rate) {
         float rate = boss_turn_rate_override();
         if (rate != 0.0f) {
             {
                 vector3 origin(0.0f, 0.0f, 0.0f);
-                vector3_rotate_about_axis(&fwd, &owner->orient.fvec, rate, &origin, &owner->orient.uvec);
+                vector3_rotate_about_axis(&fr[1], &owner->orient.fvec, rate, &origin, &owner->orient.uvec);
             }
             {
                 vector3 origin(0.0f, 0.0f, 0.0f);
-                vector3_rotate_about_axis(&right, &owner->orient.rvec, rate, &origin, &owner->orient.uvec);
+                vector3_rotate_about_axis(&fr[0], &owner->orient.rvec, rate, &origin, &owner->orient.uvec);
             }
             {
                 vector3 origin(0.0f, 0.0f, 0.0f);
@@ -648,7 +650,7 @@ bool ai_state::turn_towards(vector3 *point, bool boss_rate)
             }
         }
     }
-    cos_a = fwd.z * d.z + fwd.x * d.x + fwd.y * d.y;
+    cos_a = fr[1].z * d.z + fr[1].x * d.x + fr[1].y * d.y;
     side = want.z * owner->orient.rvec.z + want.y * owner->orient.rvec.y + want.x * owner->orient.rvec.x;
     if (cos_a >= 1.0f)
         cos_a = 1.0f;
@@ -670,7 +672,12 @@ bool ai_state::turn_towards(vector3 *point, bool boss_rate)
                 }
             }
             if (!owner->move_playing(turn_move, &t)) {
-                move_info *m = owner->find_move(9, side < 0.0f ? MOVE_TURN_LEFT : MOVE_TURN_RIGHT);
+                // D21302: an if / else of two calls (8966 merges them; the binary pushes the id in each branch).
+                move_info *m;
+                if (side >= 0.0f)
+                    m = owner->find_move(9, MOVE_TURN_RIGHT);
+                else
+                    m = owner->find_move(9, MOVE_TURN_LEFT);
                 if (!m)
                     goto compare;
                 turn_move = owner->play_move((int)m, 1.0f, false, false, false);
@@ -1112,7 +1119,9 @@ void ai_state::mode_traveling_frame()
                     r = 2.0f;
                 p.random_direction();
                 p.x *= r;
-                p.y = 0.0f;
+                // D21303: an integer zero store, so 8966 does not fold `0 + cast_point.y` (the binary
+                // reloads p.y and adds).
+                *(int *)&p.y = 0;
                 p.z *= r;
                 p += cast_point;
                 if (pf_point_is_navigable(&p, owner->info->size, owner->layer) == true)

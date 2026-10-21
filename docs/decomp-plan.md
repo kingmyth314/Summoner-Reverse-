@@ -650,6 +650,30 @@ the source's shape were read for behaviour at the merge: `spell_roll_amount`'s c
 `levelrender_add_items` (the binary's operation order). 404 still differ; the near end of the list is now almost all
 register choice and scheduling.
 
+**Fourth targeted round 2026-10-21 (fourteen workers, D20800-D22199).** 5,520 -> 5,549, none lost (notes in
+`src/decomp/NOTES-match-2026-10-21d.md`). The 129 at distance 13-40 that round 3 had not had, at 81-150, and the
+follow-ups the workers had named; several matched from above 100 (`levelrender_add_lobj` 178, `sort_points_clockwise`
+139, `snd_stream_fill_pcm` 134, `mp_handle_release_spell` 131, `gr_poly_split_at_tex_line` 128). New devices: a
+`cond ? true : false` argument for a `mov al, 1` (D21000); a line position written as `i * h + top + scroll`, which
+8966 strength-reduces in the binary's order (D21003, D21004); separate locals instead of a small array (D21502); a bool
+local with one if / else-if chain for block order (D21500); a byte-offset key loop for `[base + off]` (D21800); a
+redundant repeated test that keeps a control-flow edge 8966 would remove (D21803); a `static const float` for a
+constant the binary loads from .rdata (D22002); a one-bit bit-field for a single flag bit (D21901). Two header
+changes, both for `mp_handle_release_spell` (D21603): a `spell_cast_request(Character *, int)` constructor, and
+`mp_read_spell_targets` takes the spell as a fourth, unread argument, as Sum.exe pushes it. `ui_gadget::send_event`
+(D21001) now falls off its end and returns the callback's AL, like `ui_window::send_event` (D15400): exact under VC6,
+undefined behaviour under a modern compiler, so a later compiler port must add the return. Not merged: a set of float
+locals in `ix_box_oriented_box_oriented` (D21906), which could round differently on x87 in a function that still
+differs. Read for behaviour at the merge: the expanded list removal in `decal_place` (the element is always the
+head there), `get_protection`'s two tails, `vfx_channel::eval` (an unsigned run length, all values small and
+positive) and the level-item name search. The four `*_anim_remap_in` now share tiger's form (D19401).
+
+`vc6-compare --score` is fixed (reported by worker 7): it scored the original's side after masking it at our
+relocation offsets, which breaks the original's instructions once the two sizes differ, so every later global
+reference counted as a difference (`ui_choice_popup_show` 96, now 20). The original is now scored from its own bytes
+with any dword that is an address in the image masked on both sides. Distances above about 30 from the rounds before
+this fix were too high; the ranking was still useful, as the yields show.
+
 The
 `Confidence:` markers follow the sweep (`tools/decomp-confidence.mjs`): every compared function that matches is
 `exact`, none that differs is. The other 1,819 written functions are not compared (`tools/decomp-uncompared.mjs`):

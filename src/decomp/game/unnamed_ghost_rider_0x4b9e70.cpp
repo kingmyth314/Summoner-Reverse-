@@ -839,6 +839,8 @@ void ai_state::ghost_update_stage()
 // 0x4bb610  Confidence: likely. character_boss_anim_remap_in for the rider: the mount's stand (ready when
 // the mount's rider is in the ready stance), walk and run anims of the blend become locomotion indices 0 /
 // 3, 4 and 5, with their weights; other anims are left out (their kind and weight slots keep old values).
+// D22100: the weight stored in each branch (also in both arms of the ready test), as tiger's D19401; left:
+// the three loop registers rotated (ECX / EDX / ESI in ours, EDX / ESI / ECX in the binary), push esi late.
 void ghost_anim_remap_in(Character *c, int *anims)
 {
     loco_blend_set *set = (loco_blend_set *)anims;
@@ -857,18 +859,20 @@ void ghost_anim_remap_in(Character *c, int *anims)
     ghost_remap_count = set->count;
     for (i = 0; i < set->count; i++) {
         if (set->anim[i] == mount->anim_stand) {
-            if (ready)
+            if (ready) {
                 ghost_remap_kind[i] = 3;
-            else
+                ghost_remap_weight[i] = set->weight[i];
+            } else {
                 ghost_remap_kind[i] = 0;
+                ghost_remap_weight[i] = set->weight[i];
+            }
         } else if (set->anim[i] == mount->anim_walk) {
             ghost_remap_kind[i] = 4;
+            ghost_remap_weight[i] = set->weight[i];
         } else if (set->anim[i] == mount->anim_run) {
             ghost_remap_kind[i] = 5;
-        } else {
-            continue;
+            ghost_remap_weight[i] = set->weight[i];
         }
-        ghost_remap_weight[i] = set->weight[i];
     }
 }
 

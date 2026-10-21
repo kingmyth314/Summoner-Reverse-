@@ -756,7 +756,8 @@ int ds_find_free_channel(int priority)
     return free_channel;
 }
 
-// 0x55d110  Confidence: likely (D14002: the binary addresses the channel as an offset from ds_channels). A 3D buffer played in 2D has its 3D processing switched off.
+// 0x55d110  Confidence: exact (D14002: the Play flags local; D21902: the volume and group stores indexed as
+// ds_channels[ch] give the binary's channel offset from ds_channels for every access). A 3D buffer played in 2D has its 3D processing switched off.
 int ds_play(int buffer, float volume, float pan, int looping, int a)
 {
     ds_buffer *b;
@@ -784,8 +785,8 @@ int ds_play(int buffer, float volume, float pan, int looping, int a)
     if ((char)looping == 1)
         c->flags |= DS_CHANNEL_LOOPING;
     c->pdsb->SetVolume(ds_volume_to_attenuation(volume));
-    c->volume = volume;
-    c->group = b->group;
+    ds_channels[ch].volume = volume;
+    ds_channels[ch].group = b->group;
     c->pdsb->SetPan((int)(pan * 1000.0f));
     c->buffer = buffer;
     int flags = 0;
@@ -838,7 +839,8 @@ int ds_play_streamed(int buffer, float volume, float pan, bool looping, float pr
     return c->signature;
 }
 
-// 0x55d400  Confidence: likely (the order of the descriptor stores).
+// 0x55d400  Confidence: likely (D21903: the buffer size stored before the format gives the binary's descriptor
+// stores; left: the binary keeps three separate `or eax, -1` returns, 8966 merges them).
 int ds_stream_open(int buffer, int channel)
 {
     ds_buffer *b = &ds_buffers[buffer];
@@ -848,8 +850,8 @@ int ds_stream_open(int buffer, int channel)
     memset(&desc, 0, sizeof(desc));
     desc.dwSize = sizeof(desc);
     desc.dwFlags = DSBCAPS_CTRLVOLUME | DSBCAPS_CTRLPAN | DSBCAPS_LOCSOFTWARE;
-    desc.lpwfxFormat = b->pcm_format;
     desc.dwBufferBytes = b->pcm_format->nAvgBytesPerSec * 2;
+    desc.lpwfxFormat = b->pcm_format;
     if (ds_direct_sound->CreateSoundBuffer(&desc, &c->pdsb, NULL) < 0 || c->pdsb == NULL)
         return -1;
     wav_descend_data(&b->hmmio, &b->data_ck, &b->riff_ck);

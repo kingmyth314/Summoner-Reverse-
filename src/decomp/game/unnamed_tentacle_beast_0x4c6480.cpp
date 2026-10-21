@@ -80,7 +80,8 @@ tentacle_slot::tentacle_slot()
 {
 }
 
-// 0x4c6520  Confidence: likely (the candidate list holds 5: a held character first, then the visible
+// 0x4c6520  Confidence: likely (distance 2, D21804: only the first loop's `test bl, cl` operand order
+// differs; the candidate list holds 5: a held character first, then the visible
 // party-type entities). The squeeze (move 2, chance 0.3) goes to the nearest candidate within 3 of the
 // squeeze point; else the swipe (move 1) to the first candidate within reach. The grab (move 86) is chosen
 // when frand() < 0, i.e. never (NOTES, game bugs).
@@ -118,7 +119,9 @@ int ai_state::tentacle_beast_ai_select_action()
         }
     }
     for (c = living_list.live_next; c != &living_list; c = c->live_next) {
-        if (c->type != 7 || (c->flags & (CF_HIDDEN | CF_DEAD)))
+        // D21804: the two flags tested separately (8966 folds them into the binary's one `test byte,
+        // 0x88` immediate; the combined mask is hoisted into BL and pushes 7 into EBP, spilling this).
+        if (c->type != 7 || (c->flags & CF_HIDDEN) || (c->flags & CF_DEAD))
             continue;
         for (j = 0; j < count; j++) {
             if (list[j] == c)

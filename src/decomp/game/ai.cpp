@@ -1757,7 +1757,9 @@ void cast_effect_tracks_reset()
 }
 
 // 0x4750b0  Confidence: likely (effect_get_base is called again for the time, not kept). Remembers the
-// effect of a spell below 0x26 for its animation's length * 1.5 (15 frames per second).
+// effect of a spell below 0x26 for its animation's length * 1.5 (15 frames per second). D22101: the free
+// slot found through a pointer walk set in the for's init, `e++, i++`, gives the binary's counter / pointer
+// registers (EAX / ECX); left: the loop tests i, not the pointer end, and the time code's registers rotated.
 void cast_effect_track_add(int spell, int handle)
 {
     effect_object *fx = (effect_object *)obj_from_handle_b(handle);
@@ -1767,8 +1769,9 @@ void cast_effect_track_add(int spell, int handle)
         return;
     if (spell >= 0x26)
         return;
-    for (i = 0; i < MAX_CAST_EFFECT_TRACKS; i++)
-        if (cast_effect_tracks[i].spell == -1)
+    cast_effect_track *e;
+    for (i = 0, e = cast_effect_tracks; i < MAX_CAST_EFFECT_TRACKS; e++, i++)
+        if (e->spell == -1)
             break;
     if (i == MAX_CAST_EFFECT_TRACKS)
         return;

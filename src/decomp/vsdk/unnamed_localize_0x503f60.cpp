@@ -218,17 +218,19 @@ void localize_load_strings()
         localize_strings[i] = localize_strings[localize_max_string_id];
 }
 
-// 0x504400  Confidence: likely (the room test: the binary compares len with buffer end + 1 - pointer).
+// 0x504400  Confidence: exact (VC6 byte match; m-1021d w4 D21100: the slot store and the room test read
+// localize_pool_used itself, dest only for the copy and the return: dest then takes the binary's frame slot
+// and id EBX). The room test: the binary compares len with buffer end + 1 - pointer.
 // The slot is set and localize_max_string_id stored before the room test, so a full buffer leaves the id
 // pointing at unwritten text. Ids 935, 936, 942 and 944 skip the font remap.
 char *localize_set_string(char *text, int id)
 {
     char *dest = localize_pool_used;
     if (id >= 0)
-        localize_strings[id] = dest;
+        localize_strings[id] = localize_pool_used;
     int len = strlen(text);
     localize_max_string_id = id;
-    if (len >= localize_text_buffer + LOCALIZE_TEXT_SIZE + 1 - dest)
+    if (len >= localize_text_buffer + LOCALIZE_TEXT_SIZE + 1 - localize_pool_used)
         return NULL;
 
     localize_unescape(text);

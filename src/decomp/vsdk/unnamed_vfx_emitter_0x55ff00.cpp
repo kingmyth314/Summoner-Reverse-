@@ -258,7 +258,10 @@ void fx_recb0::init_particle(vfx_emitter_desc *desc, fx_rec28 *p, float frac, fl
     num_live++;
 }
 
-// 0x5605f0 vfx_particle_apply_forces  Confidence: likely (the plane force's point is the address of the
+// 0x5605f0 vfx_particle_apply_forces  Confidence: exact (VC6 byte match, m-1021d, D22002: the 0.0625 factor is a
+// static const float, which 8966 reads from .rdata 0x58232c and pushes through ECX as the binary does; the
+// falloff factor copied into a float local, which gives the binary's `fld v1c; fmul dist` order; was likely:
+// the plane force's point is the address of the
 // sum, through a const reference: D13602). Gravity, then each force: a point force
 // pushes along the particle's offset from it, a plane force along its normal; both scaled by the
 // strength, damped by exp(-falloff * distance), plus Perlin turbulence; then a midpoint step.
@@ -288,8 +291,10 @@ void fx_recb0::apply_forces(vfx_emitter_desc *desc, fx_rec28 *p, vfx_force_param
                     d = forces[i].dir * dist;
                     f = forces[i].dir * forces[i].strength;
                 }
-                if (forces[i].v1c != 0.0f)
-                    f *= (float)exp(-(forces[i].v1c * dist));
+                if (forces[i].v1c != 0.0f) {
+                    float c = forces[i].v1c;
+                    f *= (float)exp(-(c * dist));
+                }
                 if (forces[i].v20 != 0.0f) {
                     vector3 n;
                     vector3 q;
@@ -306,7 +311,8 @@ void fx_recb0::apply_forces(vfx_emitter_desc *desc, fx_rec28 *p, vfx_force_param
                     q.z = perlin_noise3(n * forces[i].v28);
                     f += forces[i].v20 * q;
                 }
-                acc += f * 0.0001f * 0.0625f;
+                static const float k = 0.0625f;   // .rdata 0x58232c (D22002)
+                acc += f * 0.0001f * k;
             }
         }
         vector3 vel = p->get_vel();
@@ -416,7 +422,9 @@ void fx_recb0::init(vfx_emitter_desc *desc)
 }
 
 // 0x5612b0  Confidence: likely (the frame tests are made on the FPU, so one side is a float in the
-// source). The offset and rotation blended between two frames (unless placed), the five shape values
+// source; D22003: the alpha through a ubyte cast (the binary's `and eax, 0xff` before the shift) and the
+// rotation through a named quaternion; left: 8966 evaluates each channel's next term first, the binary the
+// frame term, which it spills). The offset and rotation blended between two frames (unless placed), the five shape values
 // blended in 8-bit steps, the alpha from the material's curve 48; through the model's bone when bound.
 void fx_recb0::get_transform(vfx_emitter_desc *desc, float t, bool wrapped)
 {
@@ -456,7 +464,7 @@ void fx_recb0::get_transform(vfx_emitter_desc *desc, float t, bool wrapped)
     depth = (short)((desc->eval_channel_ac(frame) * w0 + desc->eval_channel_ac(next) * w1) >> 8);
     speed = (short)((desc->eval_channel_c4(frame) * w0 + desc->eval_channel_c4(next) * w1) >> 8);
     speed_var = (short)((desc->eval_channel_d0(frame) * w0 + desc->eval_channel_d0(next) * w1) >> 8);
-    alpha = (int)(desc->base->materials[desc->material].eval_curve48(t) * 255.0f);
+    alpha = (ubyte)(int)(desc->base->materials[desc->material].eval_curve48(t) * 255.0f);
     if (!placed && bound) {
         matrix43 m;
         vector3 bpos;
@@ -468,7 +476,8 @@ void fx_recb0::get_transform(vfx_emitter_desc *desc, float t, bool wrapped)
         v70 = world.transform(v70);
         m.set(q7c, v70);
         m.set_product_4x4(m, world);
-        q7c = quaternion(*(matrix *)&m);
+        quaternion r(*(matrix *)&m);
+        q7c = r;
     }
 }
 

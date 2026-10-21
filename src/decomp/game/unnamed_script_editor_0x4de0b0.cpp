@@ -3462,25 +3462,30 @@ bool script_editor_on_prev_next(int event, int value)
     return true;
 }
 
-// 0x4e7460  Confidence: likely (the loop shape; jump table 0x4e75a8). The previous character in the live
+// 0x4e7460  Confidence: exact (D20901: the character walk as a while over the "not wanted" test with the
+// previous link in a local, `sel.object == p` ending it, so the link read for the end test is the next
+// object, as the binary's jne back to the store; jump table 0x4e75a8). The previous character in the live
 // list (skipping non-living objects and serpent parts) or the previous navpoint (level table, then on to
 // the end of the cutscene table and back).
 void script_editor_select_prev()
 {
     int i;
+    Character *p;
 
     if (script_editor_sel.kind == SE_PICK_NONE) {
         script_editor_select_first();
         return;
     }
     if (script_editor_sel.kind == SE_PICK_CHARACTER) {
-        do {
-            script_editor_sel.object = ((Character *)script_editor_sel.object)->live_prev;
-            if (((Character *)script_editor_sel.object)->is_living()
+        script_editor_sel.object = ((Character *)script_editor_sel.object)->live_prev;
+        while (!(((Character *)script_editor_sel.object)->is_living()
                 && (((Character *)script_editor_sel.object)->info->species != 0x59
-                    || !character_is_serpent_part((Character *)script_editor_sel.object)))
+                    || !character_is_serpent_part((Character *)script_editor_sel.object)))) {
+            p = ((Character *)script_editor_sel.object)->live_prev;
+            if (script_editor_sel.object == p)
                 break;
-        } while (script_editor_sel.object != ((Character *)script_editor_sel.object)->live_prev);
+            script_editor_sel.object = p;
+        }
         script_editor_focus_selection();
         return;
     }
@@ -3839,7 +3844,9 @@ bool script_editor_change_cb(int event, int value)
         script_editor_param_inputboxes[i].set_text(int_to_string(buf, 0x20, (value)));  \
     } while (0)
 
-// 0x4e8020  Confidence: likely (jump tables 0x4e8334 / 0x4e8378 over type - 3; the shared tails). Edit
+// 0x4e8020  Confidence: likely (jump tables 0x4e8334 / 0x4e8378 over type - 3; the shared tails; D20904: the
+// follow case before show / hide, as the binary's case blocks and its string order; still differs: the
+// binary pushes ESI / EDI after the is_disabled test, 8966 at the entry). Edit
 // (Ctrl+E): the parameter window for the selected action (only while it is closed). Up to five fields;
 // the unused boxes are hidden. Types without numbers open nothing.
 bool script_editor_edit_button_cb(int event, int value)
@@ -3910,6 +3917,12 @@ bool script_editor_edit_button_cb(int event, int value)
         script_editor_param_inputboxes[0].set_text(a->text);
         n = 1;
         break;
+    case SCRIPT_ACTION_FOLLOW:
+        script_editor_param_labels[0].set_text("NPC to follow");
+        script_editor_param_inputboxes[0].set_text(a->text);
+        SE_PARAM_INT(1, "time (-1=inf)", a->arg0c);
+        n = 2;
+        break;
     case SCRIPT_ACTION_SHOW_HIDE:
         SE_PARAM_INT(0, "show(1) hide(0)", a->arg0c);
         n = 1;
@@ -3918,12 +3931,6 @@ bool script_editor_edit_button_cb(int event, int value)
     case SCRIPT_ACTION_SYNCH_TELEPORT:
         SE_PARAM_INT(0, "synch_point", a->arg0c);
         n = 1;
-        break;
-    case SCRIPT_ACTION_FOLLOW:
-        script_editor_param_labels[0].set_text("NPC to follow");
-        script_editor_param_inputboxes[0].set_text(a->text);
-        SE_PARAM_INT(1, "time (-1=inf)", a->arg0c);
-        n = 2;
         break;
     case SCRIPT_ACTION_COMBAT_MODE:
         SE_PARAM_INT(0, "norm(0), com(1)", a->arg0c);
@@ -5334,7 +5341,9 @@ bool script_editor_door_sound_radio_cb(int event, int value)
     return true;
 }
 
-// 0x4ebb20  Confidence: likely (the type-ahead as a macro). The door window's sound name box: type-ahead in
+// 0x4ebb20  Confidence: likely (the type-ahead as a macro; D20902: each Tab focus call with its own return,
+// as the binary's two set_focus calls; still differs: the binary pushes ESI at entry and keeps the list in
+// ESI as well as in value's slot). The door window's sound name box: type-ahead in
 // the active sound list; Tab goes to the active Min range box. Game bug: Enter clears the focus of the
 // key item box, not of this box.
 bool script_editor_door_sound_inputbox_cb(int event, int value)
@@ -5347,10 +5356,11 @@ bool script_editor_door_sound_inputbox_cb(int event, int value)
     switch (event) {
     case 0x14:
         if (ui_key == KEY_TAB) {
-            if (script_editor_door_opening_radio.is_checked())
+            if (script_editor_door_opening_radio.is_checked()) {
                 script_editor_door_open_min_range_inputbox.set_focus();
-            else
-                script_editor_door_close_min_range_inputbox.set_focus();
+                return true;
+            }
+            script_editor_door_close_min_range_inputbox.set_focus();
             return true;
         }
         if (ui_key == KEY_ENTER)
@@ -5851,7 +5861,10 @@ bool script_editor_level_item_count_cb(int event, int value)
         }                                                                                    \
     } while (0)
 
-// 0x4ecbe0  Confidence: likely (the name search loop; the dirty flag's form). OK of the level item window
+// 0x4ecbe0  Confidence: likely (the name search loop; the dirty flag's form; D20905: the search as a loop
+// entered on `level_item_count > 0` with the end test `if (i >= level_item_count) break;` after i++, the
+// binary's rotated loop with its `jge` / `jmp`; same passes, as count > i >= 1 on every back edge; still
+// differs: the table pointer set before the entry test, and the entry pointer read early). OK of the level item window
 // for a level navpoint: an item and count change the navpoint's level item (its object respawned), a
 // new one is added ("<level>-000", the number bumped to one past the index of a clash until it is free;
 // 32 at most), an empty choice or count 0 removes it. The level_items table is marked for saving.
@@ -5894,11 +5907,14 @@ bool script_editor_level_item_ok(int event, int value)
             li = &level_items[level_item_count];
             sprintf(li->name, "%s-000", level_script_table[cur_level_index].name);
         again:
-            for (i = 0; i < level_item_count; i++) {
+            for (i = 0; level_item_count > 0;) {
                 if (strcmp(li->name, level_items[i].name) == 0) {
                     sprintf(li->name, "%s-%.3d", level_script_table[cur_level_index].name, i + 1);
                     goto again;
                 }
+                i++;
+                if (i >= level_item_count)
+                    break;
             }
             strcpy(li->script, level_script_name);
             li->count = count;

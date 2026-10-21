@@ -826,7 +826,10 @@ void level_parse_trigger(TextFile *tf)
     }
 }
 
-// 0x4cc4d0  Confidence: likely (D14205: closer; the unknown-item block placement and the price rounding). "$Shopkeeper:" character
+// 0x4cc4d0  Confidence: likely (D14205: closer; D22000: the type test written again before the sell / buy branches,
+// `else if (type == -1)` holding the unknown-item message, so 8966 threads the tests and places that block
+// between the sell and buy scans as the binary does; left: the item_types row index in EAX, the game_flags
+// test, a dead lea before the count increment). "$Shopkeeper:" character
 // then any number of "+Sell List:" / "+Buy List:" blocks of item names up to "$End". A sell entry costs the
 // item's value; the shop pays 70 % of it for a buy entry (10 %, at least 1, in multiplayer). Entries of the
 // same item are kept once; both lists are sorted.
@@ -872,17 +875,19 @@ void level_parse_shopkeeper(TextFile *tf)
             while (!tf->Peek("$End")) {
                 tf->ParseString(item, 0x100, '"', '"');
                 type = item_type_find(item);
-                if (type == -1) {
-                    sprintf(string_buffer, "Unable to locate item %s in any table file.\n", item);
-                    continue;
+                if (type != -1) {
+                    ItemType *it = &item_types[type];
+                    price = it->value;
+                    if (!it->name)
+                        continue;
                 }
-                price = item_types[type].value;
-                if (!item_types[type].name)
-                    continue;
-                if (sell) {
+                if (type != -1 && sell) {
                     for (i = 0; i < s->num_sell; i++)
                         if (s->sell[i].item_type == type)
                             goto next;
+                } else if (type == -1) {
+                    sprintf(string_buffer, "Unable to locate item %s in any table file.\n", item);
+                    continue;
                 } else {
                     for (i = 0; i < s->num_buy; i++)
                         if (s->buy[i].item_type == type)

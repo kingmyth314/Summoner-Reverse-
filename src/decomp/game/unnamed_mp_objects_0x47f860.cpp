@@ -325,7 +325,7 @@ void mp_send_new_path(Character *c)
 }
 
 // 0x4801f0  Confidence: likely (match29, D8800: n is a ubyte, each node read through a vector2 with memcpy, the
-// direction loop without a second path test; still differs: the vector2 is stored to the stack before the call). multi_path_type 0 (full path): the nodes are
+// direction loop without a second path test; still differs: the vector2 is stored to the stack before the call; D21401: closer). multi_path_type 0 (full path): the nodes are
 // rebuilt as sent, with their directions and the remaining cost counted back from the last node's;
 // 1 (generate): the AI searches from its position to the first node and appends a search to the last.
 void mp_handle_new_path(ubyte *data, void *from)
@@ -357,9 +357,9 @@ void mp_handle_new_path(ubyte *data, void *from)
     ai_path_free(c->ai.path);
     c->ai.path = NULL;
     n = data[8];
-    last = NULL;
     off = 9;
-    cost = 0.0f;
+    cost = 0.0f;                        // D21401: before last = NULL (cost stored as an immediate)
+    last = NULL;
     for (i = 0; i < n; i++) {
         v.zero();
         vector2 p;

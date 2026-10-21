@@ -971,7 +971,9 @@ int ui_window::handle_arrow_key(int key)
             for (g = gadgets.window_next; g != &gadgets; g = g->window_next) {
                 g->get_screen_x(0);
                 g->get_size(&sw, &sh);
-                d = (x + w) - (g->x + g->w);
+                // D21503 (closer): w first, then x added in its own statement (the binary's operand order).
+                d = w - g->w - g->x;
+                d += x;
                 if (d < ui_nav_best_distance) {
                     ui_nav_best_distance = d;
                     ui_nav_best_gadget = g;

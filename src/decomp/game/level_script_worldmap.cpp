@@ -617,7 +617,9 @@ void ls_worldmap1_pick_encounter_stage4()
     }
 }
 
-// 0x4fcaf0  Confidence: likely (the shared suffix tail). Stage 9..14: desert or orenian by the nearer
+// 0x4fcaf0  Confidence: exact (VC6 byte match, m-1021d, D21500: a bool `desert` local and one if / else-if
+// chain, desert day, then the orenian branch with its own suffix and a return, then desert night, give the
+// binary's block order; was likely: the shared suffix tail). Stage 9..14: desert or orenian by the nearer
 // navpoint (desert only when strictly nearer), day or night, then an optional _v2 / _v3 suffix. One frand
 // result is thrown away before the suffix rolls.
 void ls_worldmap1_pick_encounter_stage9()
@@ -626,21 +628,13 @@ void ls_worldmap1_pick_encounter_stage9()
 
     ls_worldmap1_nearest_orenian_nav(&best);
     ls_worldmap1_nearest_desert_nav(&dist);
-    if (dist < best) {
+    bool desert = dist < best;
+    if (desert)
         best = dist;
-        if (frand() < 0.5f) {
-            strcpy(level_filename, "rand-desert");
-            strcpy(level_script_name, "rand-desert");
-        } else {
-            strcpy(level_filename, "rand-desertnite01");
-            strcpy(level_script_name, "rand-desertnite01");
-        }
-        frand();
-        if (frand() < 0.35f)
-            strcat(level_script_name, "_v2");
-        else if (frand() < 0.65f)
-            strcat(level_script_name, "_v3");
-    } else {
+    if (desert && frand() < 0.5f) {
+        strcpy(level_filename, "rand-desert");
+        strcpy(level_script_name, "rand-desert");
+    } else if (!desert) {
         if (frand() < 0.5f) {
             strcpy(level_filename, "rand-orenia01");
             strcpy(level_script_name, "rand-orenia01");
@@ -653,7 +647,16 @@ void ls_worldmap1_pick_encounter_stage9()
             strcat(level_script_name, "_v2");
         else if (frand() < 0.55f)
             strcat(level_script_name, "_v3");
+        return;
+    } else {
+        strcpy(level_filename, "rand-desertnite01");
+        strcpy(level_script_name, "rand-desertnite01");
     }
+    frand();
+    if (frand() < 0.35f)
+        strcat(level_script_name, "_v2");
+    else if (frand() < 0.65f)
+        strcat(level_script_name, "_v3");
 }
 
 // 0x4fcce0  Confidence: exact (VC6 byte match, match9; was likely: as the hills search). "$desert".

@@ -57,8 +57,11 @@ pathvis_edge pathvis_free_edges;                        // 0x247fcc0
 bool pathvis_alt_mode;                                  // 0x247fce8
 int pathvis_edge_pool_inited;                           // 0x247fcec
 
-// 0x4b77f0  Confidence: likely (the four quadrant heads as an array; the countdown loop `while (i--)`;
-// the graph is re-indexed every pass because the node stores may alias pf_cur_size). Each point goes into
+// 0x4b77f0  Confidence: exact (VC6 byte match, m-1021d, D21502: the four quadrant heads as four separate
+// locals, not an array, so their next_open values stay in registers across the layer loop; the quadrant's
+// head goes straight into prev (no q), each branch stores n->f before it picks the head, and the walk steps
+// by `prev = prev->next_open`; the countdown loop `while (i--)`; the graph is re-indexed every pass because
+// the node stores may alias pf_cur_size). Each point goes into
 // the list of its quadrant (seen from pt: down-left, right-down, up-right, left-up), sorted by the slope
 // key, equal keys nearer first; the lists are joined down-left, left-up, up-right, right-down (clockwise).
 // The heads' f is 0, so a point with key 0 after the head is marked collinear too; the first point of each
@@ -66,20 +69,20 @@ int pathvis_edge_pool_inited;                           // 0x247fcec
 pf_vis_node *sort_points_clockwise(const vector2 *pt)
 {
     profile_label label("sort_points_clockwise");
-    pf_vis_node quad[4];
-    pf_vis_node *n, *q, *prev, *p, *tail;
+    pf_vis_node quad0, quad1, quad2, quad3;
+    pf_vis_node *n, *prev, *p, *tail;
     float dx, dy, pdx, pdy;
     int layer, i;
 
     pathvis_sort_cycles = read_tsc();
-    quad[2].next_open = NULL;
-    quad[3].next_open = NULL;
-    quad[0].next_open = NULL;
-    quad[1].next_open = NULL;
-    quad[2].f = 0.0f;
-    quad[3].f = 0.0f;
-    quad[0].f = 0.0f;
-    quad[1].f = 0.0f;
+    quad2.next_open = NULL;
+    quad3.next_open = NULL;
+    quad0.next_open = NULL;
+    quad1.next_open = NULL;
+    quad2.f = 0.0f;
+    quad3.f = 0.0f;
+    quad0.f = 0.0f;
+    quad1.f = 0.0f;
 
     for (layer = 0; layer < PF_MAX_LAYERS; layer++) {
         if (layer != pf_cur_layer)
@@ -96,22 +99,22 @@ pf_vis_node *sort_points_clockwise(const vector2 *pt)
                 continue;
 
             if (dx > 0.0f && dy <= 0.0f) {
-                q = &quad[1];
                 n->f = -(dy / dx);
+                prev = &quad1;
             } else if (dx <= 0.0f && dy < 0.0f) {
-                q = &quad[0];
                 n->f = dx / dy;
+                prev = &quad0;
             } else if (dx < 0.0f && dy >= 0.0f) {
-                q = &quad[3];
                 n->f = -(dy / dx);
+                prev = &quad3;
             } else {
-                q = &quad[2];
                 n->f = dx / dy;
+                prev = &quad2;
             }
 
-            if (q->next_open)
-                q->next_open->flags &= ~PFN_COLLINEAR;
-            for (prev = q; (p = prev->next_open) != NULL; prev = p) {
+            if (prev->next_open)
+                prev->next_open->flags &= ~PFN_COLLINEAR;
+            for (; (p = prev->next_open) != NULL; prev = prev->next_open) {
                 if (p->f > n->f)
                     break;
                 if (p->f == n->f) {
@@ -130,25 +133,25 @@ pf_vis_node *sort_points_clockwise(const vector2 *pt)
         }
     }
 
-    if (quad[1].next_open)
-        quad[1].next_open->flags &= ~PFN_COLLINEAR;
-    if (quad[0].next_open)
-        quad[0].next_open->flags &= ~PFN_COLLINEAR;
-    if (quad[3].next_open)
-        quad[3].next_open->flags &= ~PFN_COLLINEAR;
-    if (quad[2].next_open)
-        quad[2].next_open->flags &= ~PFN_COLLINEAR;
-    for (tail = &quad[0]; tail->next_open; tail = tail->next_open)
+    if (quad1.next_open)
+        quad1.next_open->flags &= ~PFN_COLLINEAR;
+    if (quad0.next_open)
+        quad0.next_open->flags &= ~PFN_COLLINEAR;
+    if (quad3.next_open)
+        quad3.next_open->flags &= ~PFN_COLLINEAR;
+    if (quad2.next_open)
+        quad2.next_open->flags &= ~PFN_COLLINEAR;
+    for (tail = &quad0; tail->next_open; tail = tail->next_open)
         ;
-    tail->next_open = quad[3].next_open;
+    tail->next_open = quad3.next_open;
     for (; tail->next_open; tail = tail->next_open)
         ;
-    tail->next_open = quad[2].next_open;
+    tail->next_open = quad2.next_open;
     for (; tail->next_open; tail = tail->next_open)
         ;
-    tail->next_open = quad[1].next_open;
+    tail->next_open = quad1.next_open;
     pathvis_sort_cycles = read_tsc() - pathvis_sort_cycles;
-    return quad[0].next_open;
+    return quad0.next_open;
 }
 
 // 0x4b7af0  Confidence: unsure for the pathvis_alt_mode loop form (the edge walk through +0x14 is never
@@ -423,11 +426,13 @@ blocked:
 // Overflow at 50 pending points: the point's edges go in at once and it is appended anyway (NOTES.md, bugs).
 void determine_point_visibility(const vector2 *pt, int layer)
 {
+    // D21501 (closer): num_pending initialised before the label, as in make_initial_edge_tree (D20603): the
+    // binary stores it before the EH state.
+    int num_pending = 0;
     profile_label label("determine_point_visibility");
     pf_vis_node *pending[PATHVIS_MAX_PENDING];
     pf_vis_node origin;
     pf_vis_node *n, *last;
-    int num_pending;
     int start_ms, start_tsc, t, t2, cycles;
     int blocked;
     int n_layer;
@@ -436,7 +441,6 @@ void determine_point_visibility(const vector2 *pt, int layer)
     pathvis_edge *head, *e;
     float total;
 
-    num_pending = 0;
     start_ms = timer_get(1000);
     start_tsc = read_tsc();
     memset(pending, 0, sizeof(pending));

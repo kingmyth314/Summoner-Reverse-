@@ -139,6 +139,12 @@ function insKeys(buf, offs) {
     const a = offs[i], b = i + 1 < offs.length ? offs[i + 1] : buf.length;
     if (a >= buf.length || b <= a) continue;
     const x = Buffer.from(buf.subarray(a, b));
+    // A dword operand that is an address in Sum.exe's image is masked too: the original's relocated fields are
+    // masked only at our relocation offsets, which no longer line up once the function sizes differ.
+    for (let k = 1; k + 4 <= x.length; k++) {
+      const v = x.readUInt32LE(k);
+      if (v >= imageBase && v < 0x3000000) x.fill(0, k, k + 4);
+    }
     const op = x[0], two = x.length > 1 ? x[1] : -1;
     if ((op >= 0x70 && op <= 0x7f) || op === 0xeb || (op >= 0xe0 && op <= 0xe3) || op === 0xe8 || op === 0xe9) x.fill(0, 1);
     else if (op === 0x0f && two >= 0x80 && two <= 0x8f) x.fill(0, 2);
@@ -310,7 +316,7 @@ function compareFile(cpp) {
           const a = at(ours, (e) => e.off), b = theirs ? at(theirs, (e) => e.va - s.addr) : null;
           r.ours = a ? a.text : null; r.orig = b ? b.text : null;
         }
-        if (score && theirs) r.distance = lcsDistance(insKeys(mine, ours.map((e) => e.off)), insKeys(orig.subarray(0, origSize), theirs.map((e) => e.va - s.addr)));
+        if (score && theirs) r.distance = lcsDistance(insKeys(mine, ours.map((e) => e.off)), insKeys(Buffer.from(orig0).subarray(0, origSize), theirs.map((e) => e.va - s.addr)));
       }
       if (wrongTargets.length) r.targetWarnings = wrongTargets;
       result.functions.push(r);

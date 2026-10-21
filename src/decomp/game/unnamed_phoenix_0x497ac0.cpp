@@ -1021,7 +1021,9 @@ move_info *phoenix_select_ranged_move(Character *c)
     return charinfo_find_move(c->info, 0, 2, true);
 }
 
-// 0x499ad0  Confidence: likely. As serpent_anim_remap_in.
+// 0x499ad0  Confidence: likely. As serpent_anim_remap_in. D20800 (as tiger's D19401): the weight stored in each
+// branch (also in both arms of the ready test) gives the binary's zero in EBP, ready in c's slot and the unfolded
+// 3 / 0 stores; left: the three loop registers rotated (ECX / EDX / ESI in ours, EDX / ESI / ECX in the binary).
 void phoenix_anim_remap_in(Character *c, int *anims)
 {
     loco_blend_set *set = (loco_blend_set *)anims;
@@ -1036,18 +1038,20 @@ void phoenix_anim_remap_in(Character *c, int *anims)
     for (int i = 0; i < set->count; i++) {
         int a = set->anim[i];
         if (a == mount->anim_stand) {
-            if (ready)
+            if (ready) {
                 phoenix.remap_slot[i] = 3;
-            else
+                phoenix.remap_weight[i] = set->weight[i];
+            } else {
                 phoenix.remap_slot[i] = 0;
+                phoenix.remap_weight[i] = set->weight[i];
+            }
         } else if (a == mount->anim_walk) {
             phoenix.remap_slot[i] = 4;
+            phoenix.remap_weight[i] = set->weight[i];
         } else if (a == mount->anim_run) {
             phoenix.remap_slot[i] = 5;
-        } else {
-            continue;
+            phoenix.remap_weight[i] = set->weight[i];
         }
-        phoenix.remap_weight[i] = set->weight[i];
     }
 }
 

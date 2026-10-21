@@ -118,45 +118,49 @@ void mp_write_spell_targets(spell_cast_request *req, ubyte *data, ushort *offset
 }
 
 // 0x4affb0  Confidence: likely (jump table 0x4b0100; modes 2 / 9 and 3 / 6 / 7 share their bodies here).
-void mp_read_spell_targets(spell_cast_request *req, ubyte *data, int *offset)
+// m-1021d w9 D21602: a pointer local for the target array (82 -> 73: the pops are now late as in the
+// binary); left: Sum.exe keeps req itself in EDI (all four pushes first) and reuses it as the loop pointer.
+// The 4th argument (the spell, unused) is pushed by mp_handle_release_spell (D21603).
+void mp_read_spell_targets(spell_cast_request *req, ubyte *data, int *offset, int spell)
 {
     spell_cast_params *p = &req->params;
+    int *t = p->target;
     int net;
     int i;
 
     switch (p->mode) {
     case 1:
-        MP_GET_INT(data, offset, p->target[0]);
+        MP_GET_INT(data, offset, t[0]);
         break;
     case 4:
         for (i = 0; i < 6; i++) {
             MP_GET_INT(data, offset, net);
-            MP_GET_INT(data, offset, p->target[6 + i]);
-            p->target[i] = mp_local_handle_from_net(net);
+            MP_GET_INT(data, offset, t[6 + i]);
+            t[i] = mp_local_handle_from_net(net);
         }
         break;
     case 5:
         for (i = 0; i < 6; i++) {
             MP_GET_INT(data, offset, net);
-            p->target[i] = mp_local_handle_from_net(net);
+            t[i] = mp_local_handle_from_net(net);
         }
-        MP_GET_INT(data, offset, p->target[6]);
-        MP_GET_INT(data, offset, p->target[7]);
+        MP_GET_INT(data, offset, t[6]);
+        MP_GET_INT(data, offset, t[7]);
         break;
     case 3:
     case 6:
     case 7:
-        MP_GET_INT(data, offset, p->target[0]);
-        MP_GET_INT(data, offset, p->target[1]);
+        MP_GET_INT(data, offset, t[0]);
+        MP_GET_INT(data, offset, t[1]);
         break;
     case 2:
     case 9:
-        MP_GET_INT(data, offset, p->target[0]);
+        MP_GET_INT(data, offset, t[0]);
         break;
     case 10:
         for (i = 0; i < 5; i++) {
-            MP_GET_INT(data, offset, p->target[i]);
-            MP_GET_INT(data, offset, p->target[5 + i]);
+            MP_GET_INT(data, offset, t[i]);
+            MP_GET_INT(data, offset, t[5 + i]);
         }
         break;
     case 8:
@@ -263,25 +267,28 @@ void mp_spell_cast_sync(spell_cast_request *req)
         multi_send_packet(data, packet_size, NULL, 1);
 }
 
-// 0x4b04a0  Confidence: likely (the request's caster and spell are set after the constructor; the three
-// bitfield stores are merged into one by the compiler). The caster stays NULL when its net handle is not
-// a living object here.
+// 0x4b04a0  Confidence: exact (m-1021d w9 D21603: the seven-field constructor with the caster first; the
+// spell and the source type read into locals; the spell, kept in EBX, is also the 4th argument of
+// mp_read_spell_targets, which Sum.exe pushes (8 dwords popped after the two calls); the three bitfield
+// stores are merged into one by the compiler). The caster stays NULL when its net handle is not a living
+// object here.
 void mp_handle_release_spell(ubyte *data, void *from)
 {
     int offset = 0;
     vector3 pos;
-    spell_cast_request req;
+    spell_cast_request req(NULL, -1);
     int net;
+    int spell;
     int item;
+    int st;
     int mode, value, kind;
 
-    req.caster = NULL;
-    req.spell = -1;
     MP_GET_INT(data, &offset, net);
     obj *o = mp_obj_from_net_handle(net);
     if (o && o->is_living())
         req.caster = (Character *)o;
-    MP_GET_INT(data, &offset, req.spell);
+    MP_GET_INT(data, &offset, spell);
+    req.spell = spell;
     MP_GET_INT(data, &offset, req.target);
     req.target = mp_local_handle_from_net(req.target);
     MP_GET_INT(data, &offset, req.layer);
@@ -294,15 +301,16 @@ void mp_handle_release_spell(ubyte *data, void *from)
     MP_GET_INT(data, &offset, item);
     if (item >= 0)
         req.item = &item_types[item];
-    MP_GET_INT(data, &offset, req.source_type);
-    mp_read_spell_target_point(&req, data, &offset, req.spell);
+    MP_GET_INT(data, &offset, st);
+    req.source_type = st;
+    mp_read_spell_target_point(&req, data, &offset, spell);
     MP_GET_INT(data, &offset, mode);
     MP_GET_INT(data, &offset, value);
     MP_GET_INT(data, &offset, kind);
     req.params.mode = mode;
     req.params.value = value;
     req.params.kind = kind;
-    mp_read_spell_targets(&req, data, &offset);
+    mp_read_spell_targets(&req, data, &offset, spell);
     if (MP_IS_HOST())
         mp_forward_cur_packet(from);
     spell_cast_launch_effects(&req);

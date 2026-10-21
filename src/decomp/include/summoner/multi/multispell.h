@@ -19,7 +19,7 @@ extern int mp_summon_request_pending;       // 0x247e82c
 void mp_write_spell_target_point(spell_cast_request *req, ubyte *data, ushort *offset);          // 0x4afca0
 void mp_read_spell_target_point(spell_cast_request *req, ubyte *data, int *offset, int spell);   // 0x4afd10
 void mp_write_spell_targets(spell_cast_request *req, ubyte *data, ushort *offset);               // 0x4afd60
-void mp_read_spell_targets(spell_cast_request *req, ubyte *data, int *offset);                   // 0x4affb0
+void mp_read_spell_targets(spell_cast_request *req, ubyte *data, int *offset, int spell);        // 0x4affb0 (spell unused, D21603)
 
 void mp_send_summon_deny(int player_id);                     // 0x4b0130 SMN_DNY to that player
 void mp_send_cast_anim(Character *caster, int spell, bool flag);   // 0x4b0180 CST_ANM (ai_cast_spell_update)

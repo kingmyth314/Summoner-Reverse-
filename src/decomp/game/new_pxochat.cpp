@@ -185,7 +185,7 @@ bool pxochat_mouse_in_panel(int x, int y)
     return true;
 }
 
-// 0x4223d0  Confidence: likely (the "found" fill is rep stosd of -1, read as memset; local order). The
+// 0x4223d0  Confidence: exact (VC6 byte match, D21704; the "found" fill is rep stosd of -1, read as memset). The
 // cfg: "$Base_url:" "url", then up to 10 of "$Pcx_name:" "name" [+Link: "url"], "#End". One banner is
 // picked at random (only among those on disk with downloaded_only). Note: the +Link: string is parsed
 // into one temporary buffer (esp+0x28c) and never copied into links[], so the link URL is always empty
@@ -198,12 +198,13 @@ void pxo_parse_chat_banners_cfg(int downloaded_only)
     char link[256];
     char pcx_names[PXO_BANNER_MAX][512];
     char links[PXO_BANNER_MAX][512];
-    int count = 0;
+    int count;
     int i;
 
     if (!file_exists_on_disk(PXO_BANNER_CFG, path_multicache))
         return;
 
+    count = 0;   // D21704: set after the existence test (count in EBX, the -1 in EBP)
     tf.Open(PXO_BANNER_CFG, path_multicache);
     pxo_chat_banner_bm = -1;
     strcpy(pxo_chat_banner_file, "");
@@ -241,7 +242,8 @@ void pxo_parse_chat_banners_cfg(int downloaded_only)
                 found[num_found++] = i;
         }
         if (num_found > 0) {
-            int pick = found[rand() % num_found];
+            int r = rand() % num_found;   // D21704: the index through an int local
+            int pick = found[r];
             if (pick >= 0) {
                 strncpy(pxo_chat_banner_file, pcx_names[pick], 32);
                 strncpy(pxo_chat_banner_download_url, base_url, 256);

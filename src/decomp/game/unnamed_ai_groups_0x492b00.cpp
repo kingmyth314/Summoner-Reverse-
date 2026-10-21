@@ -315,7 +315,8 @@ void ai_group_order_attack(Character *c, Character *target, ai_group *g, bool ma
         c->ai.flags |= 0x10;
 }
 
-// 0x493290  Confidence: likely (the three tail tests are read as three if statements; see NOTES.md).
+// 0x493290  Confidence: exact (VC6 8966 byte match, D21803: the first fallback test with a redundant
+// third `best == NULL`; the three tail tests are read as three if statements; see NOTES.md).
 // Support: protect a member of style 2-5 that an enemy targets, else the nearest unengaged enemy, the
 // enemy of the most hurt member, an engaged one, the first one. A successful order is followed by the
 // fallback order on the first enemy (no return; NOTES.md).
@@ -392,7 +393,10 @@ void ai_group_think_style1(Character *c, ai_group *g)
             }
         }
     }
-    if (best == NULL || character_is_helpless(best))
+    // D21803: a third, redundant NULL test (always false there) gives the binary's flow: 8966 then
+    // colours i, the enemy pointer and best as the binary does and the kept-best path jumps straight to
+    // the second helpless call (`test edi, edi; jne`). Same behaviour.
+    if (best == NULL || character_is_helpless(best) || best == NULL)
         best = engaged;
     if (best && character_is_helpless(best))
         best = first;
@@ -410,8 +414,10 @@ void ai_group_think_style1(Character *c, ai_group *g)
         ai_group_order_attack(c, ai_think_enemies[0], g, true);
 }
 
-// 0x493570  Confidence: likely (the found-in-loop exit as a break with a NULL-initialised result).
-// Range / caster: the first enemy someone already fights, else the first enemy.
+// 0x493570  Confidence: exact (VC6 8966 byte match, D21802: the fallback as `if (!target) target =
+// first;` and one call, which leaves g in memory as in the binary; the found-in-loop exit as a break
+// with a NULL-initialised result). Range / caster: the first enemy someone already fights, else the
+// first enemy.
 void ai_group_think_style2(Character *c, ai_group *g)
 {
     if (ai_member_skips_group_orders(c) == true)
@@ -446,12 +452,10 @@ void ai_group_think_style2(Character *c, ai_group *g)
             break;
         }
     }
+    if (!target)
+        target = first;
     if (target) {
         ai_group_order_attack(c, target, g, false);
-        return;
-    }
-    if (first) {
-        ai_group_order_attack(c, first, g, false);
         return;
     }
     if (ai_think_enemies[0])

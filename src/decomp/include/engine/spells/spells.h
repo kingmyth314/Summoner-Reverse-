@@ -184,6 +184,10 @@ struct spell_cast_request {
     // all seven. Written as this second constructor (the spell argument is always -1; ours).
     spell_cast_request(int no_spell)
     { spell = no_spell; caster = 0; target = -1; target_pos = 0; layer = -1; _unk14 = 0; source_type = 0; }
+    // m-1021d w9 D21603: mp_handle_release_spell stores all seven in field order, caster first
+    // (0x4b04b2-0x4b04ca). Ours, as a third constructor.
+    spell_cast_request(Character *c, int s)
+    { caster = c; spell = s; target = -1; target_pos = 0; layer = -1; _unk14 = 0; source_type = 0; }
     Character *caster;               // +0x00
     int spell;                       // +0x04
     int target;                      // +0x08 target handle

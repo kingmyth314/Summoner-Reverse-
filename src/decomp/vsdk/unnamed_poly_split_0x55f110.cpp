@@ -114,15 +114,15 @@ void gr_poly_split_sections_draw(int nv, gr_multipass_vertex **verts, int npasse
     }
 }
 
-// 0x55f580  Confidence: likely (the edge bookkeeping). Two crossed edges, or one crossed edge and the
+// 0x55f580  Confidence: exact (D21400: the indices zeroed by one chained assignment, the nearest vertex
+// stored straight into e2a / e2b before the corner test, bestd through a pointer). Two crossed edges, or one crossed edge and the
 // vertex nearest the line (when the line runs through a corner), give the cut; a goes from the first
 // edge's end to the second edge, b the other way round, each closed by the two new vertices.
 bool gr_poly_split_at_tex_line(gr_poly_split_rec *p, gr_poly_split_rec *a, gr_poly_split_rec *b, int npasses,
                                gr_tmapper_pass *passes, int pass, int axis, float line)
 {
-    int crossings = 0;
-    int e1a = 0, e1b = 0;
-    int e2a = 0, e2b = 0;
+    int crossings, e1a, e1b, e2a, e2b;
+    e1a = e1b = e2a = e2b = crossings = 0;      // D21400: one chain (store order and frame slots)
     int j, k;
     int best;
     float bestd;
@@ -155,23 +155,23 @@ bool gr_poly_split_at_tex_line(gr_poly_split_rec *p, gr_poly_split_rec *a, gr_po
     if (crossings == 0)
         return false;
     if (crossings < 2) {
+        float *bp = &bestd;                     // D21400: keeps best in a register
         best = -1;
-        bestd = 3.4028235e38f;
+        *bp = 3.4028235e38f;
         for (j = 0; j < p->nv; j++) {
             if (axis == 0)
                 d = (float)fabs(p->verts[j]->pass[pass].u - line);
             else
                 d = (float)fabs(p->verts[j]->pass[pass].v - line);
-            if (d < bestd) {
-                bestd = d;
+            if (d < *bp) {
+                *bp = d;
                 best = j;
             }
         }
-        k = (best + 1) % p->nv;
-        if (best == e1a || best == e1b || k == e1a || k == e1b)
-            return false;
         e2a = best;
-        e2b = k;
+        e2b = (best + 1) % p->nv;
+        if (e2a == e1a || e2a == e1b || e2b == e1a || e2b == e1b)
+            return false;
     }
     if (axis == 0) {
         t1 = (line - p->verts[e1a]->pass[pass].u) / (p->verts[e1b]->pass[pass].u - p->verts[e1a]->pass[pass].u);

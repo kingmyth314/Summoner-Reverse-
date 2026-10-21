@@ -151,14 +151,13 @@ ca_character::~ca_character()
 }
 
 // 0x540970  Confidence: likely (EH state numbering: new-expression 0, File 1; the order of the two
-// error branches). check_dup: a skeleton of the same file is reused. The skeleton comes from the
+// error branches; D21201: the frame; left: the epilogue follows the dup return in ours, the main path in the
+// binary, and the tail's index register). check_dup: a skeleton of the same file is reused. The skeleton comes from the
 // preload index when it is there and smaller than the whole preload buffer, else from its file.
 // filename is also the name skeleton::read gets; name is the anim name.
 int ca_character::add_skeleton(const char *filename, const char *name, bool is_state, int unused,
                                bool check_dup, bool root_rotation)
 {
-    int offset;
-    int size;
     int i;
 
     ca_current_character = this;
@@ -176,19 +175,24 @@ int ca_character::add_skeleton(const char *filename, const char *name, bool is_s
     skeleton *s = new skeleton(filename, name, is_state, unused, root_rotation);
     FileReader reader;
     File f;
+    {   // D21201: offset / size in a block after the new, so they share the new-expression's
+        // temporary slot as in the binary (frame 0x1b0, was 0x1b4)
+        int offset;
+        int size;
 
-    if (ca_preload_loaded && ca_preload_find(filename, &offset, &size) && size < CA_PRELOAD_DATA_SIZE) {
-        reader.attach_memory(ca_preload_data + offset, size);
-        s->read(&reader, filename, PATH_ANY);
-    } else {
-        if (!f.open(filename, 1, PATH_ANY)) {
-            reader.attach_file(&f);
+        if (ca_preload_loaded && ca_preload_find(filename, &offset, &size) && size < CA_PRELOAD_DATA_SIZE) {
+            reader.attach_memory(ca_preload_data + offset, size);
             s->read(&reader, filename, PATH_ANY);
-            f.close();
         } else {
-            char buf[0x80];
-            sprintf(buf, "Error opening : %s\n", filename);
-            VSDK_ERROR(CHARACTER_CPP, 692, buf);
+            if (!f.open(filename, 1, PATH_ANY)) {
+                reader.attach_file(&f);
+                s->read(&reader, filename, PATH_ANY);
+                f.close();
+            } else {
+                char buf[0x80];
+                sprintf(buf, "Error opening : %s\n", filename);
+                VSDK_ERROR(CHARACTER_CPP, 692, buf);
+            }
         }
     }
     skeletons[num_anims] = s;
@@ -349,7 +353,7 @@ int ca_character::find_mesh_tag(const char *name)
     return -1;
 }
 
-// 0x541020  Confidence: likely (the order of the sums). The sizes are the report's own: 0xa0 per bone,
+// 0x541020  Confidence: exact (D21200: the two key counts through pointer locals). The sizes are the report's own: 0xa0 per bone,
 // 0x38 per extra bone plus its name, per skeleton 0xd4 (object and pointer), 64 per position key, 36 per
 // rotation key, 45 per bone (track and weight byte) for every non-NULL slot of the 100.
 int ca_character::report_memory()
@@ -375,8 +379,15 @@ int ca_character::report_memory()
     skel = num_anims * (sizeof(skeleton) + sizeof(skeleton *));
     for (i = 0; i < CA_MAX_SKELETONS; i++) {
         skeleton *s = skeletons[i];
-        if (s)
-            skel += s->num_pos_keys * 64 + s->num_rot_keys * 36 + s->num_bones * 45;
+        if (s) {
+            // D21200: the position and rotation counts each through a local and a pointer to it: 8966
+            // then adds pos * 64 to skel first and loads the counts in the binary's order.
+            int pk = s->num_pos_keys;
+            int *pp = &pk;
+            int rk = s->num_rot_keys;
+            int *rp = &rk;
+            skel += *pp * 64 + *rp * 36 + s->num_bones * 45;
+        }
     }
     mem_report_line("skeleton :", "%d", skel);
     mem_report_unindent();

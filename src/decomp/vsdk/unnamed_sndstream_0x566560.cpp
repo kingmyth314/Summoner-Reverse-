@@ -121,20 +121,31 @@ done:
     return rc;
 }
 
-// 0x566820  Confidence: likely (as snd_stream_fill_acm).
+// 0x566820  Confidence: exact (m-1021d w9 D21600: all locals declared without initialisers and assigned in
+// the binary's order, rc first, then s, *written, b, pdsb, got, p1, p2, n1, n2; this puts n2 in written's
+// argument slot and the zero in ECX as in Sum.exe).
 int snd_stream_fill_pcm(int stream, unsigned int bytes, unsigned int *written)
 {
-    snd_stream_slot *s = &snd_streams[stream];
-    ds_buffer *b = &ds_buffers[s->buffer];
-    IDirectSoundBuffer *pdsb = ds_channels[s->channel].pdsb;
-    void *p1 = NULL;
-    void *p2 = NULL;
-    DWORD n1 = 0;
-    DWORD n2 = 0;
-    UINT got = 0;
-    int rc = 0;
+    snd_stream_slot *s;
+    ds_buffer *b;
+    IDirectSoundBuffer *pdsb;
+    int rc;
+    UINT got;
+    void *p1;
+    void *p2;
+    DWORD n1;
+    DWORD n2;
 
+    rc = 0;
+    s = &snd_streams[stream];
     *written = 0;
+    b = &ds_buffers[s->buffer];
+    pdsb = ds_channels[s->channel].pdsb;
+    got = 0;
+    p1 = NULL;
+    p2 = NULL;
+    n1 = 0;
+    n2 = 0;
     if (pdsb->Lock(s->write_pos, bytes, &p1, &n1, &p2, &n2, 0) < 0)
         goto fail;
     if (p1 != NULL && wav_read(b->hmmio, n1, (BYTE *)p1, &b->data_ck, &got) != 0)

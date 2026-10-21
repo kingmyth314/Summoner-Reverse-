@@ -331,8 +331,9 @@ bool gr_poly_end()
 
 // m-1020b w8 (D13200): the binary calls the clip-vertex helpers out of line here and in gr_poly_clip_edge.
 #pragma inline_depth(0)
-// 0x545870  Confidence: likely (the exits; m-1020b w8, D13200: list copied to a local, an element pointer per
-// vertex; only the shrink-wrapped prologue differs). A vertex behind the viewer drops the polygon; fixed depth sets
+// 0x545870  Confidence: exact (m-1020b w8, D13200: list copied to a local, an element pointer per vertex;
+// D21202: the multitexture draw as if / else into the shared free at done, so the region after the texture-count
+// test has one exit and 8966 pushes EBP / ESI / EDI after it, as D8701). A vertex behind the viewer drops the polygon; fixed depth sets
 // every vertex's z and 1/z unless a pass is sectioned.
 bool gr_poly_clip_and_draw(ubyte *codes, gr_multipass_vertex **list, gr_multipass_vertex **tmp)
 {
@@ -363,10 +364,8 @@ bool gr_poly_clip_and_draw(ubyte *codes, gr_multipass_vertex **list, gr_multipas
     if (gr_poly_multitexture) {
         gr_poly_split_sections_draw(nv, l, gr_poly_num_textures, gr_poly_texture_slots);
         gr_poly_reset_clip_verts();
-        gr_poly_free_clip_verts();
-        return true;
-    }
-    gr_tmapper_multipass(nv, l, gr_poly_num_textures, gr_poly_texture_slots);
+    } else
+        gr_tmapper_multipass(nv, l, gr_poly_num_textures, gr_poly_texture_slots);
 done:
     gr_poly_free_clip_verts();
     return true;

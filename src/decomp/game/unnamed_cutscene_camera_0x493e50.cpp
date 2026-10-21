@@ -82,13 +82,16 @@ cutscene_camera_sequence::~cutscene_camera_sequence()
 {
 }
 
-// 0x493fd0  Confidence: likely (the key loops' index registers). (file, start of this shot in the
+// 0x493fd0  Confidence: exact (VC6 8966 byte match, D21800: each key loop as `k = 0; if (k < n) { off = 0; do
+// { ... k++; off += sizeof(key); } while (k < n); }` with the key addressed as a byte offset from the
+// reloaded key pointer, which gives the binary's [keys + offset] operand order). (file, start of this shot in the
 // cutscene): a shot whose own start is at least 0.4 s later is moved back to it, its key times shifted
 // with it. The keys come from the four pools, never checked against their sizes.
 void cutscene_camera_sequence::read_track(File *f, float shot_start)
 {
     int base;
     int k;
+    int off;
 
     start = f->read_float(0, 0);
     end = f->read_float(0, 0);
@@ -115,11 +118,17 @@ void cutscene_camera_sequence::read_track(File *f, float shot_start)
         track.pos_aux_b = &cutscene_cam_keys12[cutscene_cam_keys12_count];
         cutscene_cam_keys12_count += track.num_pos_keys;
     }
-    for (k = 0; k < track.num_pos_keys; k++) {
-        track.pos_keys[k].time = f->read_int(0, 0) - base;
-        f->read_vector(&track.pos_keys[k].pos, 0, &file_zero_vector);
-        f->read_vector(&track.pos_keys[k].in, 0, &file_zero_vector);
-        f->read_vector(&track.pos_keys[k].out, 0, &file_zero_vector);
+    k = 0;
+    if (k < track.num_pos_keys) {
+        off = 0;
+        do {
+            ((anim_pos_key *)((char *)track.pos_keys + off))->time = f->read_int(0, 0) - base;
+            f->read_vector(&((anim_pos_key *)((char *)track.pos_keys + off))->pos, 0, &file_zero_vector);
+            f->read_vector(&((anim_pos_key *)((char *)track.pos_keys + off))->in, 0, &file_zero_vector);
+            f->read_vector(&((anim_pos_key *)((char *)track.pos_keys + off))->out, 0, &file_zero_vector);
+            k++;
+            off += sizeof(anim_pos_key);
+        } while (k < track.num_pos_keys);
     }
 
     track.num_rot_keys = (ushort)f->read_int(0, 0);
@@ -131,19 +140,25 @@ void cutscene_camera_sequence::read_track(File *f, float shot_start)
         track.rot_aux_b = &cutscene_cam_keys8[cutscene_cam_keys8_count];
         cutscene_cam_keys8_count += track.num_rot_keys;
     }
-    for (k = 0; k < track.num_rot_keys; k++) {
-        quaternion q;
-        track.rot_keys[k].time = f->read_int(0, 0) - base;
-        f->read_quaternion(&q, 0, &file_identity_quaternion);
-        track.rot_keys[k].q.x = (short)(q.x * 16383.0f);
-        track.rot_keys[k].q.y = (short)(q.y * 16383.0f);
-        track.rot_keys[k].q.z = (short)(q.z * 16383.0f);
-        track.rot_keys[k].q.w = (short)(q.w * 16383.0f);
-        track.rot_keys[k].tangent[0] = (signed char)(f->read_float(0, 0) * 127.0f);
-        track.rot_keys[k].tangent[1] = (signed char)(f->read_float(0, 0) * 127.0f);
-        track.rot_keys[k].tangent[2] = (signed char)(f->read_float(0, 0) * 127.0f);
-        track.rot_keys[k].ease_in = (signed char)(f->read_float(0, 0) * 2.54f);
-        track.rot_keys[k].ease_out = (signed char)(f->read_float(0, 0) * 2.54f);
+    k = 0;
+    if (k < track.num_rot_keys) {
+        off = 0;
+        do {
+            quaternion q;
+            ((anim_rot_key *)((char *)track.rot_keys + off))->time = f->read_int(0, 0) - base;
+            f->read_quaternion(&q, 0, &file_identity_quaternion);
+            ((anim_rot_key *)((char *)track.rot_keys + off))->q.x = (short)(q.x * 16383.0f);
+            ((anim_rot_key *)((char *)track.rot_keys + off))->q.y = (short)(q.y * 16383.0f);
+            ((anim_rot_key *)((char *)track.rot_keys + off))->q.z = (short)(q.z * 16383.0f);
+            ((anim_rot_key *)((char *)track.rot_keys + off))->q.w = (short)(q.w * 16383.0f);
+            ((anim_rot_key *)((char *)track.rot_keys + off))->tangent[0] = (signed char)(f->read_float(0, 0) * 127.0f);
+            ((anim_rot_key *)((char *)track.rot_keys + off))->tangent[1] = (signed char)(f->read_float(0, 0) * 127.0f);
+            ((anim_rot_key *)((char *)track.rot_keys + off))->tangent[2] = (signed char)(f->read_float(0, 0) * 127.0f);
+            ((anim_rot_key *)((char *)track.rot_keys + off))->ease_in = (signed char)(f->read_float(0, 0) * 2.54f);
+            ((anim_rot_key *)((char *)track.rot_keys + off))->ease_out = (signed char)(f->read_float(0, 0) * 2.54f);
+            k++;
+            off += sizeof(anim_rot_key);
+        } while (k < track.num_rot_keys);
     }
     track.init_tangents(0);
 }

@@ -207,7 +207,8 @@ int gr_load_font(const char *name, int height2)
     return i;
 }
 
-// 0x508560  Confidence: likely overall; the two format switches are unsure in shape (see below).
+// 0x508560  Confidence: exact (VC6 byte match, D21300; was likely: one function-scope `row` for the
+// three glyph loops takes the binary's frame slots, and the ALPHA4 gamma value goes through an int local).
 // Returns the index of an already loaded font with the same name, or loads it into the slot after
 // the last used one. The first free slot is found and kept in free_slot, but never used, so a
 // slot freed by gr_close_fonts is not reused (MAX_FONTS counts every load).
@@ -270,6 +271,7 @@ int gr_font_create(const char *name)
     f->char_x_coords = new int[f->num_chars];
     f->char_y_coords = new int[f->num_chars];
 
+    int row; // D21300: one row for the three loops (row takes name's dead argument slot)
     int y = 0;
     int x = 0;
     for (int c = 0; c < f->num_chars; c++) {
@@ -288,7 +290,7 @@ int gr_font_create(const char *name)
             // ((a << 4 | b) << 4 | c) << 4 | d with 16-bit pieces (MOVZX r16 in the binary).
             int *pal = f->palette;
             unsigned char *src = f->pixel_data + f->chars[c].pixel_data_offset;
-            for (int row = 0; row < f->height; row++) {
+            for (row = 0; row < f->height; row++) {
                 for (int col = 0; col < f->chars[c].width; col++) {
                     unsigned int color = pal[*src++];
                     unsigned short pixel = (unsigned char)((color >> 24) & 0xf);
@@ -302,7 +304,7 @@ int gr_font_create(const char *name)
         }
         case FONT_FORMAT_RGB16: {
             uint16_t *src = (uint16_t *)(f->pixel_data + f->chars[c].pixel_data_offset);
-            for (int row = 0; row < f->height; row++) {
+            for (row = 0; row < f->height; row++) {
                 for (int col = 0; col < f->chars[c].width; col++)
                     f->bm_bits[(row + y) * f->bm_width + col + x] = *src++;
             }
@@ -312,13 +314,14 @@ int gr_font_create(const char *name)
             // Alpha 0..14 scaled to 0..255 (unsigned divide by 14), through the gamma ramp, into the
             // top nibble; colour bits all set.
             unsigned char *src = f->pixel_data + f->chars[c].pixel_data_offset;
-            for (int row = 0; row < f->height; row++) {
+            for (row = 0; row < f->height; row++) {
                 for (int col = 0; col < f->chars[c].width; col++) {
                     unsigned int alpha = *src++;
                     if (alpha > 14)
                         alpha = 14;
-                    f->bm_bits[(row + y) * f->bm_width + col + x] =
-                        (uint16_t)(((gr_gamma_ramp[alpha * 255 / 14] >> 4) << 12) | 0xfff);
+                    // D21300: the int local keeps the 32-bit sar / shl (no `mov dh` narrowing).
+                    int g = gr_gamma_ramp[alpha * 255 / 14] >> 4;
+                    f->bm_bits[(row + y) * f->bm_width + col + x] = (uint16_t)((g << 12) | 0xfff);
                 }
             }
             break;

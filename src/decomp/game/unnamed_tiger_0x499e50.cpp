@@ -675,6 +675,9 @@ struct tiger_candidate {
 // 0x49b0a0  Confidence: likely (the threat base is assigned per candidate, not summed; NOTES.md). A
 // party member the tiger sees or that hurt it recently, weighted by its threat (the only one when there
 // is one).
+// D21002: the base-threat sum through a float local (`s = threat[1]; s += threat[0]`: threat[1] loaded first,
+// as the binary) and the weight base in two statements (`base = bt * 0.1f; base += 10.0f`: the handle loads
+// before the fadd, as the binary). Left: the start-up zero in EBX (binary EDX), reused in the first loop.
 int tiger_pick_target(Character *boss)
 {
     tiger_candidate cand[5];
@@ -717,15 +720,19 @@ int tiger_pick_target(Character *boss)
     for (i = 0; i < g->count; i++) {
         if (cand[i].ok == true) {
             k = tiger_threat_find(cand[i].c->handle);
-            if (k != -1)
-                base_threat = -(tiger_threat_table[k].threat[1] + tiger_threat_table[k].threat[0]);
+            if (k != -1) {
+                float s = tiger_threat_table[k].threat[1];
+                s += tiger_threat_table[k].threat[0];
+                base_threat = -s;
+            }
         }
     }
     float total = 0;
     for (i = 0; i < g->count; i++) {
         float w = 0.0f;
         if (cand[i].ok == true) {
-            float base = base_threat * 0.1f + 10.0f;
+            float base = base_threat * 0.1f;
+            base += 10.0f;
             k = tiger_threat_find(cand[i].c->handle);
             if (k != -1)
                 w = base - (tiger_threat_table[k].threat[0] * 3.0f + tiger_threat_table[k].threat[1]);

@@ -1028,23 +1028,24 @@ make:
     return false;
 }
 
-// 0x5143e0  Confidence: likely (the key array on the stack; D18604: the slot index local and the flag
-// pointer of the zero branch give the binary's per-branch slot address and the key branch's tail; left: the
-// key in EAX with a zero register, the binary's key in EDX). 0 turns the encryption off. No caller.
+// 0x5143e0  Confidence: exact (the key array on the stack; D18604: the slot index local gives the binary's
+// per-branch slot address; D21901: bit 0 cleared through a local one-bit bit-field (the binary's load / and /
+// store) and the flag set before the key stores, which puts the key in EDX and stores the zeros as immediates).
+// 0 turns the encryption off. No caller.
 void File::set_cipher_key(unsigned int key)
 {
+    struct cipher_bits { unsigned encrypted : 1; };
     unsigned int k[3];
     int i = slot;
 
     if (key == 0) {
-        unsigned int *fl = &file_slots[i].flags;
-        *fl &= ~1;
+        ((cipher_bits *)&file_slots[i].flags)->encrypted = 0;
         return;
     }
+    file_slots[i].flags |= 1;
     k[0] = key;
     k[2] = 0;
     k[1] = 0;
-    file_slots[i].flags |= 1;
     file_slots[i].cipher.set_key(k);
 }
 

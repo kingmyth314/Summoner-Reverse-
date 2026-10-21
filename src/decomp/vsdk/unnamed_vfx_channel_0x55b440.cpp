@@ -26,7 +26,8 @@ void fx_rec4c::clear()
     _bit31 = 0;
 }
 
-// 0x55b460  Confidence: likely (floor is called twice, as written; the order of the temporaries).
+// 0x55b460  Confidence: exact (VC6 byte match, D22103: rq in its own block, so it shares the sum
+// temporary's frame slot; floor is called twice, as written; the order of the temporaries).
 void fx_rec4c::update(vfx_force_desc *f, float t)
 {
     int n;
@@ -60,8 +61,10 @@ void fx_rec4c::update(vfx_force_desc *f, float t)
             pos = world.transform(pos);
             rm.set(rot, pos);
             rm.set_product_4x4(world, rm);
-            quaternion rq(*(matrix *)&rm);
-            rot = rq;
+            {
+                quaternion rq(*(matrix *)&rm);
+                rot = rq;
+            }
         }
     }
     if (time <= 0.0f) {
@@ -210,11 +213,16 @@ void vfx_node_header::relocate(char *header_base, char *base)
 
 // 0x55bc00  Confidence: likely (the found-in-run case is laid out after the loop by the compiler).
 // The cache (cursor, frame) moves forward only; an earlier frame restarts from the first key.
+// D22102: one `cursor += inc` after both branches (the binary's `add word [ecx+8], ax`), the run step as
+// `inc = 4; if (bytes) inc = 3;`, `switch (p[0])` for the run test (`and ebx, 0xff; dec ebx`), an unsigned n
+// (jb), p recomputed for the literal return: 125 -> 28. Left: the found-in-run path's registers (p in EAX,
+// not ESI) and its returns' load order.
 short vfx_channel::eval(int t)
 {
     ushort f = (ushort)t;
     ubyte *p;
-    int n;
+    unsigned n;
+    int inc;
 
     if (done)
         return 4000;
@@ -236,16 +244,25 @@ short vfx_channel::eval(int t)
                     return base_value + p[2];
                 return base_value + (p[2] | (p[3] << 8));
             }
-            if (p[0] != 1)
+            switch (p[0]) {
+            case 1:
+                break;
+            default:
                 goto bad;
+            }
+            inc = 4;
+            if (bytes)
+                inc = 3;
             frame += n;
-            cursor += bytes ? 3 : 4;
         } else {
-            if (f == frame)
+            if (f == frame) {
+                p = (ubyte *)data + cursor;
                 return base_value + (p[1] << 8) + p[0];
+            }
             frame++;
-            cursor += bytes ? 1 : 2;
+            inc = bytes ? 1 : 2;
         }
+        cursor += inc;
     }
     return 0;
 bad:

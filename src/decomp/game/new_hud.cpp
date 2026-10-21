@@ -1627,7 +1627,7 @@ void hud_hot_buttons_handle_click()
     hud_mouse_mode = 0;
 }
 
-// 0x40f340  Confidence: likely (frame: id2 0x0, kind2 0x4, id1 0x8, kind1 0xc). Mode 4: a skill or spell
+// 0x40f340  Confidence: exact (VC6 byte match, D21301; was likely; frame: id2 0x0, kind2 0x4, id1 0x8, kind1 0xc). Mode 4: a skill or spell
 // icon dragged from the panel (hud_drag_icon_begin). Dropped on a slot it is stored there; the swap branch
 // for a drag that starts on a hot button is never reached, since only hud_drag_icon_begin writes the source
 // slot and it writes 6 (none).
@@ -1669,12 +1669,14 @@ void hud_hot_buttons_drag()
 
     if (hud_drag_flags.active) {
         int src = hud_drag_flags.slot == 6 ? -1 : hud_drag_flags.slot;
-        int member = hud_member();
+        // D21301: the test and the calls made before any other call read the global itself (the binary loads
+        // it into ECX and copies it to EBP for dst); member declared after dst.
         int dst = hud_hot_button_hover;
+        int member = hud_member();
 
-        if (dst >= 0) {
+        if (hud_hot_button_hover >= 0) {
             if (src >= 0) {
-                bool had_dst = SAVEGAME_HM->hot_button_get(&kind1, &id1, member, dst);
+                bool had_dst = SAVEGAME_HM->hot_button_get(&kind1, &id1, member, hud_hot_button_hover);
 
                 if (SAVEGAME_HM->hot_button_get(&kind2, &id2, member, src))
                     SAVEGAME_HM->hot_button_set(kind2, id2, member, dst);
@@ -1685,7 +1687,7 @@ void hud_hot_buttons_drag()
                 else
                     SAVEGAME_HM->hot_button_clear(member, src);
             } else {
-                SAVEGAME_HM->hot_button_set(hud_drag_flags.is_skill, hud_drag_flags.id, member, dst);
+                SAVEGAME_HM->hot_button_set(hud_drag_flags.is_skill, hud_drag_flags.id, member, hud_hot_button_hover);
             }
         } else if (src >= 0) {
             SAVEGAME_HM->hot_button_clear(member, src);

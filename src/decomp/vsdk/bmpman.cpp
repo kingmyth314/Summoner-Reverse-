@@ -1020,8 +1020,8 @@ int bm_lock(int bm, ubyte **data, ubyte **palette)
     return e->format;
 }
 
-// 0x503710  Confidence: likely. One file without mip levels; otherwise every level from its own file
-// (level 0 the name itself, level n "<base>-mip<n>.tga", one further when reduced), packed one after the
+// 0x503710  Confidence: likely (D21702: frame slots of h / loaded swapped, distance 12). One file without
+// mip levels; otherwise every level from its own file (level 0 the name itself, level n "<base>-mip<n>.tga", one further when reduced), packed one after the
 // other. The mip reads are not checked; the fourth tga_read_bitmap argument is a bool (pushed as a dword
 // from a byte slot) that is false for the first level.
 bool bm_lock_tga(int index)
@@ -1034,42 +1034,45 @@ bool bm_lock_tga(int index)
     char filename[0x400];
     char *p;
 
-    e->data = new ubyte[bm_bytes_per_pixel(e->format) * e->num_pixels];
+    bpp = bm_bytes_per_pixel(e->format);   // D21702: the bytes per pixel through bpp first (`imul edx, eax`)
+    e->data = new ubyte[bpp * e->num_pixels];
     if (e->format == BM_FORMAT_8_PALETTED)
         e->palette = new ubyte[0x300];
     dst = (ubyte *)e->data;
     pal = (ubyte *)e->palette;
+    // D21702: if / else with one `return true` (the binary pushes every register before the first test).
     if (e->num_levels <= 1 && !e->reduced) {
         if (tga_read_bitmap(e->name, dst, pal, 0, e->path_id) != 0)
             return false;
-        return true;
-    }
-    loaded = false;
-    bpp = bm_bytes_per_pixel(e->format);
-    h = e->height;
-    w = e->width;
-    strcpy(base_name, e->name);
-    p = strchr(base_name, '.');
-    if (p != NULL)
-        *p = 0;
-    for (i = 0; i < e->num_levels; i++) {
-        if (e->reduced)
-            sprintf(filename, "%s-mip%d.tga", base_name, i + 1);
-        else if (i == 0)
-            strcpy(filename, e->name);
-        else
-            sprintf(filename, "%s-mip%d.tga", base_name, i);
-        tga_read_bitmap(filename, dst, pal, loaded, e->path_id);
-        dst += h * w * bpp;
-        loaded = true;
-        w /= 2;
-        h /= 2;
+    } else {
+        loaded = false;
+        bpp = bm_bytes_per_pixel(e->format);
+        w = e->width;   // D21702: w first keeps w in EBX
+        h = e->height;
+        strcpy(base_name, e->name);
+        p = strchr(base_name, '.');
+        if (p != NULL)
+            *p = 0;
+        for (i = 0; i < e->num_levels; i++) {
+            if (e->reduced)
+                sprintf(filename, "%s-mip%d.tga", base_name, i + 1);
+            else if (i == 0)
+                strcpy(filename, e->name);
+            else
+                sprintf(filename, "%s-mip%d.tga", base_name, i);
+            // D21702: the bool read as a dword (the binary pushes the byte slot's dword; the argument is unused).
+            tga_read_bitmap(filename, dst, pal, *(int *)&loaded, e->path_id);
+            dst += h * w * bpp;
+            loaded = true;
+            w /= 2;
+            h /= 2;
+        }
     }
     return true;
 }
 
-// 0x5038f0  Confidence: likely. Pixels start at offset 0x20; a reduced bitmap skips the full-size level
-// (4 * the halved size). Animations load the whole block once through the header and point each frame
+// 0x5038f0  Confidence: exact (VC6 byte match, D21703). Pixels start at offset 0x20; a reduced bitmap skips
+// the full-size level (4 * the halved size). Animations load the whole block once through the header and point each frame
 // into it; the header's lock_count becomes the frame count. Called only for a frame or a single bitmap.
 void bm_lock_vbm(int index)
 {
@@ -1083,8 +1086,11 @@ void bm_lock_vbm(int index)
         f.open(e->name, 1, e->path_id);
         f.seek(0x20, 0);
         e->data = new ubyte[e->num_pixels * bpp];
-        if (e->reduced)
-            f.seek(e->height * e->width * bpp * 4, 1);
+        if (e->reduced) {
+            int s = e->height;   // D21703: the size through an int local
+            s *= e->width;
+            f.seek(s * bpp * 4, 1);
+        }
         f.read(e->data, e->num_pixels * bpp, 0, 0);
         f.close();
     } else {
@@ -1096,8 +1102,9 @@ void bm_lock_vbm(int index)
             hdr->data = new ubyte[size];
             f.read(hdr->data, size, 0, 0);
             f.close();
+            bitmap_entry *frame = hdr;   // D21703: a frame pointer stepped at the top of the body
             for (i = 0; i < hdr->num_frames; i++) {
-                bitmap_entry *frame = hdr + 1 + i;
+                frame++;
                 frame->data = (ubyte *)hdr->data + (frame->num_frames - 1) * frame->num_pixels * bpp;
             }
             hdr->lock_count = hdr->num_frames;

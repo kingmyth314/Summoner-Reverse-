@@ -478,8 +478,9 @@ void ai_state::evil_urath_ai_leap_land()
     set_mode(AI_STATE_COMBAT, -1);
 }
 
-// 0x4c4db0  Confidence: likely (the HP band ladder shares the leap tail; the spell switch is a table of 7,
-// at 0x4c50ec). HP 80-60 % and 40-20 %: on a balcony, 60-40 % and below 20 %: on the floor; otherwise a leap.
+// 0x4c4db0  Confidence: exact (the HP band ladder shares the leap tail; the spell switch is a table of 7,
+// at 0x4c50ec; D21904: the no-target pick goes to the later `return 0`, written in the hidden test's block
+// after a separate NULL test, as the binary shares it). HP 80-60 % and 40-20 %: on a balcony, 60-40 % and below 20 %: on the floor; otherwise a leap.
 // Then a spell at the target when it is within 15 and 7 in height: seven spells 0x55-0x5b weighted 1/7 each,
 // changed by the target flags (bosses.md "Attack choice"); a failed pick falls back to rand() % 6, which
 // never gives the seventh.
@@ -509,7 +510,7 @@ int ai_state::evil_urath_ai_select_action()
         evil_urath_target_handle = boss_target_list_pick(list, count, evil_urath_threat_table,
                                                          evil_urath_target_handle, false, 0);
         if (evil_urath_target_handle == -1)
-            return 0;
+            goto no_target;
         living_from_handle(evil_urath_target_handle);
         evil_urath_set_attack_timer(5000, 15000);
     }
@@ -541,8 +542,12 @@ int ai_state::evil_urath_ai_select_action()
     if (list[index].dist > 15.0f)
         return 4;
     t = living_from_handle(evil_urath_target_handle);
-    if (t == NULL || (t->flags & CF_HIDDEN))
+    if (t == NULL)
+        goto no_target;
+    if (t->flags & CF_HIDDEN) {
+no_target:
         return 0;
+    }
     if ((float)fabs(owner->pos.y - t->pos.y) > 7.0f)
         return 4;
     e = &list[index];

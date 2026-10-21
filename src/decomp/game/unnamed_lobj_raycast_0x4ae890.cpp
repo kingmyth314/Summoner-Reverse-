@@ -130,10 +130,10 @@ void lobj_ray_test_faces(s3d_face *face, s3d_geometry *g, int lobj_index, lobj_r
     lobj_last_hit_face = face;
 }
 
-// 0x4aec20  Confidence: likely (the in-range flag: VC6 left a dead second compare of t with 1.0 in the
-// t < 0 path; the parameter slots are reused for t, span and the second t; D15302: the centre set
-// component by component, x first, as the binary stores it; left: that dead compare and the frame,
-// 0x38 against 0x34). The sphere against the face's
+// 0x4aec20  Confidence: exact (VC6 byte match, m-1021d, D22004: the out-of-range block stores inside = 0 and
+// again under a second `t > 1` test, which 8966 merges into the binary's dead compare; t2 declared in a block
+// around the edge test, so it takes ray's slot and span takes g's, the binary's 0x34 frame; D15302: the centre
+// set component by component, x first, as the binary stores it). The sphere against the face's
 // plane (inside the triangle), else against its edges and vertices (hit +0x20 = 1; no normal, the two
 // globals are not written). A plane hit that is farther than the best one falls through to the edge test;
 // an edge hit that is farther still counts (num_hits + 1).
@@ -142,7 +142,7 @@ void lobj_sphere_test_faces(s3d_face *face, s3d_geometry *g, int lobj_index, lob
     vector3 n;
     vector3 touch;
     vector3 *verts[3];
-    float t, span, t2;
+    float t, span;
     int inside;
 
     if (ray->local_dir.dot(face->normal) <= 0.0f) {
@@ -166,8 +166,11 @@ void lobj_sphere_test_faces(s3d_face *face, s3d_geometry *g, int lobj_index, lob
     verts[1] = &g->vertices[face->v[1]];
     verts[2] = &g->vertices[face->v[2]];
     inside = 1;
-    if (t < 0.0f || t > 1.0f)
+    if (t < 0.0f || t > 1.0f) {
         inside = 0;
+        if (t > 1.0f)                 // the binary's dead second compare (D22004)
+            inside = 0;
+    }
 
     if ((hit->num_hits == 0 || t < hit->t) && inside && ix_point_in_polygon(&touch, 3, verts, (plane *)&n)) {
         hit->t = t;
@@ -186,18 +189,22 @@ void lobj_sphere_test_faces(s3d_face *face, s3d_geometry *g, int lobj_index, lob
         return;
     if (t + span < 0.0f)
         return;
-    if (!ix_sphere_polygon(&touch, &ray->local_start, &ray->local_dir, ray->_unk18, 3, verts, &t2))
-        return;
-    if (hit->num_hits != 0 && !(t2 < hit->t)) {
+    {
+        float t2;                     // in this block, so it takes ray's dead slot (D22004)
+
+        if (!ix_sphere_polygon(&touch, &ray->local_start, &ray->local_dir, ray->_unk18, 3, verts, &t2))
+            return;
+        if (hit->num_hits != 0 && !(t2 < hit->t)) {
+            hit->num_hits++;
+            return;
+        }
+        hit->t = t2;
+        hit->pos = touch;
+        hit->face = lobj_index;
+        hit->_unk20 = 1;
+        hit->face_ptr = face;
         hit->num_hits++;
-        return;
     }
-    hit->t = t2;
-    hit->pos = touch;
-    hit->face = lobj_index;
-    hit->_unk20 = 1;
-    hit->face_ptr = face;
-    hit->num_hits++;
 }
 
 // 0x4aeef0  Confidence: unsure (the shape of the walk: an explicit stack of the straddled nodes and their

@@ -57,7 +57,9 @@ struct pcx_header {
 int m2v_quantizer_scale;      // 0x2f53aec  (name ours; written by m2v_read_slice_quantizer_scale only)
 
 // 0x5549c0  Confidence: likely (each branch has its own next_start_code call except the picture coding
-// extension without composite display, which shares the sequence extension's: tail merging).
+// extension without composite display, which shares the sequence extension's: tail merging). D20900: a
+// next_start_code call in each arm of the composite display test (distance 19 -> 11; 8966 now merges the
+// sequence extension's tail into that test's instead of the display extension's into the sequence one's).
 // MPEG-2 extension_and_user_data: skips extension (0x1b5) and user data (0x1b2) start codes; 1 when
 // the next start code is something else, 0 for an extension id other than 1, 2 or 8.
 int m2v_skip_extension_and_user_data(m2v_bitstream *bs)
@@ -91,9 +93,11 @@ int m2v_skip_extension_and_user_data(m2v_bitstream *bs)
                 bs->get_bits(16);
                 bs->get_bits(2);
                 bs->get_bits(12);
-                if (bs->get_bits(1))
+                if (bs->get_bits(1)) {
                     bs->get_bits(20);
-                bs->next_start_code();
+                    bs->next_start_code();
+                } else
+                    bs->next_start_code();
                 break;
             default:
                 return 0;

@@ -188,10 +188,12 @@ void dialogue_line::init(const char *text, int width, int kind, conversation_slo
         height = gr_get_font_height(-1);
 }
 
-// 0x4d6b80  Confidence: likely (m-1020 w11, D12008: kind 0 apart, then a switch for the colour of kinds 1 / 2 and
-// one loop; the line y hoisted; the frame and dispatch now as the binary, the y sums still associate differently;
-// kinds 1 and 2 share the drawing loop after their colour, tail-merged here
-// from two cases; the line loop runs on a down-counter).
+// 0x4d6b80  Confidence: exact (D21004; m-1020 w11, D12008: kind 0 apart, then a switch for the colour of kinds
+// 1 / 2 and one loop; the line y hoisted; kinds 1 and 2 share the drawing loop after their colour, tail-merged
+// here from two cases; the line loop runs on a down-counter).
+// D21004: both line y's as `i * font_h + top + scroll` (8966 strength-reduces the product and then gives the
+// binary's (y + scroll) + top; written `+ scroll + top` it associates the other way; no separate y local), and
+// x = 0 before line_y (the binary's xor after the line_y add).
 void dialogue_line::draw(int scroll)
 {
     char wrapped[DIALOGUE_MAX_WRAP][100];
@@ -213,14 +215,13 @@ void dialogue_line::draw(int scroll)
     if (kind == 0) {
         // spoken text: the parts in quotes blue, the rest green; a quote can go on over the wrap
         bool in_quote = false;
-        int y = 0;
         for (i = 0; i < n; i++) {
             bool quoted = in_quote || wrapped[i][0] == '"';
             int segs;
             int x;
             in_quote = split_quotes(&segs, seg_lengths, seg_starts, wrapped[i], 32, in_quote);
-            int line_y = y + scroll + top;
             x = 0;
+            int line_y = i * font_h + top + scroll;
             for (j = 0; j < segs; j++) {
                 int w, h;
                 strncpy(segment, wrapped[i] + seg_starts[j], seg_lengths[j]);
@@ -234,7 +235,6 @@ void dialogue_line::draw(int scroll)
                 x += w;
                 quoted = !quoted;
             }
-            y += font_h;
         }
     } else {
         switch (kind) {
@@ -248,7 +248,7 @@ void dialogue_line::draw(int scroll)
             return;
         }
         for (i = 0; i < n; i++)
-            gr_string(0, i * font_h + scroll + top, wrapped[i], -1, gr_bitmap_wrap_mode);
+            gr_string(0, i * font_h + top + scroll, wrapped[i], -1, gr_bitmap_wrap_mode);
     }
 }
 
@@ -270,17 +270,20 @@ void dialogue_topic_entry::init(conversation_topic *topic, int width, int state)
         height = gr_get_font_height(-1);
 }
 
-// 0x4d6e70  Confidence: likely (m-1020 w11, D12008: the colour as an if / else of two calls; jump table 0x4d70d8
-// for states 3-6; the per-case locals). The "more" and
+// 0x4d6e70  Confidence: exact (D21003; m-1020 w11, D12008: the colour as an if / else of two calls; jump table
+// 0x4d70d8 for states 3-6; the per-case locals). The "more" and
 // "end" buttons test the mouse against the topic box's top left and the text size, and the bottom test
 // compares the mouse x with y + h (game bug: `mx < box.y + h`, NOTES).
+// D21003: the line y as `i * font_h + top + scroll` (8966 strength-reduces the product into the binary's
+// y register and keeps the binary's (y + top) + scroll; a separate y += font_h associates differently) and
+// the wrap width copied into an int local before gr_split_str (its operand registers).
 void dialogue_topic_entry::draw(int scroll)
 {
     char wrapped[DIALOGUE_MAX_WRAP][100];
     int lengths[DIALOGUE_MAX_WRAP];
     int offsets[DIALOGUE_MAX_WRAP];
     int font_h = gr_get_font_height(-1);
-    int i, n, y;
+    int i, n;
 
     switch (state) {
     case 3:
@@ -289,7 +292,8 @@ void dialogue_topic_entry::draw(int scroll)
         if (!topic)
             return;
         s = localize_topic_name(topic->text);
-        n = gr_split_str(lengths, offsets, s, width, DIALOGUE_MAX_WRAP, 0, -1);
+        int wd = width;
+        n = gr_split_str(lengths, offsets, s, wd, DIALOGUE_MAX_WRAP, 0, -1);
         for (i = 0; i < n; i++) {
             strncpy(wrapped[i], s + offsets[i], lengths[i]);
             wrapped[i][lengths[i]] = 0;
@@ -298,8 +302,8 @@ void dialogue_topic_entry::draw(int scroll)
             gr_set_color_ptr(&dialogue_color_gray);
         else
             gr_set_color_ptr(&dialogue_color_yellow);
-        for (i = 0, y = 0; i < n; i++, y += font_h)
-            gr_string(0, y + top + scroll, wrapped[i], -1, gr_bitmap_wrap_mode);
+        for (i = 0; i < n; i++)
+            gr_string(0, i * font_h + top + scroll, wrapped[i], -1, gr_bitmap_wrap_mode);
         break;
     }
     case 5: {

@@ -637,8 +637,9 @@ ui_listbox_entry *ui_listbox::find_by_text(const char *text)
     return NULL;
 }
 
-// 0x52da40  Confidence: likely (store order of the fields; the goto that skips the append after a
-// sorted insert). With max_content_h, the oldest entries are dropped while the content is too high.
+// 0x52da40  Confidence: exact (VC6 byte match, D21700: font stored before indent; the trim loop as a
+// do / while with the test in the body; the sorted insert inside the search loop). With max_content_h, the
+// oldest entries are dropped while the content is too high.
 ui_listbox_entry *ui_listbox::add_entry(const char *text, int font, int indent, int wrap_indent,
                                         int line_spacing)
 {
@@ -651,8 +652,8 @@ ui_listbox_entry *ui_listbox::add_entry(const char *text, int font, int indent, 
         e = new ui_listbox_text_entry;
 
     e->set_text(text);
-    e->indent = indent;
     e->font = font;
+    e->indent = indent;
     e->wrap_indent = wrap_indent;
     e->colors = &ui_listbox_entry_colors.g0.c0;
     e->line_spacing = line_spacing;
@@ -665,27 +666,30 @@ ui_listbox_entry *ui_listbox::add_entry(const char *text, int font, int indent, 
     } else {
         if (max_content_h > 0) {
             content_height = e->height + entry_spacing + content_height;
-            while (content_height > max_content_h) {
-                content_height = content_height - first->height - entry_spacing;
-                remove_entry(first);
-                first = entries.next;
-                if (first == &entries)
+            // D21700: a do / while keeps the height test at the loop top (a while is rotated).
+            do {
+                if (content_height > max_content_h) {
+                    content_height = content_height - first->height - entry_spacing;
+                    remove_entry(first);
+                    first = entries.next;
+                } else
                     break;
-            }
+            } while (first != &entries);
         }
         if (flags & UI_LISTBOX_SORTED) {
             ui_listbox_entry *p;
             for (p = entries.next; p != &entries; p = p->next) {
-                if (_stricmp(e->text, p->text) < 0)
+                if (_stricmp(e->text, p->text) < 0) {
+                    if (p) {   // D21700: the insert inside the loop
+                        ui_listbox_entry *prev = p->prev;
+                        p->prev = e;
+                        e->prev = prev;
+                        prev->next = e;
+                        e->next = p;
+                        goto inserted;
+                    }
                     break;
-            }
-            if (p != &entries && p) {
-                ui_listbox_entry *prev = p->prev;
-                p->prev = e;
-                e->prev = prev;
-                prev->next = e;
-                e->next = p;
-                goto inserted;
+                }
             }
         }
     }
@@ -1237,7 +1241,7 @@ int ui_listbox::snap_scroll_top(int y)
     return result;
 }
 
-// 0x52ebe0  Confidence: likely (loop shapes, the argument slot reused for the result). The bottom of
+// 0x52ebe0  Confidence: likely (register choice left, D21701; the argument slot reused for the result). The bottom of
 // the last line (or entry) that ends at or above y + the view height, minus the view height. F6210:
 // at the very end of the content the search stops at the ring head and reads its uninitialised
 // num_lines / y.
@@ -1255,34 +1259,37 @@ int ui_listbox::snap_scroll_bottom(int y)
             break;
     }
 
+    // D21701: the binary's block shape (the by-entry return of the first entry shares the final tail; the
+    // font height before the view height; the line loop as a do / while with the bottom test first).
     if (e == first) {
-        if (flags & UI_LISTBOX_BY_ENTRY)
-            return e->height + e->y - get_view_height();
-        return e->y + gr_get_font_height(e->font) - get_view_height();
-    }
-    if (flags & UI_LISTBOX_BY_ENTRY) {
-        e = e->prev;
-        return e->height + e->y - get_view_height();
-    }
-
-    int fh = gr_get_font_height(e->font);
-    int i = 0;
-    if (e->num_lines > 0) {
-        int line_h = e->line_spacing + fh;
-        int line_bottom = e->y + fh;
-        while (line_bottom <= bottom) {
-            y = line_bottom;
-            i++;
-            line_bottom += line_h;
-            if (i >= e->num_lines)
-                break;
+        if (!(flags & UI_LISTBOX_BY_ENTRY)) {
+            int fh = gr_get_font_height(e->font);
+            return e->y + fh - get_view_height();
         }
+    } else {
+        if (flags & UI_LISTBOX_BY_ENTRY) {
+            e = e->prev;
+            return e->height + e->y - get_view_height();
+        }
+        int fh = gr_get_font_height(e->font);
+        int i = 0;
+        if (e->num_lines > 0) {
+            int line_h = e->line_spacing + fh;
+            int line_bottom = e->y + fh;
+            do {
+                if (line_bottom > bottom)
+                    break;
+                y = line_bottom;
+                i++;
+                line_bottom += line_h;
+            } while (i < e->num_lines);
+        }
+        if (i == 0)
+            e = e->prev;
+        else
+            return y - get_view_height();
     }
-    if (i == 0) {
-        e = e->prev;
-        return e->height + e->y - get_view_height();
-    }
-    return y - get_view_height();
+    return e->height + e->y - get_view_height();
 }
 
 // 0x52ed00  Confidence: exact. No caller; the second argument is not read; no scroll bar update.

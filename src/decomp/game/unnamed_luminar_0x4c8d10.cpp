@@ -156,7 +156,10 @@ void luminar_free_bitmap()
 
 // 0x4c9000  Confidence: likely (D15802: the vector operators as the binary's inline budget shows them, its
 // copy constructor and (x, y, z) constructor called out of line from ray.start on; the landing in an if block;
-// left: ray.start's loads go through EDI, the binary reads them off ESI). The
+// D21905: the thrown part inside `if (h) { ... }` with `landed = false;` before the ray's declaration (the
+// constructor's store lands where the binary has it, ray.start is read off ESI), the miss step through a
+// pointer to h->pos and fwd.y cleared before up's stores give the binary's bytes; left: the velocity.y
+// product loads reported_frametime first, the binary luminar_throw_gravity, a wrong-target difference only). The
 // carried character follows the grab bone (pickup tag height below it), and its velocity is measured for
 // the throw; a thrown one flies (horizontal damping 0.75 per second, gravity 9.8 per second per second)
 // until the level ray hits (any flag) or it leaves the navigable area (it is put on the nearest navigable
@@ -182,55 +185,56 @@ void luminar_frame_hook(Character *c)
         t->pos = p;
     }
     h = living_from_handle(luminar_thrown_handle);
-    if (h == NULL)
-        return;
-    landed = false;
-    lobj_ray ray;
-    lobj_hit hit;
-    ray.start = h->pos;
-    ray.dir = luminar_throw_velocity * reported_frametime;
-    ray._unk18 = 0.01f;
-    ray.flags = 0;
-    ray.require_flags = 0;
-    ray.exclude_flags = 0;
-    lobj_raycast_all(&ray, &hit);
-    if (hit.num_hits) {
-        vector3 step = ray.dir * hit.t;
-        h->pos = step + h->pos;
-        h->pos.y += 0.5f;
-        landed = true;
-    } else {
-        h->pos.x += ray.dir.x;
-        h->pos.y += ray.dir.y;
-        h->pos.z += ray.dir.z;
-    }
-    if (!pf_point_is_navigable(&h->pos, h->info->size, h->layer)) {
-        pf_find_nearest_navigable_point(&h->pos, h->info->size, h->layer);
-        landed = true;
-    }
-    damp = 1.0f - reported_frametime * 0.75f;
-    luminar_throw_velocity.x *= damp;
-    luminar_throw_velocity.z *= damp;
-    luminar_throw_velocity.y = luminar_throw_velocity.y - luminar_throw_gravity * reported_frametime;
-    luminar_throw_gravity = reported_frametime * 9.8f + luminar_throw_gravity;
-    if (landed) {
-        h->flags &= ~CF_LUMINAR_HELD;
-        h->ai.go_idle();
-        vector3 fwd;
-        fwd = h->orient.fvec;
-        vector3 up;
-        up.x = 0.0f;
-        up.y = 1.0f;
-        up.z = 0.0f;
-        fwd.y = 0.0f;
-        h->orient.set_from_forward_up(fwd, up);
-        h->find_ground();
-        luminar_thrown_handle = -1;
-        move_info *m = h->find_move(8, 1);
-        if (m)
-            h->set_flag_2_4(h->play_move((int)m, 1.0f, false, false, false));
-        else
-            h->clear_flag_2_4();
+    if (h) {
+        landed = false;
+        lobj_ray ray;
+        lobj_hit hit;
+        ray.start = h->pos;
+        ray.dir = luminar_throw_velocity * reported_frametime;
+        ray._unk18 = 0.01f;
+        ray.flags = 0;
+        ray.require_flags = 0;
+        ray.exclude_flags = 0;
+        lobj_raycast_all(&ray, &hit);
+        if (hit.num_hits) {
+            vector3 step = ray.dir * hit.t;
+            h->pos = step + h->pos;
+            h->pos.y += 0.5f;
+            landed = true;
+        } else {
+            vector3 *hp = &h->pos;
+            hp->x += ray.dir.x;
+            hp->y += ray.dir.y;
+            hp->z += ray.dir.z;
+        }
+        if (!pf_point_is_navigable(&h->pos, h->info->size, h->layer)) {
+            pf_find_nearest_navigable_point(&h->pos, h->info->size, h->layer);
+            landed = true;
+        }
+        damp = 1.0f - reported_frametime * 0.75f;
+        luminar_throw_velocity.x *= damp;
+        luminar_throw_velocity.z *= damp;
+        luminar_throw_velocity.y = luminar_throw_velocity.y - luminar_throw_gravity * reported_frametime;
+        luminar_throw_gravity = reported_frametime * 9.8f + luminar_throw_gravity;
+        if (landed) {
+            h->flags &= ~CF_LUMINAR_HELD;
+            h->ai.go_idle();
+            vector3 fwd;
+            fwd = h->orient.fvec;
+            vector3 up;
+            fwd.y = 0.0f;
+            up.x = 0.0f;
+            up.y = 1.0f;
+            up.z = 0.0f;
+            h->orient.set_from_forward_up(fwd, up);
+            h->find_ground();
+            luminar_thrown_handle = -1;
+            move_info *m = h->find_move(8, 1);
+            if (m)
+                h->set_flag_2_4(h->play_move((int)m, 1.0f, false, false, false));
+            else
+                h->clear_flag_2_4();
+        }
     }
 }
 

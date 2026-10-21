@@ -1552,7 +1552,9 @@ void inventory_destroy_selected_item()
     }
 }
 
-// 0x417220  Confidence: likely (local order; jump table 0x417478 on ItemType slot 0..9). Mouse mode 4: the
+// 0x417220  Confidence: likely (local order; jump table 0x417478 on ItemType slot 0..9; D20804: case 6 / 8 jumps
+// to case 7's "27" block, as the binary's shared tail, and the default's `n = 0` (n is still 0 there) gives n
+// ESI and entry EDI as the binary; left: that store, which the binary does not have). Mouse mode 4: the
 // dragged list item is equipped when it is released over one of its hot spots (rings: either ring slot).
 // Items the character cannot use, and a shield while a two-handed weapon (slot 9) is held, have no target.
 void inventory_drag_to_equip()
@@ -1610,21 +1612,24 @@ void inventory_drag_to_equip()
         case 8:
             slots[0] = 7;
             if (status_character->equipment[7] && INV_EQUIP(status_character, 7)->type->slot == 8)
-                buttons[0] = 27;
-            else
-                buttons[0] = 18;
+                goto shared_27;
+            buttons[0] = 18;
             n = 1;
             break;
         case 7:
             slots[0] = 8;
-            if (status_character->equipment[7] && INV_EQUIP(status_character, 7)->type->slot == 8)
+            if (status_character->equipment[7] && INV_EQUIP(status_character, 7)->type->slot == 8) {
+            shared_27:
                 buttons[0] = 27;
-            else
+                n = 1;
+            } else {
                 buttons[0] = 19;
-            n = 1;
+                n = 1;
+            }
             break;
         default:
             inventory_mouse_mode = 0;
+            n = 0;
             break;
         }
         for (i = 0; i < n; i++) {

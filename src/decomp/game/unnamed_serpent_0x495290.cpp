@@ -378,6 +378,8 @@ void serpent_unload()
 // 0x495d00  Confidence: likely (the blend record through loco_blend_set). character_boss_anim_remap_in:
 // the rider's stand / walk / run entries are replaced by the mount's (stand 3 = ready when the rider is
 // in combat stance); remap_out copies the rider's own loco anims back into the remapped slots (D6400).
+// D20903: the weight stored in each branch, both arms of the ready test too (tiger_anim_remap_in's
+// D19401): EBP zero, ready in c's slot, the unfolded 3 / 0 stores; left: the three loop registers rotated.
 void serpent_anim_remap_in(Character *c, int *anims)
 {
     loco_blend_set *set = (loco_blend_set *)anims;
@@ -392,18 +394,20 @@ void serpent_anim_remap_in(Character *c, int *anims)
     for (int i = 0; i < set->count; i++) {
         int a = set->anim[i];
         if (a == mount->anim_stand) {
-            if (ready)
+            if (ready) {
                 serpent.remap_slot[i] = 3;
-            else
+                serpent.remap_weight[i] = set->weight[i];
+            } else {
                 serpent.remap_slot[i] = 0;
+                serpent.remap_weight[i] = set->weight[i];
+            }
         } else if (a == mount->anim_walk) {
             serpent.remap_slot[i] = 4;
+            serpent.remap_weight[i] = set->weight[i];
         } else if (a == mount->anim_run) {
             serpent.remap_slot[i] = 5;
-        } else {
-            continue;
+            serpent.remap_weight[i] = set->weight[i];
         }
-        serpent.remap_weight[i] = set->weight[i];
     }
 }
 

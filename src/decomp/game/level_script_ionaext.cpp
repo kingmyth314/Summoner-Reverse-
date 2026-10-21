@@ -60,7 +60,8 @@ void ls_ionaext_init()
         script_npc_set_disabled("Sister Qelah", true);
 }
 
-// 0x4f7270  Confidence: likely (the binary materialises the negated bool with sete; 8966 folds it). Rosalind is looked for only on a frame on which the intro did not start.
+// 0x4f7270  Confidence: exact (D21900: the negated bool stored in a local and tested through a pointer to it gives the
+// binary's sete al / test al, al). Rosalind is looked for only on a frame on which the intro did not start.
 // "GoHome" is cleared outside conversations and has no other effect (see NOTES).
 void ls_ionaext_frame()
 {
@@ -68,7 +69,9 @@ void ls_ionaext_frame()
     lsf_iona_ext_flag_chick_cam();
     lsf_iona_ext_flag_wood_cam();
     ls_ionaext_fade_place_party_frame();
-    if (!lsf_iona_ext_played_intro())
+    bool not_started = !lsf_iona_ext_played_intro();
+    bool *ns = &not_started;
+    if (*ns)
         lsf_iona_ext_found_rosalind();
     if (!(game_flags & GF_CONVERSATION) && ls_ionaext_go_home)
         ls_ionaext_go_home = false;

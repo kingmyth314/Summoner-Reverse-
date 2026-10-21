@@ -5103,7 +5103,9 @@ Character *living_entity_create(int type, int info_index, const vector3 *pos, co
 // 0x461dc0  Confidence: likely (the frame is 0x134 bytes, so the quoted text is at most 240 bytes:
 // unsure). One speech bubble per character: its own record, else a free one, else the one with the
 // least time left (all are below 100 s). The text is quoted, split to the line width of the resolution
-// (5 lines at most) and rejoined with newlines up to 255 characters.
+// (5 lines at most) and rejoined with newlines up to 255 characters. D21601: the total is added between
+// strcat and strncat (the binary pushes lens[i] first); left: the length test in ECX (binary EAX) and the
+// lens[i] reload after strncat.
 void Character::say(const char *text, float seconds)
 {
     int lens[5];
@@ -5152,8 +5154,8 @@ void Character::say(const char *text, float seconds)
         if (lens[i] + total + 1 > 0xff)
             break;
         strcat(r->text, "\n");
+        total += lens[i] + 1;   // m-1021d w9 D21601: between the two calls (25 -> 15)
         strncat(r->text, quoted + offsets[i], lens[i]);
-        total += lens[i] + 1;
     }
 }
 

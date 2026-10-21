@@ -123,7 +123,10 @@ void decal_record::set_v_axis(float scale)
     v_scale = scale;
 }
 
-// 0x4bc320  Confidence: likely (the age-ring insertion loop). Takes a free record (with none free, the
+// 0x4bc320  Confidence: likely (the age-ring insertion loop; D22001: the head removal written out without the
+// head test, d being decal_free, and `lit != 0` for the bit (the binary's setne); together they give the
+// binary's removal and bitfield code, neither alone; left: &d->next in EDI, the index / node registers, the
+// lifetime insert, the age-ring loop's loads). Takes a free record (with none free, the
 // oldest one by the age ring), clips it, puts it on the active ring and its node into the age ring before
 // the first decal with more time left (unlimited ones count as 0x7fffffff). Returns the record index.
 int decal_place(int bitmap, const vector3 *pos, const vector3 *u, const vector3 *v, int ms, bool lit,
@@ -141,13 +144,25 @@ int decal_place(int bitmap, const vector3 *pos, const vector3 *u, const vector3 
         decal_recycle(&decal_records[decal_age - decal_nodes], decal_age);
         d = decal_free;
     }
-    plist_remove(decal_free, d);
+    do {                              // plist_remove(decal_free, d) with d == decal_free (D22001)
+        if (d->next == d) {
+            d->next = NULL;
+            d->prev = NULL;
+            decal_free = NULL;
+            break;
+        }
+        decal_free = d->next;
+        d->prev->next = d->next;
+        d->next->prev = d->prev;
+        d->next = NULL;
+        d->prev = NULL;
+    } while (0);
     index = d - decal_records;
     node = &decal_nodes[index];
     d->timer.SetTimeout(0);
     d->bitmap = bitmap;
     d->lifetime = ms;
-    d->lit = lit;
+    d->lit = lit != 0;
     d->in_use = 1;
     d->colour = colour;
     d->depth = depth;

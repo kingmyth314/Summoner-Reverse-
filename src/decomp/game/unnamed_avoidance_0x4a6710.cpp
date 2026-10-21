@@ -73,7 +73,9 @@ int avoidance_prohibit = 1;                               // 0x59ce94
 static inline float min_f(float a, float b) { return a < b ? a : b; }
 static inline float max_f(float a, float b) { return a > b ? a : b; }
 
-// 0x4a6810  Confidence: likely (the empty buffer gets the argument through strcat, as the code does).
+// 0x4a6810  Confidence: exact (D21203: one `checking_status_for_command = 0;` after the keyword chain; 8966 copies it
+// into every branch and no longer threads the help branch past the doing_help test). The empty buffer gets the
+// argument through strcat, as the code does.
 void cmd_avoidance()
 {
     char buf[512];
@@ -91,7 +93,6 @@ void cmd_avoidance()
                     avoidance_enabled = 0;
                     print_to_console("Avoidance areas disabled", 0);
                 }
-                checking_status_for_command = 0;
             } else if (!_stricmp(buf, "no_remove")) {
                 if (!avoidance_no_remove) {
                     avoidance_no_remove = 1;
@@ -100,32 +101,26 @@ void cmd_avoidance()
                     avoidance_no_remove = 0;
                     print_to_console("Avoidance areas will be removed", 0);
                 }
-                checking_status_for_command = 0;
             } else if (!_stricmp(buf, "reset")) {
                 avoid_clear_segment_flags();
                 avoid_reset();
                 print_to_console("Avoidance areas have been reset", 0);
-                checking_status_for_command = 0;
             } else if (!_stricmp(buf, "rect")) {
                 avoidance_area_type = 1;
                 print_to_console("Avoidance areas type rectangle selected", 0);
-                checking_status_for_command = 0;
             } else if (!_stricmp(buf, "circle")) {
                 avoidance_area_type = 0;
                 print_to_console("Avoidance areas type circle selected", 0);
-                checking_status_for_command = 0;
             } else if (!_stricmp(buf, "prohibit")) {
                 avoidance_prohibit = 1;
                 print_to_console("Avoidance areas type prohibite selected", 0);
-                checking_status_for_command = 0;
             } else if (!_stricmp(buf, "avoid")) {
                 avoidance_prohibit = 0;
                 print_to_console("Avoidance areas parameter not supported", 0);
-                checking_status_for_command = 0;
             } else {
                 doing_help_for_comand = 1;
-                checking_status_for_command = 0;
             }
+            checking_status_for_command = 0;
         } else {
             checking_status_for_command = 1;
         }
@@ -975,7 +970,10 @@ void avoid_seglist_ensure_corner_offset(avoid_seglist *sl, int corner)
     avoid_seglist_calc_shared_corner_offset(sl, sl, s1, s2, corner, corner);
 }
 
-// 0x4a8390  Confidence: likely (the visible-count bookkeeping). Links every corner of a segment list:
+// 0x4a8390  Confidence: likely (the visible-count bookkeeping; D21204: p through vec2_set, the door offset
+// through one vector2 d (frame 0x24) added to node->pos again, and the other list's corner count in a local
+// (the count-down loop): distance 131 -> 58; left: the binary keeps p.y on the FPU across the door test and
+// adds p.x from memory, the o loop's end test, the exits' register for saved_size). Links every corner of a segment list:
 // its two neighbours along the outline, the visible corners of the other lists of the size class and
 // layer, then the visible graph nodes, up to 20 links (the corner's link block).
 void avoid_do_poly_seg_list_links(avoid_seglist *sl)
@@ -997,11 +995,11 @@ void avoid_do_poly_seg_list_links(avoid_seglist *sl)
             pf_cur_size = saved_size;
             return;
         }
-        p.x = node->pos->x;
-        p.y = node->pos->y;
+        vec2_set(p, node->pos->x, node->pos->y);
         if (sl->flags & AVOID_SEGLIST_DOOR) {
-            p.x = sl->corners[k].offset.x * 0.03f + p.x;
-            p.y = sl->corners[k].offset.y * 0.03f + p.y;
+            vector2 d = 0.03f * sl->corners[k].offset;
+            p.x = d.x + node->pos->x;
+            p.y = d.y + node->pos->y;
         }
         visible = pf_mark_nodes_visible_from_point(&p, layer, 7);
         n = 0;
@@ -1038,7 +1036,8 @@ void avoid_do_poly_seg_list_links(avoid_seglist *sl)
             if (!(o->flags & AVOID_SEGLIST_USED) || (o->flags & AVOID_SEGLIST_OFF) || o->layer != layer
                 || o->size != pf_cur_size)
                 continue;
-            for (i = 0; i < o->num_corners; i++) {
+            int nc = o->num_corners;
+            for (i = 0; i < nc; i++) {
                 c = &o->corners[i];
                 if ((c->node.flags & PFN_VISIBLE) && n < 20) {
                     node->links[n++] = &c->node;

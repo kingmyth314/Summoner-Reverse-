@@ -172,20 +172,20 @@ void ui_gadget::find_nearest_right(int x, int y)
         next_sibling->find_nearest_right(x, y);
 }
 
-// 0x52c330  vtable slot 1. Confidence: likely (differs under cl 12.00.8966, match23; was exact). The callback first; unhandled events go to the parent
+// 0x52c330  vtable slot 1. Confidence: exact (D21001). The callback first; unhandled events go to the parent
 // container, else to the window.
+// D21001: no return after the handled test (as ui_window::send_event, D15400): when the callback returns
+// true the function falls off the end with the callback's AL, which is the binary's jump to the window call's
+// epilogue. VC6 warns C4715; same behaviour (the caller reads AL = the nonzero result).
 bool ui_gadget::send_event(int event, int value)
 {
     if (value == UI_USE_ID)
         value = id;
-    if (callback) {
-        bool handled = callback(event, value);
-        if (handled)
-            return handled;
+    if (!callback || !callback(event, value)) {
+        if (parent)
+            return parent->send_event(event, value);
+        return window->send_event(event, value);
     }
-    if (parent)
-        return parent->send_event(event, value);
-    return window->send_event(event, value);
 }
 
 // 0x52c390  vtable slot 5. Confidence: exact. LOGIC FIX (D10700): each child gets the previous child's
