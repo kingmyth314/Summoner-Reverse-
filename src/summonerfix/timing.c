@@ -114,7 +114,16 @@ static void CutsceneTimerFixInstall(void)
 
 void TimingFixInstall(void)
 {
-    CutsceneTimerFixInstall();
+    // A fixed build (link-build --config fixed) that fixes these in its source lists them in <exe>.fixes; patching
+    // its changed code would land on different instructions (rebuilt.c, RebuiltFixInSource).
+    if (RebuiltFixInSource("CutsceneTimer"))
+        Log("cutscene timer: fixed in this exe's source (FIXED_BUILD), timeGetTime not rebased");
+    else
+        CutsceneTimerFixInstall();
+    if (RebuiltFixInSource("FrameLimiter")) {
+        Log("frame limiter: fixed in this exe's source (FIXED_BUILD), not patched");
+        return;
+    }
     g_clock = (PFN_FrameClockRead)(UINT_PTR)SumVa(VA_FRAMECLOCKREAD);
 
     // High-resolution waitable timer (Windows 10 1803+); otherwise fall back to Sleep.

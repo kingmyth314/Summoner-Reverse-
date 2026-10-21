@@ -27,6 +27,10 @@ CRITICAL_SECTION timer_lock;                         // 0x2cbffb8
 __int64 timer_qpc_base;                              // 0x2cbffd0
 bool timer_initialized;                              // 0x2cbffd8
 unsigned int timer_qpc_freq_low32;                   // 0x2cbffdc the low dword of the QPC frequency
+#ifdef FIXED_BUILD
+// part of FIXED_BUILD G2: the counter and the frequency are divided by 2^timer_qpc_shift (timer_init).
+static int timer_qpc_shift;
+#endif
 
 // 0x532820  Confidence: exact. atexit handler of timer_init.
 void timer_close()
@@ -48,9 +52,22 @@ void timer_init()
     if (timer_initialized)
         return;
     QueryPerformanceFrequency(&freq);
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: G2 QpcFrequency. A frequency of 2^32 Hz or more lost its high dword (the clock then ran many
+    // times too fast). Scale the counter and the frequency down by the same power of two until it fits.
+    timer_qpc_shift = 0;
+    while ((freq.QuadPart >> timer_qpc_shift) > 0xffffffffi64)
+        timer_qpc_shift++;
+    timer_qpc_freq_low32 = (unsigned int)(freq.QuadPart >> timer_qpc_shift);
+    QueryPerformanceCounter((LARGE_INTEGER *)&timer_qpc_base);
+    timer_qpc_base >>= timer_qpc_shift;
+    QueryPerformanceCounter((LARGE_INTEGER *)&timer_qpc_last);
+    timer_qpc_last >>= timer_qpc_shift;
+#else
     timer_qpc_freq_low32 = freq.LowPart;
     QueryPerformanceCounter((LARGE_INTEGER *)&timer_qpc_base);
     QueryPerformanceCounter((LARGE_INTEGER *)&timer_qpc_last);
+#endif
     InitializeCriticalSection(&timer_lock);
     tsc = read_tsc();
     Sleep(250);
@@ -79,6 +96,10 @@ int timer_get(int scale)
         return 0;
     EnterCriticalSection(&timer_lock);
     QueryPerformanceCounter(&reading);
+#ifdef FIXED_BUILD
+    // part of FIXED_BUILD G2: the same scale as the frequency (timer_init).
+    reading.QuadPart >>= timer_qpc_shift;
+#endif
     if (reading.QuadPart < timer_qpc_last) {
         timer_qpc_base = reading.QuadPart;
         elapsed = reading.QuadPart;

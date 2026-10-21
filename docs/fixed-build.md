@@ -5,12 +5,36 @@ nav_order: 6.475
 
 # Fixed build: the source fixes
 
-**Status (2026-10-21):** 43 of the game's bugs are fixed in the source under `FIXED_BUILD` (the fixed build of
-[Fixed and experimental builds](builds.md)): every gameplay fix SummonerFix's `bugfix.c` makes, plus C317. Each one
-is compiled and reviewed; **none has run in game yet.** Windows Smart App Control began blocking the SummonerFix DLL
-on this PC the same morning, and every in-game test goes through SummonerFix's agent mode. The tests to run are the
-reproductions in [Bugs in the original game](sum-exe/game-bugs.md); the workers' notes with the steps per fix are in
-`src/decomp/NOTES-fixed-2026-10-21.md`.
+**Status (2026-10-21):** 48 changes in the source under `FIXED_BUILD` (the fixed build of
+[Fixed and experimental builds](builds.md)):
+- every gameplay fix SummonerFix's `bugfix.c` makes, plus C317 (43);
+- the timing and start-up layers a modern PC needs (G1 the 2x speed, G2 the QPC frequency, G3 the uptime cutscene
+  timer, C1 the no-sound crash) and a 1024x768 default without the launcher (5, see "Modern-PC layers" below).
+
+Each one is compiled and reviewed; **none has run in game yet.** Windows Smart App Control began blocking the
+SummonerFix DLL on this PC the same morning, and every in-game test goes through SummonerFix's agent mode. The tests
+to run are the reproductions in [Bugs in the original game](sum-exe/game-bugs.md); the workers' notes with the steps
+per fix are in `src/decomp/NOTES-fixed-2026-10-21.md`.
+
+## Modern-PC layers
+
+SummonerFix also makes the game run on a current PC at all, with patches and hooks that are not in `bugfix.c`.
+Where each one stands in the fixed build:
+
+| SummonerFix layer | In the fixed build |
+|---|---|
+| 2x game speed (frame limiter) | **in the source** (G1): `FrameDone` waits until one minimum frame after the frame's start and starts the next frame there; SummonerFix's `FrameSleep` patch stands down (`FrameLimiter` in `Sum-fixed.fixes`) |
+| QPC frequency above 4 GHz | **in the source** (G2): `timer_init` scales the counter and frequency down by the same power of two |
+| Cutscenes skip after about 24.9 days of uptime | **in the source** (G3): the elapsed time is an unsigned difference in all three readers; SummonerFix's `timeGetTime` rebase stands down (`CutsceneTimer`) |
+| Crash on Start New Game without sound | **in the source** (C1): the stream is only touched once `ds_init` finished; the guard patch stands down (`NoSoundGuard`) |
+| No launcher needed | the game starts without the launcher's registry values (renderer and install path have defaults); **in the source**: 1024x768 by default instead of 640x480 |
+| OpenGL renderer, windowed mode, texture-size cap | `REBUILT_OPENGL`, part of the `fixed` configuration |
+| No CD | `SHIPPED_NOCD`, part of the `fixed` configuration |
+| Fullscreen output and scaling, mouse mapping, 3D aspect, widescreen, the strip right of centred menus | not yet: SummonerFix's hooks still apply to the fixed build (they hook Windows and OpenGL calls, not game code) |
+| Brightness under OpenGL, Print Screen above 1024 rows, black save thumbnails, key bindings | not yet: as above |
+
+The rest is a larger piece of work: a native display layer for the fixed build (an OpenGL path that scales and
+centres the 1024x768 picture itself) would replace most of the open rows at once.
 
 ## How a fix is written
 
@@ -39,19 +63,23 @@ reproductions in [Bugs in the original game](sum-exe/game-bugs.md); the workers'
 
 | Bug | Fix | `[Fixes]` key | Function | File |
 |---|---|---|---|---|
+| C1 | No crash on Start New Game without an audio device | `NoSoundGuard` | `ds_channel_release (0x55c5b0)` | `vsdk/unnamed_ds_0x55bf90.cpp` |
 | C2 | No crash when 3D sound fails | `PrimarySoundBuffer` | `ds_init (0x55c1a0)` | `vsdk/unnamed_ds_0x55bf90.cpp` |
 | C210 | AI healer counts members once | `AiBlessCount` | `ai_group_think_caster (0x4936c0)` | `game/unnamed_ai_groups_0x492b00.cpp` |
 | C250 | No Luminar beam crash | `LuminarBeamTarget` | `ai_state::luminar_beam_hit (0x4ca3a0)` | `game/unnamed_luminar_0x4c8d10.cpp` |
 | C272 | No crash in the Masad tutorial step | `EffectSearchGuard` | `fx_disable_by_effect_name (0x48d660)` | `game/unnamed_fx_0x489c40.cpp` |
 | C310 | Game folder with a long path starts | `LongInstallPath` | `file_init (0x512d60)` | `vsdk/unnamed_vfile_0x5128b0.cpp` |
 | C317 | No Mist Elemental crash at cutscenes | `SummonStashNoMove` | `summon_stash_for_cutscene (0x448000)` | `game/characterinfo.cpp` |
+| G1 | The game runs at its real speed (no 2x) | `FrameLimiter` | `FrameDone (0x501510)` | `vsdk/frametime.cpp` |
+| G2 | Normal speed with a 4+ GHz timer | `QpcFrequency` | `timer_init (0x532840)` | `vsdk/timer.cpp` |
+| G3 | Cutscenes play after 24.9 days of Windows uptime | `CutsceneTimer` | `cutscene_sequence_update (0x436a90)` | `game/unnamed_cutscene_0x434900.cpp` |
 | G4 | Ask before overwriting a save | `SaveOverwriteQuestion` | `saveload_try_save (0x426320)` | `game/new_saveload.cpp` |
 | G6 | Zane's encounters as intended | `ZaneEncounter` | `ls_worldmap1_pick_encounter_stage4 (0x4fc4b0)` | `game/level_script_worldmap.cpp` |
 | G8 | Control stays when a summon goes | `SummonKeepsLeader` | `party_remove_player (0x4335a0)` | `game/player.cpp` |
 | G12 | Spell cooldowns from spells.tbl | `SpellRecoveryTimes` | `spells_parse_table (0x47a190)` | `game/spells.cpp` |
 | G32 | AI sees mounted Phoenix / Ghost | `MountedRiders` | `boss_species_mounted_stage (0x4a2480)` | `game/boss_ai.cpp` |
 | G40 | Gold piles keep their amount on load | `GoldPileAmount` | `savegame::read_item_objects (0x4d31e0)` | `game/level_scripts.cpp` |
-| G100 | Leech drains HP | `LeechDrain` | ` (0x45dea0)` | `game/living_entity.cpp` |
+| G100 | Leech drains HP | `LeechDrain` | `Character::get_hit_by_spell (0x45dea0)` | `game/living_entity.cpp` |
 | G170 | Warnings keep the game paused | `MessageBoxPause` | `ui_message_box_show (0x413e40)` | `game/unnamed_interface_0x411270.cpp` |
 | G210 | Summons notice enemies ahead | `DetectionCone` | `ai_group_collect_enemies (0x493ac0)` | `game/unnamed_ai_groups_0x492b00.cpp` |
 | G211 | Support AI keeps its chosen enemy | `SupportAiTarget` | `ai_group_think_style1 (0x493290)` | `game/unnamed_ai_groups_0x492b00.cpp` |
@@ -79,9 +107,10 @@ reproductions in [Bugs in the original game](sum-exe/game-bugs.md); the workers'
 | K170 | Popup rows light up under the cursor | `PopupRowOffset` | `ui_choice_popup_hit_test (0x413970)` | `game/unnamed_interface_0x411270.cpp` |
 | K191 | No edge turn right after a drag | `EdgeTurnAfterDrag` | `camera_process_input (0x434660)` | `game/unnamed_input_0x4343a0.cpp` |
 | K193 | Screenshots never overwrite each other | `ScreenshotNumbers` | `screenshot_save (0x4324f0)` | `game/unnamed_frame_0x4323e0.cpp` |
+| K300 | Spell hit sounds where spells land | `SpellHitSoundPosition` | `spell_cast_execute (0x47d348)` | `game/spells.cpp` |
+| launcher | 1024x768 by default when the launcher wrote no settings | `ResolutionDefault` | `LoadSettings (0x43d7f0)` | `game/summoner.cpp` |
 | K260 | World sounds follow the volume slider | `WorldSoundVolume` | `snd_play_3d (0x521480)` | `vsdk/unnamed_snd_0x5204c0.cpp` |
 | K292 | Conversation more/end hover | `ConversationHover` | `dialogue_topic_entry::draw (0x4d6e70)` | `game/unnamed_dialogue_box_0x4d6660.cpp` |
-| K300 | Spell hit sounds where spells land | `SpellHitSoundPosition` | `spell_cast_execute (0x47d348)` | `game/spells.cpp` |
 
 ## Notes from the port
 

@@ -1201,13 +1201,17 @@ static BOOL FixOn(const char *key)
 void BugFixesInstall(void)
 {
     QpcFrequencyInstall();
-    g_dsInited = (volatile BYTE *)(UINT_PTR)SumVa(VA_DS_INITED);
-    DWORD site = SumVa(VA_DS_CHANNEL_STREAM_CHECK);
-    static const BYTE orig[5] = {0x8B, 0x46, 0x0C, 0x85, 0xC0};
-    BYTE repl[5] = {0xE8};
-    DWORD rel = (DWORD)(UINT_PTR)DsChannelStreamGuard - (site + 5);
-    memcpy(repl + 1, &rel, 4);
-    PatchBytes(VA_DS_CHANNEL_STREAM_CHECK, orig, repl, 5, "no-sound new game crash (ds_channel_release stream check)");
+    if (RebuiltFixInSource("NoSoundGuard")) {
+        Log("no-sound new game crash: fixed in this exe's source (FIXED_BUILD), not patched");
+    } else {
+        g_dsInited = (volatile BYTE *)(UINT_PTR)SumVa(VA_DS_INITED);
+        DWORD site = SumVa(VA_DS_CHANNEL_STREAM_CHECK);
+        static const BYTE orig[5] = {0x8B, 0x46, 0x0C, 0x85, 0xC0};
+        BYTE repl[5] = {0xE8};
+        DWORD rel = (DWORD)(UINT_PTR)DsChannelStreamGuard - (site + 5);
+        memcpy(repl + 1, &rel, 4);
+        PatchBytes(VA_DS_CHANNEL_STREAM_CHECK, orig, repl, 5, "no-sound new game crash (ds_channel_release stream check)");
+    }
 
     if (FixOn("OpenGLTextures")) {
         static const BYTE glMemOrig[5] = {0xB8, 0x08, 0x00, 0x00, 0x00}; // mov eax, 8

@@ -339,8 +339,16 @@ void LoadSettings()
     os_registry_write_dword("Version", "Minor", 40);
     os_registry_write_dword("Version", "Build", 0);
 
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: launcher ResolutionDefault (not a numbered bug: a modern-PC layer of SummonerFix). Without the launcher (which cannot detect a modern video card, so its
+    // registry key stays empty) the game fell back to 640x480; its interface is laid out for 1024x768, the size
+    // SummonerFix uses by default. A value the registry does hold is still used.
+    os_registry_read_dword(NULL, "Resolution Width", &width, 1024);
+    os_registry_read_dword(NULL, "Resolution Height", &height, 768);
+#else
     os_registry_read_dword(NULL, "Resolution Width", &width, 640);
     os_registry_read_dword(NULL, "Resolution Height", &height, 480);
+#endif
     if (cmdline_param_800.found()) {
         width = 800;
         height = 600;

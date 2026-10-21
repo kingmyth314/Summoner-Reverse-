@@ -323,7 +323,14 @@ void ds_channel_release(int channel)
 
     if (c->flags & DS_CHANNEL_FADING)
         return;
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: C1 NoSoundGuard. Without a working DirectSound, ds_init returns before the channels and the
+    // stream lock are set up: the zeroed record's stream 0 passed the test and EnterCriticalSection crashed on the
+    // uninitialised lock (Start New Game with no audio device). Only touch the stream once ds_init finished.
+    if (ds_initialized && c->stream >= 0) {
+#else
     if (c->stream >= 0) {
+#endif
         EnterCriticalSection(&snd_stream_lock);
         snd_stream_stop(c->stream);
         LeaveCriticalSection(&snd_stream_lock);

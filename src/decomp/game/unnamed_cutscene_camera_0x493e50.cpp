@@ -153,7 +153,12 @@ void cutscene_camera_sequence::read_track(File *f, float shot_start)
 // docs/sum-exe/timing-bugs.md).
 void cutscene_camera_sequence::sample()
 {
+#ifdef FIXED_BUILD
+    // part of FIXED_BUILD G3 (the camera sampler reads the same start time)
+    float t = (float)(unsigned int)(timeGetTime() - sequence_start_time) * 0.001f + cutscene_time_offset;
+#else
     float t = ((float)timeGetTime() - sequence_start_time) * 0.001f + cutscene_time_offset;
+#endif
     if (t <= (start))
         t = start;
     if (t >= (end))

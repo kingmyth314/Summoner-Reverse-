@@ -115,8 +115,8 @@ Done 2026-10-21 (built and checked; not run in game, see [Fixed build changes](f
 
 Next:
 
-4. The modern-PC layers (the timing fix, the OpenGL default, display and key bindings) as `FIXED_BUILD` code. Each
-   needs SummonerFix to stand down for that part in the fixed build first (the same `.fixes` handshake), since
-   rebuilt mode installs the timing fix by address.
+4. The modern-PC layers as `FIXED_BUILD` code. **Timing and start-up done 2026-10-21** (G1, G2, G3, C1 and the
+   1024x768 default; SummonerFix stands down for each through `.fixes`; see [Fixed build changes](fixed-build.md#modern-pc-layers)).
+   Still open: the display layer (scaling, mouse mapping, aspect, widescreen, brightness) and key bindings.
 5. Controller tier 1 (written as a SummonerFix prototype, not yet loaded: see the SummonerFix docs).
 6. Every in-game test above, once SummonerFix can load again.

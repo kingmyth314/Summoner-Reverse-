@@ -100,7 +100,24 @@ void FrameDone()
         reported_frametime = actual_frametime;
 
         if (actual_frametime < min_reported_frametime) {
+#ifdef FIXED_BUILD
+            // FIXED_BUILD: G1 FrameLimiter (docs/sum-exe/timing-bugs.md #3, the 2x game speed). The original took
+            // previous_done_time before the sleep, so the next frame counted the sleep again. Wait until the frame's
+            // end (one minimum frame after its start: coarse sleeps, then yields), and start the next frame there;
+            // a late wake-up is carried into the next frame, a stall of a whole frame or more resynchronises.
+            int min_us = (int)(min_reported_frametime * 1000000.0f);
+            int target = now + min_us - delta;
+            for (;;) {
+                int remain = target - timer_get(1000000);   // wrap-safe signed difference
+                if (remain <= 0)
+                    break;
+                timer_wait(remain > 1500 ? (remain - 1000) / 1000 : 0);
+            }
+            int end = timer_get(1000000);
+            previous_done_time = end - target < min_us ? target : end;
+#else
             timer_wait((int)((min_reported_frametime - actual_frametime) * 1000.0f));
+#endif
             reported_frametime = min_reported_frametime;
         } else if (actual_frametime > max_reported_frametime) {
             reported_frametime = max_reported_frametime;

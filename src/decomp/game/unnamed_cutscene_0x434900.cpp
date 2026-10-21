@@ -792,9 +792,16 @@ void cutscene_sequence_update()
     if (cutscene_cur_sequence < 0) {
         rem = 0;
     } else {
+#ifdef FIXED_BUILD
+        // FIXED_BUILD: G3 CutsceneTimer. The elapsed time as an unsigned difference, then converted: right across
+        // the 2^31 ms of Windows uptime (the original's signed load of the start skipped every shot after that).
+        cutscene_frametime = (t = (float)(unsigned int)(timeGetTime() - sequence_start_time) / 1000.0f)
+                             - cutscene_last_time;
+#else
         // G3: FISUB dword of the unsigned start time (signed 32-bit load).
         cutscene_frametime = (t = (t = ((float)timeGetTime() - sequence_start_time) / 1000.0f) * 1.0f)
                              - cutscene_last_time;
+#endif
         cutscene_last_time = t;
         rem = cutscene_sequences[cutscene_cur_sequence].end - cutscene_time_offset - t;
     }
@@ -891,8 +898,13 @@ void cutscene_events_frame()
         fade = cutscene_data->fades[cutscene_cur_fade_event];
         if (cutscene_cur_sequence >= fade->shot) {
             sequence = &cutscene_sequences[cutscene_cur_sequence];
+#ifdef FIXED_BUILD
+            // part of FIXED_BUILD G3
+            now = (float)(unsigned int)(timeGetTime() - sequence_start_time) / 1000.0f;
+#else
             // G3: FISUB dword of the unsigned start time (signed 32-bit load).
             now = (now = ((float)timeGetTime() - sequence_start_time) / 1000.0f) * 1.0f;
+#endif
             if (cutscene_time_offset + now - sequence->start >= fade->time) {
                 switch (fade->fade_out) {
                 case 1:
