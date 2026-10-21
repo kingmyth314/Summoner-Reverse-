@@ -29,7 +29,9 @@ documentation and the decompilation notes are also a working log, so they mentio
 - **The save editor:** `tools/build-saveeditor.ps1` builds `SummonerSaveEditor.exe`, a window that changes a save's
   gold, party, inventory and story flags and always writes a new save ([Save editor](docs/save-editor.md)).
 - **The fixed build:** `node tools/link-build.mjs --config fixed` builds `Sum-fixed.exe`, the decompiled game with
-  43 bugs fixed in the source ([Fixed build changes](docs/fixed-build.md); not yet tested in game).
+  43 bugs fixed in the source, plus the timing and start-up fixes a modern PC needs (correct speed, the >4 GHz timer,
+  the cutscene timer, no crash without an audio device, 1024x768 without the launcher). See
+  [Fixed build changes](docs/fixed-build.md); not yet tested in game.
 - **The decompilation:** Microsoft Visual C++ 6.0 with Service Pack 5 (compiler build 8966, the one Sum.exe was built
   with), which you have to supply yourself; set `VC6_DIR` to its `VC98` folder. `tools/vc6-sweep.mjs` compares every
   function with your `Sum.exe`; `tools/link-build.mjs` links the standalone executable (it also needs libjpeg 6b
@@ -72,6 +74,9 @@ documentation and the decompilation notes are also a working log, so they mentio
 
 ```
 docs/            GitHub Pages site (Markdown, Jekyll "Just the Docs" theme)
+src/decomp/      The C++ decompilation of Sum.exe (game/, vsdk/, include/; see its NOTICE.md)
+src/link/        Import stubs and small C files the standalone link needs (no original code)
+src/saveeditor/  SummonerSaveEditor.exe and the saveedit command-line tool (C)
 src/summonerfix/ SummonerFix source (C, built with LLVM-MinGW)
 src/summonerfix-config/ SummonerFixConfig.exe (key bindings and options)
 symbols/         Symbol file and structure layouts for Sum.exe

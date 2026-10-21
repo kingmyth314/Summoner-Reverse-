@@ -21,7 +21,10 @@ produced with [REA](https://github.com/morluto/rea) and Ghidra 12.1.4.
 - [Timeslip's patch](patches/timeslip.md) - what the community patch actually changes.
 - [SummonerFix](summonerfix/index.md) - our replacement patch: runs the game on Windows 11 via OpenGL.
 - [Decompilation plan](decomp-plan.md) - the symbol file, the C++ rewrite in `src/decomp`, and the byte matching: Sum.exe was built with Visual C++ 6.0 SP5 (build 8966), and 5,445 of 5,926 compiled functions match byte for byte, calls and data references included. The whole decompiled source also runs inside the game as a hybrid (5,922 functions in a DLL that replaces the originals); save comparisons and checks against the original on live calls found five decompilation errors byte matching could not see, and a read-through of the functions no test had run, followed by in-game checks, found eight more ([review](hybrid-review.md)). It also links into a standalone executable, in which a new game reaches Masad and plays; comparing its data with the original's found three more errors, and a play-test through the start of Act 1 one more.
-- [Roadmap](roadmap.md) - planned work: custom key bindings, a fast-travel speed control, widescreen.
+- [Fixed and experimental builds](builds.md) - the plan for a bug-fixed build of the decompiled game and an experimental one with new features.
+- [Fixed build changes](fixed-build.md) - every change the fixed build makes, with its bug number.
+- [Save editor](save-editor.md) - `SummonerSaveEditor.exe`, a window that edits a copy of a save.
+- [Roadmap](roadmap.md) - done and planned work: key bindings, the speed control and widescreen (in SummonerFix), the decompilation, and the future projects.
 - [Address map](reference/address-map.md) - every address and label used in these notes.
 - [Documentation standard](contributing.md) - how new findings are written up.
 
@@ -33,7 +36,7 @@ produced with [REA](https://github.com/morluto/rea) and Ghidra 12.1.4.
 | The frame clock is QueryPerformanceCounter-based and truncates the frequency to 32 bits | Observed |
 | Timeslip's ">4 GHz" fix halves the QPC frequency until it fits in 32 bits | Observed in the patch DLL |
 | Timeslip's speed keys scale a virtual QPC clock (50-200 %) | Observed in the patch DLL |
-| Cutscenes skip after ~24.9 days of Windows uptime | Inferred from code; not reproduced |
+| Cutscenes skip after ~24.9 days of Windows uptime | Reproduced (simulated uptime) and fixed 2026-10-14 |
 | Timeslip's patch also removes the CD check (not in its readme) | Observed in the patch DLL |
 | The repository's `Sum.exe` already has a separate no-CD edit in the file (`cd_find_drive`, `cd_set_root`) | Observed 2026-10-15 |
 | Sum.exe reads its own video settings from `Software\Volition\Summoner`; the launcher isn't required | Observed |
