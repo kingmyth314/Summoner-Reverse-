@@ -15,7 +15,7 @@ produced with [REA](https://github.com/morluto/rea) and Ghidra 12.1.4.
 - [Sum.exe overview](sum-exe/index.md) - identity, layout and imports of the game executable.
 - [Main loop and frame timer](sum-exe/main-loop.md) - how the game advances time each frame.
 - [Timing bugs](sum-exe/timing-bugs.md) - the ">4 GHz" bug and the cutscene uptime bug.
-- [Bugs in the original game](sum-exe/game-bugs.md) - 354 defects found in the code, and which ones SummonerFix fixes.
+- [Bugs in the original game](sum-exe/game-bugs.md) - 355 defects found in the code, and which ones SummonerFix fixes.
 - [Bug fix priorities](sum-exe/bug-priorities.md) - the unfixed bugs ranked by gameplay impact and how easily we can reproduce them.
 - [Tentacle Beast grab and throw](future/tentacle-grab.md) - a future project: the grab the developers switched off, and how to make it work.
 - [Timeslip's patch](patches/timeslip.md) - what the community patch actually changes.

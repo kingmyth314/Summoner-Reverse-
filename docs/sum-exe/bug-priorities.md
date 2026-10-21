@@ -27,6 +27,12 @@ A score changes when a bug is reproduced or a new tool makes one easier to reach
 known retail trigger), so they rank near the bottom: impact 1-2, ease 1 (C316 might reach impact 4 if five
 overlapping spell areas turn out to be reachable in a retail fight).
 
+**Added 2026-10-20:** C317 (a Mist Elemental that has not yet emerged crashes the game when a cutscene starts). It is
+live, not latent: the user hit it in an ordinary boss fight (summoning during the Ghost Rider's dismount), and it
+crashes to the desktop. Impact 4 (a crash, losing progress since the last save), reach: any fight with a scripted
+cutscene while the elemental is summoned. Ease 1: a NULL test on the summon's current move in
+`summon_stash_for_cutscene` (`0x44807e`), or giving the elemental's emerge a fallback. Not yet fixed in SummonerFix.
+
 {: .note }
 **Fixed since the ranking:** G4, G215, C250, G8, G12, G40, G170, G301, C210 with G212, G270, G211, G210, G100, K292, K5, G6, G32, K130, K150, K100, K6, K3, K4, K110, K12, K191, K61, K80, C310, G271, G241, K300, K40, G229, C2, G2, K193, C272, G253, G252, G31 and G213 (2026-10-17 and 18, SummonerFix `bugfix.c`, all reproduced in game first (C210: the doubled count, not the crash); C270, G50, G30, G5, K131 and K9 were withdrawn instead (they did not happen); each fix can be switched off in `[Fixes]`: `SaveOverwriteQuestion`, `PhoenixInferno`, `LuminarBeamTarget`, `SummonKeepsLeader`, `SpellRecoveryTimes`, `GoldPileAmount`, `MessageBoxPause`, `CanisTenGold`, `AiBlessCount`, `AreaCasterGone`, `SupportAiTarget`, `DetectionCone`, `LeechDrain`, `ConversationHover`, `SaveListThumbnail`, `ZaneEncounter`, `MountedRiders`, `BossMusic`, `RingSixtyThousand`, `MapLabelLimit`, `ShopCategoryButtons`, `InventoryCategoryButtons`, `AmbientSounds`, `PickupScrollbar`, `EdgeTurnAfterDrag`, `LootHighlightColour`, `KnockDownMessage`, `LongInstallPath`, `EffectSlotSpell`, `AreaSpellDistances`, `SpellHitSoundPosition`, `MapLabelsFull`, `SupportSpellPick`, `PrimarySoundBuffer`, `QpcFrequency`, `ScreenshotNumbers`, `EffectSearchGuard`, `BossAnchorsAlive`, `MurodBackBiteTimer`, `BossSpellInRange`, `SerpentSleepTest`).
 The same data is in [`bug-priorities.json`](bug-priorities.json).
