@@ -24,8 +24,10 @@ documentation and the decompilation notes are also a working log, so they mentio
 
 - **SummonerFix:** LLVM-MinGW (`i686-w64-mingw32-gcc`), `tools/build-summonerfix.ps1`. Put the resulting
   `dinput.dll` next to `Sum.exe`. See [Setup](docs/setup.md). With Windows 11's **Smart App Control** on, Windows
-  silently refuses to load the unsigned DLL and the game starts without it
-  ([SummonerFix](docs/summonerfix/index.md)).
+  silently refuses to load the unsigned DLL and the game starts without it, and it may refuse to start freshly
+  built or downloaded programs such as the save editor ([SummonerFix](docs/summonerfix/index.md)).
+- **The save editor:** `tools/build-saveeditor.ps1` builds `SummonerSaveEditor.exe`, a window that changes a save's
+  gold, party, inventory and story flags and always writes a new save ([Save editor](docs/save-editor.md)).
 - **The fixed build:** `node tools/link-build.mjs --config fixed` builds `Sum-fixed.exe`, the decompiled game with
   43 bugs fixed in the source ([Fixed build changes](docs/fixed-build.md); not yet tested in game).
 - **The decompilation:** Microsoft Visual C++ 6.0 with Service Pack 5 (compiler build 8966, the one Sum.exe was built
