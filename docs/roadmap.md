@@ -196,7 +196,9 @@ Added 2026-10-16 at the user's request.
 
 ### After the code fully recompiles
 
-Once `src/decomp` builds a working `Sum.exe`, these become source changes instead of byte patches:
+Once `src/decomp` builds a working `Sum.exe`, these become source changes instead of byte patches. It does now:
+the plan for a fixed build and an experimental build that take them up is in
+[Fixed and experimental builds](builds.md) (2026-10-21).
 
 - **dgVoodoo 2.** It wraps Glide and old DirectX for modern Direct3D 11/12. SummonerFix now forces the OpenGL
   renderer; dgVoodoo 2 would make the original Glide and Direct3D renderers usable too (with their own gamma,
