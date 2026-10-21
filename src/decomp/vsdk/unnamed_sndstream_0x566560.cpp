@@ -69,18 +69,20 @@ unsigned int snd_stream_get_writable(int stream)
     return n;
 }
 
-// 0x566630  Confidence: likely (the shared exit unlocks even after a failed Lock). The converted bytes are
+// 0x566630  Confidence: likely (the shared exit unlocks even after a failed Lock; m-1021c w9 D20203: got
+// declared first gives the binary's order of the zero stores, 56 -> 50; left: Sum.exe places the one
+// `rc = -1` block just before done, 8966 after the acm_convert test). The converted bytes are
 // copied into the two locked parts of the ring.
 int snd_stream_fill_acm(int stream, unsigned int bytes, unsigned int *written)
 {
     snd_stream_slot *s = &snd_streams[stream];
     ds_buffer *b = &ds_buffers[s->buffer];
     IDirectSoundBuffer *pdsb = ds_channels[s->channel].pdsb;
+    UINT got = 0;
     void *p1 = NULL;
     void *p2 = NULL;
     DWORD n1 = 0;
     DWORD n2 = 0;
-    UINT got = 0;
     DWORD dst_used;
     DWORD src_used;
     int src_size;

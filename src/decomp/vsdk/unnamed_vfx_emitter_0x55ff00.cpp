@@ -662,7 +662,8 @@ void fx_recb0::render_d3d(vfx_emitter_desc *desc, float t)
 
 // 0x561ec0  Confidence: likely (gr_vertex has no constructor here, the original runs gr::Vertex's
 // 0x5081c0 on the three vertices, D1605). Point particles through gr_bitmap_3d, flat ones as a
-// triangle (the tip black) through gr_poly, in the instance frame at the origin v64.
+// triangle (the tip black) through gr_poly, in the instance frame at the origin v64. D19900: the ring walk
+// as `for (...; p = p->next)` with `if (p->next == particles) break;` gives the binary's desc / p registers.
 void fx_recb0::render(vfx_emitter_desc *desc, float t)
 {
     vfx_material *mat;
@@ -682,7 +683,7 @@ void fx_recb0::render(vfx_emitter_desc *desc, float t)
             mode = (mat->flags & 0x40) || desc->white ? gr_mode_particle_additive : gr_mode_particle_alpha;
         else
             mode = (mat->flags & 0x40) ? gr_mode_vfx_flat_additive : gr_mode_vfx_flat_alpha;
-        for (p = particles; p != NULL; ) {
+        for (p = particles; p != NULL; p = p->next) {
             age = p->get_age();
             life = p->get_lifetime();
             if (age >= 0.0f && age < life) {
@@ -737,8 +738,7 @@ void fx_recb0::render(vfx_emitter_desc *desc, float t)
                     }
                 }
             }
-            p = p->next;
-            if (p == particles)
+            if (p->next == particles)
                 break;
         }
         gr_stop_instance();

@@ -142,7 +142,9 @@ void mp_gamelist_free()
     list_init(&mp_gamelist_used);
 }
 
-// 0x470860  Confidence: likely (the ping clamp as a ternary gives the binary's two stores, D15703; the list
+// 0x470860  Confidence: likely (the ping clamp as a ternary gives the binary's two stores, D15703; the six
+// entry field stores in the order level, players, max players, difficulty, min / max level give 8966's
+// schedule of the binary's loads and stores, D20000; the list
 // unlink still differs: the binary keeps &e->prev in EAX; VC6 keeps the sender pointer in ebx and spills the version byte; the reads
 // go through memcpy, which keeps the six ints in memory as the original does). ACTV_GM {version, min
 // version, name\0, level, players, max players, difficulty, lowest and highest character level, from
@@ -197,12 +199,12 @@ void mp_handle_actv_gm(ubyte *data, void *from)
     list_append(&mp_gamelist_used, e);
     mp_gamelist_count++;
     strcpy(e->name, name);
-    e->max_players = (ubyte)max_players;
     e->level = level;
     e->num_players = (ubyte)num_players;
-    e->max_level = (ubyte)max_level;
+    e->max_players = (ubyte)max_players;
     e->difficulty = difficulty;
     e->min_level = (ubyte)min_level;
+    e->max_level = (ubyte)max_level;
     memcpy(e->addr, from, 8);
     e->ping = timer_get(1000) - mp_gamelist_request_time;
     e->ping = e->ping > 0 ? e->ping : 0;

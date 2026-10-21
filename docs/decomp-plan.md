@@ -637,6 +637,19 @@ and `timer6d4`, and `Character::Character` matches; `new_assess.cpp` was the onl
 "closer" changes were read for behaviour at the merge (`bm_set_reduced`'s `ubyte` level count, the flag remaps):
 the same results. Still differing, 423, are almost all register choice and scheduling.
 
+**Third targeted round 2026-10-21 (fourteen workers, D19400-D20799).** 5,501 -> 5,520, none lost (notes in
+`src/decomp/NOTES-match-2026-10-21c.md`). Two groups: the 50 still within distance 12, tried with the second round's
+devices, and the 63 at distance 41-80. 19 matches, about 25 closer (several from 50-80 down to 2-6). New devices: a
+pointer local for a scalar passed by address (`float *tp = &p1;` in place of `&p1`) moves that scalar in the frame
+(`camera_blend_sequence::advance`, D19700); a one-float array for a clamped value (D19600, D19601); a `pf_edge` local for
+a `seg2d` one plus `memcpy` for a `vector2` copy (D19500); a second test written in both branches
+(`quaternion::quaternion(const matrix *)`, D19800); the body inside `if (key != 0)` with one exit (D20402). A
+`volatile` local that only brought a function closer was not merged (D20702), as before. Closer changes that change
+the source's shape were read for behaviour at the merge: `spell_roll_amount`'s count-down loop (the body does not use
+`i`), `LineFile::detect_eol` returning `fill_buffer`'s result (always 0), the double copies in
+`levelrender_add_items` (the binary's operation order). 404 still differ; the near end of the list is now almost all
+register choice and scheduling.
+
 The
 `Confidence:` markers follow the sweep (`tools/decomp-confidence.mjs`): every compared function that matches is
 `exact`, none that differs is. The other 1,819 written functions are not compared (`tools/decomp-uncompared.mjs`):

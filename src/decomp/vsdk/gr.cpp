@@ -1271,7 +1271,8 @@ void gr_tmapper(int nv, gr_vertex **verts, gr::Mode mode)
     }
 }
 
-// 0x507a80  Confidence: likely (loop shapes). Direct3D and Glide draw all passes themselves; otherwise
+// 0x507a80  Confidence: exact (VC6 byte match; D20302: each per-vertex loop reads through a
+// `gr_multipass_vertex *mv = verts[i]` local, which gives the binary's +8-biased pass offset). Direct3D and Glide draw all passes themselves; otherwise
 // (OpenGL) each pass is one gr_tmapper call: the pass's uv / colour / alpha are copied into the vertices
 // (and flagged in +0x1a) when the pass takes them per vertex, else the pass colour is set. The inner
 // dispatch repeats all three back ends.
@@ -1297,14 +1298,16 @@ void gr_tmapper_multipass(int nv, gr_multipass_vertex **verts, int npasses, gr_t
                 vlist[i]->_unk1a = 0;
             if (pass->enabled) {
                 for (i = 0; i < nv; i++) {
-                    vlist[i]->u = verts[i]->pass[p].u;
-                    vlist[i]->v = verts[i]->pass[p].v;
+                    gr_multipass_vertex *mv = verts[i];
+                    vlist[i]->u = mv->pass[p].u;
+                    vlist[i]->v = mv->pass[p].v;
                     vlist[i]->_unk1a |= 1;
                 }
             }
             if (pass->vertex_alpha) {
                 for (i = 0; i < nv; i++) {
-                    vlist[i]->a = verts[i]->pass[p].a;
+                    gr_multipass_vertex *mv = verts[i];
+                    vlist[i]->a = mv->pass[p].a;
                     vlist[i]->_unk1a |= 8;
                 }
                 alpha = 0xff;
@@ -1313,9 +1316,10 @@ void gr_tmapper_multipass(int nv, gr_multipass_vertex **verts, int npasses, gr_t
             }
             if (pass->vertex_color) {
                 for (i = 0; i < nv; i++) {
-                    vlist[i]->r = verts[i]->pass[p].r;
-                    vlist[i]->g = verts[i]->pass[p].g;
-                    vlist[i]->b = verts[i]->pass[p].b;
+                    gr_multipass_vertex *mv = verts[i];
+                    vlist[i]->r = mv->pass[p].r;
+                    vlist[i]->g = mv->pass[p].g;
+                    vlist[i]->b = mv->pass[p].b;
                     vlist[i]->_unk1a |= 4;
                 }
                 gr_set_color(0xff, 0xff, 0xff, alpha);

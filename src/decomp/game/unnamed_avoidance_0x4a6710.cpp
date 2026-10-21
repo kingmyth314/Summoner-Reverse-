@@ -788,7 +788,8 @@ void avoid_poly_release(avoid_poly *poly)
         avoid_area_free(poly);
 }
 
-// 0x4a7cb0  Confidence: likely. Takes an obstacle out of its polygon: frees the polygon, its segment
+// 0x4a7cb0  Confidence: exact (m-1021c w9 D20201: the polygon search as for (;;) with the `++p >= N`
+// return at the bottom of the body gives the binary's `jge` to the shared epilogue and `jmp` back). Takes an obstacle out of its polygon: frees the polygon, its segment
 // list and the obstacle, re-adds the polygon's other obstacles one by one, then relinks the segment
 // lists of the size class and layer (the timer_get(1000) results are discarded).
 // GAME BUG (D7503): `others` holds 3 indices in the binary (frame 0x18, the array at +0xc), but a polygon
@@ -803,16 +804,18 @@ void avoid_area_rebuild(avoid_obstacle *ob)
     index = ob - avoid_obstacles;
     size = ob->size;
     layer = ob->layer;
-    for (p = 0; p < AVOID_NUM_POLYS; p++) {
+    p = 0;
+    for (;;) {
         poly = &avoid_polys[p];
-        if (!(poly->flags & 1) || poly->size != ob->size || poly->layer != ob->layer)
-            continue;
-        for (k = 0; k < poly->count; k++) {
-            if (index == poly->obstacles[k])
-                goto found;
+        if ((poly->flags & 1) && poly->size == ob->size && poly->layer == ob->layer) {
+            for (k = 0; k < poly->count; k++) {
+                if (index == poly->obstacles[k])
+                    goto found;
+            }
         }
+        if (++p >= AVOID_NUM_POLYS)
+            return;
     }
-    return;
 found:
     n = 0;
     for (k = 0; k < poly->count; k++) {

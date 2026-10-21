@@ -147,15 +147,18 @@ int light_alloc()
     return i;
 }
 
-// 0x51e3f0  Confidence: likely. Intensity clamped to 0..1 (the point lights are not clamped).
+// 0x51e3f0  Confidence: exact (D19600: the clamp stored through a one-float array, which places its fstp
+// after the type store). Intensity clamped to 0..1 (the point lights are not clamped).
 int light_create_spot(const vector3 *pos, const vector3 *dir, float angle_a, float angle_b, float inner,
                       float outer, float intensity, float r, float g, float b, bool dynamic, int bm,
                       const quaternion *orient)
 {
     int i = light_alloc();
     light *l = light_get(i);
+    float in[1];
 
-    intensity = float_min(float_max(intensity, 0.0f), 1.0f);
+    in[0] = float_min(float_max(intensity, 0.0f), 1.0f);
+    intensity = in[0];
     l->type = LIGHT_TYPE_SPOT;
     l->pos = *pos;
     l->dir = *dir;
@@ -444,8 +447,8 @@ light *lights_get_selected(int i)
     return lights_selection[lights_selection_depth - 1][i];
 }
 
-// 0x51ec70  Confidence: likely (register / slot reuse of the three sums; the spot cone factor and the
-// distance factor meet in float_min). Point lights: the cosine to the normal (or 1 without one),
+// 0x51ec70  Confidence: exact (D19601: the spot case has its own dot, keeps the minimum in atten and
+// takes ang_u through a one-float array). Point lights: the cosine to the normal (or 1 without one),
 // full inside the inner radius, fading linearly to 0 at the outer one. Spot lights: within the cone
 // (cos_b), the smaller of the distance factor and the fade between cos_a and cos_b; with a projected
 // bitmap the colour is the bitmap's at the angles of the point in the light's frame instead, also
@@ -484,6 +487,7 @@ void lights_shade_point(light *l, vector3 *color, const vector3 *pos, const vect
     }
     case LIGHT_TYPE_SPOT: {
         vector3 d = lp - *pos;
+        float dot;      // D19601: the spot case's own dot (the binary gives it its own slot)
         dot = normal == NULL ? d.len() : normal->dot(d);
         if (dot <= 0.0f)
             return;
@@ -508,10 +512,10 @@ void lights_shade_point(light *l, vector3 *color, const vector3 *pos, const vect
             f = dot;
             if (cosang > l->cos_a)
                 f = (1.0f - (cosang - l->cos_a) / (l->cos_b - l->cos_a)) * dot;
-            f = float_min(atten, f);
-            r = f * l->r;
-            g = f * l->g;
-            b = f * l->b;
+            atten = float_min(atten, f);    // D19601: the minimum kept in atten
+            r = atten * l->r;
+            g = atten * l->g;
+            b = atten * l->b;
         }
         if (l->bitmap != -1) {
             vector3 t = *pos - lp;
@@ -524,7 +528,9 @@ void lights_shade_point(light *l, vector3 *color, const vector3 *pos, const vect
             vector3 w(v);
             w.x = 0.0f;
             w.normalize();
-            float ang_u = (float)acos(down.dot(h));
+            float au[1];    // D19601: through a one-float array, ang_u's fstp follows the next dot's setup
+            au[0] = (float)acos(down.dot(h));
+            float ang_u = au[0];
             float ang_v = (float)acos(down.dot(w));
             if (h.x > 0.0f)
                 ang_u = -ang_u;

@@ -542,8 +542,14 @@ int ai_state::goal_do_travel(vector3 *pos, int layer, int priority, unsigned int
     }
     if (owner->type == 7)
         owner->instance->clear_action_anims();
-    r = path_to(&owner->pos, owner->layer, pos, layer, 0, owner->info->size, false,
-                (bool)(~(goal_flags >> 9) & 1));
+    // D19802: the keep flag stored through a pointer to a block-scope bool, so it takes the dead goal_flags
+    // slot as in the binary (distance 44 -> 6; left: the info load scheduled after the flag's reload).
+    {
+        bool keep;
+        bool *kp = &keep;
+        *kp = (bool)(~(goal_flags >> 9) & 1);
+        r = path_to(&owner->pos, owner->layer, pos, layer, 0, owner->info->size, false, keep);
+    }
     if (r == 0) {
         set_mode(AI_STATE_TRAVELING, AIS_TRAVEL_PATH);
         if ((game_flags & 2) && character_is_locally_controlled(owner))

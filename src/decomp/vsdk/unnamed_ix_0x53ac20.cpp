@@ -133,7 +133,7 @@ bool ix_ray_parallelogram(ix_ray *ray, ix_ray *edge, const vector3 *b, vector3 *
     return *u >= 0.0f && *u <= 1.0f;
 }
 
-// 0x53b130  Confidence: likely (D15904: the retries build the plane from tri[0..2] as the binary reloads them; still differs in the scheduling of the final mean). No caller. The quad p0 p1 p3 p2 is tried as two triangle pairs; the hit
+// 0x53b130  Confidence: likely (D15904: the retries build the plane from tri[0..2] as the binary reloads them; still differs in the scheduling of the final mean; D20301: copies vv / uu of v and u for the mean, 10 -> 4). No caller. The quad p0 p1 p3 p2 is tried as two triangle pairs; the hit
 // is the ray point at the mean of the two t, *w the mean of its positions along p0-p2 and p1-p3.
 // 0x53b3e0 atexit_nop_53b3e0: the atexit handler of db (compiler-generated). Confidence: exact.
 // 0x53b3f0 atexit_nop_53b3f0: the atexit handler of da (compiler-generated). Confidence: exact.
@@ -172,7 +172,9 @@ bool ix_ray_quad(ix_ray *ray, vector3 *p0, vector3 *p1, vector3 *p2, vector3 *p3
     da = *hit - *p1;
     db = *p3 - *p1;
     v = da.dot(db) / db.dot(db);
-    *w = (v + u) * 0.5f;
+    float vv = v;                                     // D20301
+    float uu = u;
+    *w = (vv + uu) * 0.5f;
     *w = float_min(float_max(*w, 0.0f), 1.0f);
     return true;
 }
@@ -221,8 +223,9 @@ bool ix_linesegment_sphere(vector3 *out, const vector3 *a, const vector3 *b, con
     return false;
 }
 
-// 0x53b6f0  Confidence: likely (the local reuse; `inside` is only ever set by the last test; D11602: a
-// do / while, the first triangle is tested before the count, as the binary). A fan
+// 0x53b6f0  Confidence: exact (VC6 byte match; D20300: beta copied into a block local `b` for the last
+// test, so 8966 reloads it and adds alpha from the FPU stack. The local reuse; `inside` is only ever set by
+// the last test; D11602: a do / while, the first triangle is tested before the count, as the binary). A fan
 // of triangles from verts[0], projected on the two axes ix_axis_pairs gives for the plane's largest
 // normal component; the parameters of p in each triangle.
 bool ix_point_in_polygon(const vector3 *p, int n, vector3 **verts, plane *pl)
@@ -277,7 +280,8 @@ bool ix_point_in_polygon(const vector3 *p, int n, vector3 **verts, plane *pl)
                 continue;
             alpha = (pu - beta * e2u) / e1u;
         }
-        inside = alpha >= 0.0f && beta + alpha <= 1.0f;
+        float b = beta;                               // D20300
+        inside = alpha >= 0.0f && b + alpha <= 1.0f;
         if (inside)
             break;
     } while (++i < n);

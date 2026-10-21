@@ -1181,7 +1181,10 @@ wander:
     }
 }
 
-// 0x49c130  Confidence: likely. As serpent_anim_remap_in.
+// 0x49c130  Confidence: likely. As serpent_anim_remap_in. D19401: the weight stored in each branch (also
+// in both arms of the ready test) gives the binary's zero in EBP, ready in c's slot read in the loop, the
+// unfolded 3 / 0 stores and both arrays addressed from the one set pointer; left: the three loop registers
+// rotated (ECX / EDX / ESI in ours, EDX / ESI / ECX in the binary) and push esi one instruction late.
 void tiger_anim_remap_in(Character *c, int *anims)
 {
     loco_blend_set *set = (loco_blend_set *)anims;
@@ -1196,18 +1199,20 @@ void tiger_anim_remap_in(Character *c, int *anims)
     for (int i = 0; i < set->count; i++) {
         int a = set->anim[i];
         if (a == mount->anim_stand) {
-            if (ready)
+            if (ready) {
                 tiger.remap_slot[i] = 3;
-            else
+                tiger.remap_weight[i] = set->weight[i];
+            } else {
                 tiger.remap_slot[i] = 0;
+                tiger.remap_weight[i] = set->weight[i];
+            }
         } else if (a == mount->anim_walk) {
             tiger.remap_slot[i] = 4;
+            tiger.remap_weight[i] = set->weight[i];
         } else if (a == mount->anim_run) {
             tiger.remap_slot[i] = 5;
-        } else {
-            continue;
+            tiger.remap_weight[i] = set->weight[i];
         }
-        tiger.remap_weight[i] = set->weight[i];
     }
 }
 

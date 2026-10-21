@@ -224,7 +224,7 @@ void worldmap_init_locations()
     }
 }
 
-// 0x42f500  Confidence: likely (VC6: the distance goes through a stack temporary; same size). From interface_frame
+// 0x42f500  Confidence: exact (D20500: the distance stored through a float pointer). From interface_frame
 // on the world
 // map. Key 0x26 (L) toggles the markers (sound 0x27) and is eaten. With the party leader on screen, each
 // known location is placed: when its tag is outside the view (gr_cull_sphere), a marker on the screen
@@ -258,7 +258,10 @@ int worldmap_frame(int key)
         if (gr_cull_sphere(&loc->nav->pos, 1.0f, false)) {
             vector3 d;
             d = loc->nav->pos - cur_character->pos;
-            loc->scale = worldmap_marker_scale_for_distance(d.len());
+            float dist;
+            float *pdist = &dist;   // D20500: the store through a pointer keeps the sqrt result past the pops
+            *pdist = d.len();
+            loc->scale = worldmap_marker_scale_for_distance(dist);
             d.normalize_safe();
             d += cur_character->pos;
             gr_rotate_vertex(&p, &d);

@@ -438,8 +438,9 @@ bool TextFile::ParseBool()
     return false;
 }
 
-// 0x516290  Confidence: likely (the digit expressions; VC6 folds value * 16 + c - '0' to
-// (value - 3) << 4 + c). Optional '-', 0x / 0X hex or decimal.
+// 0x516290  Confidence: exact (VC6 8966 byte match, D20401: the sign applied into a separate result local
+// puts this in EDI and value in ESI; VC6 folds value * 16 + c - '0' to (value - 3) << 4 + c). Optional '-',
+// 0x / 0X hex or decimal.
 // Defect: strchr also finds the terminator, so a hex number at the very end of the text takes the NUL
 // as a digit ('A'-'F' branch) and the cursor runs past the end.
 int TextFile::ParseInt()
@@ -475,11 +476,12 @@ int TextFile::ParseInt()
         }
     }
 
+    int result = value;
     if (neg)
-        value = -value;
+        result = -value;
     if (digits == 0)
         Error("an integer");
-    return value;
+    return result;
 }
 
 // 0x516380  Confidence: likely (as ParseInt, no sign). Same strchr defect.

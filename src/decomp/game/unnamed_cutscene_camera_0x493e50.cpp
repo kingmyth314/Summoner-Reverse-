@@ -188,10 +188,11 @@ float camera_blend_sequence::time_left()
     return blend_out + blend_in + hold - elapsed;
 }
 
-// 0x494400  Confidence: likely (the weights reuse the argument slot; the three angle unwraps are
-// written out, no helper is called). The weight w ramps 0 -> 1 over blend_in, stays 1 for hold and goes
-// back to 0 over blend_out; position and Euler angles are mixed between the camera's view and the
-// target view.
+// 0x494400  Confidence: exact (D19700: the target angles' addresses through pointer locals put each
+// camera angle below its target angle, the binary's slots; the weights reuse the argument slot; the three
+// angle unwraps are written out, no helper is called). The weight w ramps 0 -> 1 over blend_in, stays 1
+// for hold and goes back to 0 over blend_out; position and Euler angles are mixed between the camera's
+// view and the target view.
 void camera_blend_sequence::advance(float dt)
 {
     float p0, b0, h0, p1, b1, h1;
@@ -213,8 +214,9 @@ void camera_blend_sequence::advance(float dt)
     float w = tcb_ease(t, 0.25f, 0.25f);
     float u = 1.0f - w;
 
+    float *tp = &p1, *tb = &b1, *th = &h1;
     cam->view_orient.extract_angles(&p0, &b0, &h0);
-    target_orient.extract_angles(&p1, &b1, &h1);
+    target_orient.extract_angles(tp, tb, th);
     if (p0 - p1 > 3.1415927f)
         p0 -= 6.2831855f;
     else if (p1 - p0 > 3.1415927f)

@@ -74,7 +74,7 @@ quaternion::quaternion(const matrix &m)
     }
 }
 
-// 0x522790  Confidence: likely. The same conversion, normalised at the end, with two differences
+// 0x522790  Confidence: exact (VC6 byte match, D19800). The same conversion, normalised at the end, with two differences
 // reproduced from the code: the largest-diagonal test compares m.fvec.z with m.uvec.y (not with the
 // element chosen so far), and case 2 reads m.rvec.y (m[0][1]) where m.rvec.x belongs (game bug,
 // NOTES.md).
@@ -94,10 +94,13 @@ quaternion::quaternion(const matrix *m)
         normalize();
         return;
     }
+    // D19800: the second test repeated in both arms (the binary tests it after i = 1 and after i = 0).
     i = 0;
-    if (m->uvec.y > m->rvec.x)
+    if (m->uvec.y > m->rvec.x) {
         i = 1;
-    if (m->fvec.z > m->uvec.y)
+        if (m->fvec.z > m->uvec.y)
+            i = 2;
+    } else if (m->fvec.z > m->uvec.y)
         i = 2;
     switch (i) {
     case 0:

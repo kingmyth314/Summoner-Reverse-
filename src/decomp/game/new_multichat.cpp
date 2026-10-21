@@ -116,17 +116,17 @@ int chat_input_key_enter(int key)
     return key;
 }
 
-// 0x41e5d0  Confidence: likely (the switch: dec / sub 0xd / sub 0xe). Enter sends the line without its
-// trailing blanks and leaves the input line open and empty; Enter on an empty line and Esc close it.
+// 0x41e5d0  Confidence: exact (VC6 8966 byte match, D20402: the body inside `if (key != 0)` with one final
+// return, the Esc case first and Enter's non-empty test first; the switch: dec / sub 0xd / sub 0xe). Enter
+// sends the line without its trailing blanks and leaves the input line open and empty; Enter on an empty
+// line and Esc close it.
 int chat_input_handle_key(int key)
 {
     char line[CHAT_INPUT_SIZE];
     int c;
     int len;
 
-    if (key == 0)
-        return key;
-    {
+    if (key != 0) {
         c = key_to_ascii(key);
         if (c != 0xff) {
             chat_input_add_char_wrap((char)c);
@@ -135,17 +135,17 @@ int chat_input_handle_key(int key)
             return 0;
         }
         switch (key) {
+        case KEY_ESC:
+            chat_input_cancel();
+            return 0;
         case KEY_ENTER:
-            if (strlen(chat_input_text) == 0) {
-                chat_input_cancel();
+            if (strlen(chat_input_text) != 0) {
+                trim_trailing_whitespace(line, chat_input_text);
+                if (strlen(line) != 0)
+                    chat_send_line(line);
+                chat_input_text[0] = '\0';
                 return 0;
             }
-            trim_trailing_whitespace(line, chat_input_text);
-            if (strlen(line) != 0)
-                chat_send_line(line);
-            chat_input_text[0] = '\0';
-            return 0;
-        case KEY_ESC:
             chat_input_cancel();
             return 0;
         case KEY_BACKSPACE:

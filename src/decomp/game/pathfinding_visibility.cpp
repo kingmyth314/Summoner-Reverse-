@@ -152,17 +152,19 @@ pf_vis_node *sort_points_clockwise(const vector2 *pt)
 }
 
 // 0x4b7af0  Confidence: unsure for the pathvis_alt_mode loop form (the edge walk through +0x14 is never
-// taken), likely for the rest (the straddle test as a conditional; `i` and `e` are initialised once at the
-// top). For each layer: the edges of every cell of the graph that cross the vertical line x = pt->x below
-// the point, nearest first, with a = the end with the larger x.
+// taken), exact for the rest (VC6 byte match, D20603; `i` and `e` are initialised once at the top). For
+// each layer: the edges of every cell of the graph that cross the vertical line x = pt->x below the point,
+// nearest first, with a = the end with the larger x.
+// D20603 (byte match): e and i declared (and initialised) before the label, a_left cleared before a_right, the
+// straddle test as an if / else of `goto next` (the binary tests a_right first), and the tag stored before dist.
 void make_initial_edge_tree(const vector2 *pt)
 {
+    pf_edge *e = NULL;
+    int i = 0;
     profile_label label("make_initial_edge_tree");
     pathvis_edge *head;
     pathvis_edge *n;
     pf_cell *cell;
-    pf_edge *e = NULL;
-    int i = 0;
     int layer;
     bool a_left, a_right;
     float d;
@@ -186,33 +188,37 @@ void make_initial_edge_tree(const vector2 *pt)
                     e = &cell->edges[i];
                 }
 
-                a_right = false;
                 a_left = false;
+                a_right = false;
                 if (e->a->x <= pt->x)
                     a_left = true;
                 else
                     a_right = true;
-                if ((e->b->x <= pt->x) ? a_right : a_left) {
-                    if (e->a->x != e->b->x) {
-                        d = float_lerp_range(pt->x, e->a->x, e->a->y, e->b->x, e->b->y) - pt->y;
-                        if (d < 0.0f) {
-                            n = pathvis_add_edge_node();
-                            if (e->a->x > e->b->x) {
-                                n->a = e->a;
-                                n->b = e->b;
-                            } else {
-                                n->a = e->b;
-                                n->b = e->a;
-                            }
-                            n->dist = -d;
-                            n->tag = pathvis_edge_tag;
-                            n->dx = (n->a->x - n->b->x) / n->dist;
-                            n->dy = (n->a->y - n->b->y) / n->dist;
-                            pathvis_insert_sorted(n, layer);
+                if (e->b->x <= pt->x) {
+                    if (!a_right)
+                        goto next;
+                } else if (!a_left)
+                    goto next;
+                if (e->a->x != e->b->x) {
+                    d = float_lerp_range(pt->x, e->a->x, e->a->y, e->b->x, e->b->y) - pt->y;
+                    if (d < 0.0f) {
+                        n = pathvis_add_edge_node();
+                        if (e->a->x > e->b->x) {
+                            n->a = e->a;
+                            n->b = e->b;
+                        } else {
+                            n->a = e->b;
+                            n->b = e->a;
                         }
+                        n->tag = pathvis_edge_tag;
+                        n->dist = -d;
+                        n->dx = (n->a->x - n->b->x) / n->dist;
+                        n->dy = (n->a->y - n->b->y) / n->dist;
+                        pathvis_insert_sorted(n, layer);
                     }
                 }
 
+            next:
                 if (pathvis_alt_mode)
                     e = *(pf_edge **)((ubyte *)e + 0x14);
                 else
@@ -378,6 +384,8 @@ void pathvis_insert_by_side(pathvis_edge *e, int layer)
 // sum.symbols name reads the other way, D2603): the ray is already closed, the midpoint of from-to is
 // inside the layer's BSP solid (pathvis_bsp_contains), or the segment crosses the nearest edge of the
 // layer (with `all`, any edge).
+// D20602: the two later `return 1`s as a `goto blocked` (the binary shares the early return's epilogue) and
+// seg.a stored right after a's copy (distance 76 -> 43); left: the binary has b (to) below a (from) in the frame.
 int do_single_vis_check(pf_vis_node *from, pf_vis_node *to, bool all)
 {
     profile_label label("do_single_vis_check");
@@ -390,20 +398,22 @@ int do_single_vis_check(pf_vis_node *from, pf_vis_node *to, bool all)
         return 1;
     layer = from->layer;
     a = *from->pos;
-    b = *to->pos;
     seg.a = &a;
+    b = *to->pos;
     seg.b = &b;
     mid.x = (b.x + a.x) * 0.5f;
     mid.y = (b.y + a.y) * 0.5f;
     if (pathvis_bsp_contains(&mid, pf_graphs[pf_cur_size][layer].bsp))
-        return 1;
+        goto blocked;
     for (e = pathvis_edge_lists[layer].next; e != &pathvis_edge_lists[layer]; e = e->next) {
         if (seg2d_segment_intersect(&seg, e, NULL) == 1)
-            return 1;
+            goto blocked;
         if (!all)
             break;
     }
     return 0;
+blocked:
+    return 1;
 }
 
 // 0x4b8350  Confidence: likely (the group flag as an if / else; the two read_tsc readings in two locals;
@@ -525,6 +535,8 @@ void determine_point_visibility(const vector2 *pt, int layer)
 // unknown type loops for ever on the same node). Type 2 splits by the edge's line, type 1 by the point's x
 // (pf_bsp's "leaf" comment in pathfinding.h, D2602); a point within 0.0001 of the split is tested on both
 // sides (front must hold, then back). Type 3: false.
+// D20601: the near-split recursion as one block after the switch (`goto both`) is closer (distance 50 -> 30);
+// left: the binary keeps case 2's push of front and jumps into case 1's inline recursion at `push edi`.
 bool pathvis_bsp_contains(const vector2 *pt, pf_bsp *node)
 {
     while (node) {
@@ -534,9 +546,7 @@ bool pathvis_bsp_contains(const vector2 *pt, pf_bsp *node)
             vector2 n(split->b->y - split->a->y, split->a->x - split->b->x);
             float side = (pt->y - split->a->y) * n.y + (pt->x - split->a->x) * n.x;
             if (side > -PATHVIS_EPSILON && side < PATHVIS_EPSILON) {
-                if (!pathvis_bsp_contains(pt, node->front))
-                    return false;
-                node = node->back;
+                goto both;
             } else if (side <= 0.0f) {
                 node = node->front;
             } else {
@@ -548,9 +558,7 @@ bool pathvis_bsp_contains(const vector2 *pt, pf_bsp *node)
             vector2 *p = (vector2 *)node->data;
             float d = pt->x - p->x;
             if (d > -PATHVIS_EPSILON && d < PATHVIS_EPSILON) {
-                if (!pathvis_bsp_contains(pt, node->front))
-                    return false;
-                node = node->back;
+                goto both;
             } else if (pt->x < p->x) {
                 node = node->front;
             } else {
@@ -561,6 +569,11 @@ bool pathvis_bsp_contains(const vector2 *pt, pf_bsp *node)
         case 3:
             return false;
         }
+        continue;
+    both:
+        if (!pathvis_bsp_contains(pt, node->front))
+            return false;
+        node = node->back;
     }
     return true;
 }

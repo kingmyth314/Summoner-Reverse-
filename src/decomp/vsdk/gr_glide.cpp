@@ -1205,7 +1205,8 @@ void glide_record::load_section(glide_tcache_entry *entry, int section, float *u
 
 // 0x549b50  Confidence: likely (the casts of the 2 MB bank compare: shr then a signed compare; m-1020b w13
 // D13701: the bank local, end reused for the loop limit and used_tail = used_head leave one difference, the
-// limit add placed after the first next >= 0 test in Sum.exe).
+// limit add placed after the first next >= 0 test in Sum.exe; m-1021c w9 D20200: the addr, texture and section
+// stores through pointer locals give the binary's store order: exact).
 // Places a block after the last used one; a texture does not cross a 2 MB boundary. When the memory or
 // the blocks run out it starts again at the bottom and evicts the oldest blocks it overlaps.
 FxU32 glide_record::alloc(int size, int texture, int section)
@@ -1240,11 +1241,14 @@ FxU32 glide_record::alloc(int size, int texture, int section)
         }
         b = &blocks[index];
         b->next = next;
-        b->addr = addr;
+        FxU32 *pa = &b->addr;
+        *pa = addr;
     }
     b->size = size;
-    b->texture = texture;
-    b->section = section;
+    int *pt = &b->texture;
+    *pt = texture;
+    int *ps = &b->section;
+    *ps = section;
     return b->addr;
 }
 

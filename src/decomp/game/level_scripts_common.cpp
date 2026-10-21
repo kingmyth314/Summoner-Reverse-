@@ -536,12 +536,14 @@ void level_items_parse_table()
 // 0x4cb7b0  Confidence: likely (the buffers of the automap and fog parts; the "+Distance:" loop is a
 // do-while here, the binary repeats its first statements at the loop end). <level>.tbl when it exists and
 // the level is not restarting: #Effects, #Ambient Sounds, #Triggers, #Shopkeepers, #Automap, #Fog; then the
-// EAX properties of the level (<level>.eax in data\internal) and the world effects.
+// EAX properties of the level (<level>.eax in data\internal) and the world effects. D20701: the $AutomapPSX
+// layer number through an int local gives the binary's `cmp eax, ebp`; filename is declared in the if block
+// (the binary's filename and eax_path overlap, so their scopes are disjoint). The code is the binary's; only
+// the stack slots of the buffers differ (NOTES).
 void level_parse_table()
 {
     File f;
     TextFile tf;
-    char filename[256];
     char fxname[0x20];
     int i;
 
@@ -549,6 +551,8 @@ void level_parse_table()
     memset(level_layer_maps, -1, sizeof(level_layer_maps));
     memset(level_layer_automap_index, -1, sizeof(level_layer_automap_index));
     if (!level_script_restarting) {
+        char filename[256];
+
         strcpy(filename, level_filename);
         strcat(filename, ".tbl");
         if (f.find(filename, PATH_ANY)) {
@@ -590,7 +594,8 @@ void level_parse_table()
                     tf.ParseString(psx_layer, 0x7f, '"', '"');
                     if (_strnicmp(psx_layer, "$layer", 6))
                         VSDK_ERROR(LEVEL_SCRIPTS_COMMON_FILE, 882, "Layer name is invalid.");
-                    if (atoi(psx_layer + 6) == 0)
+                    int layer = atoi(psx_layer + 6);
+                    if (layer == 0)
                         VSDK_ERROR(LEVEL_SCRIPTS_COMMON_FILE, 886, "Layer name is invalid.");
                     tf.ParseInt();
                     tf.ParseString(psx_bitmap, 0x7f, '"', '"');

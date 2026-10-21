@@ -381,7 +381,7 @@ void evil_joseph_set_attack_timer(int min_ms, int max_ms)
     evil_joseph_attack_timer.SetTimeout(min_ms + (int)(frand() * (max_ms - min_ms)));
 }
 
-// 0x4c3cd0  Confidence: likely (D12406: the midpoint through vector3 operators, dir block-scoped so the temporaries share its slot; still differs in the FPU order of the length and the scaled direction). The next helper in turn (the first four calls), then a random one that is
+// 0x4c3cd0  Confidence: exact (D12406: the midpoint through vector3 operators, dir block-scoped so the temporaries share its slot; D20502: the boss position through a pointer local and dx * dx in a local). The next helper in turn (the first four calls), then a random one that is
 // alive, active and not the last one (five tries). The summon point is halfway to the target (or
 // cur_character); when that is within 4 of the target, a navigable point 4-8 from the boss in a random
 // direction (ten tries). The summon move is the helper's index in the move table.
@@ -417,10 +417,12 @@ void evil_joseph_pick_helper_summon(Character *boss)
         if (t == NULL)
             return;
     }
-    evil_joseph_summon_pos = (boss->pos + t->pos) * 0.5f;
+    const vector3 *bp = &boss->pos;     // D20502: the pointer gives the binary's y / z operand order
+    evil_joseph_summon_pos = (*bp + t->pos) * 0.5f;
     float dx = evil_joseph_summon_pos.x - t->pos.x;
     float dz = evil_joseph_summon_pos.z - t->pos.z;
-    if ((float)sqrt(dx * dx + dz * dz) < 4.0f) {
+    float dd = dx * dx;                 // D20502: dx squared in place, dz kept to the end
+    if ((float)sqrt(dd + dz * dz) < 4.0f) {
         vector3 dir;
         for (tries = 0; tries < 10; tries++) {
             r = frand_range(4.0f, 8.0f);

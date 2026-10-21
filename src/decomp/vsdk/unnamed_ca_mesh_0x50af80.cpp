@@ -80,14 +80,18 @@ void gr_load_reflection_map()
     gr_reflection_map_bm = bm_load("refmap01.tga", -1, -1);
 }
 
-// 0x50b150  Confidence: likely (the key search: the cached key +8 first, then from key 1; D16701: the
-// float view mv of the buffer is a device for the binary's v * 3 index scaled by 4; left: the binary keeps
-// ca_render_instance in no register and delays its pushes).
+// 0x50b150  Confidence: exact (VC6 byte match; the key search: the cached key +8 first, then from key 1;
+// D16701: the float view mv of the buffer is a device for the binary's v * 3 index scaled by 4; D19400: the
+// instance through a local ci, read in the loop too, and the anim as a store then an if: 8966 then keeps
+// the instance in no register and delays the pushes, as the binary does).
 void ca_render_morph_vertices(vim_submesh *sm)
 {
     int anim;
 
-    anim = ca_render_instance->action_anim != -1 ? ca_render_instance->action_anim : ca_render_instance->state_anim;
+    character_instance *ci = ca_render_instance;
+    anim = ci->action_anim;
+    if (anim == -1)
+        anim = ci->state_anim;
     memcpy(ca_morph_vertices, sm->block0, sm->size0 * sizeof(vector3));
 
     float *mv = (float *)ca_morph_vertices;
@@ -97,7 +101,7 @@ void ca_render_morph_vertices(vim_submesh *sm)
         if (v < 0)
             continue;
         skeleton_morph *m = &s->morphs[i];
-        float frame = (float)(ca_render_instance->times[anim] - s->start) / (s->end - s->start)
+        float frame = (float)(ci->times[anim] - s->start) / (s->end - s->start)
                       * s->num_morph_frames;
         if ((int)frame >= s->num_morph_frames - 1) {
             mv[v * 3] = m->keys[m->num_keys - 1].v.x;

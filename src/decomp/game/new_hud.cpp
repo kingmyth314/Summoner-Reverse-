@@ -1829,10 +1829,11 @@ Color hud_portrait_get_color(int n)
 
         c.r = 255;
         v = (ubyte)(int)((250 - s->timer.GetRemainingTime()) * 1.02f + 0.5f);
-        if (v <= 0)
+        if (v > 0) {                          // D19604: the positive test first (the binary's jbe)
+            if (v >= 255)
+                v = 255;
+        } else
             v = 0;
-        else if (v >= 255)
-            v = 255;
         c.g = v;
         c.b = v;
         c.a = 255;

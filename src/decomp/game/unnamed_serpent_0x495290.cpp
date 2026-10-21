@@ -848,7 +848,7 @@ void ai_state::serpent_illusion_start()
 }
 
 // 0x496d60  Confidence: likely (m-1020, D11104: the alpha bases as `a = 255; if (i) a = 230`; left: 8966 turns
-// x / -1000 into base - x / 1000 and threads the rem <= 300 test; the alpha arithmetic divides by -1000 as the binary does). Sub-mode 0x39:
+// x / -1000 into base - x / 1000; D20501: `300 >= rem` keeps the binary's re-test of rem <= 300; the alpha arithmetic divides by -1000 as the binary does). Sub-mode 0x39:
 // all three at serpent_place_parts' points, invisible for 1.4 s, fading in with the effect, then
 // targetable again; the copies vanish 8 s later (serpent_part_check_timeout).
 void ai_state::serpent_illusion_update()
@@ -910,7 +910,7 @@ void ai_state::serpent_illusion_update()
             }
             return;
         }
-        if (rem > 0 && rem <= 300) {
+        if (rem > 0 && 300 >= rem) {     // D20501: the reversed test is not threaded away
             for (i = 0; i < serpent_num_extra_parts + 1; i++) {
                 p = living_from_handle(serpent.handles[i]);
                 if (p) {

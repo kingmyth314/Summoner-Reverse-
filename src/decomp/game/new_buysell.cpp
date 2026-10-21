@@ -409,7 +409,8 @@ void buysell_update_scrollbar()
     }
 }
 
-// 0x4050f0  Confidence: likely (in mode 0 num_sell is read twice, as two statements would). Picks the
+// 0x4050f0  Confidence: exact (in mode 0 num_sell is read twice, as two statements would; D20700: the clamp
+// at 0 through an `int *pp = &pos` gives the binary's `and eax, ecx`). Picks the
 // shop list of the mode and counts the rows; clamps the scroll position. Despite the name it only counts
 // in mode 1 (owned items the shop buys).
 void buysell_count_party_items()
@@ -429,7 +430,9 @@ void buysell_count_party_items()
     }
     int limit = buysell_row_count - buysell_page_size[resolution_index];
     int pos = min(buysell_scroll_pos, limit);
-    buysell_scroll_pos = max(pos, 0);
+    int *pp = &pos;
+    *pp = max(*pp, 0);
+    buysell_scroll_pos = pos;
 }
 
 // 0x4051a0  Confidence: exact.

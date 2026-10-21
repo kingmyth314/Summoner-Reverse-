@@ -872,7 +872,8 @@ bool living_combat::defense_in_time()
     return theirs < 0.0f || !(mine < theirs);
 }
 
-// 0x464d00  Confidence: likely (an 8168 byte match; differs under 8966, D7807). +0.25 from 0.25 m above, -0.25 from below, +0.5 against a knocked-down
+// 0x464d00  Confidence: likely (an 8168 byte match; differs under 8966, D7807; one local per product of the
+// facing dot puts the ai lea after the third product, D20100; facing still in defender's slot). +0.25 from 0.25 m above, -0.25 from below, +0.5 against a knocked-down
 // defender, +0.15 from behind.
 float combat_position_modifier(Character *attacker, Character *defender)
 {
@@ -888,7 +889,10 @@ float combat_position_modifier(Character *attacker, Character *defender)
     d.y = defender->pos.y - attacker->pos.y;
     d.z = defender->pos.z - attacker->pos.z;
     d.normalize();
-    facing = d.z * defender->orient.fvec.z + d.y * defender->orient.fvec.y + d.x * defender->orient.fvec.x;
+    float fz = d.z * defender->orient.fvec.z;
+    float fy = d.y * defender->orient.fvec.y;
+    float fx = d.x * defender->orient.fvec.x;
+    facing = fz + fy + fx;
     if (defender->ai.is_mode(AI_STATE_DISABLED, 0x2d))
         return m + 0.5f;
     if (facing >= 0.0f)
@@ -2147,7 +2151,8 @@ void living_combat::set_38(int s)
 // (0, 1, 0) and y is cleared after the scaling, which give the original's frame and its code up to the switch,
 // D9300-D9301; pos += off written out per component, whose operands as written give the original's off.x +
 // pos.x and pos.z + off.z and leave VC6 the budget to expand the large case's u * radius with the unrounded
-// value, D9809; not a byte match only in 0 - u.z's operand order and v's reloaded radius, same values). A blood splot decal (2 s, lit, depth
+// value, D9809; v * radius through a `const float *` loads the radius once as the original, D20101; not a byte
+// match only in 0 - u.z's operand order, same values). A blood splot decal (2 s, lit, depth
 // 0.25) under the target: at a random point of its size radius on the ground plane, with a random
 // horizontal direction (length at least 0.03 before normalising) and its perpendicular as the half-axes,
 // scaled by 0.2 / 0.3 / 0.45 of the radius for size 0 / 1 / 2. Another size places the decal with bitmap
@@ -2178,13 +2183,19 @@ void living_combat::blood_splot_place(int size, float grey)
     switch (size) {
     case 0:
         u = u * (radius *= 0.2f);
-        v = v * radius;
+        {
+            const float *pr = &radius;
+            v = v * *pr;
+        }
         rand();
         bm = bm_load("BloodSplot-small02.tga", -1, -1);
         break;
     case 1:
         u = u * (radius *= 0.3f);
-        v = v * radius;
+        {
+            const float *pr = &radius;
+            v = v * *pr;
+        }
         rand();
         bm = bm_load("BloodSplot-med02.tga", -1, -1);
         break;

@@ -44,7 +44,8 @@ char cd_root[64];                     // 0x60ad7c
 // 0x43e660  Confidence: unsure (the three patched branches, see the file comment; the rest likely: the
 // `found` flag is stored only on the SUMMONER_1 path, the other matches jump straight into the found
 // block, so `found` is dead after it and that block cannot loop). The volume label read by
-// GetVolumeInformationA is never compared: `volume` only selects which file proves the disc.
+// GetVolumeInformationA is never compared: `volume` only selects which file proves the disc. With `path`
+// declared after the drive tests only the patched bytes differ (D19901).
 int cd_find_drive(const char *volume)
 {
     char cwd[MAX_PATH];
@@ -63,7 +64,6 @@ int cd_find_drive(const char *volume)
     for (i = 0; i < CD_NUM_DRIVES; i++) {
 #ifdef SHIPPED_NOCD
         char root[] = ".\\\\";
-        char path[512] = "";
 
         root[0] = '.';
         GetDriveTypeA(root);
@@ -71,7 +71,6 @@ int cd_find_drive(const char *volume)
         GetVolumeInformationA(root, label, sizeof(label), NULL, NULL, NULL, NULL, 0);
 #else
         char root[] = "A:\\";
-        char path[512] = "";
 
         root[0] = (char)('A' + i);
         if (GetDriveTypeA(root) != DRIVE_CDROM)
@@ -81,6 +80,7 @@ int cd_find_drive(const char *volume)
             continue;
 #endif
 
+        char path[512] = "";          // D19901: declared after the drive tests (the binary clears it there)
         has_setup = 0;
         has_levelm = 0;
         strcpy(path, root);

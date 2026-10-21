@@ -208,14 +208,16 @@ int m2v_read_bitmap(const char *name, ubyte **data, int unused)
 // row (gr_screenshot) or a whole image (tga_write_rle). count is the packet's pixel count plus one;
 // a run starts once min_run equal pixels follow (2 for 8-bit output). Pixels are compared with
 // dst_bpp bytes although they are src_bpp apart. Returns the bytes written.
+// D20600: count declared first gives the binary's prologue (row_bytes in ECX, EBP the only zero, EDX = end);
+// left: 8966 keeps dst_bpp in ECX across the back edge, the binary reloads it at each use.
 int tga_rle_encode_row(ubyte *dst, ubyte *src, int dst_bpp, int src_bpp, int row_bytes)
 {
+    int count = 1;
     ubyte *out = dst;
     ubyte *start = 0;
     ubyte *prev = 0;
     int min_run = (dst_bpp == 1) ? 2 : 1;
     ubyte *end = src + row_bytes;
-    int count = 1;
     int dup = 0;
 
     do {

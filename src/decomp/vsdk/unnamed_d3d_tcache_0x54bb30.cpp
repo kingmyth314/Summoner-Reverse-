@@ -511,7 +511,8 @@ int gr_d3d_tcache_set(int stage, int bm, int section, float *u_scale, float *v_s
     return 1;
 }
 
-// 0x54d120  Confidence: likely (the section loop; the calls and the checks match). Twin of gr_glide_create_texture: the sections are tiles of at most
+// 0x54d120  Confidence: exact (D19501: x = 0 before the row height, both clamps as if / else as in the Glide
+// twin, and the x store through e->sections[section] before s is taken). Twin of gr_glide_create_texture: the sections are tiles of at most
 // gr_screen.max_bitmap_w x max_bitmap_h; a mipmapped bitmap must be one texture of a texture size, else it
 // is not drawn (the message is formatted, never printed). Allocates outside the level mempool.
 int gr_d3d_create_texture(int bm, d3d_tcache_entry *e)
@@ -545,13 +546,19 @@ int gr_d3d_create_texture(int bm, d3d_tcache_entry *e)
     section = 0;
     y = 0;
     for (row = 0; row < ny; row++) {
-        sh = min(gr_screen.max_bitmap_h, h - y);
         x = 0;
+        if (h - y > gr_screen.max_bitmap_h)
+            sh = gr_screen.max_bitmap_h;
+        else
+            sh = h - y;
         for (col = 0; col < nx; col++) {
+            e->sections[section].x = x;
             s = &e->sections[section];
-            s->x = x;
             s->y = y;
-            s->w = min(gr_screen.max_bitmap_w, w - x);
+            if (w - x > gr_screen.max_bitmap_w)
+                s->w = gr_screen.max_bitmap_w;
+            else
+                s->w = w - x;
             x += s->w;
             s->h = sh;
             gr_d3d_create_texture_section(bm, e, section, data, palette, w, h, format, num_levels);

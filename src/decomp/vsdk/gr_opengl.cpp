@@ -1458,7 +1458,9 @@ void gr_opengl_tmapper(int nv, gr_vertex **verts, gr::Mode mode)
     glDrawArrays(GL_POLYGON, 0, nv);
 }
 
-// 0x5502c0  Confidence: likely (byte order inside the swap).
+// 0x5502c0  Confidence: likely (byte order inside the swap; m-1021c w9 D20202: two row pointers, the bottom
+// byte read first in each swap and the bottom row stepped first: closer, 72 -> 56; the binary keeps both
+// row pointers biased by 2 in the argument slots).
 // Reads the back buffer as R, G, B, A bytes, flips it top to bottom (alpha forced to 255 on the swapped
 // rows) and reports format 7 (BM_FORMAT_8888, whose byte order elsewhere in this unit is B, G, R, A).
 // SummonerFix hooks the glReadPixels call (savegame thumbnails).
@@ -1466,25 +1468,29 @@ int gr_opengl_read_backbuffer(int x, int y, int w, int h, ubyte *buf)
 {
     glReadBuffer(GL_BACK);
     glReadPixels(x, gr_screen.max_h - y - h, w, h, GL_RGBA, GL_UNSIGNED_BYTE, buf);
+    ubyte *top_row = buf;
+    ubyte *bottom_row = buf + (h - 1) * 4 * w;
     for (int i = 0; i < h / 2; i++) {
-        ubyte *top = buf + i * w * 4;
-        ubyte *bottom = buf + (h - 1 - i) * w * 4;
+        ubyte *top = top_row;
+        ubyte *bottom = bottom_row;
         for (int j = 0; j < w; j++) {
             ubyte t;
             bottom[3] = 0xff;
             top[3] = 0xff;
-            t = top[2];
-            top[2] = bottom[2];
-            bottom[2] = t;
-            t = top[1];
-            top[1] = bottom[1];
-            bottom[1] = t;
-            t = top[0];
-            top[0] = bottom[0];
-            bottom[0] = t;
+            t = bottom[2];
+            bottom[2] = top[2];
+            top[2] = t;
+            t = bottom[1];
+            bottom[1] = top[1];
+            top[1] = t;
+            t = bottom[0];
+            bottom[0] = top[0];
+            top[0] = t;
             top += 4;
             bottom += 4;
         }
+        bottom_row -= 4 * w;
+        top_row += 4 * w;
     }
     return BM_FORMAT_8888;
 }

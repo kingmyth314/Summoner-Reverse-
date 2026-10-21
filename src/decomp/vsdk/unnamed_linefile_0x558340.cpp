@@ -54,39 +54,41 @@ int LineFile::open_write(const char *name, bool append, int size)
     return 0;
 }
 
-// 0x558430  Confidence: likely (the branch order). The line ending of the first buffer: CRLF when the
+// 0x558430  Confidence: likely (D19602: fill_buffer's own result returned, which pushes edi late, and the
+// CRLF test kept in a bool, with next = cr + 1 for the binary's `cr > cr + 1` test; the tail merging of
+// the ANY stores still differs). The line ending of the first buffer: CRLF when the
 // first '\r' is followed by '\n' (and no lone '\n' comes first), LF or CR when only one kind is there,
 // ANY otherwise (also when the buffer holds no line end at all).
 int LineFile::detect_eol()
 {
     char *lf;
     char *cr;
+    char *next;
+    bool crlf;
+    int err = fill_buffer();
 
-    if (fill_buffer() != 0)
-        return 1;
+    if (err != 0)
+        return err;
     lf = (char *)memchr(buffer, '\n', count);
     cr = (char *)memchr(buffer, '\r', count);
-    if (cr != NULL && cr - buffer < count - 1 && cr[1] == '\n') {
-        if (lf != NULL && (lf > cr + 1 || lf < cr)) {
+    crlf = cr != NULL && cr - buffer < count - 1 && cr[1] == '\n';
+    if (!crlf) {
+        if (lf != NULL) {
+            if (cr != NULL)
+                flags |= LINEFILE_EOL_ANY;
+            else
+                flags = (flags & ~LINEFILE_EOL_CR) | LINEFILE_EOL_LF;
+        } else if (cr != NULL)
+            flags = (flags & ~LINEFILE_EOL_LF) | LINEFILE_EOL_CR;
+        else
             flags |= LINEFILE_EOL_ANY;
-            return 0;
-        }
-        flags &= ~LINEFILE_EOL_MASK;
-        return 0;
-    }
-    if (lf != NULL) {
-        if (cr != NULL) {
+    } else {
+        next = cr + 1;
+        if (cr > next || (lf != NULL && (lf > next || lf < cr)))
             flags |= LINEFILE_EOL_ANY;
-            return 0;
-        }
-        flags = (flags & ~LINEFILE_EOL_CR) | LINEFILE_EOL_LF;
-        return 0;
+        else
+            flags &= ~LINEFILE_EOL_MASK;
     }
-    if (cr != NULL) {
-        flags = (flags & ~LINEFILE_EOL_LF) | LINEFILE_EOL_CR;
-        return 0;
-    }
-    flags |= LINEFILE_EOL_ANY;
     return 0;
 }
 
@@ -145,7 +147,8 @@ void LineFile::close()
 }
 
 // 0x558600  Confidence: likely (the CRLF search loop's form; the switch is a four-entry jump table at
-// 0x5587a4). The CRLF search reads one byte past the chunk when a '\r' ends it.
+// 0x5587a4; D19603: the CRLF search length through k sets the registers of the other cases). The CRLF
+// search reads one byte past the chunk when a '\r' ends it.
 char *LineFile::read_line(char *buf, int size)
 {
     char *start = buf;
@@ -154,6 +157,7 @@ char *LineFile::read_line(char *buf, int size)
     char *cr;
     int left;
     int n;
+    int k;
 
     if (fp == NULL || buf == NULL)
         return NULL;
@@ -171,7 +175,9 @@ char *LineFile::read_line(char *buf, int size)
         case 0:
             eol = cur;
             while (eol != NULL) {
-                eol = (char *)memchr(eol, '\r', n - (eol - cur));
+                k = n;
+                k -= eol - cur;
+                eol = (char *)memchr(eol, '\r', k);
                 if (eol == NULL)
                     break;
                 if (eol[1] == '\n')

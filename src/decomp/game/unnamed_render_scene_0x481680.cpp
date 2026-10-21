@@ -1009,6 +1009,9 @@ void levelrender_push_attachment(ItemType *item, Character *c, const vector3 *po
 
 // 0x483570  Confidence: likely. Only "Gold" item objects are drawn from here, and only those lying in
 // the level within 20 m, in view, and (outside a cutscene) on a level object drawn this frame.
+// D19402: d.y / d.z as double copies keep them on the FPU stack for the distance test (the binary's
+// fld st(0) / fmul squares and the two fstp st(0) after the compare); left: 8966 then compares with a
+// double 400 (QWORD constant), the binary with a float one. Same values (the FPU computes in double).
 void levelrender_add_items(item_obj *it)
 {
     vector3 d;
@@ -1021,7 +1024,8 @@ void levelrender_add_items(item_obj *it)
         return;
     if (_stricmp(it->item->type->name, "Gold"))
         return;
-    if (d.z * d.z + d.y * d.y + d.x * d.x > 400.0f)
+    double dz = d.z, dy = d.y;
+    if (d.x * d.x + (dy * dy + dz * dz) > 400.0f)
         return;
     if (it->is_in_view())
         return;
@@ -1046,6 +1050,8 @@ void levelrender_add_items(item_obj *it)
 
 // 0x4836f0  Confidence: likely. A container within 20 m and in view; its floor object is the first
 // item's (-1 when empty).
+// D19402: the distance test as in levelrender_add_items (double copies of d.y / d.z); left: the QWORD
+// constant.
 void levelrender_add_containers(container *ct)
 {
     vector3 d;
@@ -1057,7 +1063,8 @@ void levelrender_add_containers(container *ct)
     d.x = ct->pos.x - levelrender_eye_pos.x;
     d.y = ct->pos.y - levelrender_eye_pos.y;
     d.z = ct->pos.z - levelrender_eye_pos.z;
-    if (d.z * d.z + d.y * d.y + d.x * d.x > 400.0f)
+    double dz = d.z, dy = d.y;
+    if (d.x * d.x + (dy * dy + dz * dz) > 400.0f)
         return;
     if (ct->is_in_view())
         return;

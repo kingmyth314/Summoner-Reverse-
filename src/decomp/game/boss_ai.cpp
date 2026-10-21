@@ -413,7 +413,8 @@ void ai_state::boss_threat_decay()
     }
 }
 
-// 0x4a13b0  Confidence: likely (the slot loop's shape: the two fill blocks and the placed flag in BL).
+// 0x4a13b0  Confidence: exact (VC6 8966 byte match, D20400: threat[1] stored through a pointer local in both fill
+// blocks places `test edi` after it, as in the binary).
 // Damage from a party member (type 7) goes to the attacker's record, or to the first free slot (-1 or a
 // character that is gone); the remaining stale slots are freed. 20 s timer.
 void boss_threat_add(Character *boss, float amount, int attacker, int flag)
@@ -450,7 +451,8 @@ void boss_threat_add(Character *boss, float amount, int attacker, int flag)
             if (!placed) {
                 t->handle = attacker;
                 t->threat[0] = amount;
-                t->threat[1] = amount;
+                float *p1 = &t->threat[1];
+                *p1 = amount;
                 t->threat[3] = amount;
                 if (!flag)
                     t->threat[2] = amount;
@@ -461,7 +463,8 @@ void boss_threat_add(Character *boss, float amount, int attacker, int flag)
             if (!placed) {
                 t->handle = attacker;
                 t->threat[0] = amount;
-                t->threat[1] = amount;
+                float *p1 = &t->threat[1];
+                *p1 = amount;
                 t->threat[3] = amount;
                 if (!flag)
                     t->threat[2] = amount;

@@ -627,15 +627,16 @@ void pathfinding_free_graph()
     avoid_seglists_clear_refs();
 }
 
-// 0x49db20  Confidence: likely (the perpendicular point's operand order). The line through p
-// perpendicular to the segment, intersected with it; clamped to the end points.
+// 0x49db20  Confidence: exact (D19500: the line as a pf_edge, whose spare 8 bytes are the binary's unused frame
+// top; the three end-point copies as memcpy). The line through p perpendicular to the segment, intersected
+// with it; clamped to the end points.
 void seg2d_closest_point(vector2 *p, const seg2d *s, vector2 *out)
 {
     vector2 perp;
-    seg2d line;
+    pf_edge line;
 
     if (vector2::nearly_equal(s->a, s->b)) {
-        *out = *s->a;
+        memcpy(out, s->a, sizeof(vector2));
         return;
     }
     line.a = p;
@@ -644,9 +645,9 @@ void seg2d_closest_point(vector2 *p, const seg2d *s, vector2 *out)
     perp.y = p->y - (s->b->x - s->a->x);
     seg2d_line_intersect(s, &line, out, 0);
     if (seg2d_param < 0.0f)
-        *out = *s->a;
+        memcpy(out, s->a, sizeof(vector2));
     else if (seg2d_param > 1.0f)
-        *out = *s->b;
+        memcpy(out, s->b, sizeof(vector2));
 }
 
 // 0x49dbe0  Confidence: exact.
@@ -1035,10 +1036,10 @@ bool pf_find_nearest_navigable_point(vector3 *pos, int size, int layer)
 // reversed in the binary (segment min below the cell's min and max above its max; NOTES.md, bug).
 bool pf_find_cell_crossing(vector2 *out, vector2 *from, vector2 *to)
 {
-    profile_label label("pf_find_cell_crossing");
-    bool found = false;
+    bool found = false; // D19502: found / best before the label, the segment as a pf_edge (frame 0x28)
     float best = 1e9f;
-    seg2d seg;
+    profile_label label("pf_find_cell_crossing");
+    pf_edge seg;
     vector2 hit;
     pf_cell *c;
     pf_edge *e;
