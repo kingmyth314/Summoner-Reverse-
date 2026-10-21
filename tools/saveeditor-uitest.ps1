@@ -18,6 +18,8 @@ New-Item -ItemType Directory -Force $sg | Out-Null
 Copy-Item (Join-Path $Corpus $Save) (Join-Path $sg 'summoner1.sav')
 Copy-Item (Join-Path $Corpus 'summoner0.sav') (Join-Path $sg 'summoner0.sav')
 (Get-Item (Join-Path $sg 'summoner0.sav')).LastWriteTime = (Get-Date).AddDays(-1)   # summoner1 is the newest: row 0
+# The skill names come from the game's exe; a test folder keeps it as Sum-orig.exe, which the editor also finds.
+if (Test-Path 'Summoner\Sum.exe') { Copy-Item 'Summoner\Sum.exe' (Join-Path $game 'Sum-orig.exe') }
 
 Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @'
 using System; using System.Text; using System.Runtime.InteropServices; using System.Drawing; using System.Drawing.Imaging;

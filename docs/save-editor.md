@@ -42,9 +42,13 @@ Pages:
 - **Party**: one entry per party member (type-7 record, named Joseph, Flece, Jekhar or Rosalind when the hash
   matches). Level, XP, HP, max HP, AP, max AP, skill points (disabled when the record has no skill-point
   dword) and the 36 saved skill bytes. The skill names are strings of `Sum.exe`, not of the tables, so the editor
-  reads them from the `Sum.exe` in its folder at start-up (the `skill_names` table at `0x595b64`, checked against
-  v1.40's count of 84 and its first name) and shows `sword weapons (3)`; without a v1.40 `Sum.exe` it shows ids
-  (`skill 0x03 (3)`). Pick one, type 0-255, **Set**. 10 = level 1. `app_test --sum-exe Sum.exe` checks the names.
+  reads them from the game's exe in its folder at start-up: `Sum.exe`, else `Sum-orig.exe` or another `Sum*.exe`
+  there (a test folder keeps the original under another name), each checked against v1.40's `skill_names` table at
+  `0x595b64` (the count 84 and the first name). A row shows the name as the game spells it ("Sword weapons"), the
+  saved value, and the value as the Character screen shows it: hundredths, so 10 is level 1.0, and Speed as a
+  percentage (11 = 110%). Without the exe the rows are "Skill 3" and so on. Pick one, type 0-255, **Set**.
+  `app_test --sum-exe Sum.exe` checks the names; the UI test copies the game's exe in as `Sum-orig.exe`.
+  (Changed 2026-10-21 after the user's click-through: the rows had shown ids such as `skill 0x03`.)
 - **Inventory**: one row per item type held (counts of repeated entries added up), with **Set count** and
   **Remove**; **Add** takes a name from the save's own item types (the ITEM chunk; the combo box can be typed
   into, the name must match one of the list). Rows show "added", "changed" or "removed". Items without a name

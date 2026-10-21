@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <wctype.h>
 #include "saveeditor_model.h"
 
 #define APP_TITLE L"Summoner Save Editor"
@@ -291,11 +292,17 @@ static void fill_member(int m)
     if (m >= 0)
         for (k = 0; k < SE_SKILL_COUNT; k++) {
             int row, v = g_doc.cur.m[m].skills[k];
-            if (g_haveSkillNames) _snwprintf(w, 128, L"%hs (%d)", g_skillNames[k], k);
-            else _snwprintf(w, 128, L"skill 0x%02x (%d)", k, k);
+            if (g_haveSkillNames) {
+                _snwprintf(w, 128, L"%hs", g_skillNames[k]);
+                w[0] = towupper(w[0]);                 /* "sword weapons" -> "Sword weapons" */
+            } else _snwprintf(w, 128, L"Skill %d", k);
             row = lv_add(lv, w, k);
             _snwprintf(w, 128, L"%d", v); lv_set(lv, row, 1, w);
-            lv_set(lv, row, 2, v != g_doc.orig.m[m].skills[k] ? L"changed" : L"");
+            /* as the Character screen shows it: hundredths, level = value / 10; speed (2) as a percentage */
+            if (k == 2) _snwprintf(w, 128, L"%d%%", v * 10);
+            else _snwprintf(w, 128, L"%d.%d", v / 10, v % 10);
+            lv_set(lv, row, 2, w);
+            lv_set(lv, row, 3, v != g_doc.orig.m[m].skills[k] ? L"changed" : L"");
         }
     SetWindowTextW(H(ID_SKILLVAL), L"");
     if (m >= 0) {
@@ -728,10 +735,10 @@ static void create_controls(void)
     }
     label(PAGE_PARTY, L"HP and max HP may have decimals (12.5). Raising the level does not give the HP, AP or skill points of the skipped levels.",
           20, 300, 450, 60, 0);
-    label(PAGE_PARTY, g_haveSkillNames ? L"Saved skills (names from Sum.exe; 10 = level 1):"
-                                       : L"Saved skills (Sum.exe not found, so by id; 10 = level 1):", 490, 44, 370, 20, 0);
+    label(PAGE_PARTY, g_haveSkillNames ? L"Saved skills (the value is hundredths: 10 = level 1.0):"
+                                       : L"Saved skills (no Sum.exe in this folder, so no names; 10 = level 1.0):", 490, 44, 370, 20, 0);
     lv = listview(PAGE_PARTY, 490, 66, 370, 380, ID_SKILLS, 0);
-    column(lv, 0, g_haveSkillNames ? L"Skill" : L"Skill id", 150); column(lv, 1, L"Value", 80); column(lv, 2, L"", 100);
+    column(lv, 0, L"Skill", 150); column(lv, 1, L"Value", 55); column(lv, 2, L"In game", 65); column(lv, 3, L"", 60);
     label(PAGE_PARTY, L"Value (0-255):", 490, 459, 100, 20, 0);
     edit(PAGE_PARTY, 590, 456, 80, ID_SKILLVAL, ES_NUMBER);
     button(PAGE_PARTY, L"Set", 680, 455, 80, ID_SKILLSET);
@@ -900,9 +907,28 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE prev, LPWSTR cmd, int show)
     g_tablesOk = GetFileAttributesW(g_tablesPath) != INVALID_FILE_ATTRIBUTES;
     {
         wchar_t exe[PATHLEN];
+        /* Sum.exe in the game folder; else Sum-orig.exe or any other Sum*.exe there whose skill table checks
+           out (a test folder keeps the original under another name) */
+        WIN32_FIND_DATAW fd;
+        HANDLE h;
         _snwprintf(exe, PATHLEN, L"%ls\\Sum.exe", g_gameDir);
         exe[PATHLEN - 1] = 0;
         g_haveSkillNames = sem_load_skill_names(exe, g_skillNames) > 0;
+        if (!g_haveSkillNames) {
+            _snwprintf(exe, PATHLEN, L"%ls\\Sum-orig.exe", g_gameDir);
+            exe[PATHLEN - 1] = 0;
+            g_haveSkillNames = sem_load_skill_names(exe, g_skillNames) > 0;
+        }
+        _snwprintf(exe, PATHLEN, L"%ls\\Sum*.exe", g_gameDir);
+        exe[PATHLEN - 1] = 0;
+        if (!g_haveSkillNames && (h = FindFirstFileW(exe, &fd)) != INVALID_HANDLE_VALUE) {
+            do {
+                _snwprintf(exe, PATHLEN, L"%ls\\%ls", g_gameDir, fd.cFileName);
+                exe[PATHLEN - 1] = 0;
+                g_haveSkillNames = sem_load_skill_names(exe, g_skillNames) > 0;
+            } while (!g_haveSkillNames && FindNextFileW(h, &fd));
+            FindClose(h);
+        }
     }
     memset(&to, 0, sizeof to);
     to.tables_vpp = g_tablesOk ? g_tablesPath : NULL;
