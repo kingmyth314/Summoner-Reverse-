@@ -20,9 +20,10 @@ Pack 5's compiler files in `BIN`, which give Sum.exe's build 8966: from the SP5 
 7-Zip, its multi-volume `VS6sp5*.cab` set too, never run), copy `vc98\bin\cl.exe`, `c1.dll`, `c1xx.dll`, `link.exe`
 and the root file `msvcep.dll` renamed to `c2.dll` over the Professional Edition's `VC98\BIN`.
 
-**Where it lives (2026-10-17).** `C:\Users\<you>\SummonerToolchain\` (outside the repository and outside
-temporary folders): `vc6sp5\VC98` (the SP5 compiler, the one to use: `$env:VC6_DIR = "C:\Users\<you>
-SummonerToolchain\vc6sp5\VC98"`), `vc6-rtm\VC98` (the release build 8168, for comparison only), and
+**Where it lives.** A folder of its own outside the repository and outside temporary folders, here called
+`SummonerToolchain\`, next to the repository's parent folder (the test tools look for `..\..\SummonerToolchain` by
+default and take `--game` otherwise): `vc6sp5\VC98` (the SP5 compiler, the one to use:
+`$env:VC6_DIR = "<path>\SummonerToolchain\vc6sp5\VC98"`), `vc6-rtm\VC98` (the release build 8168, for comparison only), and
 `installers\` (`vs6sp5.exe`, `vcpp5.exe`, never run). A `README.txt` there lists versions and checksums. A test compile
 from it stamps `Utc12_CPP` build 8966 (checked 2026-10-17).
 

@@ -5,8 +5,12 @@ nav_order: 6.48
 
 # Making the project public (checklist)
 
-**Status:** assessment of 2026-10-21, with the advisor's review. The repository is private; nothing here has been
-done yet, and the choice of what to publish is the owner's. This page is not legal advice.
+**Status:** assessment of 2026-10-21, with the advisor's review. This page is not legal advice.
+**Decided by the owner (2026-10-21): tier 2** (this repository with `src/decomp`, no executables), with the personal
+path removed from the files and from the history. Done the same day: the licence split (`LICENSE`,
+`src/decomp/NOTICE.md`), the README for new readers with build requirements, credits and the legal section, the
+personal paths replaced (`docs/setup.md` and two worker notes), and the history rewritten so that no version of any
+file contains them (a mirror of the old history is kept privately). Making the repository public is the last step.
 
 ## The one real question
 

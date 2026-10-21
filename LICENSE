@@ -1,3 +1,12 @@
+This repository holds two kinds of material under different terms.
+
+1. The reconstruction of Summoner's executable in src/decomp/ is NOT covered by the licence below.
+   See src/decomp/NOTICE.md: it is a reconstruction of a copyrighted program, no licence is granted
+   for it, and all rights in Summoner remain with their owner.
+
+2. Everything else (tools/, src/summonerfix/, src/summonerfix-config/, src/link/, docs/, symbols/
+   and the repository's other files) is our own work and is licensed as follows:
+
 MIT License
 
 Copyright (c) 2026 kingmyth314

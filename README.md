@@ -1,12 +1,34 @@
 # Summoner Reverse
 
-Reverse-engineering notes for **Summoner** (Volition / THQ, 2000), PC version 1.40.
-The work is done with [REA](https://github.com/morluto/rea) driving
-[Ghidra 12.1.4](https://github.com/NationalSecurityAgency/ghidra) against the shipped
-game executable `Sum.exe`.
+A reverse-engineering and decompilation project for **Summoner** (Volition / THQ, 2000), the PC version 1.40.
+It has three parts:
 
-Full documentation lives in [`docs/`](docs/index.md) and is set up to publish as a
-GitHub Pages site.
+- **Documentation** of how the game works, its file formats and 355 bugs found in its code ([`docs/`](docs/index.md),
+  set up as a GitHub Pages site).
+- **SummonerFix**, a drop-in `dinput.dll` that makes the original game run well on Windows 10 and 11 (no launcher,
+  correct speed, OpenGL, widescreen, key rebinding) and fixes over 40 of those bugs, each with its own switch
+  ([SummonerFix](docs/summonerfix/index.md)).
+- **A matching decompilation** of `Sum.exe` in C++ ([`src/decomp`](src/decomp/NOTICE.md)): every function of the
+  game is rewritten, 5,445 of the 5,926 compiled functions give the original machine code byte for byte with the
+  original compiler, and the source links into a complete executable that plays the game, every boss fight
+  included ([Decompilation plan](docs/decomp-plan.md)).
+
+**You need your own copy of Summoner** (it is still sold in digital stores). This repository contains no game files.
+
+The analysis used [Ghidra](https://github.com/NationalSecurityAgency/ghidra) through
+[REA](https://github.com/morluto/rea), LLVM's `llvm-objdump`, and the game's own compiler for byte matching. The
+documentation and the decompilation notes are also a working log, so they mention work rounds, numbered decisions
+(`src/decomp/include/DECISIONS.md`) and "the user" (the project's owner, who played the tests).
+
+## Building
+
+- **SummonerFix:** LLVM-MinGW (`i686-w64-mingw32-gcc`), `tools/build-summonerfix.ps1`. Put the resulting
+  `dinput.dll` next to `Sum.exe`. See [Setup](docs/setup.md).
+- **The decompilation:** Microsoft Visual C++ 6.0 with Service Pack 5 (compiler build 8966, the one Sum.exe was built
+  with), which you have to supply yourself; set `VC6_DIR` to its `VC98` folder. `tools/vc6-sweep.mjs` compares every
+  function with your `Sum.exe`; `tools/link-build.mjs` links the standalone executable (it also needs libjpeg 6b
+  from the IJG source in `third_party/`). See [Setup](docs/setup.md) and [Tools](docs/tools.md).
+- The scripts in `tools/` run with Node.js 24 from the repository folder.
 
 ## Findings so far
 
@@ -51,9 +73,23 @@ tools/           Build, test and analysis helper scripts
 Summoner/        Local game install - NOT committed (see .gitignore)
 ```
 
+## Credits
+
+- [Summoner 2 decompilation](https://github.com/mikegoforth/summoner-2-decomp) (PlayStation 2): a source of names
+  for the engine Summoner shares with its sequel. Names only; no code was taken.
+- [Dash Faction](https://github.com/rafalh/dash-faction) (Red Faction, the same engine family): a source of names
+  for engine structures. Names only; no code was taken.
+- The Independent JPEG Group's libjpeg 6b, which the standalone executable links (this software is based in part
+  on the work of the Independent JPEG Group).
+
 ## Legal
 
 This repository contains documentation, our own helper scripts, the SummonerFix source and a C++
-reconstruction of `Sum.exe` (`src/decomp`, written from the disassembly). It does not contain game files,
-game executables, extracted game data, compilers or third-party patch binaries. You need your own
-copy of Summoner to reproduce the analysis.
+reconstruction of `Sum.exe` (`src/decomp`, written from the disassembly of a retail copy). It does not contain
+game files, game executables, extracted game data, compilers or third-party patch binaries.
+
+- The MIT licence in [`LICENSE`](LICENSE) covers our own work: the tools, SummonerFix, the documentation and the
+  symbol files. It does **not** cover `src/decomp`; see [`src/decomp/NOTICE.md`](src/decomp/NOTICE.md).
+- This project is not affiliated with, endorsed by or connected to THQ Nordic, Volition or any other rights holder.
+  "Summoner" is a trademark of its owner. If you hold rights in Summoner and want something changed or removed,
+  please open an issue.
