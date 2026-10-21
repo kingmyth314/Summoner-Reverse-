@@ -459,14 +459,15 @@ void ai_group_think_style2(Character *c, ai_group *g)
 }
 
 // 0x4936c0  Confidence: likely (the candidate count is incremented twice per scored member, as in the
-// binary; the candidate records are boss_target (0x10 bytes, five on the stack). Healer / caster: with
+// binary; the candidate records are boss_target (0x10 bytes, six on the stack at esp+0x30, ending at the
+// return address: list[6] gives the binary's 0x80-byte frame, D17100). Healer / caster: with
 // more than a quarter of its AP a support spell (ai_choose_support_spell) on the members; on the second
 // pass, when the enemies' attack rating is more than three times the group's, spell 0x15 or 0x13 on
 // the members that are not blessed (weighted by attackers and lost HP); else the melee (style 3) or
 // range pass.
 void ai_group_think_caster(Character *c, ai_group *g, int first_pass)
 {
-    boss_target list[5];
+    boss_target list[6];
     boss_target *chosen;
     int i, count;
 

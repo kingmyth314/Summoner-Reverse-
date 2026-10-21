@@ -11109,3 +11109,12 @@ at esp+0x4c/0x50/0x54 (vector3::assign into `lea ecx, [esp+0x54]` with two pushe
 esp+0x24/0x28/0x2c; the width multiplies 0x4c and 0x24 (x), the height 0x54 and 0x2c (0x563fc4 / 0x563fc8, z).
 Key-frame branch: the blended scale is at esp+0x24; the height multiplies 0x2c (0x56415f, z). The decomp used y
 in both. Whether z was meant (a Z-up exporter) is not known; the binary's choice is kept.
+
+**D17100 (game/unnamed_ai_groups_0x492b00.cpp; ai_group_think_caster 0x4936c0: six candidate records, not five).**
+The first member loop (0x4937bc-0x4937d4) writes each record's character at `[eax-8]` from `lea eax, [esp+0x38]`,
+so the records (boss_target, 0x10 bytes) start at esp+0x30 after the four pushes, and six end at esp+0x90, the
+return address. Nothing else in the function reads or writes esp+0x80-0x8f. `boss_target list[6]` gives the
+binary's `sub esp, 0x80` (list[5] gave 0x6c); the first difference moves from +0 to +0x1e (--score distance 321 ->
+282). No behaviour change for a group of up to six. The "sixth member overwrites the return address" candidate in
+docs/fixed-build.md came from reading the base as esp+0x38 and is withdrawn: an AI group of six fits. The overflow
+that remains is C210's doubled count (fixed in SummonerFix and FIXED_BUILD).

@@ -18,6 +18,11 @@
 // of its addresses), then a name symbols/sum.symbols knows (`a::b` looked up as `a__b`). A target that resolves to
 // another address is a warning by default; with --strict (or VC6_STRICT=1) a function whose bytes match but with
 // a wrong target counts as `target`, not `match`. Targets no map knows stay unchecked (counted with -v).
+//
+// --score: for a function that differs, also its distance from a match: both functions are cut into instructions
+// (ours at the listing's offsets, the original's at build/sum.asm's), relocated fields and branch displacements
+// masked, and the distance counts the instructions outside their longest common subsequence (deleted + inserted).
+// 0 with a difference left means only branch distances differ. tools/vc6-nearmiss.mjs ranks a whole tree.
 import { readFileSync, existsSync, mkdtempSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join, resolve, dirname, basename } from "node:path";
@@ -34,13 +39,14 @@ const includeDir = process.env.DECOMP_INCLUDE || join(repoRoot, "src", "decomp",
 // ---- arguments -----------------------------------------------------------------------------------------
 const args = process.argv.slice(2);
 const files = [];
-let flags = null, json = false, keep = false, verbose = false, strict = !!process.env.VC6_STRICT;
+let flags = null, json = false, keep = false, verbose = false, score = false, strict = !!process.env.VC6_STRICT;
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--flags") flags = args[++i];
   else if (args[i] === "--strict") strict = true;
   else if (args[i] === "--json") json = true;
   else if (args[i] === "--keep") keep = true;
   else if (args[i] === "-v") verbose = true;
+  else if (args[i] === "--score") score = true;
   else files.push(args[i]);
 }
 if (!files.length) {
@@ -123,6 +129,31 @@ function compile(cpp, dir, fl) {
   catch (e) { return { error: ((e.stdout ?? "") + (e.stderr ?? "")).split(/\r?\n/).filter((l) => /error/.test(l)).slice(0, 10).join("\n") || String(e) }; }
   const stem = basename(cpp).replace(/\.[^.]+$/, "");
   return { obj: join(dir, stem + ".obj"), cod: join(dir, stem + ".cod"), out };
+}
+
+// The --score distance. An instruction is its bytes (relocations already masked) with a branch displacement also
+// masked; the distance is |a| + |b| - 2 * LCS(a, b).
+function insKeys(buf, offs) {
+  const keys = [];
+  for (let i = 0; i < offs.length; i++) {
+    const a = offs[i], b = i + 1 < offs.length ? offs[i + 1] : buf.length;
+    if (a >= buf.length || b <= a) continue;
+    const x = Buffer.from(buf.subarray(a, b));
+    const op = x[0], two = x.length > 1 ? x[1] : -1;
+    if ((op >= 0x70 && op <= 0x7f) || op === 0xeb || (op >= 0xe0 && op <= 0xe3) || op === 0xe8 || op === 0xe9) x.fill(0, 1);
+    else if (op === 0x0f && two >= 0x80 && two <= 0x8f) x.fill(0, 2);
+    keys.push(x.toString("hex"));
+  }
+  return keys;
+}
+function lcsDistance(a, b) {
+  if (a.length * b.length > 25e6) return null;
+  let prev = new Uint16Array(b.length + 1), cur = new Uint16Array(b.length + 1);
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) cur[j] = a[i - 1] === b[j - 1] ? prev[j - 1] + 1 : Math.max(prev[j], cur[j - 1]);
+    [prev, cur] = [cur, prev];
+  }
+  return a.length + b.length - 2 * prev[b.length];
 }
 
 function compareFile(cpp) {
@@ -279,6 +310,7 @@ function compareFile(cpp) {
           const a = at(ours, (e) => e.off), b = theirs ? at(theirs, (e) => e.va - s.addr) : null;
           r.ours = a ? a.text : null; r.orig = b ? b.text : null;
         }
+        if (score && theirs) r.distance = lcsDistance(insKeys(mine, ours.map((e) => e.off)), insKeys(orig.subarray(0, origSize), theirs.map((e) => e.va - s.addr)));
       }
       if (wrongTargets.length) r.targetWarnings = wrongTargets;
       result.functions.push(r);
@@ -303,6 +335,7 @@ if (json) {
       total[f.status]++;
       let line = `  ${f.addr.padEnd(9)} ${f.status.padEnd(9)} ${f.name}`;
       if (f.status !== "not found") line += `  (${f.size}/${f.origSize} bytes, ${f.instructions}/${f.origInstructions ?? "?"} ins)`;
+      if (f.distance !== undefined) line += `  distance ${f.distance ?? "too large"}`;
       if (f.offset) line += `  at +${f.offset}: ${f.ours ?? "?"}  |  orig: ${f.orig ?? "?"}`;
       if (f.targetWarnings) warned++;
       relChecked += f.relocsChecked || 0; relUnchecked += f.relocsUnchecked || 0;

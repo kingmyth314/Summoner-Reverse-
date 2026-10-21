@@ -121,11 +121,12 @@ centres the 1024x768 picture itself) would replace most of the open rows at once
 - Not changed, as SummonerFix also leaves them: the offensive armour branch of `trigger_reflex_ability`, and the
   128-byte buffers behind C310 (a volume without 8.3 names still crashes with a long path).
 - Raised during the port and checked afterwards (2026-10-21):
-  - `ai_group_think_caster`'s target list: the binary has the same 5 records as our source, not 6. The loop's
-    records start at `esp+0x38` (`lea esi, [esp+0x3c]` at `0x4938f9`, the record at `esi-4`) after four pushes,
-    and the return address is at `esp+0x90`, so 5 records and 8 bytes fit. Our source is right. In the original
-    a sixth member's record would overwrite the return address. AI groups hold up to six members
-    (`ai_group_add_member`), but the party has at most five, so only an enemy group of six with a caster could
-    reach it. That is a game-bug candidate, not yet traced to a retail group.
+  - `ai_group_think_caster`'s target list holds **six** records, and an AI group of six fits (corrected later on
+    2026-10-21; D17100). A first reading put the records at `esp+0x38`, which left room for five and made a
+    six-member enemy group with a caster a crash candidate. The member loop at `0x4937bc` writes each record's
+    character at `[eax-8]` from `esp+0x38`, so the records start at `esp+0x30` and six end exactly at the
+    return address (`esp+0x90`). The source had `list[5]` and now has `list[6]`, which gives the binary's frame
+    size. The shipped build's behaviour is unchanged, and the candidate is withdrawn. The overflow that remains is
+    C210's doubled count, fixed here.
   - K61's out-of-bounds read: in both exes the four bytes after `world_tint_gold` are the text "gold"
     (`67 6f 6c 64`), read as a float, so the shipped rebuild tints exactly as retail does.
