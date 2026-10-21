@@ -375,8 +375,15 @@ void saveload_load_thumbnail(int row)
         saveload_entry *e = &saveload_entries[saveload_scroll_pos + row];
 
         strcpy(saveload_name_input, e->name);
+#ifdef FIXED_BUILD
+        // FIXED_BUILD: K5 SaveListThumbnail
+        // Only entry 0 ("<New Savegame>") keeps the captured picture, not the first visible row.
+        if (!saveload_save_mode || e != &saveload_entries[0])
+            savegame_state.read_thumbnail_file(e->filename, 0);
+#else
         if (!saveload_save_mode || row > 0)
             savegame_state.read_thumbnail_file(e->filename, 0);
+#endif
     }
 }
 
@@ -670,10 +677,20 @@ int saveload_try_save()
     if (reason > 0 && reason <= 3)
         return 1;
 
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: G4 SaveOverwriteQuestion
+    // Test the entry the save goes to (saveload_save_to_slot adds the scroll position too).
+    int entry = saveload_selected_row + saveload_scroll_pos;
+    if (entry >= 0 && saveload_entries[entry].level != -1) {
+        saveload_confirm_overwrite();
+        return 1;
+    }
+#else
     if (saveload_selected_row >= 0 && saveload_entries[saveload_selected_row].level != -1) {
         saveload_confirm_overwrite();
         return 1;
     }
+#endif
     return saveload_save_to_slot();
 }
 
@@ -1027,7 +1044,12 @@ void saveload_draw_thumbnail()
 {
     int bm;
 
+#ifdef FIXED_BUILD
+    // part of FIXED_BUILD K5
+    if (saveload_save_mode && saveload_selected_row + saveload_scroll_pos == 0)
+#else
     if (saveload_save_mode && saveload_selected_row == 0)
+#endif
         bm = saveload_thumbnail_bm;
     else
         bm = savegame_thumbnail_bm;

@@ -726,8 +726,15 @@ void ai_state::luminar_beam_hit(Character *t)
     if (!owner->move_trigger_fired(7, 0))
         return;
     luminar_beam_hit_done = true;
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: C250 LuminarBeamTarget. A target that died or vanished during the beam is NULL here:
+    // no damage, and the flinch and target effect after it are skipped (the original reads through NULL).
+    if (!t || !t->add_hp(-125.0f, owner->handle, 1, false))
+        return;
+#else
     if (!t->add_hp(-125.0f, owner->handle, 1, false))
         return;
+#endif
     t->combat.play_flinch(2);
     if (luminar_beam_fx_variant) {
         fx_attach_to_character("spell-lbolt-target.vfx", t->handle, -1, -1, 0, 0);

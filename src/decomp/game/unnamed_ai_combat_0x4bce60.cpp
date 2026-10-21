@@ -863,6 +863,42 @@ int ai_state::choose_support_spell(boss_target *list, int count, boss_target **o
     if (vitalize && hurt > 2)
         return SPELL_VITALIZE;
     r = frand();
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: G229 SupportSpellPick. Compare r with the running sum of the shares (as
+    // ai_consider_blind_or_silence does). A party-side list (its first record a party member) takes the
+    // running-sum pick; an enemy healer keeps the game's own pick and, when that picks nobody, takes the
+    // running-sum pick half of the time.
+    {
+        float sum = 0.0f;
+        int running = -1;
+        int original = -1;
+        int last = -1;
+        for (i = 0; i < count; i++) {
+            sum += list[i].score;
+            if (running < 0 && r <= sum)
+                running = i;
+            if (original < 0 && r <= list[i].score)
+                original = i;
+            if (list[i].score > 0.0f)
+                last = i;
+        }
+        if (running < 0)
+            running = last; // the shares can sum to just under 1.0
+        if (count > 0 && list[0].character && list[0].character->type == CHAR_TYPE_PARTY)
+            i = running;
+        else if (original >= 0)
+            i = original;
+        else
+            i = frand() < 0.5f ? running : -1;
+        if (i != -1) {
+            *out = &list[i];
+            if (list[i].flags & AIT_HURT)
+                return SPELL_HEAL;
+            if (list[i].flags & AIT_CURABLE)
+                return SPELL_CURE;
+        }
+    }
+#else
     for (i = 0; i < count; i++) {
         if (r <= list[i].score) {
             if (i == -1)
@@ -875,6 +911,7 @@ int ai_state::choose_support_spell(boss_target *list, int count, boss_target **o
             break;
         }
     }
+#endif
     return -1;
 }
 
@@ -1439,7 +1476,17 @@ void ai_state::combat_cast_frame(Character *target)
         for (i = 0; i < cur_character->ai.group->count; i++) {
             c = living_from_handle(cur_character->ai.group->members[i]);
             if (c)
+#ifdef FIXED_BUILD
+            {
+                // FIXED_BUILD: G241 AreaSpellDistances. Fill the candidate's distance from the caster, as the
+                // healer list above does: ai_consider_area_spell reads it for meteor storm and inferno.
+                list[count].character = c;
+                list[count].dist = distance(&owner->pos, &c->pos);
+                count++;
+            }
+#else
                 list[count++].character = c;
+#endif
         }
     }
     spell = choose_offensive_spell(list, count, &pick);

@@ -1379,7 +1379,14 @@ int ui_choice_popup_hit_test()
 
     if (strlen(ui_choice_popup_title)) {
         gr_get_string_size(&w, &h, ui_choice_popup_title, -1, -1);
+#ifdef FIXED_BUILD
+        // FIXED_BUILD: K170 PopupRowOffset. The rows start below the title gap, as ui_choice_popup_draw
+        // draws them, so each row's rectangle covers its own text.
+        y = ui_choice_popup_margin_y[resolution_index] + ui_choice_popup_y + h
+            + ui_choice_popup_title_gap[resolution_index];
+#else
         y = ui_choice_popup_margin_y[resolution_index] + ui_choice_popup_y + h;
+#endif
     } else
         y = ui_choice_popup_margin_y[resolution_index] + ui_choice_popup_y;
     h = gr_get_font_height(-1);
@@ -1494,6 +1501,11 @@ bool ui_choice_popup_is_active()
     return active != 0;
 }
 
+#ifdef FIXED_BUILD
+// part of FIXED_BUILD G170: set when a box's pause took effect, cleared when the box unpauses.
+static bool ui_message_box_paused;
+#endif
+
 // 0x413e40  Confidence: likely (the clamps as in ui_choice_popup_show). Flag 1 pauses a single-player
 // game. The side panels (automap, spells, skills, item trade) are closed; sound 0x27 once the level runs
 // (game_flags 0x200, GF_LEADER_SOUND).
@@ -1532,8 +1544,18 @@ void ui_message_box_show(const char *title, const char *text, int x, int y, int 
     ui_message_box_flags = flags | 0x80000000;
     ui_message_box_callback = callback;
     ui_message_box_mouse_mode = 0;
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: G170 MessageBoxPause. Note whether this box's pause takes effect (the game was running),
+    // so that closing the box unpauses only a game the box paused.
+    if ((ui_message_box_flags & 1) && (game_flags & GF_SINGLE_PLAYER)) {
+        if (!game_is_paused())
+            ui_message_box_paused = true;
+        game_pause(0, 0);
+    }
+#else
     if ((ui_message_box_flags & 1) && (game_flags & GF_SINGLE_PLAYER))
         game_pause(0, 0);
+#endif
     if ((game_flags & GF_MULTIPLAYER) && gameseq_get_state() == 4)
         ui_screen_stop_player();
     switch (interface_cur_screen) {
@@ -1551,8 +1573,16 @@ void ui_message_box_show(const char *title, const char *text, int x, int y, int 
 // 0x414020  Confidence: exact.
 void ClearFrameFlag5bd504()
 {
+#ifdef FIXED_BUILD
+    // part of FIXED_BUILD G170: unpause only when the box's own pause took effect.
+    if ((ui_message_box_flags & 1) && (game_flags & GF_SINGLE_PLAYER) && ui_message_box_paused) {
+        ui_message_box_paused = false;
+        game_unpause();
+    }
+#else
     if ((ui_message_box_flags & 1) && (game_flags & GF_SINGLE_PLAYER))
         game_unpause();
+#endif
     ui_message_box_flags = 0;
 }
 

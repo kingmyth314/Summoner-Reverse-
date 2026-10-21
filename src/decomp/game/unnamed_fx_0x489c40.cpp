@@ -745,8 +745,15 @@ void fx_frame(float frametime, bool paused)
             int status;
             float value;
 
+#ifdef FIXED_BUILD
+            // FIXED_BUILD: G270 AreaCasterGone. An area whose caster is gone is skipped; the original left the
+            // loop, so every later area stopped counting and its status was cured below.
+            if (!caster)
+                continue;
+#else
             if (!caster)
                 break;
+#endif
             ms = a->timer.GetElapsedTime();
             duration = 0;
             if (a->spell == 0x23 && ms < 3000)
@@ -1157,6 +1164,11 @@ effect_object *fx_new(int kind)
     fx->sound = -1;
     fx->avoid_area = -1;
     fx->spell_effect = NULL;
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: G271 EffectSlotSpell. A new object starts with no spell (-1, as fx_create_instance stores);
+    // the original kept the slot's last spell, so a status holder could count as a burning fireball.
+    fx->spell = -1;
+#endif
     return fx;
 }
 
@@ -1757,10 +1769,20 @@ void fx_disable_by_effect_name(const char *name)
     vfx_base *base;
 
     for (fx = fx_active_list.fx_next; fx != &fx_active_list; fx = fx->fx_next) {
+#ifdef FIXED_BUILD
+        // FIXED_BUILD: C272 EffectSearchGuard. Objects without an instance (arrows, spell areas, status holders,
+        // item effects) are skipped, and an effect without a base goes on to the next object instead of ending
+        // the search.
+        if (fx->instance && fx->instance->category == 0) {
+            base = effect_get_base(fx->instance->id_bits >> 9);
+            if (!base)
+                continue;
+#else
         if (fx->instance->category == 0) {
             base = effect_get_base(fx->instance->id_bits >> 9);
             if (!base)
                 return;
+#endif
             if (!_stricmp(base->name, name))
                 fx->obj_flags &= ~1;
         }

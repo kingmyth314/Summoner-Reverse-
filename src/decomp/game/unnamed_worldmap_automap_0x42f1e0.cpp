@@ -642,7 +642,12 @@ int automap_label_alloc()
 {
     if (automap_num_labels < AUTOMAP_MAX_LABELS)
         return automap_num_labels++;
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: K6 MapLabelLimit
+    return -1; // full: the callers' < 0 test refuses the label instead of overwriting label 0
+#else
     return 0;
+#endif
 }
 
 // 0x430250  Confidence: exact (the size is a pointer difference).

@@ -148,8 +148,23 @@ void screenshot_save()
         n = 0;
     } else {
         printf("NOT_EMPTY\n");
+#ifdef FIXED_BUILD
+        // FIXED_BUILD: K193 ScreenshotNumbers. 1 + the largest N among the files named screenN (the list
+        // holds the names without their extension); other screen* names are ignored, so the number is
+        // always set and does not stop at screen1000.
+        n = 0;
+        for (file_find_node *node = list.next; node != &list; node = node->next) {
+            const char *p = node->name + 6, *q = p;
+            int v = 0;
+            while (*q >= '0' && *q <= '9' && v < 100000000)
+                v = v * 10 + (*q++ - '0');
+            if (q > p && *q == 0 && v + 1 > n)
+                n = v + 1;
+        }
+#else
         sscanf(list.prev->name, "screen%d", &n);
         n++;
+#endif
     }
     sprintf(name, "screen%03d", n);
     file_make_path(path_root, name, path);

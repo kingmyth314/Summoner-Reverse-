@@ -971,10 +971,19 @@ void phoenix_special_strike(Character *boss, Character *target)
             Character *c = living_from_handle(p->handle);
             if (c == NULL)
                 continue;
+#ifdef FIXED_BUILD
+            // FIXED_BUILD: G215 PhoenixInferno
+            // Each party member's own distance to the boss; each member in range is hit (and knocked down) once.
+            vector3 d = c->pos - boss->pos;
+            if (d.y * d.y + d.x * d.x + d.z * d.z < r2) {
+                fx_create_spell_effect_facing(SPELL_PHOENIX_BLAST, boss->handle, c->handle);
+                c->get_hit_by_spell(SPELL_PHOENIX_BLAST, boss->handle, NULL, NULL, 0, NULL, 0.0f, false);
+#else
             vector3 d = target->pos - boss->pos;
             if (d.y * d.y + d.x * d.x + d.z * d.z < r2) {
                 fx_create_spell_effect_facing(SPELL_PHOENIX_BLAST, boss->handle, target->handle);
                 target->get_hit_by_spell(SPELL_PHOENIX_BLAST, boss->handle, NULL, NULL, 0, NULL, 0.0f, false);
+#endif
                 c->ai.knock_down((int)(frand_range(5.0f, 10.0f) * 1000.0f));
             }
         }

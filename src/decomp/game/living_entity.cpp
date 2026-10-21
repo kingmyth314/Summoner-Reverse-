@@ -760,7 +760,12 @@ void ring_add_xp(const char *ring, int xp, int cap)
 // (`new > 60000`).
 void ring_check_summon_unlock(const char *ring, int old_xp, int new_xp)
 {
+#ifdef FIXED_BUILD
+    // part of FIXED_BUILD K100: a total of exactly 60,000 unlocks too (as character_can_use_summon).
+    if (old_xp < 60000 && new_xp >= 60000) {
+#else
     if (old_xp < 60000 && new_xp > 60000) {
+#endif
         if (_stricmp(ring, "Ring of Light") == 0)
             hud_show_message(XSTR("Joseph acquired Summon Wraith!", 314));
         if (_stricmp(ring, "Ring of Fire") == 0)
@@ -4174,7 +4179,24 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
         if (!No_resist && roll < resist)
             break;
         amount = power * 0.05f * level;
+#ifdef FIXED_BUILD
+        // FIXED_BUILD: G100 LeechDrain. The roll below (dice count 0) would overwrite the amount with 0:
+        // take it from this character and give it to the caster instead, then skip the roll and add_hp.
+        if (amount > 0.0f) {
+            Character *drainer;
+
+            add_hp(-amount, source, 0, false);
+            drainer = living_from_handle(source);
+            if (drainer != NULL && drainer != this)
+                drainer->add_hp(amount, source, 0, false);
+            amount = -amount;
+        } else {
+            amount = 0.0f;
+        }
+        goto leech_drained;
+#else
         break;
+#endif
     }
     case 0x3f: {
         float roll;
@@ -4403,6 +4425,10 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
     }
     amount = spell_roll_amount(this, spell, count, die, use_resist ? magic : 0.0f);
     add_hp(amount, source, 0, false);
+#ifdef FIXED_BUILD
+    // part of FIXED_BUILD G100: the leech case resumes here, after the roll and add_hp.
+leech_drained:
+#endif
     if (amount < 0.0f && flinch != 0)
         play_flinch(flinch);
     if (show_fx == 1) {

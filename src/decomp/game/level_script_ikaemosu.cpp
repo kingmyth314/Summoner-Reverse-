@@ -42,8 +42,14 @@ void ls_ikaemostopint_init()
         door_apply_saved_state("Door02-01", true);
     if (savegame_state.get_flag(cur_level_index, "ikaemos_boss_killed"))
         script_npc_set_disabled("Ikaemos Priest King", true);
+#ifdef FIXED_BUILD
+    // part of FIXED_BUILD K130 (the K150 half of BossMusic)
+    ls_ikaemostopint_found_boss_done = savegame_state.get_flag(cur_level_index, "ikaemos_boss_killed") != 0;
+    ls_ikaemostopint_boss_killed_done = ls_ikaemostopint_found_boss_done;
+#else
     ls_ikaemostopint_found_boss_done = true;
     ls_ikaemostopint_boss_killed_done = true;
+#endif
     ls_ikaemostopint_joseph_spoke = false;
 }
 

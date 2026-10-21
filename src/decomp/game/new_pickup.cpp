@@ -153,6 +153,23 @@ void pickup_init(container *c)
     pickup_update_scrollbar();
 }
 
+#ifdef FIXED_BUILD
+// part of FIXED_BUILD K12
+// The thumb height: the track height scaled by page / items, as the assess screen sizes its thumb, and no shorter
+// than the thumb bitmap (the draw puts its last tile at top + height - bitmap height). Called only when the list is
+// longer than a page.
+static int pickup_thumb_height()
+{
+    int track = pickup_scrollbar_track_height[resolution_index];
+    int page = pickup_page_size[resolution_index];
+    int count = pickup_container->num_items;
+    int h = count > page ? track * page / count : track;
+    if (h < pickup_thumb_bm_h && pickup_thumb_bm_h <= track)
+        h = pickup_thumb_bm_h;
+    return h;
+}
+#endif
+
 // 0x420850. Unlike the assess bar the thumb keeps the full track height. Confidence: exact
 void pickup_update_scrollbar()
 {
@@ -169,14 +186,24 @@ void pickup_update_scrollbar()
         pickup_thumb_x = pickup_scrollbar_track[resolution_index].x;
         pickup_thumb_y = pickup_scrollbar_track[resolution_index].y;
         pickup_thumb_w = pickup_thumb_bm_w;
+#ifdef FIXED_BUILD
+        // FIXED_BUILD: K12 PickupScrollbar. Size the thumb to the shown part of the list (pickup_thumb_height).
+        pickup_thumb_h = pickup_thumb_height();
+#else
         pickup_thumb_h = pickup_scrollbar_track_height[resolution_index];
+#endif
     } else {
         pickup_thumb_x = pickup_scrollbar_track[resolution_index].x;
         pickup_thumb_y = (int)((float)pickup_scroll_pos / pickup_container->num_items
                                * pickup_scrollbar_track_height[resolution_index] + 0.5f)
                        + pickup_scrollbar_track[resolution_index].y;
         pickup_thumb_w = pickup_thumb_bm_w;
+#ifdef FIXED_BUILD
+        // part of FIXED_BUILD K12
+        pickup_thumb_h = pickup_thumb_height();
+#else
         pickup_thumb_h = pickup_scrollbar_track_height[resolution_index];
+#endif
     }
 }
 

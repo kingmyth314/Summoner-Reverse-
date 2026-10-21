@@ -1422,12 +1422,22 @@ void combat_spawn_hit_vfx(Character *attacker, Character *defender)
         tag = combat_get_weapon_tag_position(attacker, defender);
         if (tag == -1)
             return;
+#ifdef FIXED_BUILD
+        // FIXED_BUILD: K20 MetalHitEffects
+        // Every skin that got a name gets an effect: blood for flesh and leather, sparks for the rest.
+        if (skin == 1 || skin == 2) {
+            fx_attach_to_character("blood.vfx", defender->handle, tag, -1, 0, 0);
+            return;
+        }
+        fx_attach_to_character("sparkhit01.vfx", defender->handle, tag, -1, 0, 0);
+#else
         if (skin == 1) {
             fx_attach_to_character("blood.vfx", defender->handle, tag, -1, 0, 0);
             return;
         }
         if (skin == 3 || skin == 9)
             fx_attach_to_character("sparkhit01.vfx", defender->handle, tag, -1, 0, 0);
+#endif
     }
 }
 
@@ -1758,9 +1768,17 @@ void living_combat::trigger_reflex_ability(float damage)
             frand() < it->type->armour_triggered_effect->chance) {
             spell = it->type->armour_triggered_effect->spell;
             if (spells[spell].flags & SPELL_BENEFICIAL)
+#ifdef FIXED_BUILD
+                // FIXED_BUILD: G300 RobeOfRestoration
+                // The single-player cast goes to the wearer (the defender), as the reflex branch above does.
+                COMBAT_TRIGGER_CAST(opponent->owner, spell, opponent->owner->handle, &self_pos,
+                                    opponent->owner->layer, opponent->owner->equipment[i]->type, 4,
+                                    opponent->owner, opponent->owner->handle);
+#else
                 COMBAT_TRIGGER_CAST(opponent->owner, spell, opponent->owner->handle, &self_pos,
                                     opponent->owner->layer, opponent->owner->equipment[i]->type, 4,
                                     opponent->owner, owner->handle);
+#endif
             else
                 COMBAT_TRIGGER_CAST(opponent->owner, spell, owner->handle, &attacker_pos, owner->layer,
                                     opponent->owner->equipment[i]->type, 4, owner,

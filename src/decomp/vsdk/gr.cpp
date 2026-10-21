@@ -1242,7 +1242,13 @@ int gr_get_video_memory_mb()
     case GR_GLIDE:
         return gr_glide_get_video_memory_mb();
     case GR_OPENGL:
+#ifdef FIXED_BUILD
+        // FIXED_BUILD: K64 OpenGLTextures. Report 64 MB, so a start without summoner.cfg (a fresh install) keeps
+        // the full-detail textures instead of the reduced ones that summoner_cfg_load picks at <= 8.
+        return 64;
+#else
         return 8;
+#endif
     }
     return 0;
 }

@@ -943,9 +943,20 @@ bool boss_species_mounted_stage(int species)
     switch (species) {
     case SPECIES_TIGER_RIDER:
         return tiger_stage == 1 || tiger_stage == 2;
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: G32 MountedRiders. Each rider's own stage: the Phoenix reads phoenix_stage (not
+    // serpent_stage), and the Ghost (mounted in stage 1) is tested too.
+    case SPECIES_PHOENIX_RIDER:
+        return phoenix_stage == 1;
+    case SPECIES_SERPENT_RIDER:
+        return serpent_stage == 1;
+    case SPECIES_GHOST_RIDER:
+        return ghost_stage == 1;
+#else
     case SPECIES_PHOENIX_RIDER:
     case SPECIES_SERPENT_RIDER:
         return serpent_stage == 1;
+#endif
     }
     return false;
 }

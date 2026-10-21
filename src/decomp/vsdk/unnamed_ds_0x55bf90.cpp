@@ -160,6 +160,24 @@ int ds_init(HWND hwnd, int rate, int bits, int channels, bool use_ds3d, bool use
     desc.dwSize = sizeof(desc);
     desc.dwFlags = ds3d_enabled == true ? DSBCAPS_PRIMARYBUFFER | DSBCAPS_CTRL3D : DSBCAPS_PRIMARYBUFFER;
     if (ds_direct_sound->CreateSoundBuffer(&desc, &ds_primary_buffer, NULL) < 0) {
+#ifdef FIXED_BUILD
+        // FIXED_BUILD: C2 PrimarySoundBuffer
+        // Retry without 3D on the same DirectSound object; if that is not possible or fails too, release it and
+        // run without sound (the original released it first and then called through NULL, or went on to
+        // SetFormat on a buffer that was never made).
+        bool created = false;
+        if (ds3d_enabled == true) {
+            desc.dwFlags = DSBCAPS_PRIMARYBUFFER;
+            ds3d_enabled = false;
+            ds_eax_enabled = false;
+            created = ds_direct_sound->CreateSoundBuffer(&desc, &ds_primary_buffer, NULL) >= 0;
+        }
+        if (!created) {
+            ds_direct_sound->Release();
+            ds_direct_sound = NULL;
+            return -1;
+        }
+#else
         ds_direct_sound->Release();
         ds_direct_sound = NULL;
         if (ds3d_enabled == true) {
@@ -172,6 +190,7 @@ int ds_init(HWND hwnd, int rate, int bits, int channels, bool use_ds3d, bool use
                 return -1;
             }
         }
+#endif
     }
     wfx.wFormatTag = WAVE_FORMAT_PCM;
     wfx.nChannels = (WORD)channels;

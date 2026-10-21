@@ -1286,9 +1286,16 @@ int ai_state::knock_down_local(int ms)
     } else {
         disable_ms = ms;
         disable_timer.invalidate();
+#ifdef FIXED_BUILD
+        // FIXED_BUILD: K80 KnockDownMessage. ai_set_mode refuses the disabled state while the character
+        // casts; show the message only when the knock-down took effect. The result stays 1.
+        if (set_mode(AI_STATE_DISABLED, AIS_TRIPPED_FALL) && owner == cur_character)
+            hud_show_message(XSTR("Knocked Down!", 6));
+#else
         set_mode(AI_STATE_DISABLED, AIS_TRIPPED_FALL);
         if (owner == cur_character)
             hud_show_message(XSTR("Knocked Down!", 6));
+#endif
     }
     return 1;
 }

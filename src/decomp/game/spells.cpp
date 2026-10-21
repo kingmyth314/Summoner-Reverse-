@@ -235,21 +235,37 @@ void spells_parse_table()
             spells[i].duration = (short)tf.ParseInt();
         spells[i].recovery_time = spells[i].duration;
         if (tf.Accept("+Recovery time:")) {
+#ifdef FIXED_BUILD
+            // FIXED_BUILD: G12 SpellRecoveryTimes. Store the parsed value, not the record index (here and
+            // for +AI Recovery time: and +Loop Time: below).
+            spells[i].recovery_time = (short)tf.ParseInt();
+#else
             tf.ParseInt();
             spells[i].recovery_time = (short)i;
+#endif
         }
         spells[i].ai_recovery_time = -1;
         if (tf.Accept("+AI Recovery time:")) {
+#ifdef FIXED_BUILD
+            // part of FIXED_BUILD G12
+            spells[i].ai_recovery_time = (short)tf.ParseInt();
+#else
             tf.ParseInt();
             spells[i].ai_recovery_time = (short)i;
+#endif
         }
         spells[i].emerge_time = 0;
         if (tf.Accept("+Emerge time:"))
             spells[i].emerge_time = tf.ParseInt();
         spells[i].loop_time = 0;
         if (tf.Accept("+Loop Time:")) {
+#ifdef FIXED_BUILD
+            // part of FIXED_BUILD G12
+            spells[i].loop_time = (short)tf.ParseInt();
+#else
             tf.ParseInt();
             spells[i].loop_time = (short)i;
+#endif
         }
         spells[i].target_radius = 0.0f;
         if (tf.Accept("+Target radius:"))
@@ -1096,6 +1112,20 @@ void spell_cast_execute(Character *caster, int spell, int target, vector3 *pos, 
     }
 
     spell_vec where;
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: K300 SpellHitSoundPosition. `where` (the hit sound's position) starts as the target
+    // character's position, else the target point (an unset AI point is 0, 0, 0), else the caster's; the
+    // cases below that set it still do.
+    {
+        Character *hit = target != -1 ? living_from_handle(target) : NULL;
+        if (hit)
+            where = hit->pos;
+        else if (pos && (pos->x != 0.0f || pos->y != 0.0f || pos->z != 0.0f))
+            where = *pos;
+        else if (caster)
+            where = caster->pos;
+    }
+#endif
     st = 5;
     if (a == 0)
         st = source_type;

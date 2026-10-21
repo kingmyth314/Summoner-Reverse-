@@ -1283,8 +1283,13 @@ void savegame::automap_label_remove(int level, int script, automap_label *label)
         return;
     off = 4;
     count = *(int *)map_labels.data;
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: K40 MapLabelsFull
+    // No full-list test here: it belongs to the add, and a full list must still lose labels.
+#else
     if (count >= SAVEGAME_MAX_LABELS)
         return;
+#endif
     for (i = 0; i < count; i++) {
         start = off;
         rlevel = *(int *)(map_labels.data + off);
@@ -1319,8 +1324,12 @@ void savegame::automap_labels_reset_level(int level, int script)
         return;
     off = 4;
     count = *(int *)map_labels.data;
+#ifdef FIXED_BUILD
+    // part of FIXED_BUILD K40 (no full-list test when resetting a level's labels)
+#else
     if (count >= SAVEGAME_MAX_LABELS)
         return;
+#endif
     for (i = 0; i < count; ) {
         start = off;
         rlevel = *(int *)(map_labels.data + off);
@@ -2250,7 +2259,14 @@ int savegame::read_item_objects()
         item = item_create_by_name("Gold");
         if (!item)
             return 0;
+#ifdef FIXED_BUILD
+        // FIXED_BUILD: G40 GoldPileAmount
+        // The pile gets the amount saved after z (1 if that is not positive), not 1.
+        num = *(int *)(item_objects.data + off - 4);
+        item_obj_spawn(item, &pos, &orient, num > 0 ? num : 1, -1, -1);
+#else
         item_obj_spawn(item, &pos, &orient, 1, -1, -1);
+#endif
 
     }
     return 1;

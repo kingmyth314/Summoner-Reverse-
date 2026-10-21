@@ -396,8 +396,16 @@ void ai_group_think_style1(Character *c, ai_group *g)
         best = engaged;
     if (best && character_is_helpless(best))
         best = first;
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: G211 SupportAiTarget
+    if (best) {
+        ai_group_order_attack(c, best, g, false);
+        return;
+    }
+#else
     if (best)
         ai_group_order_attack(c, best, g, false);
+#endif
     if (ai_think_enemies[0])
         ai_group_order_attack(c, ai_think_enemies[0], g, true);
 }
@@ -518,7 +526,12 @@ void ai_group_think_caster(Character *c, ai_group *g, int first_pass)
                     float frac = m->hp / (float)m->get_max_stat(0);
                     int n = m->ai.count_engaged_attackers(true);
                     list[i].flags |= 4;
+#ifdef FIXED_BUILD
+                    // FIXED_BUILD: C210 AiBlessCount
+                    // (a member is counted once, below, when its score is above 0)
+#else
                     count++;
+#endif
                     float score = (float)n * 10.0f + (30.0f - frac * 30.0f);
                     if (score > 0.0f) {
                         total += score;
@@ -600,8 +613,14 @@ void ai_group_collect_enemies(ai_group *g)
                     dir = e->pos - ai_think_members[i]->pos;
                     dir.normalize();
                     const vector3 &f = ai_think_members[i]->orient.fvec;
+#ifdef FIXED_BUILD
+                    // FIXED_BUILD: G210 DetectionCone
+                    if (dir.x * f.x + dir.z * f.z + dir.y * f.y >= 0.71f)
+                        goto found;
+#else
                     if (dir.x * f.x + dir.z * f.z + dir.y * f.y < 0.71f)
                         goto found;
+#endif
                 }
             }
         }

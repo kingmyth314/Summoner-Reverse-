@@ -182,6 +182,25 @@ void file_init(const char *path, int use_packfiles)
         strcpy(install_path, exe_path);
         strrchr(install_path, '\\')[1] = '\0';
     }
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: C310 LongInstallPath. The game joins install_path and file names in 128-byte stack buffers
+    // (packfile_add, packfile_fopen ...), so a path of 64 characters or more is replaced by its 8.3 short form
+    // (the same folder, with the trailing backslash). A volume without 8.3 names keeps the long path.
+    {
+        int path_len = strlen(install_path);
+        if (path_len >= 64) {
+            char short_path[MAX_PATH];
+            DWORD n = GetShortPathNameA(install_path, short_path, sizeof short_path);
+            if (n != 0 && n < sizeof short_path - 1 && n < (DWORD)path_len) {
+                if (short_path[n - 1] != '\\') {
+                    short_path[n++] = '\\';
+                    short_path[n] = '\0';
+                }
+                memcpy(install_path, short_path, n + 1);
+            }
+        }
+    }
+#endif
     file_zero_vector.zero();
     file_identity_quaternion.make_identity();
     file_default_matrix.make_identity();

@@ -171,7 +171,17 @@ void party_remove_player(Player *p, bool delete_obj)
     list_remove(p);
     list_append(&player_free_list, p);
 
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: G8 SummonKeepsLeader
+    // In single player, while another record leads, that leader stays: the re-pick loop is skipped.
+    if ((game_flags & GF_SINGLE_PLAYER) && party_leader != NULL && party_leader != p)
+        q = &party_list;
+    else
+        q = party_list.next;
+    for (; q != &party_list; q = q->next) {
+#else
     for (q = party_list.next; q != &party_list; q = q->next) {
+#endif
         if (q == p)
             continue;
         c = living_from_handle(q->handle);

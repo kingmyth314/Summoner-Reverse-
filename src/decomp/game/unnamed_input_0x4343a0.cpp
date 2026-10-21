@@ -181,9 +181,19 @@ void camera_process_input(unsigned int *in)
     // bool field of a copied input word. Reproduced through a local copy read as bool bit-fields (device).
     struct bits { bool b0 : 1; bool b1 : 1; bool b2 : 1; bool b3 : 1; bool left_held : 1; };
     unsigned int v = in[0];
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: K191 EdgeTurnAfterDrag
+    // Keep last frame's held-drag bit, so the release test below can see "held last frame, not now".
+    bool was_held = camera_edge_mouse_held;
+#endif
     camera_edge_mouse_held = ((bits *)&v)->left_held;
     if (game_mouse_x < 3 || game_mouse_x > gr_screen_width() - 4) {
+#ifdef FIXED_BUILD
+        // part of FIXED_BUILD K191
+        if (was_held && !((in[0] >> 4) & 1)) {
+#else
         if (camera_edge_mouse_held & (~in[0] >> 4) & 1) {
+#endif
             camera_edge_mouse_held = false;
             camera_edge_turn_blocked = true;
         } else if (!camera_edge_turn_blocked && !mouse_is_down(0) && !mouse_is_down(1)) {

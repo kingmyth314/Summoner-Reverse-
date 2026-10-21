@@ -655,7 +655,13 @@ int ai_state::serpent_choose_attack()
                     h = p;
                     serpent_timer_a_set_random(20000, 30000);
                     cur = boss_target_list_find_b(list, n, p);
+#ifdef FIXED_BUILD
+                    // FIXED_BUILD: G213 SerpentSleepTest
+                    // The new candidate's index, not the previous asleep flag.
+                    asleep = serpent_part_is_asleep(list, cur);
+#else
                     asleep = serpent_part_is_asleep(list, asleep);
+#endif
                     busy = serpent_part_is_busy(list, asleep, cur);
                 }
             }

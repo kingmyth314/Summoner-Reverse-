@@ -597,8 +597,18 @@ int snd_play_3d(int handle, const vector3 *pos, bool looping, int a, int unused)
                               snd_group_volumes[s->group] * s->volume, looping, a);
         } else {
             pan = snd_calc_pan(pos);
+#ifdef FIXED_BUILD
+            // FIXED_BUILD: K260 WorldSoundVolume. snd_play and snd_play_looping multiply by the group volume and
+            // the sound's volume again (snd_get_volume), so divide both out, not only the sound's volume: the
+            // sound-effects slider then counts once, as on the DirectSound3D path. Zero when the group volume is 0.
+            if (s->volume != 0.0f) {
+                float d = s->volume * snd_group_volumes[s->group];
+                v = d != 0.0f ? v / d : 0.0f;
+            }
+#else
             if (s->volume != 0.0f)
                 v /= s->volume;
+#endif
             if (looping == true)
                 rval = snd_play_looping(handle, v, pan, 0, 0);
             else

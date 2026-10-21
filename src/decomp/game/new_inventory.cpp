@@ -447,7 +447,21 @@ int inventory_category_first_index(int category)
                 break;
             i += n + 1;
             if (!item_is_identified(party_inventory[i].item))
+#ifdef FIXED_BUILD
+            // FIXED_BUILD: K4 InventoryCategoryButtons. The identify list shows only the unidentified items, so
+            // return the row of this item in that list (the unidentified items before it), not its inventory index.
+            {
+                int row = 0;
+                int j;
+
+                for (j = 0; j < i; j++)
+                    if (!item_is_identified(party_inventory[j].item))
+                        row++;
+                return row;
+            }
+#else
                 return i;
+#endif
         }
         return -1;
     }

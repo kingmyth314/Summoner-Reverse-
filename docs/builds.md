@@ -102,11 +102,21 @@ on purpose. The rule:
   `shipped` configuration; the strict match count (5,445) must not drop. The fixed and experimental code must never
   change what the reference configuration compiles to.
 
-## First steps once the decisions are made
+## First steps
 
-1. `link-build.mjs --config shipped|fixed|experimental` (define sets and output names), and the tools' `--exe` to
-   test `Sum-fixed.exe`.
-2. The C317 patch in SummonerFix, and C317 as the first `FIXED_BUILD` change in the source.
-3. The timing fix and the OpenGL default as the next `FIXED_BUILD` changes, so `Sum-fixed.exe` runs at the right speed
-   without SummonerFix.
-4. Controller tier 1, as a prototype in SummonerFix (fastest to test on the original game).
+Done 2026-10-21 (built and checked; not run in game, see [Fixed build changes](fixed-build.md)):
+
+1. `link-build.mjs --config shipped|fixed|experimental` (defines `FIXED_BUILD` / `EXPERIMENTAL_BUILD`: `FIXED` is
+   taken by a type in Windows' `wingdi.h`), and `link-savecheck` / `link-screencheck --exe NAME --fixes` to test
+   `Sum-fixed.exe` against `Sum-orig.exe` with SummonerFix's fixes on.
+2. C317 as a SummonerFix patch (`[Fixes] SummonStashNoMove`) and as the first `FIXED_BUILD` change.
+3. The other 42 `bugfix.c` fixes ported, and the handshake that keeps SummonerFix from patching code the source
+   already fixes (`Sum-fixed.fixes`). See [Fixed build changes](fixed-build.md).
+
+Next:
+
+4. The modern-PC layers (the timing fix, the OpenGL default, display and key bindings) as `FIXED_BUILD` code. Each
+   needs SummonerFix to stand down for that part in the fixed build first (the same `.fixes` handshake), since
+   rebuilt mode installs the timing fix by address.
+5. Controller tier 1 (written as a SummonerFix prototype, not yet loaded: see the SummonerFix docs).
+6. Every in-game test above, once SummonerFix can load again.

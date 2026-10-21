@@ -306,8 +306,15 @@ void dialogue_topic_entry::draw(int scroll)
         int mx, my, w, h;
         mouse_get_pos(&mx, &my, &game_mouse_z);
         gr_get_string_size(&w, &h, localize_string_or_invalid(dialogue_more_text), -1, -1);
+#ifdef FIXED_BUILD
+        // FIXED_BUILD: K292 ConversationHover. The bottom test compares the mouse y (not x) with box y + h,
+        // as the click test does.
+        if (mx >= dialogue_topic_box.x && mx < dialogue_topic_box.x + w
+            && my >= dialogue_topic_box.y && my < dialogue_topic_box.y + h)
+#else
         if (mx >= dialogue_topic_box.x && mx < dialogue_topic_box.x + w
             && my >= dialogue_topic_box.y && mx < dialogue_topic_box.y + h)
+#endif
             gr_set_color_ptr(&dialogue_color_highlight);
         else
             gr_set_color_ptr(&dialogue_color_gray);
@@ -318,8 +325,14 @@ void dialogue_topic_entry::draw(int scroll)
         int mx, my, w, h;
         mouse_get_pos(&mx, &my, &game_mouse_z);
         gr_get_string_size(&w, &h, localize_string_or_invalid(dialogue_end_text), -1, -1);
+#ifdef FIXED_BUILD
+        // part of FIXED_BUILD K292: the same test for "end".
+        if (mx >= dialogue_topic_box.x && mx < dialogue_topic_box.x + w
+            && my >= dialogue_topic_box.y && my < dialogue_topic_box.y + h)
+#else
         if (mx >= dialogue_topic_box.x && mx < dialogue_topic_box.x + w
             && my >= dialogue_topic_box.y && mx < dialogue_topic_box.y + h)
+#endif
             gr_set_color_ptr(&dialogue_color_highlight);
         else
             gr_set_color_ptr(&dialogue_color_gray);

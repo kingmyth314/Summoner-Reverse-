@@ -64,7 +64,13 @@ void ls_liangshan_init()
     } else {
         ls_liangshan_phoenix_serpent_done = false;
     }
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: K130 BossMusic
+    ls_liangshan_phoenix_dead_done = savegame_state.get_flag(cur_level_index, "phoenix_dead")
+        && savegame_state.get_flag(cur_level_index, "serpent_dead");
+#else
     ls_liangshan_phoenix_dead_done = true;
+#endif
     if (savegame_state.get_flag(cur_level_index, "got_ring_of_forest")
         && savegame_state.get_flag(cur_level_index, "liangshan_flag_give_sword"))
         script_npc_set_disabled("Guardian of the Shrine", true);

@@ -82,7 +82,12 @@ void ls_lenele2ab_action(dialogue_action *action)
 {
     if (!_stricmp(action->name, "payoff")) {
         script_npc_goto_label("Canis the Mercenary", 1);
+#ifdef FIXED_BUILD
+        // FIXED_BUILD: G301 CanisTenGold. The topic is "Give him 10 gold pieces."; take 10, not 100.
+        party_gold -= 10;
+#else
         party_gold -= 100;
+#endif
         if (party_gold < 0)
             party_gold = 0;
     }

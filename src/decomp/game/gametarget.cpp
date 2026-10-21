@@ -184,7 +184,12 @@ void world_tint_gold_object()
     if (gold_highlight_timer.valid() && !gold_highlight_timer.elapsed()) {
         obj *o = obj_from_handle(gold_highlight_handle);
         if (o)
+#ifdef FIXED_BUILD
+            // FIXED_BUILD: K61 LootHighlightColour
+            world_hover_tint_object(o, world_tint_gold[0], world_tint_gold[1], world_tint_gold[2]);
+#else
             world_hover_tint_object(o, world_tint_gold[0], world_tint_gold[1], *(world_tint_gold + 3));
+#endif
     }
 }
 

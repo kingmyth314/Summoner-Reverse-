@@ -243,12 +243,14 @@ the link support in `src/link`, into `build/link/Sum-rebuilt.exe`: an executable
 decompiled source and VC6 SP5's own libraries (LIBCMT, the Windows and DirectX import libraries, MSACM32).
 
 ```powershell
-$env:VC6_DIR = 'C:path	oVC98'
+$env:VC6_DIR = 'C:\path\to\VC98'
 node tools/link-build.mjs --define SHIPPED_NOCD --define REBUILT_OPENGL
+node tools/link-build.mjs --config fixed        # build/link-fixed/Sum-fixed.exe (docs/builds.md)
 ```
 
 | Option | Meaning |
 |---|---|
+| `--config shipped\|fixed\|experimental` | a build configuration of [Fixed and experimental builds](builds.md): its define set (`fixed` = `FIXED_BUILD SHIPPED_NOCD REBUILT_OPENGL`, `experimental` adds `EXPERIMENTAL_BUILD`), its own folder (`build/link`, `build/link-fixed`, `build/link-exp`) and exe name (`Sum-rebuilt`, `Sum-fixed`, `Sum-exp`). A `FIXED_BUILD` build also writes `<exe>.fixes`, the `[Fixes]` keys its source already fixes, from the `// FIXED_BUILD: <bug> <key>` markers; SummonerFix leaves those patches out. Without `--config` the build is as before |
 | `--define NAME` | a `/D` for every unit. `SHIPPED_NOCD`: the no-CD edit the shipped exe carries (D2600, D9812). `REBUILT_OPENGL`: the game's OpenGL renderer in a window, with SummonerFix's texture-size cap (D9812) |
 | `--force` | link with unresolved symbols (`/FORCE:UNRESOLVED`), to list what is missing |
 | `--recompile` | compile every unit again (objects are cached in `build/link/obj` by date; a header change needs this) |
@@ -281,6 +283,8 @@ asks about the new exe).
 | `tools/link-memcheck.mjs A B [--also A2,A3] [--static]` | two run-time dumps written by the agent command `dumpdata OUT TABLE` (every data symbol of an address table, read at its own address) at the same point in both games, compared the same way. Bytes both processes still hold as in their exe file are skipped (static data is the datacheck's; `--static` keeps them), and two pointers without a table row (vtables) are equal when the first dword they point at translates. `--also` takes more original dumps: a symbol then counts only when the rebuilt value differs from every one and the original runs agree in it |
 | `tools/link-screencheck.mjs OUT [SCENARIO ...] [--runs 3]` | the same screens (16 scenarios: the main menu and its screens, the prologue at two moments, the village cinematic, the game view and its panels) in the original (`--runs` times) and the rebuilt exe, compared pixel by pixel; pixels that differ between the original runs are masked with a 6-pixel margin. Writes each capture as PNG, a `-diff.png` with the differing pixels in red, and `results.txt`. Walking characters move differently from run to run, so the game scenarios need three or more original runs |
 | `tools/link-savecheck.mjs OUT LEVEL:SCRIPT ... [--runs 3]` | the level save check of the hybrid, for the standalone exe in its test folder: per level, the original `--runs` times and the rebuilt exe once, each from the newest test save (`[Debug] TestSaves=1`, the test folder's `savetest/`), `level` with the full party, a `dumpdata` and a quicksave; then the save comparison (`tools/save-compare.mjs`, shared with `hybrid-test.mjs`) and `link-memcheck.mjs --also`. Results go to `OUT/results.txt` level by level. The save shows game state, the dump the globals no save holds; neither sees rendering or timing (the prologue camera effect, D9815, and the Create Game centring, D9817, would pass) |
+| `--exe NAME --fixes` (both checks) | `--exe` tests another exe than `Sum-rebuilt.exe` (its `.addr` next to it), for example `Sum-fixed.exe`; `--fixes` runs both exes with SummonerFix's fixes on (`[Fixes] Enabled=1`), the comparison for the fixed build ([Fixed and experimental builds](builds.md)) |
+| `tools/fixed-compile.mjs [--root DIR] FILE [--experimental]` | compiles one unit of a `src/decomp` tree as the fixed build does (its `vc6-flags.txt` flags plus `/DFIXED_BUILD`) and lists the errors and warnings, with paths shortened to the tree. The check for `FIXED_BUILD` code; the byte-matching tools never see that define |
 
 The hybrid cannot see data errors in byte-matching functions (they use Sum.exe's own data there) or globals that
 the code uses as one record but the source declares apart (D9813); the standalone exe shows both.

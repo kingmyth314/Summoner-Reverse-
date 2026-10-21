@@ -358,11 +358,23 @@ int buysell_category_first_index(int category)
     if (buysell_mode == 0)
         return shop_inventory_find_first_in_category(category, buysell_list_entries, buysell_list_count);
 
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: K3 ShopCategoryButtons. The sell list shows the party's items that the shop buys, so return the
+    // first shown row in the category (-1 when there is none, which turns the button off), not an index into the
+    // shop's buy list.
+    shop_item *entry;
+    for (int row = 0; (entry = buysell_get_list_item(row)) != 0; row++) {
+        if (item_type_shop_category(entry->item_type) == category)
+            return row;
+    }
+    return -1;
+#else
     for (int i = 0; i < buysell_list_count; i++) {
         if (item_type_shop_category(buysell_list_entries[i].item_type) == category)
             return i;
     }
     return -1;
+#endif
 }
 
 // 0x404fe0  Confidence: exact (VC6 byte match) (the second test is on buysell_row_count, which is always > 0 there;

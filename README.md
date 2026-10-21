@@ -23,7 +23,11 @@ documentation and the decompilation notes are also a working log, so they mentio
 ## Building
 
 - **SummonerFix:** LLVM-MinGW (`i686-w64-mingw32-gcc`), `tools/build-summonerfix.ps1`. Put the resulting
-  `dinput.dll` next to `Sum.exe`. See [Setup](docs/setup.md).
+  `dinput.dll` next to `Sum.exe`. See [Setup](docs/setup.md). With Windows 11's **Smart App Control** on, Windows
+  silently refuses to load the unsigned DLL and the game starts without it
+  ([SummonerFix](docs/summonerfix/index.md)).
+- **The fixed build:** `node tools/link-build.mjs --config fixed` builds `Sum-fixed.exe`, the decompiled game with
+  43 bugs fixed in the source ([Fixed build changes](docs/fixed-build.md); not yet tested in game).
 - **The decompilation:** Microsoft Visual C++ 6.0 with Service Pack 5 (compiler build 8966, the one Sum.exe was built
   with), which you have to supply yourself; set `VC6_DIR` to its `VC98` folder. `tools/vc6-sweep.mjs` compares every
   function with your `Sum.exe`; `tools/link-build.mjs` links the standalone executable (it also needs libjpeg 6b

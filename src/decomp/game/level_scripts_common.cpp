@@ -1070,8 +1070,15 @@ void level_script_leave()
         for (i = 0; i < level_effect_count; i++)
             if (level_effects[i].handle != -1 && !level_effects[i].flag)
                 fx_stop(level_effects[i].handle);
+#ifdef FIXED_BUILD
+        // FIXED_BUILD: K110 AmbientSounds. Each removal moves the later records down and lowers the count, so
+        // keep removing record 0 until the table is empty: every ambient emitter of the level is freed.
+        while (level_ambient_count > 0)
+            level_ambient_remove(0);
+#else
         for (i = 0; i < level_ambient_count; i++)
             level_ambient_remove(i);
+#endif
         level_effect_count = 0;
     } else
         fx_level_restart();

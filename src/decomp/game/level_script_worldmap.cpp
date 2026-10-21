@@ -598,6 +598,11 @@ void ls_worldmap1_pick_encounter_stage4()
                    && frand() < 0.5f) {
             strcpy(level_filename, "rand-grassland01");
             strcpy(level_script_name, "rand-grassland01_v3");
+#ifdef FIXED_BUILD
+            // FIXED_BUILD: G6 ZaneEncounter. Return, as the Korel case does, so the general rolls below do not
+            // overwrite Zane's encounter.
+            return;
+#endif
         }
         if (roll < 0.1f) {
             strcpy(level_filename, "rand-grassland01");

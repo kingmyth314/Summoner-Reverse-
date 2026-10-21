@@ -1869,25 +1869,61 @@ bool character_can_use_summon(int skill, Character *c)
         if (savegame_state.get_flag(0x22, "got_laharah_spirit"))
             return true;
     } else if (!_stricmp(summon_skill_creature_name(skill), "Wraith")) {
+#ifdef FIXED_BUILD
+        // FIXED_BUILD: K100 RingSixtyThousand. The higher ring summons from 60,000 on, as ring_format_info
+        // lists them (the original needs more than 60,000).
+        if (party_count_item_by_name("Ring of Light") && savegame_state.get_int(4, "light_ring_xp") >= 60000)
+#else
         if (party_count_item_by_name("Ring of Light") && savegame_state.get_int(4, "light_ring_xp") > 60000)
+#endif
             return true;
     } else if (!_stricmp(summon_skill_creature_name(skill), "Blood Elemental")) {
+#ifdef FIXED_BUILD
+        // part of FIXED_BUILD K100
+        if (party_count_item_by_name("Ring of Fire") && savegame_state.get_int(4, "fire_ring_xp") >= 60000)
+#else
         if (party_count_item_by_name("Ring of Fire") && savegame_state.get_int(4, "fire_ring_xp") > 60000)
+#endif
             return true;
     } else if (!_stricmp(summon_skill_creature_name(skill), "Blade of Urath")) {
+#ifdef FIXED_BUILD
+        // part of FIXED_BUILD K100
+        if (party_count_item_by_name("Ring of Stone") && savegame_state.get_int(4, "stone_ring_xp") >= 60000)
+#else
         if (party_count_item_by_name("Ring of Stone") && savegame_state.get_int(4, "stone_ring_xp") > 60000)
+#endif
             return true;
     } else if (!_stricmp(summon_skill_creature_name(skill), "Water Dragon")) {
+#ifdef FIXED_BUILD
+        // part of FIXED_BUILD K100
+        if (party_count_item_by_name("Ring of Water") && savegame_state.get_int(4, "water_ring_xp") >= 60000)
+#else
         if (party_count_item_by_name("Ring of Water") && savegame_state.get_int(4, "water_ring_xp") > 60000)
+#endif
             return true;
     } else if (!_stricmp(summon_skill_creature_name(skill), "Four Winds Dragon")) {
+#ifdef FIXED_BUILD
+        // part of FIXED_BUILD K100
+        if (party_count_item_by_name("Ring of Four Winds") && savegame_state.get_int(4, "wind_ring_xp") >= 60000)
+#else
         if (party_count_item_by_name("Ring of Four Winds") && savegame_state.get_int(4, "wind_ring_xp") > 60000)
+#endif
             return true;
     } else if (!_stricmp(summon_skill_creature_name(skill), "Forest Dragon")) {
+#ifdef FIXED_BUILD
+        // part of FIXED_BUILD K100
+        if (party_count_item_by_name("Ring of Forest") && savegame_state.get_int(4, "forest_ring_xp") >= 60000)
+#else
         if (party_count_item_by_name("Ring of Forest") && savegame_state.get_int(4, "forest_ring_xp") > 60000)
+#endif
             return true;
     } else if (!_stricmp(summon_skill_creature_name(skill), "Jade Dragon")) {
+#ifdef FIXED_BUILD
+        // part of FIXED_BUILD K100
+        if (party_count_item_by_name("Ring of Jade") && savegame_state.get_int(4, "jade_ring_xp") >= 60000)
+#else
         if (party_count_item_by_name("Ring of Jade") && savegame_state.get_int(4, "jade_ring_xp") > 60000)
+#endif
             return true;
     }
     return false;
