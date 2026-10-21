@@ -902,9 +902,32 @@ static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
     return DefWindowProcA(w, msg, wp, lp);
 }
 
+// Windows 11 Smart App Control: when it enforces (VerifiedAndReputablePolicyState = 1), Windows refuses to load the
+// unsigned dinput.dll and the game starts silently without SummonerFix. Say so once at start-up (docs/summonerfix).
+static void WarnSmartAppControl(void)
+{
+    HKEY k;
+    DWORD state = 0, size = sizeof state, type = 0;
+    if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SYSTEM\\CurrentControlSet\\Control\\CI\\Policy", 0, KEY_QUERY_VALUE, &k) != ERROR_SUCCESS)
+        return;
+    LONG rc = RegQueryValueExA(k, "VerifiedAndReputablePolicyState", NULL, &type, (BYTE *)&state, &size);
+    RegCloseKey(k);
+    if (rc != ERROR_SUCCESS || type != REG_DWORD || state != 1)
+        return;
+    MessageBoxA(NULL,
+                "Smart App Control is on.\n\n"
+                "Windows will not load SummonerFix (dinput.dll is not signed by a trusted publisher). The game still "
+                "starts, but without SummonerFix: original speed, no OpenGL or widescreen fixes, no bug fixes, and "
+                "these settings have no effect.\n\n"
+                "Your choices: turn Smart App Control off (Windows Security, App & browser control; Windows cannot "
+                "turn it back on without a reset), or play without SummonerFix.",
+                "SummonerFix - Smart App Control", MB_OK | MB_ICONWARNING);
+}
+
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show)
 {
     (void)prev; (void)cmd;
+    WarnSmartAppControl();
     GetModuleFileNameA(NULL, g_ini, MAX_PATH);
     char *slash = strrchr(g_ini, '\\');
     strcpy(slash ? slash + 1 : g_ini, "summonerfix.ini");

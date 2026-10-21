@@ -22,7 +22,7 @@ if ($LASTEXITCODE -ne 0) { throw "compile failed ($LASTEXITCODE)" }
 Copy-Item (Join-Path $src 'summonerfix.ini') (Join-Path $out 'summonerfix.ini') -Force
 $cfgArgs = @('-O2', '-Wall', '-Wextra', '-Wno-unused-parameter', '-static', '-mwindows',
           '-o', (Join-Path $out 'SummonerFixConfig.exe'), (Join-Path $repo 'src\summonerfix-config\config.c'),
-          '-lcomctl32', '-luser32', '-lgdi32')
+          '-lcomctl32', '-luser32', '-lgdi32', '-ladvapi32')
 $ErrorActionPreference = 'Continue'
 & $cc.Source @cfgArgs 2>&1 | ForEach-Object { "$_" }
 $ErrorActionPreference = 'Stop'
