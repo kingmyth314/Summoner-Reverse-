@@ -1481,7 +1481,9 @@ int ai_state::save(ubyte *out)
 }
 
 // 0x4747e0  Confidence: likely. Goal targets are found again by the name hash: the first living entity
-// with that name (NOTES.md).
+// with that name (NOTES.md). D19002: owner read directly (no `o` local) gives the binary's register
+// rotation in the goal copies; 8966 then loads owner before the combat_style store, and the arg copy
+// after the target join uses EAX where the binary uses EDX.
 int ai_state::load(const ubyte *in)
 {
     int n = 4;
@@ -1489,8 +1491,7 @@ int ai_state::load(const ubyte *in)
     Character *c;
 
     combat_style = *(const int *)in;
-    Character *o = owner;
-    if (o->type == CHAR_TYPE_MONSTER || o->type == CHAR_TYPE_NPC) {
+    if (owner->type == CHAR_TYPE_MONSTER || owner->type == CHAR_TYPE_NPC) {
         for (i = 0; i < 5; i++) {
             goals[i].type = *(const int *)(in + n);            n += 4;
             goals[i].flags = *(const unsigned int *)(in + n);  n += 4;

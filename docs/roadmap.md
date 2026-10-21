@@ -129,7 +129,7 @@ first), structured so it can become a byte-matching decompilation later.
 
 **Status 2026-10-17.** Mapping is done (every function named) and all game and engine code is rewritten in C++
 (7,725 functions; the C runtime and libjpeg 6b are not rewritten). The compiler is identified (VC6 SP5, build 8966)
-and 5,462 of the 5,926 compiled functions give the original bytes, with their calls and data references checked
+and 5,501 of the 5,926 compiled functions give the original bytes, with their calls and data references checked
 against the original targets (2026-10-17; the check found and fixed 25 differences, among them a wrong party sort
 order and wrong text in 45 strings). What is left of the per-function matching is mostly register choice, frame slots and instruction scheduling.
 

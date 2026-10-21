@@ -670,15 +670,15 @@ bool snd_is_playing(int sig)
     return rval;
 }
 
-// 0x521680  Confidence: likely (the clamp writes the argument).
+// 0x521680  Confidence: exact (VC6 8966 byte match, D18400) (the clamp writes the argument).
 void snd_set_volume(int sig, float volume)
 {
     if (snd_disabled)
         return;
-    if (volume <= 0.0f)
-        volume = 0.0f;
-    else if (volume >= 1.0f)
-        volume = 1.0f;
+    do { // D18400: the clamp as a do / while (0) with breaks (the binary's out-of-line stores)
+        if (volume <= 0.0f) { volume = 0.0f; break; }
+        if (volume >= 1.0f) { volume = 1.0f; break; }
+    } while (0);
     switch (snd_backend) {
     case 1:
         ds_set_volume(sig, volume);
@@ -686,15 +686,15 @@ void snd_set_volume(int sig, float volume)
     }
 }
 
-// 0x5216e0  Confidence: likely. The playing channel sig of sound handle at its group volume.
+// 0x5216e0  Confidence: exact (VC6 8966 byte match, D18400). The playing channel sig of sound handle at its group volume.
 void snd_set_volume_in_group(int handle, int sig, float volume)
 {
     if (snd_disabled || sig < 0 || handle < 0)
         return;
-    if (volume <= 0.0f)
-        volume = 0.0f;
-    else if (volume >= 1.0f)
-        volume = 1.0f;
+    do { // D18400: the clamp as a do / while (0) with breaks (the binary's out-of-line stores)
+        if (volume <= 0.0f) { volume = 0.0f; break; }
+        if (volume >= 1.0f) { volume = 1.0f; break; }
+    } while (0);
     volume = snd_get_volume(handle, volume);
     switch (snd_backend) {
     case 1:
@@ -703,15 +703,15 @@ void snd_set_volume_in_group(int handle, int sig, float volume)
     }
 }
 
-// 0x521760  Confidence: likely.
+// 0x521760  Confidence: exact (VC6 8966 byte match, D18400).
 void snd_set_pan(int sig, float pan)
 {
     if (snd_disabled)
         return;
-    if (pan <= -1.0f)
-        pan = -1.0f;
-    else if (pan >= 1.0f)
-        pan = 1.0f;
+    do { // D18400: the clamp as a do / while (0) with breaks (the binary's out-of-line stores)
+        if (pan <= -1.0f) { pan = -1.0f; break; }
+        if (pan >= 1.0f) { pan = 1.0f; break; }
+    } while (0);
     switch (snd_backend) {
     case 1:
         ds_set_pan(sig, pan);
@@ -765,13 +765,13 @@ void snd_set_group(int handle, int group)
         sounds[handle].group = group;
 }
 
-// 0x5218e0  Confidence: likely. The table is written also while sound is disabled.
+// 0x5218e0  Confidence: exact (VC6 8966 byte match, D18400). The table is written also while sound is disabled.
 void snd_set_group_volume(int group, float volume)
 {
-    if (volume <= 0.0f)
-        volume = 0.0f;
-    else if (volume >= 1.0f)
-        volume = 1.0f;
+    do { // D18400: the clamp as a do / while (0) with breaks (the binary's out-of-line stores)
+        if (volume <= 0.0f) { volume = 0.0f; break; }
+        if (volume >= 1.0f) { volume = 1.0f; break; }
+    } while (0);
     snd_group_volumes[group] = volume;
     if (!snd_disabled) {
         switch (snd_backend) {

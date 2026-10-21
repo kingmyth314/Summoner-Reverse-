@@ -1298,8 +1298,9 @@ void ui_listbox::set_hscroll_fraction(float f, bool unused)
     hscroll = (int)(range * f);
 }
 
-// 0x52ed70  Confidence: likely (float rounding expression, branch order). No caller; the second
-// argument is not read. The fraction between the first and the last stop, rounded, then snapped as
+// 0x52ed70  Confidence: likely (float rounding expression, branch order; D18903: the line search written
+// with i * fh + top, distance 26 -> 16; the binary keeps top in EBP and num_lines in memory). No caller;
+// the second argument is not read. The fraction between the first and the last stop, rounded, then snapped as
 // scroll_page_* do (with the font height only, F6209).
 void ui_listbox::set_vscroll_fraction(float f, bool unused)
 {
@@ -1366,13 +1367,9 @@ void ui_listbox::set_vscroll_fraction(float f, bool unused)
                 vscroll = top;
             } else {
                 int i;
-                int line_top = top;
-                int line_bottom = fh + top;
                 for (i = 0; i < e->num_lines; i++) {
-                    if (vscroll >= line_top && vscroll < line_bottom)
+                    if (vscroll >= i * fh + top && vscroll < (i + 1) * fh + top)
                         break;
-                    line_top += fh;
-                    line_bottom += fh;
                 }
                 vscroll = i * fh + top;
             }

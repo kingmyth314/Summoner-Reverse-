@@ -1914,10 +1914,9 @@ void living_combat::flinch_if_idle(int variant)
         play_flinch(variant);
 }
 
-// 0x4681b0  Confidence: exact as code (a constructor: GameTimer at +0xc, reset, returns this). Written
-// as construct() while Character keeps the D1 union around +0x558 (D300); in the original this is
-// living_combat::living_combat().
-living_combat *living_combat::construct()
+// 0x4681b0  Confidence: exact (a constructor: GameTimer at +0xc, reset, returns this; written as
+// construct() until D19000 dropped the D1 union around Character +0x558).
+living_combat::living_combat()
 {
 #ifdef _MSC_VER
     // An explicit constructor call (D7805): a placement new makes VC6 /GX open an EH frame for the
@@ -1927,7 +1926,6 @@ living_combat *living_combat::construct()
     new (&timer) GameTimer;
 #endif
     reset();
-    return this;
 }
 
 // 0x4681d0  Confidence: exact.

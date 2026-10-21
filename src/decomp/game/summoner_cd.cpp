@@ -190,7 +190,8 @@ void CdCheck()
 }
 
 // 0x43ea20  Confidence: likely (the box is centred horizontally only: y = height / 2 is its top edge; the
-// text is re-read from the string table every pass). Esc exits; 300 ms per poll.
+// text is re-read from the string table every pass). Esc exits; 300 ms per poll. D18300: a do / while on
+// drive < 0 with the body under if (drive < 0) keeps the loop test at the top (a for (;;) with a break rotates it).
 void cd_prompt_disc2()
 {
     int drive;
@@ -198,24 +199,24 @@ void cd_prompt_disc2()
     int x, y;
     char *text;
 
-    for (;;) {
+    do {
         text = XSTR("Insert Summoner CD #2 (ESC exits game)", 937);
         drive = cd_find_drive("SUMMONER_2");
-        if (drive >= 0)
-            break;
-        gr_get_string_size(&w, &h, text, -1, -1);
-        w += 6;
-        h += 6;
-        x = (gr_screen_width() - w) / 2;
-        y = gr_screen_height() / 2;
-        gr_clear();
-        ui_draw_text_box(x, y, w, h);
-        gr_string(x + 3, y + 2, text, -1, gr_string_mode);
-        if (key_inkey() == KEY_ESC)
-            exit(1);
-        gr_flip();
-        os_poll();
-        timer_wait(300);
-    }
+        if (drive < 0) {
+            gr_get_string_size(&w, &h, text, -1, -1);
+            w += 6;
+            h += 6;
+            x = (gr_screen_width() - w) / 2;
+            y = gr_screen_height() / 2;
+            gr_clear();
+            ui_draw_text_box(x, y, w, h);
+            gr_string(x + 3, y + 2, text, -1, gr_string_mode);
+            if (key_inkey() == KEY_ESC)
+                exit(1);
+            gr_flip();
+            os_poll();
+            timer_wait(300);
+        }
+    } while (drive < 0);
     cd_set_root(drive);
 }

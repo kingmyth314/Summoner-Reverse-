@@ -2184,16 +2184,19 @@ bool hud_mouse_in_panel(int x, int y)
     return false;
 }
 
-// 0x410570  Confidence: likely (the four bit fields come out as one merged store). Called by the skills and
+// 0x410570  Confidence: exact (VC6 byte match, D18304: active set first through a pointer `d`, which keeps the
+// read of the old word (`or al, 1 ... and eax, 1`) in the one merged store, then the rectangle as x, y, w, h,
+// which 8966 schedules as the binary's y, x, h, w stores). Called by the skills and
 // spells panels (and ui_choice_popup_update_buttons) when an icon is dragged; (x, y, w, h) is the source
 // rectangle.
 void hud_drag_icon_begin(int x, int y, int w, int h, int kind, int id)
 {
-    hud_drag_icon_y = y;
+    hud_drag_state *d = &hud_drag_flags;
+    d->active = 1;
     hud_drag_icon_x = x;
-    hud_drag_icon_h = h;
+    hud_drag_icon_y = y;
     hud_drag_icon_w = w;
-    hud_drag_flags.active = 1;
+    hud_drag_icon_h = h;
     hud_drag_flags.slot = 6;
     hud_drag_flags.is_skill = kind != 0;
     hud_drag_flags.id = id;

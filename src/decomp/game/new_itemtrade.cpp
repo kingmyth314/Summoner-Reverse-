@@ -236,10 +236,12 @@ void itemtrade_update_scrollbar()
     }
 }
 
-// 0x419530  Confidence: likely (marked exact earlier; differs under cl 12.00.8966, match31). 
+// 0x419530  Confidence: exact (VC6 byte match, D18504: the count read through a pointer local, so 8966 re-reads
+// party_gold after the row-count store and increments in memory).
 void itemtrade_count_party_rows()
 {
-    itemtrade_party_row_count = party_inventory_count;
+    int *c = &party_inventory_count;
+    itemtrade_party_row_count = *c;
     if (party_gold > 0)
         itemtrade_party_row_count++;
 }

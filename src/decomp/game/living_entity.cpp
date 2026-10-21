@@ -272,12 +272,10 @@ void Character::scale_stats_to_level()
 // 0x44e060  Confidence: likely. The members are built in declaration order: the 18 status slots (the
 // compiler's loop over the two GameTimers at +4 / +0x14 of each, count at ebp-0x18, stride 0x20),
 // timer2ec, ai (state 1 of the EH frame: ai_state has a destructor), combat, timer6d4,
-// net_update_timer; then the vtable store and the body. combat is still the D1 union with `protection`
-// (new_assess.cpp), so its constructor is called in the body here instead of between ai and timer6d4
-// (D1702).
+// net_update_timer; then the vtable store and the body. D19000: combat is a plain member with its
+// constructor (the D1 union and D1702's construct() call in the body are gone): exact.
 Character::Character()
 {
-    combat.construct();
     type = 0;
 }
 

@@ -292,11 +292,12 @@ void level_check_triggers()
     game_frozen = false;
 }
 
-// 0x4caed0  Confidence: likely (marked exact; differs under VC6 8966, match27). The previous position is passed but not read.
+// 0x4caed0  Confidence: exact (VC6 byte match, D19301: the segment is a pf_edge, whose 8 bytes after a / b are
+// the binary's unused frame top, 0x28 against seg2d's 0x20). The previous position is passed but not read.
 int level_trigger_point_left_of_line(s3d_named_path *path, const vector3 *prev, const vector3 *cur)
 {
     vector2 a, b, p;
-    seg2d seg;
+    pf_edge seg;
 
     a.from_xz(&path->points[0]);
     b.from_xz(&path->points[1]);

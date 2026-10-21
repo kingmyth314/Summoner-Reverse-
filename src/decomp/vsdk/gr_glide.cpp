@@ -984,15 +984,13 @@ void gr_glide_get_section_rect(int bm, int section, int *x, int *y, int *w, int 
     *h = sec->h;
 }
 
-// 0x549560  Confidence: likely (the reload switch: case order from the binary; m-1020b w13 D13701: glide_tmus[tmu]
-// in place and the switch on entry->sections[i].format give every instruction; Sum.exe keeps data in the
-// dead tmu argument slot, 8966 only). Builds the texture when
+// 0x549560  Confidence: exact (VC6 byte match; the reload switch: case order from the binary; m-1020b w13 D13701:
+// glide_tmus[tmu] in place and the switch on entry->sections[i].format give every instruction; D19302: data and
+// palette declared in the dirty block put data in the dead tmu argument slot as in Sum.exe). Builds the texture when
 // the entry does not hold this bitmap, copies the bitmap again when the TMU's dirty flag is set (never:
 // nothing in the unit sets it, D2505) and, with load, downloads and selects the section on the TMU.
 int gr_glide_tcache_set(int tmu, int bm, int section, float *u_scale, float *v_scale, bool load)
 {
-    ubyte *data;
-    ubyte *palette;
     if (bm >= 0) {
         int frame = bm_get_current_frame(bm);
         if (!glide_tmus[tmu].is_bound(frame, section, u_scale, v_scale)) {
@@ -1003,6 +1001,8 @@ int gr_glide_tcache_set(int tmu, int bm, int section, float *u_scale, float *v_s
                 entry->dirty[tmu] = 0;
             }
             if (entry->dirty[tmu]) {
+                ubyte *data;
+                ubyte *palette;
                 bm_lock(bm, &data, &palette);
                 for (int i = 0; i < entry->num_sections; i++) {
                     glide_section *sec = &entry->sections[i];

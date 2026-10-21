@@ -514,14 +514,14 @@ bool serpent_part_is_busy(boss_target *list, bool asleep, int i)
     return false;
 }
 
-// 0x4960f0  Confidence: likely (serpent_part_is_busy's body repeated rather than called).
+// 0x4960f0  Confidence: exact (VC6 byte match, D19100: list[i] indexed directly, no t pointer; was likely;
+// serpent_part_is_busy's body repeated rather than called).
 bool serpent_part_is_busy_or_asleep(boss_target *list, int i)
 {
     bool asleep = serpent_part_is_asleep(list, i);
     if (i != -1) {
-        boss_target *t = &list[i];
-        Character *c = t->character;
-        if ((t->flags & SERPENT_TF_PARALYZED) || asleep)
+        Character *c = list[i].character;
+        if ((list[i].flags & SERPENT_TF_PARALYZED) || asleep)
             return true;
         if (c != NULL && c->ai.is_mode(AI_STATE_DISABLED, 0x2d))
             return true;

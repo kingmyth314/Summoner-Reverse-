@@ -1251,7 +1251,8 @@ void inventory_drag_scrollbar()
         inventory_mouse_mode = 0;
 }
 
-// 0x416b80  Confidence: likely (jump table 0x416bfc; the duplicated "mode = 0" tails are read as breaks).
+// 0x416b80  Confidence: exact (VC6 byte match, D18501: jump table 0x416bfc; every case ends in a break to one
+// `return key`, with separate case 4 and default bodies and the negative choice returned first).
 // Mouse mode 3: -1 still open, -2 cancelled (the key is eaten).
 int inventory_popup_result(int key)
 {
@@ -1263,28 +1264,33 @@ int inventory_popup_result(int key)
         inventory_mouse_mode = 0;
         return 0;
     }
-    if (choice >= 0) {
-        switch (inventory_item_actions[choice]) {
-        case 0:
-            inventory_show_item_info();
-            break;
-        case 1:
-            inventory_identify_item();
-            inventory_mouse_mode = 0;
-            return key;
-        case 2:
-            inventory_use_selected_item();
-            inventory_mouse_mode = 0;
-            return key;
-        case 3:
-            inventory_confirm_destroy();      // resets the mouse mode itself
-            return key;
-        case 4:
-            inventory_mouse_mode = 0;
-            return key;
-        }
+    if (choice < 0) {
+        inventory_mouse_mode = 0;
+        return key;
     }
-    inventory_mouse_mode = 0;
+    switch (inventory_item_actions[choice]) {
+    case 0:
+        inventory_show_item_info();
+        inventory_mouse_mode = 0;
+        break;
+    case 1:
+        inventory_identify_item();
+        inventory_mouse_mode = 0;
+        break;
+    case 2:
+        inventory_use_selected_item();
+        inventory_mouse_mode = 0;
+        break;
+    case 3:
+        inventory_confirm_destroy();          // resets the mouse mode itself
+        break;
+    case 4:
+        inventory_mouse_mode = 0;
+        break;
+    default:
+        inventory_mouse_mode = 0;
+        break;
+    }
     return key;
 }
 
@@ -1448,7 +1454,7 @@ void inventory_use_equipped_item_begin(int slot)
     world_pick_set_skill_filter(spell);
 }
 
-// 0x416fb0  Confidence: likely (the "== true" on GameTimer::elapsed is read from cmp al, 1). The party member
+// 0x416fb0  Confidence: exact (VC6 byte match, D18500: the clamp at 0 through `int *pp = &pos`). Was likely (the "== true" on GameTimer::elapsed is read from cmp al, 1). The party member
 // with the best identify skill whose identify cooldown has run out tries it; success opens the item info
 // (open mode drops the row), failure shows "Couldn't identify item.".
 void inventory_identify_item()
@@ -1483,7 +1489,9 @@ void inventory_identify_item()
         if (inventory_open_mode) {
             inventory_count_rows();
             int pos = min(inventory_scroll_pos, inventory_row_count - inventory_page_size[resolution_index]);
-            inventory_scroll_pos = max(pos, 0);
+            int *pp = &pos;                   // D18500: the clamp in place through a pointer (AND into pos)
+            *pp &= (*pp <= 0) - 1;
+            inventory_scroll_pos = pos;
             inventory_update_category_buttons();
             inventory_update_scrollbar();
         }
@@ -1514,7 +1522,7 @@ void inventory_confirm_destroy_cb(int button)
         inventory_destroy_selected_item();
 }
 
-// 0x417170  Confidence: likely (item_can_destroy is called twice on the same item; written as two tests).
+// 0x417170  Confidence: exact (VC6 byte match, D18500 applied after the round, as W4 suggested; D17601 scroll first). Was likely (item_can_destroy is called twice on the same item; written as two tests).
 // One unit of a stack goes; the last one removes the entry. The row is used as the party inventory index
 // (right outside open mode, the only mode that offers destroy).
 void inventory_destroy_selected_item()
@@ -1534,7 +1542,9 @@ void inventory_destroy_selected_item()
         party_inventory_remove(index, 1, 1);
         inventory_count_rows();
         int pos = min(inventory_scroll_pos, inventory_row_count - inventory_page_size[resolution_index]);
-        inventory_scroll_pos = max(pos, 0);
+        int *pp = &pos;                   // D18500: the clamp in place through a pointer (AND into pos)
+        *pp &= (*pp <= 0) - 1;
+        inventory_scroll_pos = pos;
         inventory_update_category_buttons();
         inventory_update_scrollbar();
     } else {
@@ -1636,7 +1646,7 @@ void inventory_drag_to_equip()
     }
 }
 
-// 0x4174a0  Confidence: likely (VC6 reuses the two parameter slots for old1 / old2). A stack gives one new
+// 0x4174a0  Confidence: exact (VC6 byte match, D18500: the clamp at 0 through `int *pp = &pos`). Was likely (VC6 reuses the two parameter slots for old1 / old2). A stack gives one new
 // item; a single item moves from the list. What the slot held (and a conflicting slot) goes back to the list.
 // A weapon (ItemType kind 0) reloads the statscreen animation.
 void inventory_equip_item(int slot, party_inventory_entry *entry)
@@ -1677,7 +1687,9 @@ void inventory_equip_item(int slot, party_inventory_entry *entry)
     inventory_update_equip_slots();
     inventory_count_rows();
     int pos = min(inventory_scroll_pos, inventory_row_count - inventory_page_size[resolution_index]);
-    inventory_scroll_pos = max(pos, 0);
+    int *pp = &pos;                           // D18500: the clamp in place through a pointer (AND into pos)
+    *pp &= (*pp <= 0) - 1;
+    inventory_scroll_pos = pos;
     inventory_update_category_buttons();
     inventory_update_scrollbar();
 }

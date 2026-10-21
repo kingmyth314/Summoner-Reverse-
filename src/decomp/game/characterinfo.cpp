@@ -1611,8 +1611,8 @@ void characterinfo_parse_resistances(TextFile *tf, char_info *info)
     tf->Expect("#Resistances End");
 }
 
-// 0x4469c0  Confidence: likely (the order of the identity-matrix stores; the length as vector3::len,
-// whose operand order differs: z*z + y*y + x*x here). Once per record: the prop tag bones, the attack
+// 0x4469c0  Confidence: exact (D18601: the attack point name read into a local before find_mesh_tag sets
+// the second loop's and the transform call's scratch registers). Once per record: the prop tag bones, the attack
 // point tags and, for +Elongated records, the height of the $head bone.
 void living_entity_setup_head(char_info *info, character_instance *ci)
 {
@@ -1626,7 +1626,8 @@ void living_entity_setup_head(char_info *info, character_instance *ci)
             info->_unk168[i] = (short)ca->find_mesh_tag(info->prop_tags[i]);
     info->num_target_points = 0;
     for (i = 0; i < 8; i++) {
-        tag = ca->find_mesh_tag(attack_point_names[i]);
+        const char *n = attack_point_names[i];      // D18601
+        tag = ca->find_mesh_tag(n);
         if (tag != -1) {
             info->target_points[info->num_target_points] = (short)tag;
             info->num_target_points++;

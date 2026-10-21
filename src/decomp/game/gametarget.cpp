@@ -975,7 +975,10 @@ void player_talk_to(Character *npc)
     game_play_sound(SOUND_CLICK_BAD, 1.0f, 0, 0, 0);
 }
 
-// 0x43c620  Confidence: likely (D12404: off, closest and d at function scope, d = off - closest, the character offset stored y, z, x: frame and stores as the binary; still differs in dz2 + dx2, where the binary keeps dx2 on the FPU). The active, visible living entity, item
+// 0x43c620  Confidence: likely (D12404: off, closest and d at function scope, d = off - closest; D19001: the
+// character's height through a local stored after off.x / off.z, d2 summed in two statements and dz2 + dx2
+// built in an h2 local give the binary's stores and FPU stack; only the `add esp, 8` after the distance call
+// is scheduled one instruction earlier than in the binary). The active, visible living entity, item
 // or container nearest to the segment from the camera to the picked point: within its radius (an item's
 // mesh sphere, 2 for a container, twice the character radius), horizontally within half of it (compared
 // squared against the unsquared value: a quirk), the nearest, and replacing an earlier one only when at
@@ -1004,9 +1007,10 @@ obj *pick_test_character(vector3 *hit)
             off.z = 0.0f;
         } else {
             r = ((Character *)o)->size_radius() * 2.0f;
-            off.y = ((Character *)o)->size_height() * 0.5f;
-            off.z = 0.0f;
+            float height = ((Character *)o)->size_height() * 0.5f;
             off.x = 0.0f;
+            off.z = 0.0f;
+            off.y = height;
         }
         off += o->pos;
 
@@ -1014,10 +1018,13 @@ obj *pick_test_character(vector3 *hit)
         d = off - closest;
         float dz2 = d.z * d.z;
         float dx2 = d.x * d.x;
-        float d2 = d.y * d.y + dz2 + dx2;
+        float d2 = d.y * d.y + dz2;
+        d2 += dx2;
         if (r * r > d2) {
             r *= 0.5f;
-            if (dz2 + dx2 < r && d2 < best_d
+            float h2 = dz2;
+            h2 += dx2;
+            if (h2 < r && d2 < best_d
                 && (!best || !(distance(&o->pos, &best->pos) * 0.5f < best_r))) {
                 best_d = d2;
                 best = o;

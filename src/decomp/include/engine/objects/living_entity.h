@@ -246,12 +246,9 @@ public:
     Character *live_prev;             // +0x31C
     unsigned int flags;               // +0x320 CF_*
     ai_state ai;                      // +0x324
-    // +0x558. new_status.cpp reaches it as `combat` (COMBAT_M), new_assess.cpp as `protection`; one
-    // member with two names until the code is changed (DECISIONS.md D1, D1702).
-    union {
-        living_combat combat;
-        living_combat protection;
-    };
+    // +0x558. One name since D19000 (new_assess.cpp's `protection` alias of D1 dropped), so the member
+    // has its constructor (0x4681b0), called between ai and timer6d4 as in the binary.
+    living_combat combat;
     // +0x5AC: character_fill_locomotion_anims (0x46af70) fills them as one array indexed by the
     // locomotion_anim_names index ([edx + 4*ecx + 0x5ac]); the other code uses the names
     // (DECISIONS.md D60). Anonymous struct in a union: an MS extension VC6 accepts.

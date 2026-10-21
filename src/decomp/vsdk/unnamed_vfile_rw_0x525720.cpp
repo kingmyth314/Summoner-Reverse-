@@ -343,7 +343,7 @@ int File::read_line(char *buf, int size, int min_ver)
     return n;
 }
 
-// 0x525fe0  Confidence: unsure (the refill block; m-1020 w11, D12008: len copied at entry and decremented, as the
+// 0x525fe0  Confidence: exact (VC6 byte match, D18502: the refill's `left` from a `pos` local). Was unsure (the refill block; m-1020 w11, D12008: len copied at entry and decremented, as the
 // binary's frame has it; D16202: the request copied before the slot lookup, the remainder in its own
 // variable and the refill size written back into len, as the binary's slots show: 84 -> 54 differing lines).
 // The slot's 32 KB buffer first; the rest of a request of
@@ -377,7 +377,8 @@ int File::read(void *buf, int len, int min_ver, int unused)
             else
                 got = packfile_fread(dst, 1, rem, packentry, 0);
         } else {
-            int left = s->size - n - s->pos;
+            int pos = s->pos;                 // D18502: pos loaded first, size - n - pos in this order
+            int left = s->size - n - pos;
             len = imin(left, FILE_BUFFER_SIZE);
             if (s->fp) {
                 s->buf_len = fread(s->buffer, 1, len, s->fp);

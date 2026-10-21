@@ -288,10 +288,14 @@ void bm_set_reduce_textures(bool reduce)
         bm_set_reduced(e - bm_bitmaps, reduce);
 }
 
-// 0x502240  Confidence: likely (differs under cl 8966 in match26). Only unlocked single bitmaps with mip levels; total_bytes is not updated.
+// 0x502240  Confidence: likely (differs under cl 8966 in match26; the new level count as an int n of the byte
+// result, `n = (ubyte)(levels +- 1); e->num_levels = n;` (D18702), gives the binary's byte inc / dec in AL, the
+// `and eax, 0xff` and the dirty index's registers; left: 8966 schedules the and and the width / height loads
+// above the level store). Only unlocked single bitmaps with mip levels; total_bytes is not updated.
 void bm_set_reduced(int bm, bool reduce)
 {
     bitmap_entry *e = &bm_bitmaps[bm_handle_to_index(bm)];
+    int n;
 
     if (reduce) {
         if (e->anim_type != BM_ANIM_NONE || e->reduced || e->num_levels <= 1 || e->num_frames != 1
@@ -300,16 +304,18 @@ void bm_set_reduced(int bm, bool reduce)
         e->reduced = 1;
         e->width >>= 1;
         e->height >>= 1;
-        e->num_levels--;
+        n = (ubyte)(e->num_levels - 1);
+        e->num_levels = n;
     } else {
         if (!e->reduced || e->lock_count != 0)
             return;
         e->reduced = 0;
         e->width <<= 1;
         e->height <<= 1;
-        e->num_levels++;
+        n = (ubyte)(e->num_levels + 1);
+        e->num_levels = n;
     }
-    e->num_pixels = bm_calc_num_pixels(e->width, e->height, e->num_levels);
+    e->num_pixels = bm_calc_num_pixels(e->width, e->height, n);
     gr_mark_texture_dirty(e - bm_bitmaps);
 }
 
@@ -1099,10 +1105,13 @@ void bm_lock_vbm(int index)
     }
 }
 
-// 0x503aa0  Confidence: likely (differs under cl 8966 in match26; no entry pointer: every field is indexed from bm_bitmaps).
+// 0x503aa0  Confidence: likely (differs under cl 8966 in match26; no entry pointer: every field is indexed from
+// bm_bitmaps; the bytes per pixel in a local first gives the binary's `imul ecx, eax` (D18703); left: 8966
+// pre-shifts 9 * index by 8, the binary scales it in each address).
 bool bm_lock_pcx(int index)
 {
-    bm_bitmaps[index].data = new ubyte[bm_bitmaps[index].num_pixels * bm_bytes_per_pixel(bm_bitmaps[index].format)];
+    int bpp = bm_bytes_per_pixel(bm_bitmaps[index].format);
+    bm_bitmaps[index].data = new ubyte[bpp * bm_bitmaps[index].num_pixels];
     if (bm_bitmaps[index].format == BM_FORMAT_8_PALETTED)
         bm_bitmaps[index].palette = new ubyte[0x300];
     if (pcx_read_bitmap(bm_bitmaps[index].name, (ubyte *)bm_bitmaps[index].data,

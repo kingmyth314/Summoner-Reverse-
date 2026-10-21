@@ -450,16 +450,17 @@ void file_find_files(file_find_list *list, int path_id, const char *pattern, int
     _findclose(handle);
 }
 
-// 0x513590  Confidence: unsure (the 240-byte directory buffer and the local order). For every path id
+// 0x513590  Confidence: exact (D18605: ext is a 5-byte array declared last, which puts it at the bottom
+// of the frame below p and i, as the binary). For every path id
 // from 0 up to the first unregistered one whose full directory starts with dir, one file_find_files per
 // extension of its list (". xxx " steps of 5), the results spliced onto list. A find that matches
 // nothing splices its stack head into list (NOTES.md). No caller.
 void file_list_files(file_find_list *list, const char *dir)
 {
-    char ext[8];
     file_find_node found;
     char full_dir[256];
     int i;
+    char ext[5];
 
     list->next = (file_find_node *)list;
     list->prev = (file_find_node *)list;
@@ -1027,21 +1028,24 @@ make:
     return false;
 }
 
-// 0x5143e0  Confidence: likely (the key array on the stack). 0 turns the encryption off. No caller.
+// 0x5143e0  Confidence: likely (the key array on the stack; D18604: the slot index local and the flag
+// pointer of the zero branch give the binary's per-branch slot address and the key branch's tail; left: the
+// key in EAX with a zero register, the binary's key in EDX). 0 turns the encryption off. No caller.
 void File::set_cipher_key(unsigned int key)
 {
-    file_slot *s = &file_slots[slot];
     unsigned int k[3];
+    int i = slot;
 
     if (key == 0) {
-        s->flags &= ~1;
+        unsigned int *fl = &file_slots[i].flags;
+        *fl &= ~1;
         return;
     }
     k[0] = key;
     k[2] = 0;
     k[1] = 0;
-    s->flags |= 1;
-    s->cipher.set_key(k);
+    file_slots[i].flags |= 1;
+    file_slots[i].cipher.set_key(k);
 }
 
 // 0x514460  Confidence: exact. Opens the file find found: write mode
@@ -1162,13 +1166,15 @@ int File::close()
     return err;
 }
 
-// 0x5147c0  Confidence: likely (differs under cl 8966 in match26). Asks the owner's packfile entry, not this File's (the same object).
+// 0x5147c0  Confidence: exact (D18600: a slot pointer with s->owner->packentry written out three times; 8966
+// keeps the slot address as a common subexpression, the binary's unfolded `add eax, file_slots`). Asks the
+// owner's packfile entry, not this File's (the same object).
 int File::get_async_status()
 {
     if (slot >= 0) {
-        PackfileEntry *e = file_slots[slot].owner->packentry;
-        if (e && (e->packfile->flags & PACKFILE_ON_CD))
-            return packfile_fstatus(e);
+        file_slot *s = &file_slots[slot];
+        if (s->owner->packentry && (s->owner->packentry->packfile->flags & PACKFILE_ON_CD))
+            return packfile_fstatus(s->owner->packentry);
     }
     return 1;
 }

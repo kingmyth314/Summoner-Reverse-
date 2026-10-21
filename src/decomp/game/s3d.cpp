@@ -972,10 +972,10 @@ int s3d_read_faces(File *f, s3d_face *faces, int count)
     return 0;
 }
 
-// 0x46ffe0  Confidence: likely (D16003: the byte stored as `(ubyte)hi`; left: the corner copies). Before version 0x10012 each face reference carried its lightmap box;
+// 0x46ffe0  Confidence: exact (D16003: the byte stored as `(ubyte)hi`; D18401: the corners copied by memcpy). Before version 0x10012 each face reference carried its lightmap box;
 // it is kept (in the object's box array, allocated on first use) when the face has a lightmap. The
-// lightmap index and the byte share a dword (bit fields, D801); the corner copies are vector3's inline
-// operator= (D500).
+// lightmap index and the byte share a dword (bit fields, D801); the corners are copied with memcpy (D18401:
+// the binary forms &box->maxs in a second register before the first copy, as the intrinsic does).
 // The write branch comes first in the code (`jne` to the read branch).
 int s3d_read_mesh_ref(File *f, lobj *mesh, lobj_face *ref)
 {
@@ -1008,8 +1008,8 @@ int s3d_read_mesh_ref(File *f, lobj *mesh, lobj_face *ref)
         if (!mesh->lightmap_boxes)
             mesh->lightmap_boxes = (s3d_box *)level_mempool.allocate_in_mempool(mesh->mesh->num_faces * sizeof(s3d_box));
         box = &mesh->lightmap_boxes[ref - mesh->faces];
-        box->mins = mins;
-        box->maxs = maxs;
+        memcpy(&box->mins, &mins, sizeof(vector3));   // D18401: memcpy, not vector3's operator=
+        memcpy(&box->maxs, &maxs, sizeof(vector3));
     }
     return f->error();
 }

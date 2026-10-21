@@ -197,7 +197,8 @@ void gl_convert_4444_to_rgba8888(int tex_h, int tex_w, int bm_h, int bm_w, ubyte
     }
 }
 
-// 0x54da80  Confidence: likely (D14105: closer with p and a pointer sp to the same texel; the alpha computation is scheduled later than in the binary).
+// 0x54da80  Confidence: exact (VC6 byte match, D18902: alpha set by an if / else, every channel read
+// through *sp as in D14105; was likely).
 // BM_FORMAT_1555 to RGBA bytes. A set top bit means transparent (alpha 0), as in gl_convert_1555_to_rgba5551.
 void gl_convert_1555_to_rgba8888(int tex_h, int tex_w, int bm_h, int bm_w, ubyte *src, ubyte *dst)
 {
@@ -208,12 +209,15 @@ void gl_convert_1555_to_rgba8888(int tex_h, int tex_w, int bm_h, int bm_w, ubyte
         uint *d = (uint *)dst + y * tex_w;
         int u = 0;
         for (x = 0; x < bm_w; x++) {
-            ushort p = s[(v / GL_STEP_ONE) * bm_w + u / GL_STEP_ONE];
             ushort *sp = &s[(v / GL_STEP_ONE) * bm_w + u / GL_STEP_ONE];
-            int a = (*sp & 0x8000) ? 0 : 0xff;
+            int a;
+            if (*sp & 0x8000)
+                a = 0;
+            else
+                a = 0xff;
             int b = (int)((*sp & 0x1f) * 255) / 31;
-            int g = (int)(((p >> 5) & 0x1f) * 255) / 31;
-            int r = (int)(((p >> 10) & 0x1f) * 255) / 31;
+            int g = (int)(((*sp >> 5) & 0x1f) * 255) / 31;
+            int r = (int)(((*sp >> 10) & 0x1f) * 255) / 31;
             *d++ = (((((a << 8) | b) << 8) | g) << 8) | r;
             u += GL_STEP_ONE;
         }

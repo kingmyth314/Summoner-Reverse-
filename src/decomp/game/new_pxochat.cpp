@@ -1209,15 +1209,17 @@ void pxochat_page_up(int list)
     }
 }
 
-// 0x424170  Confidence: likely (as mp_charselect_page_down).
+// 0x424170  Confidence: exact (VC6 byte match, m-1021b w11, D19200: mp_charselect_page_down's form, the page size
+// in a local and count - page computed at each use; a `last` local gives the opposite clamp branch).
 void pxochat_page_down(int list)
 {
     if (list == -1)
         return;
-    int last = pxochat_list_count[list] - pxochat_list_page[resolution_index][list];
-    if (pxochat_scroll_pos[list] < last) {
-        pxochat_scroll_pos[list] += pxochat_list_page[resolution_index][list];
-        pxochat_scroll_pos[list] = pxochat_scroll_pos[list] < last ? pxochat_scroll_pos[list] : last;
+    int page = pxochat_list_page[resolution_index][list];
+    if (pxochat_scroll_pos[list] < pxochat_list_count[list] - page) {
+        pxochat_scroll_pos[list] += page;
+        pxochat_scroll_pos[list] = pxochat_scroll_pos[list] < pxochat_list_count[list] - page
+                                   ? pxochat_scroll_pos[list] : pxochat_list_count[list] - page;
         pxochat_update_scrollbar(list);
     }
 }

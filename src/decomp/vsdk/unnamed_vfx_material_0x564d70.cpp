@@ -24,7 +24,8 @@
 // 0x564d80 vfx_material_layer__dtor: its empty destructor (vfx.h, inline; both referenced only by
 // vfx_material's constructor and its unwind funclet 0x57db20). Confidence: exact.
 
-// 0x564d90  Confidence: likely (the order of the float factors). Frames run at the bitmap's frame count
+// 0x564d90  Confidence: exact (VC6 byte match, D18505: the call's bitmap read through a pointer local into
+// `bm` gives the binary's this / n registers). Frames run at the bitmap's frame count
 // over its animation time, times the layer rate, from the first frame; wrap (modes 0 and 2) or clamp.
 int vfx_tex_layer::get_frame_bitmap(float t)
 {
@@ -33,7 +34,9 @@ int vfx_tex_layer::get_frame_bitmap(float t)
     int f;
 
     if (bitmap > 0) {
-        n = bm_get_num_frames(bitmap, &secs);
+        int *bp = &bitmap;
+        int bm = *bp;
+        n = bm_get_num_frames(bm, &secs);
         if (n == 1)
             return bitmap;
         float fps = n / secs * rate;

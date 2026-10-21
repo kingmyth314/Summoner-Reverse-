@@ -427,7 +427,8 @@ void multi_do_frame()
         mp_client_frame();
 }
 
-// 0x441490  Confidence: likely (the free list's prev word is stored only after the loop: list_init's
+// 0x441490  Confidence: exact (VC6 byte match, D18800: mp_local_player cleared, then the free list's
+// list_init, before the memset; the free list's prev word is stored only after the loop: list_init's
 // store is merged into the appends). Empty lists, the four records on the free list with no socket, and
 // the other multiplayer tables reset.
 void mp_session_reset()
@@ -438,8 +439,8 @@ void mp_session_reset()
     mp_update_timer.SetTimeout(0);
     list_init(&mp_player_list);
     mp_local_player = NULL;
-    memset((void *)mp_players, 0, sizeof(mp_players));
     list_init(&mp_player_free_list);
+    memset((void *)mp_players, 0, sizeof(mp_players));
     for (i = 0; i < MP_MAX_PLAYERS; i++) {
         mp_players[i].socket = -1;
         list_append(&mp_player_free_list, &mp_players[i]);

@@ -86,7 +86,8 @@ void eax_close()
         eax_enabled = false;
 }
 
-// 0x521f40  Confidence: likely. Takes DirectSound's listener property set; without get and set
+// 0x521f40  Confidence: exact (D18603: the support test through a bool local puts the failure block
+// first, as the binary). Takes DirectSound's listener property set; without get and set
 // support for all listener parameters it is released and EAX is switched off. Starts in "cave".
 int eax_init()
 {
@@ -96,10 +97,11 @@ int eax_init()
         eax_property_set = ds_get_eax_property_set();
         if (eax_property_set == NULL)
             return -1;
-        if (FAILED(eax_property_set->QuerySupport(DSPROPSETID_EAX20_ListenerProperties,
-                                                  DSPROPERTY_EAXLISTENER_ALLPARAMETERS, &support))
-            || (support & (KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET))
-                   != (KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET)) {
+        bool ok = SUCCEEDED(eax_property_set->QuerySupport(DSPROPSETID_EAX20_ListenerProperties,
+                                                           DSPROPERTY_EAXLISTENER_ALLPARAMETERS, &support))
+            && (support & (KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET))
+                   == (KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET);
+        if (!ok) {
             if (eax_property_set != NULL) {
                 eax_property_set->Release();
                 eax_property_set = NULL;

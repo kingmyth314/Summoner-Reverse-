@@ -59,7 +59,9 @@ void mp_send_character_walk(Character *c, bool a)
 }
 
 // 0x4882f0  Confidence: likely (VC6 keeps the walk flag in a register; the original passes it through the
-// dead data argument slot). A packet about the local leader is a protocol error (printed).
+// dead data argument slot; D18801: read back through a pointer local it gets that slot, only the `this`
+// lea is placed after the push instead of before the load). A packet about the local leader is a
+// protocol error (printed).
 void mp_handle_swi_path(ubyte *data, void *from)
 {
     int h = *(int *)data;
@@ -77,7 +79,8 @@ void mp_handle_swi_path(ubyte *data, void *from)
         return;
     }
     walk = data[4] != 0;
-    c->ai.start_travel(walk);
+    bool *wp = &walk;
+    c->ai.start_travel(*wp);
     if (MP_IS_HOST())
         mp_forward_cur_packet(from);
 }

@@ -232,8 +232,9 @@ int mp_player_file_write(Player *p)
     return 0;
 }
 
-// 0x46d450  Confidence: likely (the void* parameter: the header keeps the callers' spelling, see
-// multisave.h). Version 8 files had the flag bits one higher, except bit 0.
+// 0x46d450  Confidence: exact (VC6 byte match, D18900: the version-8 remap through an int local with `|=`;
+// was likely) (the void* parameter: the header keeps the callers' spelling, see multisave.h). Version 8
+// files had the flag bits one higher, except bit 0.
 int mp_player_file_read_summary(void *out_summary, const char *filename)
 {
     File f;
@@ -255,16 +256,20 @@ int mp_player_file_read_summary(void *out_summary, const char *filename)
     f.read_string(out->name, sizeof(out->name), 0, 0);
     out->char_info = f.read_int(0, 0);
     out->flags = f.read_int(0, 0);
-    if (version < 9)
-        out->flags = ((out->flags >> 1) & ~3) | (out->flags & 1);
+    if (version < 9) {
+        int fl = out->flags;
+        fl = (fl >> 1) & ~3;
+        fl |= out->flags & 1;
+        out->flags = fl;
+    }
     f.read_string(out->description, sizeof(out->description), 0, 0);
     out->level = f.read_int16(0, 0);
     f.close();
     return 0;
 }
 
-// 0x46d610  Confidence: likely (the slot loop: equip_item's two replaced items and unequip_slot's result
-// share one local in the code). Loads the file into the party character c and its Player record; the
+// 0x46d610  Confidence: exact (VC6 byte match, D18901: the version-8 remap as in D18900; was likely)
+// (the slot loop: equip_item's two replaced items and unequip_slot's result share one local in the code). Loads the file into the party character c and its Player record; the
 // name, char_info and description are read and dropped. HP and AP are refilled to the maximum. An empty
 // weapon slot (5) keeps the current weapon.
 int mp_player_file_load(Character *c, const char *filename)
@@ -293,8 +298,12 @@ int mp_player_file_load(Character *c, const char *filename)
     f.read_string(name, sizeof(name), 0, 0);
     f.read_int(0, 0);                             // char_info
     p->mp_owner->profile_flags = f.read_int(0, 0);
-    if (version < 9)
-        p->mp_owner->profile_flags = ((p->mp_owner->profile_flags >> 1) & ~3) | (p->mp_owner->profile_flags & 1);
+    if (version < 9) {
+        int fl = p->mp_owner->profile_flags;
+        fl = (fl >> 1) & ~3;
+        fl |= p->mp_owner->profile_flags & 1;
+        p->mp_owner->profile_flags = fl;
+    }
     f.read_string(description, sizeof(description), 0, 0);
     c->level = f.read_int16(0, 0);
     c->xp = f.read_int(0, 0);

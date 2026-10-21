@@ -180,7 +180,8 @@ cquat cquat::multiply(const cquat &q) const
     return cquat(r);
 }
 
-// 0x522bf0  Confidence: likely (the products are kept in registers and two in the argument slot). The
+// 0x522bf0  Confidence: exact (D18205: w read through a pointer local, so 8966 loads w first in w * z and
+// w * x; the position zeros through a volatile pointer keep their stores after the rows). The
 // rotation rows into a matrix43, its position zeroed (D4011).
 void quaternion::to_matrix(matrix *out) const
 {
@@ -188,10 +189,11 @@ void quaternion::to_matrix(matrix *out) const
     float yy2 = y * y * 2.0f;
     float zz2 = z * z * 2.0f;
     float xy, wz, wy, xz, xx, yz, wx;
+    const float *pw = &w;
 
     m->m[0][0] = 1.0f - yy2 - zz2;
     xy = x * y;
-    wz = z * w;
+    wz = *pw * z;
     m->m[0][1] = xy * 2.0f - wz * 2.0f;
     wy = w * y;
     xz = z * x;
@@ -200,26 +202,29 @@ void quaternion::to_matrix(matrix *out) const
     xx = 1.0f - x * x * 2.0f;
     m->m[1][1] = xx - zz2;
     yz = z * y;
-    wx = x * w;
+    wx = *pw * x;
     m->m[1][2] = yz * 2.0f - wx * 2.0f;
     m->m[2][0] = xz * 2.0f - wy * 2.0f;
     m->m[2][1] = (wx + yz) * 2.0f;
     m->m[2][2] = xx - yy2;
-    m->m[3][0] = 0.0f;
-    m->m[3][1] = 0.0f;
-    m->m[3][2] = 0.0f;
+    volatile float *p = m->m[3];
+    p[0] = 0.0f;
+    p[1] = 0.0f;
+    p[2] = 0.0f;
 }
 
-// 0x522cc0  Confidence: likely. The same rows into a 3x3 matrix.
+// 0x522cc0  Confidence: exact (D18206: w through a pointer local, as to_matrix). The same rows into a
+// 3x3 matrix.
 void quaternion::to_matrix_b(matrix *out) const
 {
     float yy2 = y * y * 2.0f;
     float zz2 = z * z * 2.0f;
     float xy, wz, wy, xz, xx, yz, wx;
+    const float *pw = &w;
 
     out->rvec.x = 1.0f - yy2 - zz2;
     xy = x * y;
-    wz = z * w;
+    wz = *pw * z;
     out->rvec.y = xy * 2.0f - wz * 2.0f;
     wy = w * y;
     xz = z * x;
@@ -228,7 +233,7 @@ void quaternion::to_matrix_b(matrix *out) const
     xx = 1.0f - x * x * 2.0f;
     out->uvec.y = xx - zz2;
     yz = z * y;
-    wx = w * x;
+    wx = *pw * x;
     out->uvec.z = yz * 2.0f - wx * 2.0f;
     out->fvec.x = xz * 2.0f - wy * 2.0f;
     out->fvec.y = (wx + yz) * 2.0f;
@@ -259,11 +264,12 @@ quaternion quaternion::log() const
     return quaternion(x * s, y * s, z * s, 0.0f);
 }
 
-// 0x522ea0  Confidence: likely.
+// 0x522ea0  Confidence: exact (D18202: the length into s, copied into a; the binary compares the
+// register copy and reads a from memory).
 quaternion quaternion::exp() const
 {
-    float a = (float)sqrt(x * x + y * y + z * z);
-    float s;
+    float s = (float)sqrt(x * x + y * y + z * z);
+    float a = s;
 
     if (a > 1.0e-10f)
         s = (float)sin(a) / a;
@@ -337,8 +343,8 @@ cquat cquat::conjugate() const
     return cquat(-x, -y, -z, w);
 }
 
-// 0x523120  Confidence: likely. As quaternion::log on the scaled components; the result keeps the
-// 16383 scale (the raw components times atan2(|v|, w) / |v|).
+// 0x523120  Confidence: exact (D18201: the tx / ty / tz copies of D18200). As quaternion::log on the
+// scaled components; the result keeps the 16383 scale (the raw components times atan2(|v|, w) / |v|).
 cquat cquat::log() const
 {
     float fx = (float)x;
@@ -351,10 +357,12 @@ cquat cquat::log() const
 
     if (s > 0.0f)
         s = (float)atan2(s, w * CQUAT_TO_FLOAT) / s;
-    return cquat((short)(fx * s), (short)(fy * s), (short)(fz * s), 0);
+    float tx = fx, ty = fy, tz = fz;
+    return cquat((short)(tx * s), (short)(ty * s), (short)(tz * s), 0);
 }
 
-// 0x5231e0  Confidence: likely.
+// 0x5231e0  Confidence: exact (D18203: the length into s copied into a, as quaternion::exp D18202,
+// and the tx / ty / tz copies of D18200).
 cquat cquat::exp() const
 {
     float fx = (float)x;
@@ -363,14 +371,15 @@ cquat cquat::exp() const
     float sy = fy * CQUAT_TO_FLOAT;
     float fz = (float)z;
     float sz = fz * CQUAT_TO_FLOAT;
-    float a = (float)sqrt(sx * sx + sy * sy + sz * sz);
-    float s;
+    float s = (float)sqrt(sx * sx + sy * sy + sz * sz);
+    float a = s;
 
     if (a > 1.0e-10f)
         s = (float)sin(a) / a;
     else
         s = 1.0f;
-    return cquat((short)(fx * s), (short)(fy * s), (short)(fz * s), (short)((float)cos(a) * 16383.0f));
+    float tx = fx, ty = fy, tz = fz;
+    return cquat((short)(tx * s), (short)(ty * s), (short)(tz * s), (short)((float)cos(a) * 16383.0f));
 }
 
 // 0x5232b0  Confidence: exact (the integer division of cquat::normalized, D4012).
@@ -393,7 +402,8 @@ void cquat::negate_xyz()
     z = -z;
 }
 
-// 0x523370  Confidence: likely.
+// 0x523370  Confidence: exact (D18200: the raw components copied into tx / ty / tz before the
+// products; 8966 then keeps s on the FPU stack and reloads fy / fz as the binary does).
 void cquat::log_in_place()
 {
     float fx = (float)x;
@@ -406,13 +416,14 @@ void cquat::log_in_place()
 
     if (s > 0.0f)
         s = (float)atan2(s, w * CQUAT_TO_FLOAT) / s;
-    x = (short)(fx * s);
-    y = (short)(fy * s);
-    z = (short)(fz * s);
+    float tx = fx, ty = fy, tz = fz;
+    x = (short)(tx * s);
+    y = (short)(ty * s);
+    z = (short)(tz * s);
     w = 0;
 }
 
-// 0x523430  Confidence: likely.
+// 0x523430  Confidence: exact (D18204: as cquat::exp, D18203).
 void cquat::exp_in_place()
 {
     float fx = (float)x;
@@ -421,16 +432,17 @@ void cquat::exp_in_place()
     float sy = fy * CQUAT_TO_FLOAT;
     float fz = (float)z;
     float sz = fz * CQUAT_TO_FLOAT;
-    float a = (float)sqrt(sx * sx + sy * sy + sz * sz);
-    float s;
+    float s = (float)sqrt(sx * sx + sy * sy + sz * sz);
+    float a = s;
 
     if (a > 1.0e-10f)
         s = (float)sin(a) / a;
     else
         s = 1.0f;
-    x = (short)(fx * s);
-    y = (short)(fy * s);
-    z = (short)(fz * s);
+    float tx = fx, ty = fy, tz = fz;
+    x = (short)(tx * s);
+    y = (short)(ty * s);
+    z = (short)(tz * s);
     w = (short)((float)cos(a) * 16383.0f);
 }
 

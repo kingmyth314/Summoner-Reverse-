@@ -252,14 +252,18 @@ void avoid_prim_from_segment(avoid_prim *out, const vector2 *a, const vector2 *b
     out->points[1] = *b;
 }
 
-// 0x4a6e00  Confidence: likely (the order of the projections). Separating-axis test of a (its two axes,
+// 0x4a6e00  Confidence: likely (the order of the projections; D18503: ku through the pointer copy bo and the
+// third test's two k terms as inline dots, the first assigned to the otherwise unused kw, give the binary's
+// operand orders and its fxch pair: distance 27 -> 13; left: the first two projections' product order and
+// the binary's dead fst of the third test's u term into b's argument slot). Separating-axis test of a (its two axes,
 // or all four for a circle) against b (whose second half size is not used: b is a segment primitive at
 // every caller); margin shrinks a.
 bool avoid_prim_overlap(const avoid_obstacle *a, const avoid_prim *b, float margin)
 {
     vector2 d;
     const vector2 *u, *v;
-    float ku, kv;
+    float ku, kv, kw;
+    const avoid_prim *bo = b;
     int pass;
 
     d.x = a->centre.x - b->centre.x;
@@ -267,14 +271,14 @@ bool avoid_prim_overlap(const avoid_obstacle *a, const avoid_prim *b, float marg
     v = &a->axis_b;
     u = &a->axis_a;
     for (pass = 0; pass < 2; pass++) {
-        ku = fabs(b->axis_a.dot(*u));
+        ku = fabs(bo->axis_a.dot(*u));
         if (fabs(d.x * u->x + d.y * u->y) > ku * b->half_a + a->half_a - margin)
             return false;
         kv = fabs(b->axis_a.y * v->y + b->axis_a.x * v->x);
         if (fabs(d.x * v->x + d.y * v->y) > kv * b->half_a + a->half_b - margin)
             return false;
-        if (fabs(d.y * b->axis_b.y + d.x * b->axis_b.x) > fabs(b->axis_b.y * v->y + v->x * b->axis_b.x) * a->half_b
-                + fabs(b->axis_b.y * u->y + u->x * b->axis_b.x) * a->half_a - margin)
+        if (fabs(d.y * b->axis_b.y + d.x * b->axis_b.x) > (kw = fabs(b->axis_b.dot(*v))) * a->half_b
+                + fabs(b->axis_b.dot(*u)) * a->half_a - margin)
             return false;
         if (fabs(d.y * b->axis_a.y + d.x * b->axis_a.x) > ku * a->half_a + kv * a->half_b + b->half_a - margin)
             return false;

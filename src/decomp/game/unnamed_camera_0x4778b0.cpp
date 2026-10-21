@@ -433,8 +433,9 @@ void camera::smooth_height(float h)
     }
 }
 
-// 0x4787b0  Confidence: likely. Mode 2 only, once a second: high at once while an enemy is near, low
-// again 5 s after the last one.
+// 0x4787b0  Confidence: exact (VC6 byte match, D19101: the 5 s re-arm and view_low as if / else, so the
+// tail after enemy_near_leader has one exit and 8966 pushes EBX there, D8701; was likely). Mode 2 only,
+// once a second: high at once while an enemy is near, low again 5 s after the last one.
 void camera::auto_view_update()
 {
     bool near_enemy;
@@ -457,12 +458,10 @@ void camera::auto_view_update()
         if (near_enemy == true)
             view_high();
     } else if (!near_enemy) {
-        if (enemy_near == true) {
+        if (enemy_near == true)
             auto_view_timer.SetTimeout(5000);
-            enemy_near = near_enemy;
-            return;
-        }
-        view_low();
+        else
+            view_low();
     }
     enemy_near = near_enemy;
 }

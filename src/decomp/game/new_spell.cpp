@@ -849,8 +849,10 @@ void character_cast_spell(int spell, Character *c)
     }
 }
 
-// 0x42b050  Confidence: likely (the assess target goes to interface_set_screen through a stack copy in the
-// dead user argument slot). The pending spell picked on a character (world_mouse_frame) or a skill passed
+// 0x42b050  Confidence: exact (the assess target goes to interface_set_screen through a stack copy in the
+// dead user argument slot; the backstab case jumps to the shared world_pick_clear_filter, so the region after
+// the target test has one exit and 8966 pushes EBX there, as the binary does: D18704). The pending spell
+// picked on a character (world_mouse_frame) or a skill passed
 // through character_use_skill: 0x45 (backstab: a from-behind goal, the AP of skill 0x12) and 0x46 (assess:
 // the AP of skill 0x13; the assess screen opens when the skill beats target level * 0.04, else the skill
 // cools down and the miss feedback plays).
@@ -867,8 +869,7 @@ void character_use_skill_on(int spell, Character *target, int priority, Characte
     case 0x45:
         user->ai.add_skill_from_behind(target, priority);
         user->add_ap((float)-skill_table[SKILL_BACKSTAB].ap_cost);
-        world_pick_clear_filter();
-        return;
+        goto clear;
     case 0x46:
         user->add_ap((float)-skill_table[SKILL_ASSESS].ap_cost);
         if (user->get_skill(SKILL_ASSESS) > target->info->level * 0.04f) {
@@ -883,6 +884,7 @@ void character_use_skill_on(int spell, Character *target, int priority, Characte
     }
     user->ai.add_cast_at_target(spell, target, priority);
     user->ai.flags |= 2;
+clear:
     world_pick_clear_filter();
 }
 

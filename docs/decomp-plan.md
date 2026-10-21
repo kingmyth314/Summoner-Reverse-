@@ -620,6 +620,23 @@ index on `gr_clip_edge`, and the two-statement split (D17703) on `dialogue_box::
 `ai_group_think_caster` (D17100, the same day) has six candidate records, not five: `list[6]` gives the binary's frame,
 and the six-member caster crash candidate raised during the fixed-build port is withdrawn.
 
+**Second targeted round 2026-10-21 (twelve workers, D18200-D19399).** 5,462 -> 5,501, none lost (notes in
+`src/decomp/NOTES-match-2026-10-21b.md`). The next 92 on the near-miss list (distance 13-40), with the first round's
+devices handed to the workers: 37 matches, 16 closer, and two more at the merge. Several were functions earlier
+rounds had listed as exhausted: the `inventory_*` clamps (D18500: the clamp in place through `int *pp = &pos`, also
+`inventory_destroy_selected_item`), five `quaternion` / `cquat` functions (D18200-D18206: a copy of a float before its
+products; `const float *pw = &w`), the four `snd_set_*` clamps (D18400: a `do { ... break; } while (0)` clamp that puts
+both stores out of line) and `s3d_read_mesh_ref` (D18401, `memcpy` for a corner copy). Also new: a `do { } while`
+loop that stops 8966 rotating a top-tested loop (D18300), a single exit through `goto` or one `if / else` so a
+callee-saved register is pushed late (D18704, D19101), an int local for a flag remap (D18900), declarations moved
+into the block that uses them (D19302), and a `pf_edge` local whose extra bytes are the binary's unused frame top
+(D19301). One device is a `volatile float *` for three zero stores (`quaternion::to_matrix`, D18205): the same stores,
+kept as a matching device like D16500. **D19000** drops the D1 union at Character +0x558 (`combat` and `protection`,
+one member with two names since the first pilot): `living_combat` gets its real constructor, called between `ai`
+and `timer6d4`, and `Character::Character` matches; `new_assess.cpp` was the only user of `protection`. Two units'
+"closer" changes were read for behaviour at the merge (`bm_set_reduced`'s `ubyte` level count, the flag remaps):
+the same results. Still differing, 423, are almost all register choice and scheduling.
+
 The
 `Confidence:` markers follow the sweep (`tools/decomp-confidence.mjs`): every compared function that matches is
 `exact`, none that differs is. The other 1,819 written functions are not compared (`tools/decomp-uncompared.mjs`):

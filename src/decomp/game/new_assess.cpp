@@ -166,7 +166,7 @@ void assess_format_info(Character *target)
         damage = target->equipment[5]->type->damage;
     else
         damage = target->info->damage;
-    protection = (int)(target->protection.get_protection() * 100.0f + 0.5f);
+    protection = (int)(target->combat.get_protection() * 100.0f + 0.5f);
     magic = (int)(target->get_resistance(3) * 100.0f + 0.5f);
     res = target->info->resistance;
 

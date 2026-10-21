@@ -80,15 +80,16 @@ char *StringPool::GetBuffer()
     return pool;
 }
 
-// 0x544c40  Confidence: likely (register choice under 8966). Error line 233 (0xe9).
+// 0x544c40  Confidence: likely (register choice under 8966; m-1021b w11, D19201: new_length before dest, closer).
+// Error line 233 (0xe9).
 char *StringPool::Add(const char *s)
 {
     if (s == NULL)
         return NULL;
 
     int len = strlen(s);
-    char *dest = pool + length;
     int new_length = length + len + 1;
+    char *dest = pool + length;
     if (new_length > max_length)
         VSDK_ERROR(STRINGPOOL_CPP, 233, "Length of string pool exceeded.");
 

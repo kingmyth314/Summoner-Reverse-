@@ -207,7 +207,8 @@ ui_window *editor_dialog_show(int width, const char *title, const char *text, in
     return window;
 }
 
-// 0x4315c0  Confidence: likely (the exits). The callback of every dialog button: finds the dialog that owns
+// 0x4315c0  Confidence: exact (VC6 byte match, D19300: each button's block has its own press test and break;
+// 8966 cross-jumps the identical tails, so button 1 jumps back into button 0's call). The callback of every dialog button: finds the dialog that owns
 // the gadget id and calls the matching callback; a press (event 12) closes the dialog. Game bug: for the
 // third button it tests callbacks[2] but calls callbacks[1] (`call [esi + 0x28]` at 0x431628).
 bool editor_dialog_handle_event(int event, int value)
@@ -222,18 +223,29 @@ bool editor_dialog_handle_event(int event, int value)
         if (g == d->buttons[0]) {
             if (d->callbacks[0])
                 result = d->callbacks[0](event, value);
-        } else if (g == d->buttons[1]) {
+            if (event == UI_EVENT_PRESSED) {
+                d->closed = true;
+                return true;
+            }
+            break;
+        }
+        if (g == d->buttons[1]) {
             if (d->callbacks[1])
                 result = d->callbacks[1](event, value);
-        } else if (g == d->buttons[2]) {
+            if (event == UI_EVENT_PRESSED) {
+                d->closed = true;
+                return true;
+            }
+            break;
+        }
+        if (g == d->buttons[2]) {
             if (d->callbacks[2])
                 result = d->callbacks[1](event, value);
-        } else {
-            return result;
-        }
-        if (event == UI_EVENT_PRESSED) {
-            d->closed = true;
-            return true;
+            if (event == UI_EVENT_PRESSED) {
+                d->closed = true;
+                return true;
+            }
+            break;
         }
         break;
     }

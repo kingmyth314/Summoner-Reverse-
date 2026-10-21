@@ -117,8 +117,8 @@ static inline int savegame_find_hash(const unsigned int *hashes, int count, unsi
 }
 
 // A conversation slot whose name ends in "_m1" (a multiplayer script) has no save block. Expanded the same
-// way in savegame_layout_conversation, savegame_set_speaker_bit and savegame_set_topic_bit (inline, name
-// ours).
+// way in savegame_set_speaker_bit and savegame_set_topic_bit (inline, name ours); written out in
+// savegame_layout_conversation (D18301).
 static inline bool conversation_slot_is_mp(const char *name)
 {
     int len = strlen(name);
@@ -836,8 +836,9 @@ bool savegame::has_conversation_data(int level, int slot)
     return v != 0;
 }
 
-// 0x4d05f0  Confidence: likely (D16806: the byte-offset search and the count read through the macro in the
-// loop and the re-test give the binary's re-test; only the data / bits_off registers are swapped). Nothing is read before the level has been entered once.
+// 0x4d05f0  Confidence: likely (D16806: the count read through the macro in the loop and the re-test give the
+// binary's re-test; D18305: the hashes read through an unsigned pointer `hp` give the binary's data / bits_off
+// registers. Left: 8966 creates hp before the count test, and adds bits_off before data at the end). Nothing is read before the level has been entered once.
 int savegame::get_speaker_bit(int level, int slot, const char *speaker, int kind)
 {
     conversation_save_info *info;
@@ -857,10 +858,10 @@ int savegame::get_speaker_bit(int level, int slot, const char *speaker, int kind
         return 0;
     hash = name_hash_nocase(speaker);
     {
-        int off = 4;
+        unsigned int *hp = (unsigned int *)(data + 4);
         for (i = 0; i < CONVERSATION_SAVE_INFO(level, slot)->num_speakers; i++) {
-            unsigned int h = *(unsigned int *)(data + off);
-            off += 4;
+            unsigned int h = *hp;
+            hp++;
             if (hash == h)
                 break;
         }
@@ -1470,7 +1471,10 @@ void savegame::layout_level_data()
     }
 }
 
-// 0x4d18e0  Confidence: likely (the size is built with one += per part, each stored, as in the binary).
+// 0x4d18e0  Confidence: exact (VC6 byte match, D18301: the level's row of sections through a pointer `row`
+// and `row[slot]` for the two first stores give the binary's frame slots and store order; the "_m1" test
+// written out with info->name re-read gives lea [name + len - 3], the helper gives [len + name - 3]).
+// The size is built with one += per part, each stored, as in the binary.
 // Every slot gets a pointer; the "_m1" slots and the slots after the first unnamed one get no space.
 void savegame::layout_conversation()
 {
@@ -1480,15 +1484,19 @@ void savegame::layout_conversation()
 
     conversation_data = buffer + used;
     for (level = 0; level < SAVEGAME_NUM_LEVELS; level++) {
+        savegame_section *row = conversations[level];
         for (slot = 0; slot < SAVEGAME_NUM_SLOTS; slot++) {
             info = CONVERSATION_SAVE_INFO(level, slot);
-            sec = &conversations[level][slot];
-            sec->data = buffer + used;
-            sec->size = 0;
+            sec = &row[slot];
+            row[slot].data = buffer + used;
+            row[slot].size = 0;
             if (!info->name)
                 break;
-            if (conversation_slot_is_mp(info->name))
-                continue;
+            {
+                int len = strlen(info->name);
+                if (len >= 3 && _stricmp(info->name + len - 3, "_m1") == 0)
+                    continue;
+            }
             sec->size += 4;
             sec->size += info->num_speakers * 4;
             sec->size += info->num_speakers * 4;
@@ -1789,7 +1797,9 @@ int savegame::write_camera()
     return camera.size >= 0x28;
 }
 
-// 0x4d2370  Confidence: likely (differs under cl 8966 in match26). Containers in use whose first item is not a level item, then up to 32 loose
+// 0x4d2370  Confidence: likely (D18306: c set first and tested through c, get_item through containers[ci],
+// gives the binary's container pointer (&c->pos) and order; left: count and the float temporary in swapped
+// frame slots). Containers in use whose first item is not a level item, then up to 32 loose
 // gold piles of the object list.
 int savegame::write_item_objects()
 {
@@ -1803,10 +1813,10 @@ int savegame::write_item_objects()
     count = 0;
     *(int *)(item_objects.data + 4) = 0;
     for (int ci = 0; ci < MAX_CONTAINERS; ci++) {
-        if (!containers[ci].type || containers[ci].num_items <= 0)
-            continue;
         c = &containers[ci];
-        it = c->get_item(0);
+        if (!c->type || c->num_items <= 0)
+            continue;
+        it = containers[ci].get_item(0);
         if (!it)
             return 0;
         if (it->level_item >= 0)
@@ -1867,7 +1877,8 @@ int savegame::chunk_stub()
 }
 
 // ---- reading ---------------------------------------------------------------------------------------------
-// 0x4d25b0  Confidence: likely (local order). The header, the thumbnail and the rest are read in three
+// 0x4d25b0  Confidence: exact (VC6 byte match, D18302: the thumbnail size read into an int local `n` for the
+// second File::read gives the binary's EAX / EDX choice in both later reads). The header, the thumbnail and the rest are read in three
 // File::read calls that together read the whole file; a header result <= 0 is returned as it is. The first
 // failing check prints its marker.
 int savegame::read(const char *filename, int unk)
@@ -1886,7 +1897,8 @@ int savegame::read(const char *filename, int unk)
     if (result <= 0)
         return result;
     start = header.size;
-    f.read(buffer + start, thumbnail.size, 0, 0);
+    int n = thumbnail.size;
+    f.read(buffer + start, n, 0, 0);
     start += thumbnail.size;
     f.read(buffer + start, used - start, 0, 0);
     if (f.close())
@@ -3575,26 +3587,30 @@ int level_table_find_id(int level)
     return -1;
 }
 
-// 0x4d63b0  Confidence: likely (block order). The localized name up to its first digit or '#'.
+// 0x4d63b0  Confidence: likely (block order; D18303: the two "Unknown" exits written as early returns give the
+// binary's search-loop registers; 8966 merges them into one block. Left: the four text loads use EAX / ECX / EDX
+// one step behind the binary's ECX / EDX / EAX). The localized name up to its first digit or '#'.
 void level_format_display_name(char *out, int level)
 {
     int i, n;
 
-    if (level != -1) {
-        for (i = 0; i < 51; i++)
-            if (_stricmp(level_display_names[i].name, level_script_table[level].name) == 0)
-                break;
-        if (i < 51 && strlen(localize_string_or_invalid(level_display_names[i].text)) != 0) {
-            n = strcspn(localize_string_or_invalid(level_display_names[i].text), "#01234567890");
-            if (n) {
-                strncpy(out, localize_string_or_invalid(level_display_names[i].text), n);
-                out[n] = 0;
-            } else
-                strcpy(out, localize_string_or_invalid(level_display_names[i].text));
-            return;
-        }
+    if (level == -1) {
+        strcpy(out, XSTR("Unknown", 352));
+        return;
     }
-    strcpy(out, XSTR("Unknown", 352));
+    for (i = 0; i < 51; i++)
+        if (_stricmp(level_display_names[i].name, level_script_table[level].name) == 0)
+            break;
+    if (i >= 51 || strlen(localize_string_or_invalid(level_display_names[i].text)) == 0) {
+        strcpy(out, XSTR("Unknown", 352));
+        return;
+    }
+    n = strcspn(localize_string_or_invalid(level_display_names[i].text), "#01234567890");
+    if (n) {
+        strncpy(out, localize_string_or_invalid(level_display_names[i].text), n);
+        out[n] = 0;
+    } else
+        strcpy(out, localize_string_or_invalid(level_display_names[i].text));
 }
 
 // 0x4d64c0  Confidence: exact.

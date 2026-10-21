@@ -25,9 +25,8 @@ struct move_info;
 // calls are thiscall on it; +0x08 points at the other side's record during an exchange.
 class living_combat {
 public:
-    // The constructor 0x4681b0 (GameTimer at +0xc, then reset). Written as construct() while
-    // Character keeps the +0x558 union alias of D1 (a union member cannot have a constructor; D300).
-    living_combat *construct();                     // 0x4681b0 living_combat__ctor
+    // The constructor 0x4681b0 (GameTimer at +0xc, then reset; D300, a real constructor since D19000).
+    living_combat();                                // 0x4681b0 living_combat__ctor
     void  reset();                                  // 0x4635e0 living_combat_reset
     void  set_owner(Character *c);                  // 0x4681d0
     Character *get_target();                        // 0x4681e0

@@ -630,9 +630,9 @@ int pcx_read_header(const char *name, int *w, int *h, int *bpp, ubyte *palette, 
     return 0;
 }
 
-// 0x555f60  Confidence: likely (the decode loop; c is initialised at the top and count = 0 after pos = 0
-// (D15301): then every read before the loop pushes the zero in EBP as the binary does; left: the binary
-// clears pos (ESI) after the last read's arguments, 8966 clears it first and pushes ESI for the zeros).
+// 0x555f60  Confidence: likely (the decode loop; c is initialised at the top and count = 0 (D15301): then
+// every read before the loop pushes the zero in EBP as the binary does; with `int pos = 0;` after the last
+// read (D18701) that read also pushes EBP; left: the binary clears pos (ESI) just before that call, 8966 after).
 // Decodes through a 1 KB read buffer; bytes past the image width in
 // each line are dropped.
 int pcx_read_bitmap(const char *name, ubyte *data, ubyte *palette, int path_id)
@@ -669,9 +669,9 @@ int pcx_read_bitmap(const char *name, ubyte *data, ubyte *palette, int path_id)
     f.read(palette, 0x300, 0, 0);
     f.seek(0x80, 0);
 
-    int pos = 0;
     count = 0;
     f.read(buffer, sizeof(buffer), 0, 0);
+    int pos = 0;
     if (f.error()) {
         f.close();
         return 4;
