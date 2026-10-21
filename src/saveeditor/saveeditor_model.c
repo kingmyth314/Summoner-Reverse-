@@ -421,3 +421,67 @@ int sem_next_slot(const wchar_t *dir, wchar_t *out, size_t outlen)
     }
     return -1;
 }
+
+/* Sum.exe as far as sem_load_skill_names needs it: the file and its sections. */
+typedef struct { uint32_t va, rawsize, raw; } sem_pe_sec;
+typedef struct { const uint8_t *b; uint32_t size, nsec; sem_pe_sec sec[16]; } sem_pe;
+
+static uint32_t sem_rd32(const uint8_t *p) { return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24; }
+
+/* The file offset of n bytes at a virtual address, or 0 when the file does not hold them. */
+static uint32_t sem_pe_off(const sem_pe *pe, uint32_t addr, uint32_t n)
+{
+    uint32_t i;
+    for (i = 0; i < pe->nsec; i++) {
+        const sem_pe_sec *s = &pe->sec[i];
+        if (addr >= s->va && addr - s->va + n <= s->rawsize && s->raw + (addr - s->va) + n <= pe->size)
+            return s->raw + (addr - s->va);
+    }
+    return 0;
+}
+
+int sem_load_skill_names(const wchar_t *exe, char names[SE_SKILL_COUNT][SEM_SKILL_NAME_LEN])
+{
+    enum { NAMES_VA = 0x595b64, COUNT_VA = 0x595cb4, COUNT = 84 };
+    sem_pe pe;
+    HANDLE f;
+    DWORD size, got;
+    uint8_t *b = NULL;
+    uint32_t h, base, opt, i, o;
+    int k, ok = 0;
+    memset(names, 0, SE_SKILL_COUNT * SEM_SKILL_NAME_LEN);
+    f = CreateFileW(exe, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+    if (f == INVALID_HANDLE_VALUE) return 0;
+    size = GetFileSize(f, NULL);
+    if (size != INVALID_FILE_SIZE && size >= 0x400 && size <= (64u << 20) && (b = malloc(size)) != NULL &&
+        (!ReadFile(f, b, size, &got, NULL) || got != size)) { free(b); b = NULL; }
+    CloseHandle(f);
+    if (!b) return 0;
+    /* a 32-bit x86 PE whose sections hold the two addresses */
+    if (b[0] != 'M' || b[1] != 'Z') goto done;
+    h = sem_rd32(b + 0x3c);
+    if (h > size - 0x100 || memcmp(b + h, "PE\0\0", 4) || (b[h + 4] | b[h + 5] << 8) != 0x14c) goto done;
+    pe.b = b; pe.size = size;
+    pe.nsec = b[h + 6] | b[h + 7] << 8;
+    opt = b[h + 20] | b[h + 21] << 8;
+    base = sem_rd32(b + h + 52);
+    if (pe.nsec > 16 || h + 24 + opt + 40 * pe.nsec > size) goto done;
+    for (i = 0; i < pe.nsec; i++) {
+        const uint8_t *s = b + h + 24 + opt + 40 * i;
+        pe.sec[i].va = base + sem_rd32(s + 12); pe.sec[i].rawsize = sem_rd32(s + 16); pe.sec[i].raw = sem_rd32(s + 20);
+    }
+    if (!(o = sem_pe_off(&pe, COUNT_VA, 4)) || sem_rd32(b + o) != COUNT) goto done;
+    for (k = 0; k < SE_SKILL_COUNT; k++) {
+        uint32_t q, n;
+        if (!(o = sem_pe_off(&pe, NAMES_VA + 4u * k, 4)) || !(q = sem_pe_off(&pe, sem_rd32(b + o), 1))) goto done;
+        for (n = 0; n < SEM_SKILL_NAME_LEN - 1 && q + n < size && b[q + n]; n++)
+            if (b[q + n] < 0x20 || b[q + n] > 0x7e) goto done;
+        if (n == 0 || q + n >= size || b[q + n]) goto done;   /* empty, too long or unterminated */
+        memcpy(names[k], b + q, n);
+    }
+    ok = !strcmp(names[0], "hand to hand");   /* the first skill of v1.40 */
+done:
+    free(b);
+    if (!ok) memset(names, 0, SE_SKILL_COUNT * SEM_SKILL_NAME_LEN);
+    return ok ? SE_SKILL_COUNT : 0;
+}

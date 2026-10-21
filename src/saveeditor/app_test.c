@@ -16,7 +16,7 @@
 #include <string.h>
 #include "saveeditor_model.h"
 
-static const wchar_t *g_tables, *g_out;
+static const wchar_t *g_tables, *g_out, *g_sumExe;
 static se_tables g_t, g_none; /* g_none: no tables at all (tables.vpp missing) */
 static int g_pass, g_fail, g_skip;
 
@@ -377,9 +377,10 @@ int wmain(int argc, wchar_t **argv)
     for (i = 1; i < argc; i++) {
         if (!wcscmp(argv[i], L"--tables") && i + 1 < argc) g_tables = argv[++i];
         else if (!wcscmp(argv[i], L"--out") && i + 1 < argc) g_out = argv[++i];
+        else if (!wcscmp(argv[i], L"--sum-exe") && i + 1 < argc) g_sumExe = argv[++i];
         else { first = i; break; }
     }
-    if (!g_tables || !g_out || !first) { fputs("usage: app_test --tables FILE.vpp --out DIR save.sav [...]\n", stderr); return 2; }
+    if (!g_tables || !g_out || !first) { fputs("usage: app_test --tables FILE.vpp --out DIR [--sum-exe Sum.exe] save.sav [...]\n", stderr); return 2; }
     if (GetFileAttributesW(L"tools\\savedit.mjs") == INVALID_FILE_ATTRIBUTES) { fputs("run this from the repository folder\n", stderr); return 2; }
     memset(&to, 0, sizeof to);
     to.tables_vpp = g_tables;
@@ -391,6 +392,19 @@ int wmain(int argc, wchar_t **argv)
     /* slot naming: the first free summonerN.sav in the output folder */
     if (sem_next_slot(g_out, slot, MAX_PATH * 2) < 0) { wprintf(L"FAIL next slot\n"); g_fail++; }
     else wprintf(L"next free slot in the output folder: %ls\n", wcsrchr(slot, L'\\') + 1);
+
+    /* skill names: the game's Sum.exe gives all 36 (first and last checked); a file that is not it gives none */
+    if (g_sumExe) {
+        static char names[SE_SKILL_COUNT][SEM_SKILL_NAME_LEN];
+        int n = sem_load_skill_names(g_sumExe, names);
+        if (n != SE_SKILL_COUNT || strcmp(names[0], "hand to hand") || strcmp(names[3], "sword weapons") ||
+            strcmp(names[35], "magic resist")) { wprintf(L"FAIL skill names from %ls (%d)\n", g_sumExe, n); g_fail++; }
+        else { wprintf(L"skill names: %hs ... %hs\n", names[0], names[35]); g_pass++; }
+        if (sem_load_skill_names(g_tables, names) != 0 || names[0][0]) { wprintf(L"FAIL skill names from a file that is not Sum.exe\n"); g_fail++; }
+        else g_pass++;
+        if (sem_load_skill_names(L"no such file.exe", names) != 0) { wprintf(L"FAIL skill names from a missing file\n"); g_fail++; }
+        else g_pass++;
+    }
 
     for (i = first; i < argc; i++) run_save(argv[i]);
     se_tables_free(&g_t);

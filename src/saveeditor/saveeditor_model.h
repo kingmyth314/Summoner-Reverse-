@@ -93,6 +93,12 @@ int sem_save_new(const sem_doc *d, const wchar_t *path, char *log, size_t loglen
 
 /* The first summonerN.sav (N = 0, 1, ...) that does not exist in dir (the game's slot names). */
 int sem_next_slot(const wchar_t *dir, wchar_t *out, size_t outlen);
+/* The names of the saved skills, read from the game's own Sum.exe (v1.40: skill_names at 0x595b64, 84 string
+ * pointers, the count 84 at 0x595cb4; docs/sum-exe/characters.md). The names are the game's strings, so the
+ * editor does not carry them. Returns SE_SKILL_COUNT, or 0 when the file is missing or is not that exe (then
+ * skills are shown by id). The file is only read. */
+#define SEM_SKILL_NAME_LEN 32
+int sem_load_skill_names(const wchar_t *exe, char names[SE_SKILL_COUNT][SEM_SKILL_NAME_LEN]);
 
 /* Latin-1 <-> UTF-16. sem_to_latin1 fails (-1) on a character above U+00FF or when out is too small. */
 int sem_to_latin1(const wchar_t *w, char *out, size_t outlen);

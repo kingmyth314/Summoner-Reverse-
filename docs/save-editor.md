@@ -41,8 +41,10 @@ Pages:
   others are refused with a note in the status line) and the party gold.
 - **Party**: one entry per party member (type-7 record, named Joseph, Flece, Jekhar or Rosalind when the hash
   matches). Level, XP, HP, max HP, AP, max AP, skill points (disabled when the record has no skill-point
-  dword) and the 36 saved skill bytes. The library knows no skill names (they are strings of `Sum.exe`, not of
-  the tables), so skills are shown by id (`skill 0x03 (3)`); pick one, type 0-255, **Set**. 10 = level 1.
+  dword) and the 36 saved skill bytes. The skill names are strings of `Sum.exe`, not of the tables, so the editor
+  reads them from the `Sum.exe` in its folder at start-up (the `skill_names` table at `0x595b64`, checked against
+  v1.40's count of 84 and its first name) and shows `sword weapons (3)`; without a v1.40 `Sum.exe` it shows ids
+  (`skill 0x03 (3)`). Pick one, type 0-255, **Set**. 10 = level 1. `app_test --sum-exe Sum.exe` checks the names.
 - **Inventory**: one row per item type held (counts of repeated entries added up), with **Set count** and
   **Remove**; **Add** takes a name from the save's own item types (the ITEM chunk; the combo box can be typed
   into, the name must match one of the list). Rows show "added", "changed" or "removed". Items without a name

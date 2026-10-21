@@ -3,7 +3,7 @@
  *
  * It sits in the game folder next to Sum.exe: it lists the saves of the savegame folder there and reads the
  * names of items and story flags from tables.vpp in the same folder (without it, description, gold and party
- * can still be edited). Every change becomes one edit of the library's edit list; saving applies the whole
+ * can still be edited), and the skill names from Sum.exe (without it, skills are shown by id). Every change becomes one edit of the library's edit list; saving applies the whole
  * list all or nothing and writes a NEW file (the next free summonerN.sav, or a name picked with Save As).
  * The opened save is never written.
  *
@@ -52,6 +52,8 @@ static int g_nctl;
 
 static wchar_t g_gameDir[PATHLEN], g_saveDir[PATHLEN], g_tablesPath[PATHLEN];
 static int g_tablesOk;
+static char g_skillNames[SE_SKILL_COUNT][SEM_SKILL_NAME_LEN]; /* from the game's Sum.exe; empty without it */
+static int g_haveSkillNames;
 static se_tables g_tables;
 
 static sem_doc g_doc;
@@ -289,7 +291,8 @@ static void fill_member(int m)
     if (m >= 0)
         for (k = 0; k < SE_SKILL_COUNT; k++) {
             int row, v = g_doc.cur.m[m].skills[k];
-            _snwprintf(w, 128, L"skill 0x%02x (%d)", k, k);
+            if (g_haveSkillNames) _snwprintf(w, 128, L"%hs (%d)", g_skillNames[k], k);
+            else _snwprintf(w, 128, L"skill 0x%02x (%d)", k, k);
             row = lv_add(lv, w, k);
             _snwprintf(w, 128, L"%d", v); lv_set(lv, row, 1, w);
             lv_set(lv, row, 2, v != g_doc.orig.m[m].skills[k] ? L"changed" : L"");
@@ -725,9 +728,10 @@ static void create_controls(void)
     }
     label(PAGE_PARTY, L"HP and max HP may have decimals (12.5). Raising the level does not give the HP, AP or skill points of the skipped levels.",
           20, 300, 450, 60, 0);
-    label(PAGE_PARTY, L"Saved skills (the editor does not know the skill names; 10 = level 1):", 490, 44, 370, 20, 0);
+    label(PAGE_PARTY, g_haveSkillNames ? L"Saved skills (names from Sum.exe; 10 = level 1):"
+                                       : L"Saved skills (Sum.exe not found, so by id; 10 = level 1):", 490, 44, 370, 20, 0);
     lv = listview(PAGE_PARTY, 490, 66, 370, 380, ID_SKILLS, 0);
-    column(lv, 0, L"Skill id", 150); column(lv, 1, L"Value", 80); column(lv, 2, L"", 100);
+    column(lv, 0, g_haveSkillNames ? L"Skill" : L"Skill id", 150); column(lv, 1, L"Value", 80); column(lv, 2, L"", 100);
     label(PAGE_PARTY, L"Value (0-255):", 490, 459, 100, 20, 0);
     edit(PAGE_PARTY, 590, 456, 80, ID_SKILLVAL, ES_NUMBER);
     button(PAGE_PARTY, L"Set", 680, 455, 80, ID_SKILLSET);
@@ -894,6 +898,12 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE prev, LPWSTR cmd, int show)
     else _snwprintf(g_tablesPath, PATHLEN, L"%ls\\tables.vpp", g_gameDir);
     g_saveDir[PATHLEN - 1] = g_tablesPath[PATHLEN - 1] = 0;
     g_tablesOk = GetFileAttributesW(g_tablesPath) != INVALID_FILE_ATTRIBUTES;
+    {
+        wchar_t exe[PATHLEN];
+        _snwprintf(exe, PATHLEN, L"%ls\\Sum.exe", g_gameDir);
+        exe[PATHLEN - 1] = 0;
+        g_haveSkillNames = sem_load_skill_names(exe, g_skillNames) > 0;
+    }
     memset(&to, 0, sizeof to);
     to.tables_vpp = g_tablesOk ? g_tablesPath : NULL;
     se_tables_load(&g_tables, &to);
