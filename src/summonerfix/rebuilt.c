@@ -50,6 +50,44 @@ BOOL RebuiltInit(void)
     return g_rebuilt;
 }
 
+// <exe name>.fixes next to a fixed build (tools/link-build.mjs --config fixed): the [Fixes] keys whose bug the source
+// already fixes (one per line, from the "// FIXED_BUILD: <bug> <key>" markers). Their patches must not be applied: the
+// patch site's first bytes can survive the source fix while the code after it moved, so the patch would land on
+// different code. Read once; a missing file lists nothing.
+static char *g_sourceFixes;
+BOOL RebuiltFixInSource(const char *key)
+{
+    if (!g_rebuilt)
+        return FALSE;
+    if (!g_sourceFixes) {
+        char path[MAX_PATH];
+        GetModuleFileNameA(NULL, path, MAX_PATH);
+        char *dot = strrchr(path, '.');
+        g_sourceFixes = "";
+        if (!dot)
+            return FALSE;
+        strcpy(dot, ".fixes");
+        HANDLE f = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+        if (f == INVALID_HANDLE_VALUE)
+            return FALSE;
+        DWORD size = GetFileSize(f, NULL), got = 0;
+        char *text = (char *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, size + 3);
+        text[0] = '\n'; // every key is then preceded by a newline
+        ReadFile(f, text + 1, size, &got, NULL);
+        CloseHandle(f);
+        for (char *p = text; *p; p++)
+            if (*p == '\r')
+                *p = '\n';
+        g_sourceFixes = text;
+        Log("rebuilt exe: source fixes listed in %s", path);
+    }
+    size_t n = strlen(key);
+    for (const char *p = strstr(g_sourceFixes, key); p; p = strstr(p + 1, key))
+        if (p[-1] == '\n' && (p[n] == '\n' || p[n] == ' ' || p[n] == '\t' || p[n] == 0))
+            return TRUE;
+    return FALSE;
+}
+
 DWORD RebuiltVa(DWORD va)
 {
     int lo = 0, hi = g_numRows - 1, best = -1;

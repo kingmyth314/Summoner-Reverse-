@@ -1188,6 +1188,10 @@ static BOOL FixOn(const char *key)
         Log("fix %s is off ([Fixes] Enabled=0)", key);
         return FALSE;
     }
+    if (RebuiltFixInSource(key)) {
+        Log("fix %s: fixed in this exe's source (FIXED_BUILD), patch not applied", key);
+        return FALSE;
+    }
     if (GetPrivateProfileIntA("Fixes", key, 1, g_cfg.iniPath))
         return TRUE;
     Log("fix %s is off ([Fixes] %s=0)", key, key);

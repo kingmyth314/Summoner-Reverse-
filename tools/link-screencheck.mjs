@@ -24,9 +24,12 @@ const opt = (name, def) => { const i = args.indexOf(name); return i >= 0 ? args[
 const game = opt("--game", join(repo, "..", "..", "SummonerToolchain", "rebuilt-test"));
 const threshold = +opt("--threshold", 40);
 const runs = Math.max(2, +opt("--runs", 3));
+// --exe: the exe compared with Sum-orig.exe (default Sum-rebuilt.exe); --fixes: both with SummonerFix's fixes on.
+const tested = opt("--exe", "Sum-rebuilt.exe");
+const fixesOn = args.includes("--fixes");
 const ini = join(game, "summonerfix.ini");
 const backup = join(game, "summonerfix.ini.savecheck");
-const optArgs = new Set(["--game", "--threshold", "--runs"]);
+const optArgs = new Set(["--game", "--threshold", "--runs", "--exe"]);
 const [out, ...only] = args.filter((a, i) => !a.startsWith("--") && !optArgs.has(args[i - 1]));
 
 // Main menu buttons (1280x720 captures): new game 858,296; load 858,368; multiplayer 892,440; options 935,512;
@@ -99,8 +102,11 @@ function writePng(path, { w, h, px }) {
 function capture(exe, name, steps, tag) {
   kill("Sum-orig.exe");
   kill("Sum-rebuilt.exe");
+  kill(tested);
   rmSync(join(game, "agent", "cmd.txt"), { force: true });
-  writeFileSync(ini, setKey(readFileSync(backup, "latin1"), "Debug", "TestSaves", "1"), "latin1");
+  let text = setKey(readFileSync(backup, "latin1"), "Debug", "TestSaves", "1");
+  if (fixesOn) text = setKey(text, "Fixes", "Enabled", "1");
+  writeFileSync(ini, text, "latin1");
   spawnSync("node", [join(repo, "tools", "agent.mjs"), "start", "--wait", "60"], { cwd: repo, env: env(exe), encoding: "latin1" });
   const shot = `sc_${tag}`;
   rmSync(join(game, "agent", `${shot}.bmp`), { force: true });
@@ -117,7 +123,7 @@ const results = join(out, "results.txt");
 const note = (line) => { console.log(line); appendFileSync(results, line + "\n"); };
 try {
   for (const [name, steps] of todo) {
-    const plan = [...[...Array(runs).keys()].map((i) => ["Sum-orig.exe", `orig${i}`]), ["Sum-rebuilt.exe", "reb"]];
+    const plan = [...[...Array(runs).keys()].map((i) => ["Sum-orig.exe", `orig${i}`]), [tested, "reb"]];
     const caps = plan.map(([exe, tag]) => {
       const c = capture(exe, name, steps, tag);
       if (c.bmp) { const img = readBmp(c.bmp); writePng(join(out, `${name}-${tag}.png`), img); return img; }
@@ -153,6 +159,7 @@ try {
 } finally {
   kill("Sum-orig.exe");
   kill("Sum-rebuilt.exe");
+  kill(tested);
   rmSync(join(game, "agent", "cmd.txt"), { force: true });
   copyFileSync(backup, ini);
 }

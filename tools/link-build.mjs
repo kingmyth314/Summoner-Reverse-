@@ -9,7 +9,7 @@
 // unit compiled without SHIPPED_NOCD asks for the CD. --force links even with unresolved symbols (/FORCE:UNRESOLVED), for inventories. --define adds
 // a /D to every game unit (for example SHIPPED_NOCD, the no-CD edit the shipped Sum.exe carries, D2600). Prints the
 // unresolved and multiply defined symbols. Needs VC6_DIR (the VC98 folder of Visual C++ 6.0 SP5).
-import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync, readdirSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join, resolve, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -166,3 +166,15 @@ if (existsSync(dump) && existsSync(mapPath)) {
 } else console.log("no address table: build/hybrid-all/hybrid-addrs.txt missing (run a full hybrid-build first)");
 console.log(existsSync(exe) && !/fatal error|\(exit [^0]/.test(text) ? `-> ${exe}` : `link failed (${join(out, "link.txt")})`);
 if (existsSync(exe) && !/fatal error|\(exit [^0]/.test(text)) writeFileSync(definesFile, definesNow + "\n"); // only after a complete build
+// <exe name>.fixes: the SummonerFix [Fixes] keys whose bug this build fixes in its source, from the
+// "// FIXED_BUILD: <bug> <key>" markers. SummonerFix (rebuilt.c, RebuiltFixInSource) then leaves those patches out:
+// the patch site's first bytes can survive the source fix while the code after it moved.
+const fixesPath = join(out, `${exeName}.fixes`);
+if (defines.includes("FIXED_BUILD")) {
+  const keys = [];
+  const walk = (d) => { for (const f of readdirSync(d)) { const p = join(d, f); if (statSync(p).isDirectory()) walk(p); else if (/\.(cpp|h)$/.test(f))
+    for (const m of readFileSync(p, "latin1").matchAll(/\/\/\s*FIXED_BUILD:\s+(\S+)\s+([A-Za-z0-9]+)/g)) keys.push(`${m[2]} # ${m[1]} ${p.slice(src.length + 1).replace(/\\/g, "/")}`); } };
+  walk(src);
+  writeFileSync(fixesPath, keys.sort().join("\n") + (keys.length ? "\n" : ""));
+  console.log(`source fixes: ${keys.length} ([Fixes] keys in ${exeName}.fixes)`);
+} else if (existsSync(fixesPath)) rmSync(fixesPath);

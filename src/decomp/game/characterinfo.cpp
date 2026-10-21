@@ -2255,10 +2255,21 @@ void summon_stash_for_cutscene()
         if (!s->ai.is_mode(6, -1)) {
             cur_summon->ai.begin_emerge();
             mv = cur_summon->cur_move;
+#ifdef FIXED_BUILD
+            // FIXED_BUILD: C317 SummonStashNoMove. A summon without an emerge move (the Mist Elemental) has no
+            // current move here; skip the fast-forward that needs one (the original reads mv->anim through NULL).
+            if (mv) {
+                float t = cur_summon->instance->get_anim_length(mv->anim);
+                cur_summon->instance->process(t - 0.01f, false, 0);
+                for (i = 0; i < 3; i++)
+                    mv->triggers[i].time -= cur_summon->move_trigger_time_left(mv->triggers[i].id) + 0.1f;
+            }
+#else
             float t = cur_summon->instance->get_anim_length(mv->anim);
             cur_summon->instance->process(t - 0.01f, false, 0);
             for (i = 0; i < 3; i++)
                 mv->triggers[i].time -= cur_summon->move_trigger_time_left(mv->triggers[i].id) + 0.1f;
+#endif
             cur_summon->ai.summon_emerge_update();
             for (fx = fx_active_list.fx_next; fx != &fx_active_list; fx = fx->fx_next) {
                 if (fx->kind == 8 && fx->owner == cur_summon->handle) {

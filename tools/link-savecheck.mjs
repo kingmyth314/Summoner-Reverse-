@@ -7,6 +7,11 @@
 // inventory, script state), the dump the globals that never reach a save; neither sees rendering or timing.
 //
 //   node tools/link-savecheck.mjs <out dir> LEVEL:SCRIPT ... [--runs 3] [--rebuilt-runs 1] [--game DIR] [--ini-backup FILE]
+//                                 [--exe Sum-fixed.exe] [--fixes]
+//
+// --exe: the exe compared with Sum-orig.exe (default Sum-rebuilt.exe; its .addr must sit next to it). --fixes: both
+// run with SummonerFix's fixes on ([Fixes] Enabled=1), the comparison for the fixed build (docs/builds.md); in the
+// fixed exe SummonerFix leaves out the fixes its source already has (<exe>.fixes).
 //
 // With --rebuilt-runs N the rebuilt exe also runs N times (reb.sav, reb1.sav ...; the first is the one compared), to see
 // whether a difference repeats.
@@ -27,11 +32,13 @@ const opt = (name, def) => { const i = args.indexOf(name); return i >= 0 ? args[
 const game = opt("--game", join(repo, "..", "..", "SummonerToolchain", "rebuilt-test"));
 const runs = +opt("--runs", 3);
 const rebRuns = +opt("--rebuilt-runs", 1);
+const tested = opt("--exe", "Sum-rebuilt.exe");
+const fixesOn = args.includes("--fixes");
 const ini = join(game, "summonerfix.ini");
 const backup = opt("--ini-backup", join(game, "summonerfix.ini.savecheck"));
 const quicksave = join(game, "savetest", "quicksave.sav");
 const OLD = new Date("2000-01-01T00:00:00");
-const optArgs = new Set(["--runs", "--rebuilt-runs", "--game", "--ini-backup"]);
+const optArgs = new Set(["--runs", "--rebuilt-runs", "--game", "--ini-backup", "--exe"]);
 const positional = args.filter((a, i) => !a.startsWith("--") && !optArgs.has(args[i - 1]));
 const [out, ...levels] = positional;
 if (!out || !levels.length || /\s/.test(out)) {
@@ -42,7 +49,7 @@ if (!existsSync(quicksave)) throw new Error(`${quicksave} is missing: put the st
 mkdirSync(out, { recursive: true });
 if (!existsSync(backup)) copyFileSync(ini, backup);
 const table = join(out, "table.addr");
-copyFileSync(join(game, "Sum-rebuilt.addr"), table);
+copyFileSync(join(game, tested.replace(/\.exe$/i, ".addr")), table);
 const results = join(out, "results.txt");
 
 const env = (exe) => ({ ...process.env, SUMMONER_GAME: game, SUMMONER_EXE: exe });
@@ -61,10 +68,12 @@ function setKey(text, section, key, value) {
 function session(exe) {
   kill("Sum-orig.exe");
   kill("Sum-rebuilt.exe");
+  kill(tested);
   rmSync(join(game, "agent", "cmd.txt"), { force: true });
   rmSync(join(game, "errorlog.txt"), { force: true });
   let text = readFileSync(backup, "latin1");
   text = setKey(text, "Debug", "TestSaves", "1");
+  if (fixesOn) text = setKey(text, "Fixes", "Enabled", "1");
   writeFileSync(ini, text, "latin1");
   spawnSync("node", [join(repo, "tools", "agent.mjs"), "start", "--wait", "60"], { cwd: repo, env: env(exe), encoding: "latin1" });
   // Main menu: Load Saved Game, the newest save, then wait for the level.
@@ -102,7 +111,7 @@ try {
     if (problem) { note(`${level}: skipped, ${problem}`); continue; }
     let why = "";
     for (let i = 0; i < rebRuns && !why; i++)
-      why = runOnce("Sum-rebuilt.exe", level, p(i ? `reb${i}.sav` : "reb.sav"), p(i ? `reb${i}.bin` : "reb.bin"));
+      why = runOnce(tested, level, p(i ? `reb${i}.sav` : "reb.sav"), p(i ? `reb${i}.bin` : "reb.bin"));
     if (why) { note(`${level}: REBUILT FAILED: ${why}`); continue; }
     const bad = compareSaves([...Array(runs).keys()].map((i) => p(`orig${i}.sav`)), p("reb.sav"));
     const also = runs > 1 ? ["--also", [...Array(runs - 1).keys()].map((i) => p(`orig${i + 1}.bin`)).join(",")] : [];
@@ -115,6 +124,7 @@ try {
 } finally {
   kill("Sum-orig.exe");
   kill("Sum-rebuilt.exe");
+  kill(tested);
   rmSync(join(game, "agent", "cmd.txt"), { force: true });
   copyFileSync(backup, ini);
 }

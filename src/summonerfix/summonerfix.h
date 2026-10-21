@@ -33,6 +33,7 @@ void LogInit(const char *path);
 void Log(const char *fmt, ...);
 DWORD SumVa(DWORD va); // Sum.exe virtual address -> address in this process
 BOOL RebuiltInit(void);  // rebuilt.c: in the standalone rebuilt exe, load its address table
+BOOL RebuiltFixInSource(const char *key); // rebuilt.c: the fixed build already fixes this [Fixes] key in its source
 DWORD RebuiltVa(DWORD va);
 DWORD RebuiltOrigVa(DWORD now);
 DWORD OrigVa(DWORD addr); // an address in this process (a return address) -> its Sum.exe address
