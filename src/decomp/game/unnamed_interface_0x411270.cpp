@@ -724,8 +724,10 @@ void ui_model_lights_reset()
     ui_model_lights_vfx = NULL;
 }
 
-// 0x412400  Confidence: likely (the loop as if / do-while with the track step before the wrap test, D11910; the light position is built through the inline
-// vector3 operator+ and copy constructor, which leaves the temporary and the copy on the stack). The
+// 0x412400  Confidence: exact (VC6 byte match, cl 8966, D17403: p declared at function scope, which schedules the
+// light_tracks load after p's stores; was likely). The loop as if / do-while with the track step before the wrap
+// test, D11910; the light position is built through the inline vector3 operator+ and copy constructor, which
+// leaves the temporary and the copy on the stack. The
 // UI model view: ambient 0.5, up to 10 lights per object, the world lights off and one point light per
 // light of "inv-lights1.vfx", placed relative to pos.
 void ui_3d_begin(vector3 *pos)
@@ -733,6 +735,7 @@ void ui_3d_begin(vector3 *pos)
     vfx_base *base;
     vfx_light_desc *light;
     int track;
+    vector3 p;                       // D17403: function scope
 
     ui_3d_saved_max_lights = lights_max_per_object;
     ui_3d_saved_ambient_r = light_ambient_r;
@@ -751,7 +754,6 @@ void ui_3d_begin(vector3 *pos)
     if (light) {
         track = 0;
         do {
-            vector3 p;
             p = light->pos + *pos;
             light->sample(base->light_tracks + track, reported_frametime);
             ui_3d_lights[ui_3d_light_count++] = light_create_point(&p, 0.0f, light->range * (1.0f / 256.0f), 0.5f,

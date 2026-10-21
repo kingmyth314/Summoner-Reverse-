@@ -359,12 +359,17 @@ void ai_state::attack_slot_direction(vector3 *out, int slot)
     }
 }
 
-// 0x472780  Confidence: likely (the dot product's operand order). The slot whose direction best matches
-// the attacker's bearing from the owner; it does not look at whether the slot is taken (NOTES.md).
+// 0x472780  Confidence: exact (VC6 byte match, D17700; was likely) (the attacker's centre written out with
+// x as `= pos.x; += centre_offset.x`: 8966 then loads pos.x first, as the binary). The slot whose direction
+// best matches the attacker's bearing from the owner; it does not look at whether the slot is taken (NOTES.md).
 int ai_state::pick_attack_slot(Character *attacker)
 {
     vector3 me = owner->get_center();
-    vector3 him = attacker->get_center();
+    vector3 him;
+    him.x = attacker->pos.x;
+    him.x += attacker->centre_offset.x;
+    him.y = attacker->pos.y + attacker->centre_offset.y;
+    him.z = attacker->pos.z + attacker->centre_offset.z;
     vector3 dir, s;
     float best = -999.9f;
     float dot;
@@ -383,8 +388,9 @@ int ai_state::pick_attack_slot(Character *attacker)
     return best_slot;
 }
 
-// 0x472840  Confidence: likely (the best-slot search is pick_attack_slot's loop expanded with -1 as
-// the starting slot). Riders are skipped. The attacker leaves its old slot (keeping the shorter time);
+// 0x472840  Confidence: exact (VC6 byte match, D17701; was likely) (the best-slot search is
+// pick_attack_slot's loop expanded with -1 as the starting slot; the own centre's x as `= pos.x; +=
+// centre_offset.x`, `dir = him - me` and `s.dot(dir)`, all three together). Riders are skipped. The attacker leaves its old slot (keeping the shorter time);
 // a taken slot is only replaced when its occupant has more time left than ms.
 void ai_state::claim_attack_slot(Character *self, Character *attacker, int ms, int slot)
 {
@@ -405,15 +411,16 @@ void ai_state::claim_attack_slot(Character *self, Character *attacker, int ms, i
     if (slot == -1) {
         best_slot = -1;
         best = -999.9f;
-        me = self->get_center();
+        me.x = self->pos.x;
+        me.x += self->centre_offset.x;
+        me.y = self->pos.y + self->centre_offset.y;
+        me.z = self->pos.z + self->centre_offset.z;
         him = attacker->get_center();
-        dir.x = him.x - me.x;
-        dir.y = him.y - me.y;
-        dir.z = him.z - me.z;
+        dir = him - me;
         for (i = 0; i < 5; i++) {
             vector3 s;
             attack_slot_direction(&s, i);
-            dot = s.z * dir.z + s.y * dir.y + dir.x * s.x;
+            dot = s.dot(dir);
             if (dot > best) {
                 best = dot;
                 best_slot = i;

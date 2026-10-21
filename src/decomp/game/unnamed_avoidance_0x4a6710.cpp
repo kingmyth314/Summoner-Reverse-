@@ -182,16 +182,18 @@ bool avoid_box_contains_point(const vector2 *p, const avoid_obstacle *ob, float 
     return false;
 }
 
-// 0x4a6bf0  Confidence: likely (the 1.1717894 factor, about 1 / cos(22.5 deg) squared, as a literal; D15503:
-// r2 as the sum squared gives the binary's `fld st(0) / fmulp`; left: r's slot, ob's dead slot in the binary).
+// 0x4a6bf0  Confidence: exact (the 1.1717894 factor, about 1 / cos(22.5 deg) squared, as a literal; D15503:
+// r2 as the sum squared gives the binary's `fld st(0) / fmulp`; D17202: the centre through a pointer local
+// puts r in ob's dead argument slot, as in the binary).
 // Inside the radius, or inside the octagon of the four axes when within the circumscribed radius.
 bool avoid_circle_contains_point(const vector2 *p, const avoid_obstacle *ob, float margin)
 {
     vector2 d;
     float lsq, r, r2;
+    const vector2 *c = &ob->centre;
 
-    d.x = p->x - ob->centre.x;
-    d.y = p->y - ob->centre.y;
+    d.x = p->x - c->x;
+    d.y = p->y - c->y;
     lsq = d.len_sq();
     r = margin + ob->half_b;
     r2 = (margin + ob->half_b) * (margin + ob->half_b);
@@ -293,22 +295,26 @@ bool avoid_segment_hits_prim(const avoid_obstacle *ob, const vector2 *a, const v
     return avoid_prim_overlap(ob, &seg, margin);
 }
 
-// 0x4a6f90  Confidence: likely (D15502: d through vector2::operator-, three of the k products as inline dots,
-// gives the binary's registers and k slots; left: the x term of k_ab and the order of the two k terms of the
-// first two tests). Separating-axis test of two oriented boxes.
+// 0x4a6f90  Confidence: exact (D15502: d through vector2::operator-, three of the k products as inline dots,
+// gives the binary's registers and k slots; D17203: b's half sizes in the first two tests through the pointer
+// copy bo and k_aa's receiver through ao give the binary's operand order of those sums and of k_ab's and k_aa's
+// x products; 8966 seems to order commutative operands by symbol, not by source order). Separating-axis test of two
+// oriented boxes.
 bool avoid_box_box_overlap(const avoid_obstacle *a, const avoid_obstacle *b)
 {
     vector2 d;
+    const avoid_obstacle *bo = b;
+    const avoid_obstacle *ao = a;
     float k_aa, k_ab, k_ba, k_bb;
 
     d = a->centre - b->centre;
     k_bb = fabs(b->axis_b.y * a->axis_b.y + b->axis_b.x * a->axis_b.x);
     k_ab = fabs(b->axis_a.dot(a->axis_b));
     k_ba = fabs(a->axis_a.dot(b->axis_b));
-    k_aa = fabs(a->axis_a.dot(b->axis_a));
-    if (fabs(d.y * a->axis_b.y + d.x * a->axis_b.x) > k_bb * b->half_b + k_ab * b->half_a + a->half_b)
+    k_aa = fabs(ao->axis_a.dot(b->axis_a));
+    if (fabs(d.y * a->axis_b.y + d.x * a->axis_b.x) > k_bb * bo->half_b + k_ab * bo->half_a + a->half_b)
         return false;
-    if (fabs(d.y * a->axis_a.y + d.x * a->axis_a.x) > k_ba * b->half_b + k_aa * b->half_a + a->half_a)
+    if (fabs(d.y * a->axis_a.y + d.x * a->axis_a.x) > k_ba * bo->half_b + k_aa * bo->half_a + a->half_a)
         return false;
     if (fabs(d.y * b->axis_b.y + d.x * b->axis_b.x) > k_ba * a->half_a + k_bb * a->half_b + b->half_b)
         return false;
@@ -535,12 +541,14 @@ avoid_spline_point *avoid_spline_point_alloc()
     return NULL;
 }
 
-// 0x4a77d0  Confidence: likely (differs under cl 8966 in match26).
+// 0x4a77d0  Confidence: exact. D17200: the range test through a bool local (8966 then places the NULL return
+// right after the tests, as in the binary).
 avoid_spline_point *avoid_spline_point_get(int i)
 {
-    if (i >= 0 && i < AVOID_NUM_SPLINE_POINTS)
-        return (avoid_spline_points[i].flags & 1) ? &avoid_spline_points[i] : NULL;
-    return NULL;
+    bool ok = i >= 0 && i < AVOID_NUM_SPLINE_POINTS;
+    if (!ok)
+        return NULL;
+    return (avoid_spline_points[i].flags & 1) ? &avoid_spline_points[i] : NULL;
 }
 
 // 0x4a7800  Confidence: exact.
@@ -559,12 +567,13 @@ avoid_spline *avoid_spline_alloc()
     return NULL;
 }
 
-// 0x4a7830  Confidence: likely (differs under cl 8966 in match26).
+// 0x4a7830  Confidence: exact. D17200: the range test through a bool local, as avoid_spline_point_get.
 avoid_spline *avoid_spline_get(int i)
 {
-    if (i >= 0 && i < AVOID_NUM_SPLINES)
-        return (avoid_splines[i].flags & 1) ? &avoid_splines[i] : NULL;
-    return NULL;
+    bool ok = i >= 0 && i < AVOID_NUM_SPLINES;
+    if (!ok)
+        return NULL;
+    return (avoid_splines[i].flags & 1) ? &avoid_splines[i] : NULL;
 }
 
 // 0x4a7860  Confidence: exact.
@@ -602,14 +611,16 @@ void avoid_spline_free(int index)
     sp->count = 0;
 }
 
-// 0x4a7900  Confidence: likely (store order). A spline wall from a to b of size class `size` on `layer`.
+// 0x4a7900  Confidence: exact (D17201). A spline wall from a to b of size class `size` on `layer`.
 int avoid_spline_point_create(const vector2 *a, const vector2 *b, int size, int layer)
 {
     avoid_spline_point *pt = avoid_spline_point_alloc();
     if (!pt)
         return -1;
-    pt->p0 = *a;
-    pt->p1 = *b;
+    // D17201: the two points copied as the plain 8-byte avoid_spline_end (D13300); vector2's inline
+    // operator= keeps p1.y's store ahead of wall.a's.
+    *(avoid_spline_end *)&pt->p0 = *(const avoid_spline_end *)a;
+    *(avoid_spline_end *)&pt->p1 = *(const avoid_spline_end *)b;
     pt->wall.a = &pt->p0;
     pt->wall.b = &pt->p1;
     pt->size = (char)size;

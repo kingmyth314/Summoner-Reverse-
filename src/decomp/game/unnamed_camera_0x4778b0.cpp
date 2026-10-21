@@ -930,7 +930,9 @@ void camera::sync_yaw_to_target()
     yaw = y;
 }
 
-// 0x479930  Confidence: likely (the mode-4 branch's three exits). ret 4. Mode 4 is "back": to the
+// 0x479930  Confidence: exact (VC6 byte match, D18100: the clearing of high_view_requested through a
+// pointer local, a store 8966 cannot keep apart from mode, so mode is compared in memory first and
+// reloaded at the join as in the binary). ret 4. Mode 4 is "back": to the
 // previous mode, or to 3 after a glide that left mode 3. A suppressed forced-high request is only
 // remembered. After a change the zoom of that view comes back.
 void camera::set_mode(int m)
@@ -943,7 +945,8 @@ void camera::set_mode(int m)
         high_view_requested = 1;
         return;
     }
-    high_view_requested = 0;
+    ubyte *hv = &high_view_requested;
+    *hv = 0;
     if (m == 4) {
         if (!(flags & CAMF_FOLLOW_TARGET)) {
             flags |= CAMF_FOLLOW_TARGET;

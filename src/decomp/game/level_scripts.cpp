@@ -1271,12 +1271,14 @@ void savegame::automap_label_add(int level, int script, automap_label *label)
     *(int *)map_labels.data = count + 1;
 }
 
-// 0x4d1390  Confidence: likely (each record is copied field by field into locals, the layer load is dead).
+// 0x4d1390  Confidence: exact (VC6 byte match, cl 8966, D17401: x and z read into a two-float array, which gives
+// the binary's frame: start below the pair; was likely). Each record is copied field by field into locals, the
+// layer load is dead.
 // A full list (128 labels) is never searched, so no label can be removed then (see NOTES).
 void savegame::automap_label_remove(int level, int script, automap_label *label)
 {
     int count, off, start, i, rlevel, rscript;
-    float rx, rz;
+    float rxz[2];                    // D17401: x, z
     char text[0x20];
 
     if (level == -1 || script < 0)
@@ -1296,14 +1298,14 @@ void savegame::automap_label_remove(int level, int script, automap_label *label)
         off += 4;
         rscript = *(int *)(map_labels.data + off);
         off += 4;
-        *(int *)&rx = *(int *)(map_labels.data + off);
+        *(int *)&rxz[0] = *(int *)(map_labels.data + off);
         off += 4;
-        *(int *)&rz = *(int *)(map_labels.data + off);
+        *(int *)&rxz[1] = *(int *)(map_labels.data + off);
         off += 4;
         off += 4;                    // layer (read into a dead local)
         strcpy(text, (char *)(map_labels.data + off));
         off += 0x20;
-        if (rlevel == level && rscript == script && rx == label->x && rz == label->z) {
+        if (rlevel == level && rscript == script && rxz[0] == label->x && rxz[1] == label->z) {
             memmove(map_labels.data + start, map_labels.data + off,
                     count * sizeof(savegame_automap_label) - (i + 1) * sizeof(savegame_automap_label));
             *(int *)map_labels.data = count - 1;
@@ -2371,14 +2373,15 @@ int savegame::read_two_stage()
     return 1;
 }
 
-// 0x4d3740  Confidence: likely (differs under cl 8966 in match26). The current level's labels become custom map labels.
+// 0x4d3740  Confidence: exact (VC6 byte match, cl 8966, D17402: x and z read into a two-float array, which puts
+// count in the binary's frame slot; was likely). The current level's labels become custom map labels.
 int savegame::read_automap_labels()
 {
     int script = level_script_find_index(cur_level_index, level_script_name);
     int count = *(int *)map_labels.data;
     int off = 4;
     int i, rlevel, rscript, index, layer;
-    float x, z;
+    float xz[2];                     // D17402: x, z
     char text[0x20];
 
     for (i = 0; i < count; i++) {
@@ -2386,9 +2389,9 @@ int savegame::read_automap_labels()
         off += 4;
         rscript = *(int *)(map_labels.data + off);
         off += 4;
-        *(int *)&x = *(int *)(map_labels.data + off);
+        *(int *)&xz[0] = *(int *)(map_labels.data + off);
         off += 4;
-        *(int *)&z = *(int *)(map_labels.data + off);
+        *(int *)&xz[1] = *(int *)(map_labels.data + off);
 
         off += 4;
         layer = *(int *)(map_labels.data + off);
@@ -2400,9 +2403,9 @@ int savegame::read_automap_labels()
             if (index < 0)
                 break;
             automap_label *l = &::automap_labels[index];
-            l->x = x;
+            l->x = xz[0];
             l->type = AUTOMAP_LABEL_CUSTOM;
-            l->z = z;
+            l->z = xz[1];
             l->layer = layer;
             strcpy(l->text, text);
         }

@@ -739,7 +739,8 @@ int pf_cells_in_box(int layer, int size, const vector2 *pt, float half)
     return pf_grid_cells_in_box(pt, half, &g->grid);
 }
 
-// 0x4a6530  Confidence: likely (8168 sorts the factors of the second dot product; int, not bool: D6401).
+// 0x4a6530  Confidence: likely (8168 sorts the factors of the second dot product; int, not bool: D6401;
+// s->a in a local and s->b read through s gives the binary's loads and the midpoint sum, D17500).
 // 1 when pt projects within half the segment's length of its midpoint
 // and lies closer than dist to its line.
 int seg2d_point_near_middle(const vector2 *pt, const seg2d *s, float dist)
@@ -749,7 +750,9 @@ int seg2d_point_near_middle(const vector2 *pt, const seg2d *s, float dist)
     vector2 perp;
     float half;
 
-    mid = 0.5f * (*s->a + *s->b);
+    const vector2 *a = s->a;
+
+    mid = 0.5f * (*a + *s->b);
     vector2 dir(s->b->x - mid.x, s->b->y - mid.y);
     half = dir.normalize();
     perp = vector2(-dir.y, dir.x);

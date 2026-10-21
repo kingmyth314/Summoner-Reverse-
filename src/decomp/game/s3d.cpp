@@ -1055,7 +1055,17 @@ int s3d_read_boxes(File *f, s3d_box *boxes, unsigned int count)
     return 0;
 }
 
-// 0x470220  Confidence: likely. Read only (no sync): the door's object, named path, the two poses,
+// The floor point clear of s3d_read_door (D17300): an inline helper over the three floats (ours; the
+// helper's block boundary is what places the `mov ecx, edi` for f->error() after the floor stores).
+static inline void s3d_door_clear3(float *p)
+{
+    p[0] = 0;
+    p[1] = 0;
+    p[2] = 0;
+}
+
+// 0x470220  Confidence: exact (D17300: lock, key, state, then the floor point through s3d_door_clear3).
+// Read only (no sync): the door's object, named path, the two poses,
 // then the run-time state is reset. The level argument is unused. It returns -1 when the file has no
 // error and 0 when it has one (neg / sbb / neg / dec), the opposite of the other readers; the caller
 // ignores it.
@@ -1071,11 +1081,9 @@ int s3d_read_door(s3d_level *level, File *f, door_info *door)
     f->read_quaternion(&door->open_orient, 0, &file_identity_quaternion);
     door->timer.invalidate();
     door->lock = 0;
-    door->state &= ~0xb;
     door->_unk5c = 0;
-    door->_unk48[0] = 0;
-    door->_unk48[1] = 0;
-    door->_unk48[2] = 0;
+    door->state &= ~0xb;
+    s3d_door_clear3(door->_unk48);
     door->_unk60 = 0;
     door->_unk64 = -1;
     door->_unk68[0] = 0;

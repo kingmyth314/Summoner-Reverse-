@@ -430,7 +430,9 @@ int gr_poly_clip_plane(int plane, gr_multipass_vertex **src, gr_multipass_vertex
 }
 
 #pragma inline_depth(0)
-// 0x545ac0  Confidence: likely (m-1020b w8, D13200: three uv addresses differ in base / index order only; as gr_clip_edge; the far crossing stores z last). The pass values are
+// 0x545ac0  Confidence: exact (VC6 byte match, D17702; was likely) (m-1020b w8, D13200; the far crossing stores
+// z last; D17702: the pass index `unsigned i` with a signed `(int)i <` loop test gives the binary's base / index
+// order of the uv addresses, `[eax + esi]`). The pass values are
 // interpolated for the passes that use them (uv, colour, alpha); the alpha is 0 at the far plane when
 // the outside vertex's is.
 gr_multipass_vertex *gr_poly_clip_edge(int plane, gr_multipass_vertex *on, gr_multipass_vertex *off)
@@ -440,7 +442,8 @@ gr_multipass_vertex *gr_poly_clip_edge(int plane, gr_multipass_vertex *on, gr_mu
     gr_tmapper_pass *pass;
     float t, d, p0, p1;
     float r, g, bl, al, al_off;
-    int negate, far_plane, i;
+    int negate, far_plane;
+    unsigned i;
 
     tmp = gr_poly_alloc_clip_vertex();
     a = on->v;
@@ -480,7 +483,7 @@ gr_multipass_vertex *gr_poly_clip_edge(int plane, gr_multipass_vertex *on, gr_mu
             tv->z = -tv->z;
     }
     gr_code_vertex(tv);
-    for (i = 0; i < gr_poly_num_textures; i++) {
+    for (i = 0; (int)i < gr_poly_num_textures; i++) {
         pass = &gr_poly_texture_slots[i];
         if (pass->enabled) {
             tmp->pass[i].u = (off->pass[i].u - on->pass[i].u) * t + on->pass[i].u;

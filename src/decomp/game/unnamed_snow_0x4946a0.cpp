@@ -166,7 +166,7 @@ bool snow_cell::update()
     return flakes == NULL;
 }
 
-// 0x494ab0  Confidence: likely (D14107: closer with a walking cell pointer and a next-row pointer, one swapped pair left; the 13-byte clear is memset expanded: three dwords and a byte).
+// 0x494ab0  Confidence: likely (D14107: closer with a walking cell pointer and a next-row pointer, one swapped pair left; D17400: the outer test as an int compare gives the binary's jl; the 13-byte clear is memset expanded: three dwords and a byte).
 // ls_lenele3d_init, ls_lenele3a_init, ls_ionaext02_init.
 void snow_start()
 {
@@ -175,7 +175,7 @@ void snow_start()
     snow_flake_bm = bm_load("SnowFlake.tga", -1, -1);
     snow_cell **cp = snow_cells[0];
     snow_cell *row = snow_cell_records[0];
-    while (cp < snow_cells[SNOW_GRID]) {
+    while ((int)cp < (int)snow_cells[SNOW_GRID]) {
         snow_cell *rec = row;
         row += SNOW_GRID;
         for (j = 0; j < SNOW_GRID; j++) {

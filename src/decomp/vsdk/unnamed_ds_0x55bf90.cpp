@@ -57,14 +57,19 @@ IDirectSound3DBuffer *ds_eax_buffer3d;            // 0x2f8f738
 bool ds_initialized;                              // 0x2f8f73c
 int ds_next_signature;                            // 0x2f8f740
 
-// 0x55bfc0  Confidence: likely (differs under cl 8966 in match26).
+// 0x55bfc0  Confidence: exact (VC6 byte match, D18101: the flag test in the if-form, `if (flags & bit)
+// return true; return false;`, which 8966 turns into the dword load and `shr al, 4 / and al, 1`, as
+// game_is_paused D14500 and Player::is_leader D12400; every expression form gives the 32-bit shift).
 bool ds_is_3d_buffer(IDirectSoundBuffer *buf)
 {
     DSBCAPS caps;
 
     caps.dwSize = sizeof(caps);
-    if (buf->GetCaps(&caps) >= 0)
-        return (caps.dwFlags >> 4) & 1;
+    if (buf->GetCaps(&caps) >= 0) {
+        if (caps.dwFlags & DSBCAPS_CTRL3D)
+            return true;
+        return false;
+    }
     return false;
 }
 

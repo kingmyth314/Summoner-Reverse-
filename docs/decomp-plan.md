@@ -592,6 +592,34 @@ clock-seeded monster levels). Not compared: the party's pathing around Murod's t
 (party movement differs from run to run, so it needs a measure that tolerates that). K310 was tried in the sewer the
 user suggested and is still latent (see [game bugs](sum-exe/game-bugs.md)).
 
+**Targeted byte-match round 2026-10-21 (ten workers, D17200-D18199).** 5,445 -> 5,462, none lost (notes in
+`src/decomp/NOTES-match-2026-10-21.md`). The new `tools/vc6-nearmiss.mjs` ranks every differing function by its
+distance from a match (`vc6-compare --score`: the instructions outside the longest common subsequence, branch
+displacements masked). Of 479, one was at distance 0, 26 at 1-4, 33 at 5-10 and 340 above 30. The 67 within 12 went
+to ten workers in batches of whole files, so the merge was a file copy; each worker first read what earlier rounds had
+tried. Yield 17 (25%), three more closer; almost all of the rest are register choice and scheduling that 8966 decides
+on its own. Devices that were new this round, each in its D-number:
+
+- a pointer local or pointer copy sets 8966's operand order where the source order is ignored (`avoid_box_box_overlap`,
+  `avoid_circle_contains_point`, D17202 / D17203; `seg2d_point_near_middle`, D17500);
+- a store through a pointer local stops a register reuse the binary does not have (`camera::set_mode`, D18100);
+- a member copied into a local and used in an earlier expression orders a `lea`'s registers (`gr_d3d_set_window`,
+  D17600);
+- a two-float array puts a local in the binary's stack slot (`savegame::automap_label_remove`,
+  `read_automap_labels`, D17401 / D17402);
+- a range test through a bool local puts the early return first (`avoid_spline_get`, D17200);
+- an unsigned loop index with a signed test sets an address's base / index order (`gr_poly_clip_edge`, D17702);
+- an inline helper around a group of stores moves a scheduled instruction past them (`s3d_read_door`, D17300, after
+  360 orders had been tried);
+- an empty member of the speaker that the linker folded into `empty_function` (`conversation::clear_speaker`, D18000,
+  the one header change).
+
+No behaviour errors were found. Not tried yet, suggested by the workers: the pointer-copy device on functions marked
+"one order whatever the source", the two-float array on `layout_conversation` / `write_item_objects`, the unsigned
+index on `gr_clip_edge`, and the two-statement split (D17703) on `dialogue_box::draw` / `dialogue_topic_list::draw`.
+`ai_group_think_caster` (D17100, the same day) has six candidate records, not five: `list[6]` gives the binary's frame,
+and the six-member caster crash candidate raised during the fixed-build port is withdrawn.
+
 The
 `Confidence:` markers follow the sweep (`tools/decomp-confidence.mjs`): every compared function that matches is
 `exact`, none that differs is. The other 1,819 written functions are not compared (`tools/decomp-uncompared.mjs`):

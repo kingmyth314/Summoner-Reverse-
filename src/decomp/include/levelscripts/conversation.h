@@ -206,6 +206,7 @@ struct conversation_speaker {
     conversation_topic *find_topic(const char *name);// 0x4feb80 conversation_speaker__find_topic
     void refresh_topic_flags();                      // 0x4febe0 conversation_speaker__refresh_topic_flags
     void add_topic(conversation_topic *topic);       // 0x4fec50 conv_speaker__add_topic
+    void release();                                  // empty; folded into empty_function 0x4f13e0 (name ours, D18000)
 
     conversation_speaker *next;          // +0x00 conversation.speakers list
     ushort flags;                        // +0x04 CFLAG_*

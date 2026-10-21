@@ -1037,7 +1037,8 @@ HRESULT gr_d3d_set_default_transforms(IDirect3DDevice7 *dev, float zfar)
     return IDirect3DDevice7_SetTransform(dev, D3DTRANSFORMSTATE_PROJECTION, &proj);
 }
 
-// 0x538b70  Confidence: likely.
+// 0x538b70  Confidence: exact (D17600: the corner copied into locals x / y before the sizes gives the binary's
+// lea base / index order).
 // Windowed blit rectangles from the client area (clamped to the screen size); a new window gets a clipper.
 void gr_d3d_set_window(HWND hwnd)
 {
@@ -1049,14 +1050,16 @@ void gr_d3d_set_window(HWND hwnd)
     GetClientRect(hwnd, &rect);
     ClientToScreen(hwnd, (POINT *)&rect.left);
     ClientToScreen(hwnd, (POINT *)&rect.right);
-    int w = abs(rect.right - rect.left + 1);
-    int h = abs(rect.bottom - rect.top + 1);
+    int x = rect.left;
+    int y = rect.top;
+    int w = abs(rect.right - x + 1);
+    int h = abs(rect.bottom - y + 1);
     w = min(w, gr_screen.max_w);
     h = min(h, gr_screen.max_h);
-    d3d_screen_rect.left = rect.left;
-    d3d_screen_rect.right = rect.left + w - 1;
-    d3d_screen_rect.top = rect.top;
-    d3d_screen_rect.bottom = rect.top + h - 1;
+    d3d_screen_rect.left = x;
+    d3d_screen_rect.right = x + w - 1;
+    d3d_screen_rect.top = y;
+    d3d_screen_rect.bottom = y + h - 1;
     d3d_window_rect.left = 0;
     d3d_window_rect.top = 0;
     d3d_window_rect.right = w - 1;

@@ -129,15 +129,19 @@ int conversation::set_speaker(const char *name)
     return 0;
 }
 
-// 0x4d7e10  Confidence: likely (differs under cl 8966, match24; was exact).
+// 0x4d7e10  Confidence: exact (VC6 byte match, D18000: the speaker's empty member in ECX, D10904 (1)).
 void conversation::clear_speaker()
 {
     if (speaker) {
-        empty_function();
+        speaker->release();
         speaker = NULL;
         topic = NULL;
     }
 }
+
+// An empty member of the speaker, folded into empty_function (0x4f13e0). Confidence: unsure (its name is ours;
+// D18000).
+void conversation_speaker::release() {}
 
 // 0x4d7e40  Confidence: exact.
 void conversation::set_topic(conversation_topic *t)

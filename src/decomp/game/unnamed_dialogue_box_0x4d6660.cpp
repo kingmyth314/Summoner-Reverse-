@@ -470,11 +470,13 @@ int dialogue_box::first_visible_line()
     return -1;
 }
 
-// 0x4d7480  Confidence: likely (under 8966 EBX / EBP swap, D7702). Returns the ring index of the last line
-// that starts above the bottom.
+// 0x4d7480  Confidence: exact (VC6 byte match, D17703; was likely: an EBX / EBP swap, D7702) (the page height
+// `gr_get_font_height(-1) * lines` in its own local, the scroll subtracted in a second statement). Returns the
+// ring index of the last line that starts above the bottom.
 int dialogue_box::last_visible_line()
 {
-    int bottom = gr_get_font_height(-1) * lines - (int)scroll;
+    int page = gr_get_font_height(-1) * lines;
+    int bottom = page - (int)scroll;
     int last = -1;
     int i;
 

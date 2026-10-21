@@ -1521,7 +1521,7 @@ void inventory_destroy_selected_item()
 {
     if (!inventory_selection_is_list_row)
         return;
-    int index = inventory_selected_row + inventory_scroll_pos;
+    int index = inventory_scroll_pos + inventory_selected_row;  // D17601: scroll first (load order)
     party_inventory_entry *entry = inventory_get_list_item(index);
     if (!entry)
         return;
