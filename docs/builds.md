@@ -5,8 +5,8 @@ nav_order: 6.47
 
 # Fixed and experimental builds (plan)
 
-**Status:** plan, agreed 2026-10-21 with the advisor's review; two decisions below wait for the user. Nothing is
-built yet.
+**Status:** plan, agreed 2026-10-21 with the advisor's review. **Decided by the user (2026-10-21): one tree with
+three build configurations, and VC6 SP5 for now.** Nothing is built yet.
 
 **Summary:** The decompiled source already links into a complete `Sum.exe` of its own, nothing taken from the
 original ([Decompilation plan](decomp-plan.md), "The standalone link"), and every boss fight has run on it. That
@@ -15,7 +15,7 @@ a modern PC needs to run it, so that SummonerFix's patches are no longer necessa
 new things on top: the [future projects](roadmap.md#future-projects) and controller support. The byte-matching
 reference stays exactly as it is.
 
-## Decisions for the user
+## Decisions (made 2026-10-21)
 
 **1. One tree with three build configurations (recommended), or three git branches.**
 `tools/link-build.mjs` already builds variants of the same source with `--define` (`SHIPPED_NOCD`, `REBUILT_OPENGL`,
