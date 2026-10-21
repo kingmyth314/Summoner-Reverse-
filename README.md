@@ -6,7 +6,7 @@ It has three parts:
 - **Documentation** of how the game works, its file formats and 355 bugs found in its code ([`docs/`](docs/index.md),
   set up as a GitHub Pages site).
 - **SummonerFix**, a drop-in `dinput.dll` that makes the original game run well on Windows 10 and 11 (no launcher,
-  correct speed, OpenGL, widescreen, key rebinding) and fixes over 40 of those bugs, each with its own switch
+  correct speed, OpenGL, widescreen, key rebinding, Xbox-style controller support) and fixes over 40 of those bugs, each with its own switch
   ([SummonerFix](docs/summonerfix/index.md)).
 - **A matching decompilation** of `Sum.exe` in C++ ([`src/decomp`](src/decomp/NOTICE.md)): every function of the
   game is rewritten, 5,549 of the 5,926 compiled functions give the original machine code byte for byte with the

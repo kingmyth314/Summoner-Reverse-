@@ -287,9 +287,9 @@ A binding adds a key; the default key keeps working. If the new key already belo
 
 ## Controller (gamepad) support (`[Controller]`)
 
-{: .warning }
-Not yet tested with a real controller, and not yet run in the game. Only the input logic was checked, by a host
-test of `controller.c` with the game calls stubbed out (2026-10-21).
+{: .note }
+**Tested by the user with a real controller in the game (2026-10-21): it works.** Before that, only the input logic
+had been checked, by a host test of `controller.c` with the game calls stubbed out.
 
 SummonerFix can let an XInput controller (an Xbox-style gamepad, or any pad that Steam or DS4Windows presents as
 one) play the game. This is tier 1: no game logic changes. The controller drives the game's existing mouse and
