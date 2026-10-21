@@ -67,6 +67,15 @@
 // through a stub that, for a NULL target, returns 0 ("no damage", so the flinch and effect after it are skipped)
 // and pops the four arguments as character_add_hp would.
 //
+// Mist Elemental and cutscenes crash (game-bugs C317). Before a cutscene, summon_stash_for_cutscene finishes a summon
+// that has not emerged yet: ai_begin_emerge plays its emerge move (type 0xc), then the emerge anim is fast-forwarded
+// through cur_move (+0x6d0, mov esi at 0x448072, read at 0x44807e). The Mist Elemental's table has no emerge move, so
+// cur_move stays NULL and the read crashes (reproduced 2026-10-20 in the original: agent `summon 45`, then a cutscene
+// one second later). Fix ([Fixes] SummonStashNoMove): the load becomes a call that, for a NULL move, resumes at
+// 0x4480cc instead, skipping only the anim fast-forward and the trigger-time loop (both need the move); the emerge
+// update, the effect clean-up and the stash itself run as before. Built 2026-10-21, NOT yet run in game: Smart App
+// Control began blocking unsigned DLLs that morning (reviewed statically: registers, stack and x87 balanced).
+//
 // Control jumps to the first party member when a summon goes (not a crash; game-bugs G8). After unlinking any
 // party record, party_remove_player hands the leadership in single player to the first living member of party_list
 // (0x4335d9..0x43363d), whether or not the removed record led (reproduced 2026-10-17: Rosalind selected, summon
@@ -292,6 +301,8 @@
 #define VA_INFERNO_DIST_X 0x499900u         // fld [esi+0x10] in phoenix_special_strike (also +0x14 at 0x499906, +0x18 at 0x49990c)
 #define VA_INFERNO_FX_TARGET 0x499933u      // mov ecx, [esi+0x80]: the effect's target handle
 #define VA_INFERNO_HIT_THIS 0x499951u       // mov ecx, esi: this of living_entity_get_hit_by_spell
+#define VA_SUMMON_STASH_MOVE_LOAD 0x448072u // mov esi, [eax+0x6d0] in summon_stash_for_cutscene (C317)
+#define VA_SUMMON_STASH_AFTER_ANIM 0x4480ccu // the summon_emerge_update call after the anim fast-forward
 #define VA_LUMINAR_BEAM_ADD_HP 0x4ca502u    // call character_add_hp (thiscall, 4 args) in luminar_beam_hit
 #define VA_CHARACTER_ADD_HP 0x450850u
 #define VA_SAVE_OVERWRITE_ROW 0x426340u   // mov eax, [0x5e360c] (saveload_selected_row) in saveload_try_save
@@ -1070,6 +1081,21 @@ __asm__(".text\n"
         "1:  xorl %eax, %eax\n"
         "    ret $0x10\n");
 
+// Replaces mov esi, [eax+0x6d0] in summon_stash_for_cutscene (eax = cur_summon): with a move, returns as the load
+// would; without one, edi = 0 (as at the end of the trigger loop) and the return goes to the emerge update.
+__attribute__((used)) DWORD g_summonStashAfterAnim;
+void SummonStashMoveStub(void);
+__asm__(".text\n"
+        "_SummonStashMoveStub:\n"
+        "    movl 0x6d0(%eax), %esi\n"
+        "    testl %esi, %esi\n"
+        "    jne 1f\n"
+        "    xorl %edi, %edi\n"
+        "    movl _g_summonStashAfterAnim, %esi\n"
+        "    movl %esi, (%esp)\n"
+        "    xorl %esi, %esi\n"
+        "1:  ret\n");
+
 // Replaces lea ecx, [esp+0x50] ; push 1 in savegame_read_item_objects: pops our return address into edx (edx is
 // loaded right after), pushes the pile's saved amount where push 1 went, sets ecx, and returns by jmp.
 void GoldPileAmountStub(void);
@@ -1241,6 +1267,16 @@ void BugFixesInstall(void)
         memcpy(o + 1, &ro, 4);
         memcpy(r + 1, &rn, 4);
         PatchBytes(VA_LUMINAR_BEAM_ADD_HP, o, r, 5, "Luminar beam hit on a target that is gone (C250)");
+    }
+
+    if (FixOn("SummonStashNoMove")) {
+        g_summonStashAfterAnim = SumVa(VA_SUMMON_STASH_AFTER_ANIM);
+        static const BYTE o[6] = {0x8B, 0xB0, 0xD0, 0x06, 0x00, 0x00}; // mov esi, [eax+0x6d0]
+        BYTE r[6] = {0xE8, 0, 0, 0, 0, 0x90};
+        DWORD s = SumVa(VA_SUMMON_STASH_MOVE_LOAD);
+        DWORD rel = (DWORD)(UINT_PTR)SummonStashMoveStub - (s + 5);
+        memcpy(r + 1, &rel, 4);
+        PatchBytes(VA_SUMMON_STASH_MOVE_LOAD, o, r, 6, "no crash stashing a summon without an emerge move (C317)");
     }
 
     if (FixOn("SummonKeepsLeader")) {

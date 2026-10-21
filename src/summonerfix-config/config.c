@@ -79,6 +79,7 @@ static const FixOption k_fixes[] = {
     {"SaveOverwriteQuestion", "Ask before overwriting a save"},
     {"PhoenixInferno", "Phoenix Inferno hits each member once"},
     {"LuminarBeamTarget", "No Luminar beam crash"},
+    {"SummonStashNoMove", "No Mist Elemental crash at cutscenes"},
     {"SummonKeepsLeader", "Control stays when a summon goes"},
     {"SpellRecoveryTimes", "Spell cooldowns from spells.tbl"},
     {"GoldPileAmount", "Gold piles keep their amount on load"},

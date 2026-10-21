@@ -24,10 +24,10 @@ recorded in `build/link/defines.txt`). The proposal is to extend that into three
 | Configuration | Defines | Output | Purpose |
 |---|---|---|---|
 | `shipped` | none (the current default) | `Sum-rebuilt.exe` | the matching reference: the original game's code, byte for byte where proven |
-| `fixed` | `FIXED` (+ `SHIPPED_NOCD`, `REBUILT_OPENGL`) | `Sum-fixed.exe` | bugs fixed, runs on a modern PC without SummonerFix |
-| `experimental` | `FIXED`, `EXPERIMENTAL` | `Sum-exp.exe` | the fixed build plus new features, each also behind its own switch |
+| `fixed` | `FIXED_BUILD` (+ `SHIPPED_NOCD`, `REBUILT_OPENGL`) | `Sum-fixed.exe` | bugs fixed, runs on a modern PC without SummonerFix |
+| `experimental` | `FIXED_BUILD`, `EXPERIMENTAL_BUILD` | `Sum-exp.exe` | the fixed build plus new features, each also behind its own switch |
 
-A fix is written once, next to the original code, as `#ifdef FIXED ... #else <original> #endif`. When a
+A fix is written once, next to the original code, as `#ifdef FIXED_BUILD ... #else <original> #endif` (not `FIXED`: Windows' `wingdi.h` declares a type of that name). When a
 decompilation fix (a D-number) lands on main, all three configurations get it automatically, and the strict byte-match
 sweep keeps checking the `shipped` configuration. Git branches are still used, but only as short-lived feature
 branches that merge back into main.
@@ -106,7 +106,7 @@ on purpose. The rule:
 
 1. `link-build.mjs --config shipped|fixed|experimental` (define sets and output names), and the tools' `--exe` to
    test `Sum-fixed.exe`.
-2. The C317 patch in SummonerFix, and C317 as the first `FIXED` change in the source.
-3. The timing fix and the OpenGL default as the next `FIXED` changes, so `Sum-fixed.exe` runs at the right speed
+2. The C317 patch in SummonerFix, and C317 as the first `FIXED_BUILD` change in the source.
+3. The timing fix and the OpenGL default as the next `FIXED_BUILD` changes, so `Sum-fixed.exe` runs at the right speed
    without SummonerFix.
 4. Controller tier 1, as a prototype in SummonerFix (fastest to test on the original game).

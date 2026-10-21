@@ -2,7 +2,7 @@
 // plus the link support in src/link (DirectX 7 GUIDs, import-library stubs for binkw32.dll and EAX.DLL, the
 // temporary libjpeg stub), linked against VC6's libraries into build/link/Sum-rebuilt.exe.
 //
-//   node tools/link-build.mjs [--recompile] [--force] [--define NAME ...] [--out DIR]
+//   node tools/link-build.mjs [--config shipped|fixed|experimental] [--recompile] [--force] [--define NAME ...] [--out DIR]
 //
 // Objects are cached in DIR/obj and rebuilt when the source is newer (or with --recompile; a header change needs
 // --recompile). A build with other --define options than the last one (DIR/defines.txt) recompiles everything: a
@@ -18,13 +18,27 @@ const repo = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(n);
 const opt = (n, d) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : d; };
-const defines = args.flatMap((a, i) => (a === "--define" ? [args[i + 1]] : []));
+// --config: the build configurations of docs/builds.md, each a define set, its own output folder (so switching does
+// not recompile the others) and its own exe name. Without --config the build is as before (--define only,
+// build/link, Sum-rebuilt.exe). FIXED_BUILD / EXPERIMENTAL_BUILD never reach vc6-compare, vc6-sweep or hybrid-build: the byte
+// matching only ever sees the shipped code.
+const CONFIGS = {
+  shipped: { defines: [], dir: "link", name: "Sum-rebuilt" },
+  fixed: { defines: ["FIXED_BUILD", "SHIPPED_NOCD", "REBUILT_OPENGL"], dir: "link-fixed", name: "Sum-fixed" },
+  experimental: { defines: ["FIXED_BUILD", "EXPERIMENTAL_BUILD", "SHIPPED_NOCD", "REBUILT_OPENGL"], dir: "link-exp", name: "Sum-exp" },
+};
+const configName = opt("--config");
+if (configName && !CONFIGS[configName]) { console.error(`unknown --config ${configName} (shipped, fixed, experimental)`); process.exit(2); }
+const config = CONFIGS[configName ?? "shipped"];
+const defines = [...(configName ? config.defines : []), ...args.flatMap((a, i) => (a === "--define" ? [args[i + 1]] : []))]
+  .filter((d, i, a) => a.indexOf(d) === i);
+const exeName = config.name;
 const VC = process.env.VC6_DIR;
 if (!VC || !existsSync(join(VC, "BIN", "CL.EXE"))) {
   console.error("VC6_DIR is not set, or has no BIN\\CL.EXE: set it to the VC98 folder of Visual C++ 6.0.");
   process.exit(2);
 }
-const out = resolve(opt("--out", join(repo, "build", "link")));
+const out = resolve(opt("--out", join(repo, "build", config.dir)));
 const objDir = join(out, "obj");
 mkdirSync(objDir, { recursive: true });
 const src = join(repo, "src", "decomp");
@@ -102,7 +116,7 @@ writeFileSync(join(out, "objs.rsp"), objs.map((o) => `"${o}"`).join("\r\n") + "\
 const libs = ["kernel32.lib", "user32.lib", "gdi32.lib", "winmm.lib", "advapi32.lib", "shell32.lib", "ole32.lib", "wsock32.lib",
   "ddraw.lib", "dsound.lib", "dinput.lib", "dxguid.lib", "opengl32.lib", "glu32.lib", "comdlg32.lib", "version.lib", "rasapi32.lib",
   "wininet.lib", "msacm32.lib", join(stubDir, "binkw32.lib"), join(stubDir, "EAX.lib")];
-const text = run("LINK.EXE", ["/nologo", "/OUT:Sum-rebuilt.exe", "/MAP:Sum-rebuilt.map", "/SUBSYSTEM:WINDOWS", "/OPT:REF", "/OPT:ICF",
+const text = run("LINK.EXE", ["/nologo", `/OUT:${exeName}.exe`, `/MAP:${exeName}.map`, "/SUBSYSTEM:WINDOWS", "/OPT:REF", "/OPT:ICF",
   ...(flag("--force") ? ["/FORCE:UNRESOLVED"] : []), "@objs.rsp", ...libs]);
 writeFileSync(join(out, "link.txt"), text);
 const names = (re) => [...new Set([...text.matchAll(re)].map((m) => m[1]))].sort();
@@ -111,13 +125,13 @@ const multi = names(/LNK(?:2005|4006): "?(?:[^"]*" \()?([^\s)"]+)/g);
 console.log(`${units.length} units (${compiled} compiled, ${failed} failed); unresolved ${unres.length}; multiply defined ${multi.length}`);
 for (const n of unres) console.log(`  unresolved ${n}`);
 for (const n of multi) console.log(`  multiple ${n}`);
-const exe = join(out, "Sum-rebuilt.exe");
+const exe = join(out, `${exeName}.exe`);
 
 // The address table SummonerFix's agent mode uses in the rebuilt exe (src/summonerfix/rebuilt.c): Sum.exe address,
 // size (up to the next sum.symbols entry) and the rebuilt address of every symbol both builds know, joined through
 // the names hybrid-build resolved (build/hybrid-all/hybrid-addrs.txt; run a full hybrid build first).
 const dump = join(repo, "build", "hybrid-all", "hybrid-addrs.txt");
-const mapPath = join(out, "Sum-rebuilt.map");
+const mapPath = join(out, `${exeName}.map`);
 if (existsSync(dump) && existsSync(mapPath)) {
   const pub = new Map(), stat = new Map();
   let statics = false;
@@ -147,8 +161,8 @@ if (existsSync(dump) && existsSync(mapPath)) {
   // entry that starts a different top-level object is not known here, so code rows use sum.symbols.
   const sorted = [...rows].sort((x, y) => x[0] - y[0]);
   const lines = sorted.map(([o, v], i) => { const next = i + 1 < sorted.length ? sorted[i + 1][0] : o + 4; const size = o < 0x57db40 ? nextStart(o) - o : next - o; return `${o.toString(16)} ${size.toString(16)} ${v.toString(16)}`; });
-  writeFileSync(join(out, "Sum-rebuilt.addr"), lines.join("\n") + "\n");
-  console.log(`address table: ${lines.length} symbols (Sum-rebuilt.addr)`);
+  writeFileSync(join(out, `${exeName}.addr`), lines.join("\n") + "\n");
+  console.log(`address table: ${lines.length} symbols (${exeName}.addr)`);
 } else console.log("no address table: build/hybrid-all/hybrid-addrs.txt missing (run a full hybrid-build first)");
-console.log(existsSync(exe) && !/fatal error|\(exit [^0]/.test(text) ? `-> ${exe}` : "link failed (build/link/link.txt)");
+console.log(existsSync(exe) && !/fatal error|\(exit [^0]/.test(text) ? `-> ${exe}` : `link failed (${join(out, "link.txt")})`);
 if (existsSync(exe) && !/fatal error|\(exit [^0]/.test(text)) writeFileSync(definesFile, definesNow + "\n"); // only after a complete build
