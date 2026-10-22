@@ -45,7 +45,7 @@ and the Tentacle Beast box on the main window.
 | Autosave | `[Experimental] Autosave`, `AutosaveMinutes` (5), `AutosaveOnLevelChange` (1), `AutosaveSlots` (3) | new; `experimental/autosave.cpp`, two small changes in `game/new_saveload.cpp` | tested |
 | Frame-rate cap and vsync | `[Experimental] FrameRateCap` (0 = the game's 120; 30-240), `VSync` (OpenGL) | new; `experimental/display.cpp`, one block in `vsdk/frametime.cpp` | cap tested; vsync not yet |
 | Field of view | none yet | the draw lists hold 500 entries with no bounds check; a wider view could overflow them | proposal only |
-| dgVoodoo 2 | none (an outside wrapper; `[Display] Renderer` exists in SummonerFix) | [dgVoodoo 2 (design)](future/dgvoodoo.md) | research done; waits for the user's dgVoodoo files |
+| dgVoodoo 2 | `[Display] Renderer` (SummonerFix's), `[Display] Windowed` | `game/summoner.cpp` (Direct3D and Glide fullscreen, 201, instead of the rebuilt exe's fixed window mode 200) and `vsdk/gr_direct3d.cpp` (dgVoodoo's adapter passes the Voodoo-card test); [dgVoodoo 2](future/dgvoodoo.md) | tested: Glide and Direct3D load a save and play |
 
 **Autosave.** Writes `autosave1.sav` .. `autosaveN.sav` in rotation (the oldest replaced), never `summonerN.sav` or
 `quicksave.sav`, and only when the game itself would allow a save (the checks of `savegame_location_allowed`, plus no

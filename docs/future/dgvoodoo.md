@@ -1,8 +1,8 @@
 ---
-title: dgVoodoo 2 (design)
+title: dgVoodoo 2
 ---
 
-# dgVoodoo 2 for the Glide and Direct3D renderers (design, research only)
+# dgVoodoo 2 for the Glide and Direct3D renderers
 
 **Summary:** Summoner needs exactly two dgVoodoo files: `Glide2x.dll` for the Glide renderer (loaded with
 `LoadLibrary("glide2x.dll")` only when Glide is chosen) and `DDraw.dll` for the Direct3D 7 renderer (a **static**
@@ -17,9 +17,48 @@ Direct3D back end refuses any adapter whose description contains "Voodoo" (which
 match), Glide only opens 640x480, 800x600 or 1024x768, Glide refuses the windowed mode that the fixed and
 experimental builds always pass, and the Direct3D windowed path assumes a 16-bit back buffer.
 
-Status (2026-10-21): written from the decompiled source (`src/decomp`) and SummonerFix's source only. Nothing has
-been run with dgVoodoo. Where dgVoodoo's own behaviour is described, it is what its documentation is generally known
-to say and is marked **not verified here**.
+**Status (2026-10-21, evening): both renderers run through dgVoodoo 2.87.5.** Glide works as it is; Direct3D needed
+one change, now in SummonerFix (the original exe) and the experimental build (see "Test results" below). The design
+sections that follow were written first, from the decompiled source and SummonerFix's source; where dgVoodoo's own
+behaviour is described there, it is what its documentation is generally known to say and is marked **not verified
+here** unless the test results say otherwise.
+
+## Test results (2026-10-21)
+
+dgVoodoo 2 v2.87.5 from the author's GitHub releases ([Sources](../reference/sources.md)), the x86 `Glide2x.dll`,
+`DDraw.dll`, `D3DImm.dll` and `dgVoodoo.conf` next to the exe, in a test folder (`SummonerToolchain/dgv-test`,
+the game data hard-linked, copies of two test saves). dgVoodoo settings: `FullScreenMode = false` (dgVoodoo shows
+the game's fullscreen mode in a window), both watermarks off, forced vsync off; Glide `VideoCard = voodoo_2`,
+`OnboardRAM = 12`, 2 TMUs of 4 MB; Direct3D `VideoCard = geforce_ti_4800`. Input by real mouse clicks (agent
+mode's cursor and `capture` work only under OpenGL, section 3).
+
+| Run | Result |
+|---|---|
+| T0: original exe, OpenGL, dgVoodoo's `DDraw.dll` present (the static import) | **unchanged**: main menu at 120 fps |
+| T2: original exe, Glide | **works**: main menu, a save loads (Khosani, full party), the 3D view, lightmaps, characters and HUD draw correctly; 60 fps |
+| T1: original exe, Direct3D | **refused**: "Error -- dgVoodoo DX API Layer -- This Voodoo card cannot be run in Direct3D mode" (section 1's hazard). `AdapterIDType = nvidia` and every emulated card name leave the description as it is |
+| T1 with the fix (below) | **works**: main menu, a save loads and plays, 60 fps; SummonerFix's clock check: the game clock equals QPC time (1:1, no 2x speed) |
+| `Sum-exp.exe` (experimental build), Glide and Direct3D | **works**: a save loads and plays on both |
+| Quit from the main menu under Direct3D | the game exits normally (`ExitProcess(0)`); only agent mode's `stop` command does not end it there (the test harness then kills it) |
+
+**The fix.** `gr_d3d_init_device` refuses an adapter whose `szDescription` contains "Voodoo" (meant for 3dfx's
+own Direct3D drivers). dgVoodoo's adapter is always "dgVoodoo DX API Layer". The test now lets a description that
+starts with "dgVoodoo" through; a real Voodoo card is still refused:
+- SummonerFix, original exe, `Renderer=Direct3D`: the `stristr` call at `0x539e9d` goes to `DgvDescStristr`
+  (`src/summonerfix/main.c`).
+- Experimental build: the same test in `vsdk/gr_direct3d.cpp` under `EXPERIMENTAL_BUILD`. The experimental build
+  also opens Direct3D and Glide fullscreen (mode 201, which Glide requires) instead of the rebuilt exe's fixed
+  window mode 200, unless `[Display] Windowed=1` (`game/summoner.cpp`).
+
+**How to use it** (original `Sum.exe` with SummonerFix, or `Sum-exp.exe`): download dgVoodoo 2 from its author's
+GitHub releases; copy `3DfxGlide2x.dll` (for Glide) or `MSDDraw.dll` and `MSD3DImm.dll` (for Direct3D)
+next to `Sum.exe`, with `dgVoodoo.conf` (set it with `dgVoodooCpl.exe`: watermark off; for Direct3D any card);
+set `[Display] Renderer=Glide` or `Direct3D` in `summonerfix.ini`. Removing the DLLs and setting
+`Renderer=OpenGL` goes back. Under Glide and Direct3D, SummonerFix's OpenGL-only parts are off (widescreen, scaled
+output, the controller, agent mode's cursor and captures; section 3).
+
+**Not yet tested** (section 5): the logo and credits movies (T7), gamma (T4), Alt-Tab (T6), other resolutions (T8),
+a long run (T9), screen-by-screen comparisons with OpenGL (T3), and dgVoodoo's own fullscreen output.
 
 Evidence levels as in [Documentation standard](../contributing.md): **Observed** = read from the source or the
 disassembly of `Sum.exe` v1.40; **Inferred** = concluded from the code, not run; **Unknown** = open.

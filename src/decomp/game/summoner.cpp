@@ -58,6 +58,7 @@
 #include "summoner/multi/multisave.h"     // pxo_cfg_flags
 #include "summoner/interface/interface.h"
 #include "summoner/interface/new_pxochat.h"   // pxo_run_updater_on_exit
+#include "experimental/experimental.h"   // EXPERIMENTAL_BUILD only (the renderer's window mode)
 
 void console_sound_stop();            // 0x43d710 (defined after its first caller)
 
@@ -416,7 +417,15 @@ void LoadSettings()
     if (cmdline_param_direct3d.found())
         renderer = GR_DIRECT3D;
 
-#ifdef REBUILT_OPENGL
+#if defined(REBUILT_OPENGL) && defined(EXPERIMENTAL_BUILD)
+    // Experimental build: the renderer SummonerFix's [Display] Renderer selects through the registry answer
+    // (OpenGL, or Direct3D / Glide, e.g. through dgVoodoo 2: docs/future/dgvoodoo.md). OpenGL runs in a window
+    // (SummonerFix's output window); Direct3D and Glide fullscreen (201, which Glide requires) unless
+    // [Display] Windowed=1.
+    gr_init(resolution_table[resolution_index][0], resolution_table[resolution_index][1], renderer,
+            renderer == GR_OPENGL || exp_ini_int("Display", "Windowed", 0) ? 200 : 201,
+            os_get_main_wnd(), Summoner_options.cfg_34 ? true : false, false);
+#elif defined(REBUILT_OPENGL)
     gr_init(resolution_table[resolution_index][0], resolution_table[resolution_index][1], renderer, 200,
             os_get_main_wnd(), Summoner_options.cfg_34 ? true : false, false);
 #else

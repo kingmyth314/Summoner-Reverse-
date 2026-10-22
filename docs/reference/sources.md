@@ -34,6 +34,14 @@ nav_order: 2
   Sum.exe links libjpeg 6b statically; `tools/link-build.mjs` builds its common and compression objects with VC6 from
   `third_party/jpeg6b/jpeg-6b` (git-ignored, not in the repository).
 
+## dgVoodoo 2 (the Glide and Direct3D renderers)
+
+- [dgVoodoo2 v2.87.5 on GitHub (dege-diosg/dgVoodoo2, the author's releases)](https://github.com/dege-diosg/dgVoodoo2/releases/tag/v2.87.5)
+  - `dgVoodoo2_87_5.zip`, downloaded 2026-10-21 with the owner's approval (9,268,078 bytes, SHA-256
+  5ffde6927f7355ca3fdd5d785b581256a8e6539fa13e395a891ade6ba1040850; released 2026-09-15). Only the x86
+  `Glide2x.dll`, `DDraw.dll`, `D3DImm.dll` and `dgVoodoo.conf` are used, in a test folder outside the repository;
+  they are never committed ([dgVoodoo 2](../future/dgvoodoo.md)).
+
 ## Engine reference projects
 
 - [mikegoforth/summoner-2-decomp](https://github.com/mikegoforth/summoner-2-decomp) - matching decompilation of Summoner 2 (PS2); no license stated, local reference only

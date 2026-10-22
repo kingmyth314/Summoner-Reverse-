@@ -229,6 +229,12 @@ Diagnostics show `exit(0)` called from `0x539B4D` in the Direct3D init
 `exit` block at `0x539b41`, so which call fails is **unknown**. Not pursued while OpenGL
 works.
 
+**With dgVoodoo 2 (2026-10-21):** Direct3D starts and plays. dgVoodoo's adapter description, "dgVoodoo DX API
+Layer", tripped the game's refusal of 3dfx cards (`stristr(szDescription, "Voodoo")` at `0x539e9d`, message 943), whatever
+card dgVoodoo was set to emulate. SummonerFix now sends that one call (with `Renderer=Direct3D`) to a function that
+answers "no match" for a description starting with "dgVoodoo", so a real Voodoo card is still refused. See
+[dgVoodoo 2](../future/dgvoodoo.md).
+
 ### Display scaling
 
 **Why:** the game lays out everything in fixed pixels for its internal resolution: UI
@@ -418,6 +424,9 @@ The game uses its defaults for these.
 | 2026-10-12 | OpenGL, borderless fullscreen 2560x1440, viewport scaling | Menu centred 4:3 with bars (frame capture). 218 FPS measured, 2x speed |
 | 2026-10-12 | Same + FrameSleep (final) | **120.0 FPS real = 120.0 game**; 1:1 speed |
 | 2026-10-12 | Same, user play-test | Everything works; game feels better |
+| 2026-10-21 | dgVoodoo 2.87.5, original exe: OpenGL with DDraw.dll present | Unchanged (main menu, 120 fps) |
+| 2026-10-21 | dgVoodoo 2.87.5, Glide (Voodoo 2, 12 MB, 2 TMUs), dgVoodoo windowed | **Main menu, a save loads and plays**, 60 fps |
+| 2026-10-21 | dgVoodoo 2.87.5, Direct3D (GeForce Ti 4800 emulated) | "This Voodoo card cannot be run in Direct3D mode"; with the new patch **main menu, a save loads and plays**, 60 fps, game clock 1:1 |
 | 2026-10-13 | Key bindings (E=I, A=Left, WASD camera, CapsLock/Home remaps) | Bindings work, including chain-attack modifiers (hold + right-click) |
 | 2026-10-13 | Alt+Tab and F10 to `SummonerFixConfig.exe` while playing; rebind live | Works: the app comes forward and new bindings apply on return |
 

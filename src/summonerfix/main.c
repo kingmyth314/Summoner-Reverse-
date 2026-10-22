@@ -73,6 +73,15 @@ static BOOL IsSupportedBuild(void)
     return *(const DWORD *)(UINT_PTR)addr == SUM140_SIGNATURE;
 }
 
+// Replaces the game's stristr (0x515500) at the Voodoo-card test of gr_d3d_init_device (0x539e9d): dgVoodoo 2's
+// adapter description ("dgVoodoo DX API Layer") is no 3dfx card.
+static char *__cdecl DgvDescStristr(const char *s, const char *sub)
+{
+    if (s && !_strnicmp(s, "dgVoodoo", 8))
+        return NULL;
+    return ((char *(__cdecl *)(const char *, const char *))0x515500)(s, sub);
+}
+
 static void ApplyDisplayPatches(void)
 {
     // Resolution: LoadSettings (FUN_0043d7f0) only accepts sizes found in the 3-entry table at
@@ -98,6 +107,20 @@ static void ApplyDisplayPatches(void)
         static const BYTE orig[] = {0x68, 0xC9, 0x00, 0x00, 0x00};
         static const BYTE win[] = {0x68, 0xC8, 0x00, 0x00, 0x00};
         PatchBytes(0x43db45, orig, win, sizeof orig, "window mode -> windowed (200)");
+    }
+
+    // dgVoodoo 2 under Direct3D: gr_d3d_init_device refuses an adapter whose description contains "Voodoo"
+    // (`stristr(id.szDescription, "Voodoo")` at 0x539e9d, message 943), meant for 3dfx cards, and dgVoodoo's adapter
+    // is "dgVoodoo DX API Layer" whatever card it is set to emulate (docs/future/dgvoodoo.md). That one call goes to
+    // DgvDescStristr, which answers "no match" for a description starting with "dgVoodoo"; a real Voodoo is still
+    // refused.
+    if (g_cfg.renderer == RENDERER_DIRECT3D) {
+        DWORD s = 0x539e9d;
+        BYTE o[5] = {0xE8}, r[5] = {0xE8};
+        DWORD ro = 0x515500 - (s + 5), rn = (DWORD)(UINT_PTR)DgvDescStristr - (s + 5);
+        memcpy(o + 1, &ro, 4);
+        memcpy(r + 1, &rn, 4);
+        PatchBytes(s, o, r, 5, "Direct3D: dgVoodoo's adapter passes the Voodoo-card test");
     }
 
     // Frame cap: FrameTimerInit (FUN_005014b0) stores MIN_DT = 1/120 s with
