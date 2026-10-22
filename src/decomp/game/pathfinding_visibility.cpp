@@ -154,7 +154,7 @@ pf_vis_node *sort_points_clockwise(const vector2 *pt)
     return quad0.next_open;
 }
 
-// 0x4b7af0  Confidence: unsure for the pathvis_alt_mode loop form (the edge walk through +0x14 is never
+// 0x4b7af0  Confidence: exact for the pathvis_alt_mode loop form (the edge walk through +0x14 is never
 // taken), exact for the rest (VC6 byte match, D20603; `i` and `e` are initialised once at the top). For
 // each layer: the edges of every cell of the graph that cross the vertical line x = pt->x below the point,
 // nearest first, with a = the end with the larger x.

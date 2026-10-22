@@ -69,10 +69,11 @@ unsigned int snd_stream_get_writable(int stream)
     return n;
 }
 
-// 0x566630  Confidence: likely (the shared exit unlocks even after a failed Lock; m-1021c w9 D20203: got
-// declared first gives the binary's order of the zero stores, 56 -> 50; left: Sum.exe places the one
-// `rc = -1` block just before done, 8966 after the acm_convert test). The converted bytes are
-// copied into the two locked parts of the ring.
+// 0x566630  Confidence: exact (VC6 byte match, D25901: the code after wav_read inside an
+// `if (wav_read(..) == 0) { ... goto done; }` block that falls into fail; this puts the one `rc = -1` just
+// before done, as in Sum.exe; m-1021c w9 D20203: got declared first gives the binary's order of the zero
+// stores; the shared exit unlocks even after a failed Lock). The converted bytes are copied into the two
+// locked parts of the ring.
 int snd_stream_fill_acm(int stream, unsigned int bytes, unsigned int *written)
 {
     snd_stream_slot *s = &snd_streams[stream];
@@ -94,26 +95,26 @@ int snd_stream_fill_acm(int stream, unsigned int bytes, unsigned int *written)
     src_size = acm_stream_size(b->acm_stream, n1 + n2);
     if (src_size <= 0)
         goto fail;
-    if (wav_read(b->hmmio, src_size, ds_stream_src_buffer, &b->data_ck, &got) != 0)
-        goto fail;
-    if (got > 0) {
-        if (acm_convert(b->acm_stream, ds_stream_src_buffer, got, snd_acm_out_buf, sizeof(snd_acm_out_buf),
-                        &dst_used, &src_used) == -1)
-            goto fail;
-        if (src_used < got)
-            mmioSeek(b->hmmio, src_used - got, SEEK_CUR);
-        if (dst_used > n1) {
-            memcpy(p1, snd_acm_out_buf, n1);
-            memcpy(p2, snd_acm_out_buf + n1, dst_used - n1);
+    if (wav_read(b->hmmio, src_size, ds_stream_src_buffer, &b->data_ck, &got) == 0) {
+        if (got > 0) {
+            if (acm_convert(b->acm_stream, ds_stream_src_buffer, got, snd_acm_out_buf, sizeof(snd_acm_out_buf),
+                            &dst_used, &src_used) == -1)
+                goto fail;
+            if (src_used < got)
+                mmioSeek(b->hmmio, src_used - got, SEEK_CUR);
+            if (dst_used > n1) {
+                memcpy(p1, snd_acm_out_buf, n1);
+                memcpy(p2, snd_acm_out_buf + n1, dst_used - n1);
+            } else {
+                memcpy(p1, snd_acm_out_buf, dst_used);
+            }
+            *written += dst_used;
         } else {
-            memcpy(p1, snd_acm_out_buf, dst_used);
+            s->flags |= SND_STREAM_ENDED;
         }
-        *written += dst_used;
-    } else {
-        s->flags |= SND_STREAM_ENDED;
+        s->write_pos = (s->write_pos + *written) % s->ring_size;
+        goto done;
     }
-    s->write_pos = (s->write_pos + *written) % s->ring_size;
-    goto done;
 fail:
     rc = -1;
 done:

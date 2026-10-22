@@ -189,7 +189,7 @@ void CdCheck()
     cd_set_root(drive);
 }
 
-// 0x43ea20  Confidence: likely (the box is centred horizontally only: y = height / 2 is its top edge; the
+// 0x43ea20  Confidence: exact (the box is centred horizontally only: y = height / 2 is its top edge; the
 // text is re-read from the string table every pass). Esc exits; 300 ms per poll. D18300: a do / while on
 // drive < 0 with the body under if (drive < 0) keeps the loop test at the top (a for (;;) with a break rotates it).
 void cd_prompt_disc2()

@@ -2283,7 +2283,7 @@ float spell_roll_amount(Character *target, int spell, int count, int die, float 
         return (float)-count;
     if (count == 0 || die == 0)
         return 0.0f;
-    for (i = count - 1; i >= 0; i--) // D19503: closer (the binary tests count > 0, 8966 tests count - 1 >= 0)
+    for (i = 0; i < count; i++) // D25900: closer (6 -> 3; the binary's trip count is dec / lea +1, 8966 gives mov)
         total += (int)floor(frand() * die + 1.0f);
     if (!No_resist && total < 0.0f) {
         if (target)

@@ -455,7 +455,9 @@ void mp_trade_complete()
     interface_set_screen(0, 0);
 }
 
-// 0x4719e0  Confidence: likely (the nested state test: state 3 tail-jumps to mp_trade_complete).
+// 0x4719e0  Confidence: exact (VC6 byte match, D26101: the state copied into a local after the target test,
+// used for the second compare and the inner test, the global for the first; 8966 then threads only the
+// state-3 path into mp_trade_complete and re-tests 3 on the state-2 path, as the binary).
 void mp_handle_it_okay(ubyte *data, void *from)
 {
     int target;
@@ -467,8 +469,9 @@ void mp_handle_it_okay(ubyte *data, void *from)
         return;
     }
 
-    if (mp_trade_state == MP_TRADE_OPEN || mp_trade_state == MP_TRADE_ACCEPTED) {
-        if (mp_trade_state == MP_TRADE_ACCEPTED) {
+    int state = mp_trade_state;
+    if (mp_trade_state == MP_TRADE_OPEN || state == MP_TRADE_ACCEPTED) {
+        if (state == MP_TRADE_ACCEPTED) {
             mp_trade_complete();
         } else {
             mp_trade_set_state(MP_TRADE_PARTNER_ACCEPTED, NULL);

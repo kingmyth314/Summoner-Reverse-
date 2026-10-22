@@ -1026,7 +1026,7 @@ game/living_entity.cpp 0x450850 match
 game/living_entity.cpp 0x450c70 match
 game/living_entity.cpp 0x450d90 match
 game/living_entity.cpp 0x450e30 match
-game/living_entity.cpp 0x4530d0 differs
+game/living_entity.cpp 0x4530d0 match
 game/living_entity.cpp 0x4536c0 match
 game/living_entity.cpp 0x4537f0 match
 game/living_entity.cpp 0x454070 match
@@ -1073,9 +1073,9 @@ game/living_entity.cpp 0x45aa20 match
 game/living_entity.cpp 0x45ab00 differs
 game/living_entity.cpp 0x45b6e0 match
 game/living_entity.cpp 0x45bf70 match
-game/living_entity.cpp 0x45c340 differs
+game/living_entity.cpp 0x45c340 match
 game/living_entity.cpp 0x45ccb0 match
-game/living_entity.cpp 0x45cd00 differs
+game/living_entity.cpp 0x45cd00 match
 game/living_entity.cpp 0x45d4c0 match
 game/living_entity.cpp 0x45d540 match
 game/living_entity.cpp 0x45d690 match
@@ -1084,7 +1084,7 @@ game/living_entity.cpp 0x45d980 match
 game/living_entity.cpp 0x45da60 match
 game/living_entity.cpp 0x45dd80 match
 game/living_entity.cpp 0x45de20 match
-game/living_entity.cpp 0x45dea0 differs
+game/living_entity.cpp 0x45dea0 match
 game/living_entity.cpp 0x460190 match
 game/living_entity.cpp 0x460f20 match
 game/living_entity.cpp 0x461370 match
@@ -1251,7 +1251,7 @@ game/multitrade.cpp 0x4715a0 match
 game/multitrade.cpp 0x4716f0 match
 game/multitrade.cpp 0x471820 match
 game/multitrade.cpp 0x4718d0 match
-game/multitrade.cpp 0x4719e0 differs
+game/multitrade.cpp 0x4719e0 match
 game/multitrade.cpp 0x471a70 match
 game/multitrade.cpp 0x471b30 match
 game/multitrade.cpp 0x471bb0 match
@@ -3393,7 +3393,7 @@ game/unnamed_render_scene_0x481680.cpp 0x484600 match
 game/unnamed_render_scene_0x481680.cpp 0x484830 match
 game/unnamed_render_scene_0x481680.cpp 0x4848c0 match
 game/unnamed_render_scene_0x481680.cpp 0x484aa0 match
-game/unnamed_render_scene_0x481680.cpp 0x484ae0 differs
+game/unnamed_render_scene_0x481680.cpp 0x484ae0 match
 game/unnamed_render_scene_0x481680.cpp 0x484e30 differs
 game/unnamed_render_scene_0x481680.cpp 0x4850a0 differs
 game/unnamed_render_scene_0x481680.cpp 0x485380 match
@@ -3653,7 +3653,7 @@ game/unnamed_swi_0x488230.cpp 0x488ab0 match
 game/unnamed_swi_0x488230.cpp 0x488b00 match
 game/unnamed_swi_0x488230.cpp 0x488ba0 match
 game/unnamed_tentacle_beast_0x4c6480.cpp 0x4c64f0 match
-game/unnamed_tentacle_beast_0x4c6480.cpp 0x4c6520 differs
+game/unnamed_tentacle_beast_0x4c6480.cpp 0x4c6520 match
 game/unnamed_tentacle_beast_0x4c6480.cpp 0x4c6800 match
 game/unnamed_tentacle_beast_0x4c6480.cpp 0x4c6850 match
 game/unnamed_tentacle_beast_0x4c6480.cpp 0x4c69e0 match
@@ -4195,7 +4195,7 @@ vsdk/gr_glide.cpp 0x549950 match
 vsdk/gr_glide.cpp 0x5499d0 match
 vsdk/gr_glide.cpp 0x5499e0 match
 vsdk/gr_glide.cpp 0x549a10 match
-vsdk/gr_glide.cpp 0x549a20 differs
+vsdk/gr_glide.cpp 0x549a20 match
 vsdk/gr_glide.cpp 0x549b50 match
 vsdk/gr_glide.cpp 0x549c50 match
 vsdk/gr_glide.cpp 0x549c80 match
@@ -4813,7 +4813,7 @@ vsdk/unnamed_gadget_0x52bfe0.cpp 0x52c4a0 match
 vsdk/unnamed_gadget_0x52bfe0.cpp 0x52c4b0 match
 vsdk/unnamed_gadget_0x52bfe0.cpp 0x52c4f0 match
 vsdk/unnamed_gadget_0x52bfe0.cpp 0x52c530 match
-vsdk/unnamed_gadget_0x52bfe0.cpp 0x52c570 differs
+vsdk/unnamed_gadget_0x52bfe0.cpp 0x52c570 match
 vsdk/unnamed_gadget_0x52bfe0.cpp 0x52c5c0 match
 vsdk/unnamed_gadget_0x52bfe0.cpp 0x52c5d0 match
 vsdk/unnamed_gadget_0x52bfe0.cpp 0x52c5e0 match
@@ -4869,7 +4869,7 @@ vsdk/unnamed_gr_3d_0x50d9b0.cpp 0x50ec90 match
 vsdk/unnamed_gr_3d_0x50d9b0.cpp 0x50ecb0 match
 vsdk/unnamed_gr_3d_0x50d9b0.cpp 0x50ecc0 match
 vsdk/unnamed_gr_3d_0x50d9b0.cpp 0x50ecd0 match
-vsdk/unnamed_gr_3d_0x50d9b0.cpp 0x50ed60 differs
+vsdk/unnamed_gr_3d_0x50d9b0.cpp 0x50ed60 match
 vsdk/unnamed_gr_3d_0x50d9b0.cpp 0x50edc0 match
 vsdk/unnamed_gr_3d_0x50d9b0.cpp 0x50ee70 match
 vsdk/unnamed_gr_3d_0x50d9b0.cpp 0x50ef30 match
@@ -5385,7 +5385,7 @@ vsdk/unnamed_sndstream_0x566560.cpp 0x566560 match
 vsdk/unnamed_sndstream_0x566560.cpp 0x566580 match
 vsdk/unnamed_sndstream_0x566560.cpp 0x5665b0 match
 vsdk/unnamed_sndstream_0x566560.cpp 0x5665d0 match
-vsdk/unnamed_sndstream_0x566560.cpp 0x566630 differs
+vsdk/unnamed_sndstream_0x566560.cpp 0x566630 match
 vsdk/unnamed_sndstream_0x566560.cpp 0x566820 match
 vsdk/unnamed_sndstream_0x566560.cpp 0x566970 differs
 vsdk/unnamed_sndstream_0x566560.cpp 0x566ab0 match

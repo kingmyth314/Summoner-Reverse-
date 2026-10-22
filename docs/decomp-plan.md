@@ -704,6 +704,24 @@ D9807. Every closer change (about 60 functions) was read for behaviour by four r
 version before the commit: all equivalent. The devices of all rounds are gathered on [Matching devices](matching-devices.md). One header change: `living_combat::send_net(bool, bool)` (D22505; the 23
 units that include it lose nothing).
 
+**Sixth targeted round 2026-10-22 (ten workers, D25300-D26299).** 5,602 -> 5,613, none lost (notes in
+`src/decomp/NOTES-match-2026-10-22.md`). The 138 functions within distance 30 on the score with the EH funclets left
+out, and every differing function of the unoptimised units. 11 matches, 10 closer. Four matches are unoptimised
+`Character` functions from distance 500-2,300 (`update_head_look`, `move_frame`, `ai_move_frame`, `get_hit_by_spell`;
+D25500-D25504), found with the corrected name hash (D25200): block-scope locals are placed by the same hash, block
+by block, and the order of the out-of-line vector3 calls showed where the inline expansion had drifted. They rely on
+the chosen local names, a few unused locals and a `gain = gain;` (matching aids, listed on
+[Matching devices](matching-devices.md)). New devices: the last failure path falls into a shared `fail:` block so
+that 8966 puts it at the end (D25901); which reads of a global go through a local copy decides 8966's jump threading
+(D26101); the same two-store form in both branches (D25700); a field assigned from the value just stored through an
+out pointer (D25702); a "void" function that leaves a value in EAX at every `ret` returns it (`gr_get_frustum_planes`,
+D26000). Renaming locals in optimised code moved nothing (three workers, about 90 renames), so the name hash is an
+`/Od` rule only. One decompilation error fixed: `update_head_look` stored a ray field the binary never writes (read
+only under a flag that is clear; no effect). Two header changes: `get_hit_by_spell`'s `preloaded` is an `int`, as the
+binary tests a dword (every caller passes 0 or 1), and `gr_get_frustum_planes` returns `int` (no caller). Every closer
+change was read for behaviour by two review agents: all equivalent. `link-build` caches objects by the source's date,
+so after a header change the three configurations need `--recompile`.
+
 The
 `Confidence:` markers follow the sweep (`tools/decomp-confidence.mjs`): every compared function that matches is
 `exact`, none that differs is. The other 1,819 written functions are not compared (`tools/decomp-uncompared.mjs`):

@@ -190,7 +190,7 @@ bool gr_plane_faces_viewer(plane *p);                 // 0x50eb70 (no caller; sh
 float gr_get_normal_facing_dot(const vector3 *normal, const vector3 *point);   // 0x50eba0
 float gr_project_size(const gr_vertex *v, const float *size);   // 0x50ec90
 float gr_vector_scaled_z(const gr_vertex *v);         // 0x50ecc0 z / gr_matrix_scale.z
-void gr_get_frustum_planes(plane *out, ubyte *flags); // 0x50ed60 (no caller)
+int gr_get_frustum_planes(plane *out, ubyte *flags); // 0x50ed60 (no caller; returns the plane count, D26000)
 bool gr_cull_bounding_box_transformed(const vector3 *pos, const matrix *orient, const vector3 *mins,
                                       const vector3 *maxs);   // 0x50ee70 (no caller)
 void gr_save_3d_state();                              // 0x50ef60 (no caller)

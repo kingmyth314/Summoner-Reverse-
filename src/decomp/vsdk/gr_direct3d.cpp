@@ -1464,9 +1464,9 @@ void gr_d3d_init_device()
     memset(&zdesc, 0, sizeof(zdesc));
     zdesc.dwHeight = gr_screen.max_h;
     zdesc.dwWidth = gr_screen.max_w;
-    zdesc.dwSize = sizeof(zdesc);
     zdesc.dwFlags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT;
     zdesc.ddsCaps.dwCaps = DDSCAPS_ZBUFFER;
+    zdesc.dwSize = sizeof(zdesc);   // D25902: dwSize after the caps (the binary's store order; 20 -> 18)
     zdesc.ddpfPixelFormat = zformat;
     if (IsEqualGUID(dev->d3d_guid, IID_IDirect3DHALDevice))    // 0x53ac00 guid_equal
         zdesc.ddsCaps.dwCaps |= DDSCAPS_VIDEOMEMORY;

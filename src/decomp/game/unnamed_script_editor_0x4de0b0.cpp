@@ -4255,15 +4255,18 @@ void script_create()
 // NULL; only an empty table gives NULL. `found` (NULL before the button test, kept in ESI as in the binary,
 // then the loop-invariant &navpoints[navpoint_count - 1]) gives the binary's shape; still differs in
 // register choice (found's address in ESI, the binary's in EAX with the NULL left in ESI; D12501).
+// D25600: found set to NULL in the cutscene branch (not at its declaration) puts the loop's found in EAX as
+// in the binary; left: the binary keeps the NULL in ESI from the entry, 8966 loads it with `xor eax, eax`.
 navpoint *script_editor_default_action_navpoint()
 {
     navpoint *np = NULL;
-    navpoint *found = NULL;
+    navpoint *found;
     int i;
 
     if (script_editor_cutscene_button.is_latched()) {
         if (cutscene_navpoint_count > 0)
             return &cutscene_navpoints[cutscene_navpoint_count - 1];
+        found = NULL;
         if (navpoint_count > 0) {
             for (i = navpoint_count - 1; i >= 0; i--) {
                 found = &navpoints[navpoint_count - 1];

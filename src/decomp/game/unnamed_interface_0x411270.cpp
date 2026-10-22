@@ -1297,9 +1297,9 @@ void ui_choice_popup_show(const char *title, int x, int y, int num, char **items
         ui_choice_popup_choices[i] = items[i];
     if (a & 4)
         ui_choice_popup_values = (int *)b;
-    ui_choice_popup_enabled = (bool *)c;
     ui_choice_popup_w = 0;
     ui_choice_popup_h = 0;
+    ui_choice_popup_enabled = (bool *)c;    // D26201: stored after the w / h zeros (closer, 20 -> 18)
     if (strlen(ui_choice_popup_title))
         gr_get_string_size(&ui_choice_popup_w, &ui_choice_popup_h, ui_choice_popup_title, -1, -1);
     for (i = 0; i < ui_choice_popup_count; i++) {

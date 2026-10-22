@@ -210,7 +210,7 @@ public:
     // decomp37: (spell, source handle, effect position, orientation, source type, triggering item type,
     // power, preloaded effect); the callers pass 0 for the pointers.
     void  get_hit_by_spell(int spell, int source, vector3 *pos, matrix *orient, int source_type, ItemType *item,
-                           float power, bool preloaded);   // 0x45dea0 living_entity_get_hit_by_spell
+                           float power, int preloaded);   // 0x45dea0 living_entity_get_hit_by_spell (preloaded: an int, D25504)
     move_info *find_move(int category, int id);           // 0x461370 character_find_move
     // (spell, flag): the cast move, effect, missile, recovery and AP cost; -1 when the move is missing.
     // mp_handle_cast_anim passes the CST_ANM byte as the flag (decomp35).

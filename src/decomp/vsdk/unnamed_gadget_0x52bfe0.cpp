@@ -281,23 +281,20 @@ bool ui_gadget::is_disabled()
     return ui_element::is_disabled();
 }
 
-// 0x52c570  Confidence: likely (the new head is stored before next_sibling, so the old head is read
-// into a temporary first).
+// 0x52c570  Confidence: exact (D25700: next_sibling assigned straight from the old head in both branches,
+// with no temporary; 8966 still stores the new head first, and the else branch then takes EDX as the
+// binary. A temporary in either branch alone leaves the else branch's head in ECX).
 void ui_gadget::set_parent(ui_gadget *parent)
 {
-    ui_gadget *first;
-
     unlink();
     this->parent = parent;
     if (parent) {
-        first = parent->first_child;
+        next_sibling = parent->first_child;
         parent->first_child = this;
-        next_sibling = first;
     } else {
         ui_window *win = (ui_window *)window;
-        first = win->first_gadget;
+        next_sibling = win->first_gadget;
         win->first_gadget = this;
-        next_sibling = first;
     }
 }
 

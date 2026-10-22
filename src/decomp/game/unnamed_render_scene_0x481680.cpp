@@ -692,7 +692,7 @@ void levelrender_fog_enable()
     gr_set_fog(1, fog_color_r, fog_color_g, fog_color_b, fog_near_distance, fog_far_distance);
 }
 
-// 0x4829e0  Confidence: likely (the fade-state switch; the bit expressions follow the and / or patterns).
+// 0x4829e0  Confidence: exact (the fade-state switch; the bit expressions follow the and / or patterns).
 // Every visible level object starts the frame opaque (alpha 0xff, the occluding bit moved to the
 // previous-frame bit); then the camera occluders and the members of their "$seethru" sets are marked;
 // then each object fades: an occluder fades out (state 3, 270 ms down to 0x80) and stays at 0x80
@@ -840,7 +840,7 @@ void levelrender_setup_level_lights()
     levelrender_num_level_lights = count;
 }
 
-// 0x482e20  Confidence: likely (the case grouping; the distance tests). Living entities (types 4-10):
+// 0x482e20  Confidence: exact (the case grouping; the distance tests). Living entities (types 4-10):
 // the visibility bit 2 moves to bit 8 (previous frame) and bits 2 / 0x20 are cleared; a culled monster
 // or NPC beyond 34.6 m gets AI flag 0x40 and a culled corpse beyond 20 m is deactivated. Outside a
 // cutscene an entity is drawn only within the fog distance, on a level object that is drawn this frame
@@ -1029,6 +1029,7 @@ void levelrender_push_attachment(ItemType *item, Character *c, const vector3 *po
 // D19402: d.y / d.z as double copies keep them on the FPU stack for the distance test (the binary's
 // fld st(0) / fmul squares and the two fstp st(0) after the compare); left: 8966 then compares with a
 // double 400 (QWORD constant), the binary with a float one. Same values (the FPU computes in double).
+// D25301: the depth as y + (x + z) gives the binary's z, x, y product order.
 void levelrender_add_items(item_obj *it)
 {
     vector3 d;
@@ -1059,8 +1060,8 @@ void levelrender_add_items(item_obj *it)
     levelrender_attach_list[levelrender_attach_count++] = e;
     e->type = LRE_ITEM;
     e->object = it;
-    e->depth = levelrender_eye_orient.fvec.z * d.z + levelrender_eye_orient.fvec.x * d.x
-             + levelrender_eye_orient.fvec.y * d.y;
+    e->depth = levelrender_eye_orient.fvec.y * d.y
+             + (levelrender_eye_orient.fvec.x * d.x + levelrender_eye_orient.fvec.z * d.z);
     e->dist = e->depth - it->bound_radius;
     it->obj_flags |= 2;
 }
@@ -1068,7 +1069,7 @@ void levelrender_add_items(item_obj *it)
 // 0x4836f0  Confidence: likely. A container within 20 m and in view; its floor object is the first
 // item's (-1 when empty).
 // D19402: the distance test as in levelrender_add_items (double copies of d.y / d.z); left: the QWORD
-// constant.
+// constant. D25301: the depth as in levelrender_add_items.
 void levelrender_add_containers(container *ct)
 {
     vector3 d;
@@ -1099,8 +1100,8 @@ void levelrender_add_containers(container *ct)
     levelrender_attach_list[levelrender_attach_count++] = e;
     e->type = LRE_CONTAINER;
     e->object = ct;
-    e->depth = levelrender_eye_orient.fvec.z * d.z + levelrender_eye_orient.fvec.x * d.x
-             + levelrender_eye_orient.fvec.y * d.y;
+    e->depth = levelrender_eye_orient.fvec.y * d.y
+             + (levelrender_eye_orient.fvec.x * d.x + levelrender_eye_orient.fvec.z * d.z);
     e->dist = e->depth - ct->bound_radius;
     ct->obj_flags |= 2;
 }
@@ -1128,7 +1129,7 @@ void levelrender_add_lobjs(s3d_vis_set **sets, int count)
     }
 }
 
-// 0x4838f0  Confidence: likely. Fully transparent objects are skipped. A moving door grows its sphere
+// 0x4838f0  Confidence: exact. Fully transparent objects are skipped. A moving door grows its sphere
 // by the distance between its two poses; doors are tested against the sphere only, the rest against
 // the sphere and the box (small-mesh culling below Small_mesh_threshold). The distance limits are
 // applied only with levelrender_no_lighting (never set). Partly faded objects go to the sorted list,
@@ -1597,7 +1598,7 @@ void overhead_label_slots_expire()
     memset(overhead_label_slot_used, 0, sizeof(overhead_label_slot_used));
 }
 
-// 0x484ae0  Confidence: likely (the || chain as in character_draw_overhead_bitmap). Outside cutscenes and
+// 0x484ae0  Confidence: exact (D25300). Outside cutscenes and
 // conversations: a speech line keeps its slot, or a new slot is placed from the projected head and the
 // position clamped into its sixth of the screen (two columns, three rows of (height - 120) / 3).
 void levelrender_draw_speech_text(character_speech_record *s)
@@ -1617,14 +1618,17 @@ void levelrender_draw_speech_text(character_speech_record *s)
         return;
     if (!conversation_active.is_idle())
         return;
-    bool always = c->type == 7 || !_stricmp(c->name, "Ulsadana");   // D22601: through a bool (one shared return)
-    if (always) {
-        if (c->type == 7 && (c->flags & CF_DEAD))
+    // D25300: the range tests as three separate returns inside the not-type-7, not-Ulsadana branch; the dead
+    // test of a type 7 speaker in the else-if.
+    if (c->type != 7 && _stricmp(c->name, "Ulsadana")) {
+        if (fabsf(cur_character->pos.y - c->pos.y) > 4.0f)
             return;
-    } else if (fabsf(cur_character->pos.y - c->pos.y) > 4.0f || distance_squared(&cur_character->pos, &c->pos) > 2500.0f
-               || !(c->obj_flags & 2)) {
+        if (distance_squared(&cur_character->pos, &c->pos) > 2500.0f)
+            return;
+        if (!(c->obj_flags & 2))
+            return;
+    } else if (c->type == 7 && (c->flags & CF_DEAD))
         return;
-    }
     p = c->pos;
     p.y = c->size_height() + p.y + 0.3f;
     gr_rotate_vertex(&v, &p);

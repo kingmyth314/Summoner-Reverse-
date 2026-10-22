@@ -998,7 +998,9 @@ void gr_bitmap(int bm, int x, int y, gr::Mode mode)
 // 0x507100  Confidence: likely (D16003: the corner sums grouped `(a - b) + x`; the vertex array is built by the vector constructor iterator after
 // gr_set_texture, D12103; only hs / wc are locals, the w * sin / h * cos products written in the sums, which
 // gives the binary's order hs, wc, corner 0's x, then the two products kept on the FPU; corner 2's constants
-// after its sx / sy (D18705); the gr_tmapper argument pushes are still scheduled differently).
+// after its sx / sy (D18705); D25701: corner 2 as u, v, _unk1a, sx, sy, sw (closer, 12 -> 8; 719 orders of
+// corner 2, then 719 of corner 3 and 1259 interleavings of both, none exact); the gr_tmapper argument pushes
+// are still scheduled differently, corner 3's constants stored after corner 2's sx in ours).
 // The bitmap as a quad of its size times scale, centred on (x, y) and rotated by angle, through
 // gr_tmapper (no clipping here). Only sx, sy, sw = 1, uv and the "uv given" flag are set. The polygon
 // is passed in the order 3, 2, 1, 0.
@@ -1036,12 +1038,12 @@ void gr_bitmap_float(int bm, float x, float y, float scale, float angle, gr::Mod
     verts[1].sx = (wc + hs) + x;
     verts[1].sy = (hw * sa - hh * ca) + y;
 
-    verts[2].sx = (wc - hs) + x;
-    verts[2].sy = (hh * ca + hw * sa) + y;
-    verts[2].sw = 1.0f;
     verts[2].u = 1.0f;
     verts[2].v = 1.0f;
     verts[2]._unk1a = 1;
+    verts[2].sx = (wc - hs) + x;
+    verts[2].sy = (hh * ca + hw * sa) + y;
+    verts[2].sw = 1.0f;
 
     verts[3].sw = 1.0f;
     verts[3].u = 0.0f;

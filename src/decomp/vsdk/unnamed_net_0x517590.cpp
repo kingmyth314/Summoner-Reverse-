@@ -378,7 +378,8 @@ int float_compare(const void *a, const void *b)
 // 0x517e00  Confidence: likely (long function; D24504: `if (!rcode) break;` in the do / while (rcode > 0) gives
 // the binary's rotated loop and the recvfrom error block's place; rsocket = NULL after nw_receive_all; the
 // status read once into a local in the not-connected block; the wrap test as `< 0x10000 - NW_MAX_NET_BUFFERS`;
-// the resend and heartbeat headers written send_time first and type last. Left: the IAMHERE status store is
+// the resend and heartbeat headers written send_time first and type last; D26100: the heartbeat's seq before
+// its data_len. Left: the IAMHERE status store is
 // scheduled after the reply's argument loads in the binary, the dead `cmp 0x258` and the seq register at the
 // rsequence store).
 // Defects: rsocket is not reset per packet, so a packet from an unknown address after one from a known peer
@@ -626,8 +627,8 @@ void nw_WorkReliable()
                 rsocket->last_packet_sent = now;
             if (now - rsocket->last_packet_sent > 10000) {
                 heartbeat.send_time = timer_get(1000);
-                heartbeat.data_len = 0;
                 heartbeat.seq = 0;
+                heartbeat.data_len = 0;
                 heartbeat.type = RNT_HEARTBEAT;
                 if (nw_send_packet(&heartbeat, NW_RELIABLE_HEADER_SIZE, 0, &rsocket->addr, NW_TYPE_RELIABLE) >= 0)
                     rsocket->last_packet_sent = timer_get(1000);

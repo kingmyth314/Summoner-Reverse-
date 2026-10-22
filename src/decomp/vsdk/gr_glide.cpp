@@ -1170,7 +1170,10 @@ void glide_record::reset_blocks_thunk()
     reset_blocks();
 }
 
-// 0x549a20  Confidence: likely (the order of the stores to the slot at the end).
+// 0x549a20  Confidence: exact (the order of the stores to the slot at the end; D25702: the record's scales
+// copied back from the out pointers, `this->u_scale = *u_scale; ... this->v_scale = *v_scale;`, with no u / v
+// locals: 8966 forwards the stored values (v through the dead section slot, reloaded for the last store) as
+// the binary does).
 // Downloads the section to this TMU when it has no copy there (or the entry is dirty) and selects it.
 void glide_record::load_section(glide_tcache_entry *entry, int section, float *u_scale, float *v_scale)
 {
@@ -1193,17 +1196,15 @@ void glide_record::load_section(glide_tcache_entry *entry, int section, float *u
         entry->dirty[stage] = 0;
     }
     glide_grTexSource(stage, sec->tmu_addr[stage], GR_MIPMAPLEVELMASK_BOTH, &info);
-    float u = sec->u_scale;
-    float v = sec->v_scale;
     this->section = section;
-    *u_scale = u;
-    *v_scale = v;
-    this->u_scale = u;
+    *u_scale = sec->u_scale;
+    *v_scale = sec->v_scale;
+    this->u_scale = *u_scale;
     bitmap = entry - glide_tcache_entries;
-    this->v_scale = v;
+    this->v_scale = *v_scale;
 }
 
-// 0x549b50  Confidence: likely (the casts of the 2 MB bank compare: shr then a signed compare; m-1020b w13
+// 0x549b50  Confidence: exact (the casts of the 2 MB bank compare: shr then a signed compare; m-1020b w13
 // D13701: the bank local, end reused for the loop limit and used_tail = used_head leave one difference, the
 // limit add placed after the first next >= 0 test in Sum.exe; m-1021c w9 D20200: the addr, texture and section
 // stores through pointer locals give the binary's store order: exact).

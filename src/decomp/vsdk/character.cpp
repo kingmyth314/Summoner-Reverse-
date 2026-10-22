@@ -151,8 +151,10 @@ ca_character::~ca_character()
 }
 
 // 0x540970  Confidence: likely (EH state numbering: new-expression 0, File 1; the order of the two
-// error branches; D21201: the frame; left: the epilogue follows the dup return in ours, the main path in the
-// binary, and the tail's index register). check_dup: a skeleton of the same file is reused. The skeleton comes from the
+// error branches; D21201: the frame; D25800: the dup hit leaves through `goto found` to the one `return i`
+// after the creation block, and the slot store goes through `int n = num_anims`, so the main path falls into
+// the epilogue as in the binary; left: 8966 computes the main result into the dup index's register, the
+// binary keeps the two results apart). check_dup: a skeleton of the same file is reused. The skeleton comes from the
 // preload index when it is there and smaller than the whole preload buffer, else from its file.
 // filename is also the name skeleton::read gets; name is the anim name.
 int ca_character::add_skeleton(const char *filename, const char *name, bool is_state, int unused,
@@ -168,36 +170,41 @@ int ca_character::add_skeleton(const char *filename, const char *name, bool is_s
     if (check_dup == true) {
         for (i = 0; i < num_anims; i++) {
             if (_stricmp(skeletons[i]->filename, filename) == 0)
-                return i;
+                goto found;   // D25800
         }
     }
 
-    skeleton *s = new skeleton(filename, name, is_state, unused, root_rotation);
-    FileReader reader;
-    File f;
-    {   // D21201: offset / size in a block after the new, so they share the new-expression's
-        // temporary slot as in the binary (frame 0x1b0, was 0x1b4)
-        int offset;
-        int size;
+    {   // D25800: the creation in a block (the goto may not skip its initialisations)
+        skeleton *s = new skeleton(filename, name, is_state, unused, root_rotation);
+        FileReader reader;
+        File f;
+        {   // D21201: offset / size in a block after the new, so they share the new-expression's
+            // temporary slot as in the binary (frame 0x1b0, was 0x1b4)
+            int offset;
+            int size;
 
-        if (ca_preload_loaded && ca_preload_find(filename, &offset, &size) && size < CA_PRELOAD_DATA_SIZE) {
-            reader.attach_memory(ca_preload_data + offset, size);
-            s->read(&reader, filename, PATH_ANY);
-        } else {
-            if (!f.open(filename, 1, PATH_ANY)) {
-                reader.attach_file(&f);
+            if (ca_preload_loaded && ca_preload_find(filename, &offset, &size) && size < CA_PRELOAD_DATA_SIZE) {
+                reader.attach_memory(ca_preload_data + offset, size);
                 s->read(&reader, filename, PATH_ANY);
-                f.close();
             } else {
-                char buf[0x80];
-                sprintf(buf, "Error opening : %s\n", filename);
-                VSDK_ERROR(CHARACTER_CPP, 692, buf);
+                if (!f.open(filename, 1, PATH_ANY)) {
+                    reader.attach_file(&f);
+                    s->read(&reader, filename, PATH_ANY);
+                    f.close();
+                } else {
+                    char buf[0x80];
+                    sprintf(buf, "Error opening : %s\n", filename);
+                    VSDK_ERROR(CHARACTER_CPP, 692, buf);
+                }
             }
         }
+        int n = num_anims;
+        skeletons[n] = s;
+        num_anims++;
+        i = num_anims - 1;
     }
-    skeletons[num_anims] = s;
-    num_anims++;
-    return num_anims - 1;
+found:
+    return i;
 }
 
 // 0x540b80  Confidence: exact (the count store is duplicated into both paths by the compiler).

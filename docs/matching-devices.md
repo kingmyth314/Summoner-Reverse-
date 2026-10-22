@@ -7,8 +7,8 @@ nav_order: 6.41
 
 **Summary:** A *matching device* is a way of writing C++ that makes Visual C++ 6.0 SP5 (build 8966) produce the
 exact bytes of Sum.exe. Most devices are probably how the original programmers wrote the code. A few only help the
-match and are not plausible as the original source. This page gathers the devices from the ten byte-match rounds
-(2026-10-19 to 2026-10-21; see the [Decompilation plan](decomp-plan.md)), each with the decision in
+match and are not plausible as the original source. This page gathers the devices from the eleven byte-match rounds
+(2026-10-19 to 2026-10-22; see the [Decompilation plan](decomp-plan.md)), each with the decision in
 `src/decomp/include/DECISIONS.md` that records it. It is written for whoever works on the next round: try these first
 on a function that still differs. The tools are in [Tools](tools.md#byte-matching-workflow-tools).
 
@@ -25,6 +25,8 @@ through: a name, a scope, a local, an aliasing pointer, a control-flow edge or a
 | Device | Where it helps | Decision |
 |---|---|---|
 | **Unoptimised functions place locals by a hash of their names.** Bucket = `(h ^ (h >> 16)) & 15`, with `h = h * 4 + (h >> 4) + c` over the name's characters (32-bit). Bucket 0 is the highest address; within a bucket, the later declaration is higher. Block-scope locals come after the function scope's, and `this` comes last. A wrong order is fixed by **renaming** locals, not by reordering their declarations. `tools/vc6-localhash.mjs` predicts the order and `--probe` checks it. | `/Od` units (`objects.cpp`) and every `#pragma optimize("", off)` function (`living_entity.cpp`, the cutscene file, `pathfinding_visibility.cpp`) | D6101, D23500, D25200 |
+| Block-scope locals are placed by the same hash, block by block in source order (the `$NNN` suffix in the listing is not part of the name). Parameters that an inline helper takes by value become temporaries after all named locals. In `/Od` code an inline expansion can drift across the whole function from a change that gives the same code; the order of the out-of-line `vector3` calls, compared with the binary's, shows where. The name hash has **no** effect in optimised code (about 90 renames in three functions moved nothing). | four `Character` functions in `living_entity.cpp`, from distance 500-2,300 | D25500-D25504 |
+| A local in a block of its own, closed before the next copy, can take dead argument slots. | `matrix3_pack_orientation` (closer only) | D25400, D7004 |
 | Local names also decide the slot order in SEH frames, even at `/Ox`. | the exception handler unit (its locals took the names of the published ExceptionHandler.cpp it follows) | round 2026-10-20 |
 | Buffer sizes read from the binary's frame offsets. | any char buffer | round 2026-10-19 |
 | Locals moved into sibling blocks so that they share a stack slot. | functions whose frame is smaller than ours | round 2026-10-19 |
@@ -48,7 +50,9 @@ through: a name, a scope, a local, an aliasing pointer, a control-flow edge or a
 | A byte-offset key loop for `[base + off]` addressing. | D21800 |
 | **A local that caches a pointer field** (`c = list[i].character`) steers the loop pointer, the callee-saved registers and the frame size. Writing the field out at each use, or caching it, is the choice to try; it matched two cases that looked like plain register choice. | D23000, D23001 |
 | `(r = frand()) < x` stops pointers being cached across the call. | D22503, D22504 |
-| The store order of independent fields decides whether a zero is kept in a register. Search the order with `vc6-try.mjs`. | D23100, D24201 |
+| The store order of independent fields decides whether a zero is kept in a register. Search the order with `vc6-try.mjs`. | D23100, D24201, D26200 |
+| A field assigned straight from the value just stored through an out pointer (`*u = s->u; this->u = *u;`), not through a local. Under `/Ow` 8966 then forwards the store as the binary does. | D25702 |
+| The same two-store form in both branches (`next = head; head = this;`), with no shared temporary. | D25700 |
 | The order of a dot product's terms, or of independent stores, searched with `vc6-try.mjs`. | round 2026-10-19 |
 
 ## Control flow and block order
@@ -70,6 +74,9 @@ through: a name, a scope, a local, an aliasing pointer, a control-flow edge or a
 | **The source order of switch cases sets the binary's block order.** | D23400, D24101, D24702 |
 | `result = K; break;` in place of returns, where the binary keeps the result in a callee-saved register. | round 2026-10-21 (fifth) |
 | An early `return` rewritten as an `if (...) { rest }` block, giving the binary's `jne` to the end. | D23500 |
+| 8966 puts a shared `fail:` block right after the last `goto` that reaches it. Letting the last failure fall into the label puts the block at the end of the function, where the binary has it. | D25901 |
+| Which reads of a global go through a local copy decides how far 8966 threads jumps: one test on the global and the next on the copy threaded only the path the binary threads. | D26101 |
+| A duplicate test that ends in `goto found;`, the rest in a block, and one `found: return i;`. | D25800 (closer) |
 
 ## Calls and inlining
 
@@ -82,6 +89,7 @@ through: a name, a scope, a local, an aliasing pointer, a control-flow edge or a
 | `memcpy` for a corner or `vector2` copy. | D18401, D19500 |
 | An empty member that the linker folded into `empty_function`. | D18000 |
 | A `cond ? true : false` argument, for a `mov al, 1`. | D21000 |
+| A function that looks `void` but whose register choice is wrong may return a value no caller reads: check what EAX holds at every `ret`. | D26000 |
 | Unused `vector3` locals that make VC6 emit the binary's out-of-line constructor calls (in `camera_blend`; they decide D9807's rounding). | D23900 |
 
 ## Floats (x87)
@@ -122,6 +130,7 @@ return nothing, which is undefined behaviour under a modern compiler, so a compi
 | A `float *` view of a buffer. | D16704 |
 | A `volatile float *` for three zero stores. | D18205 |
 | `*(volatile int *)&g = v`, to keep a global store above the next call's pushes. | round 2026-10-20 |
+| Unused locals (`dir`, `frame_m`, `pivot`, `norm`, `delta`), a `gain = gain;` and the file-local helpers `ghs_assign_max` / `ghs_assign_min` in four `/Od` `Character` functions; their exact local names belong to the match too. | D25500, D25501, D25504 |
 
 ## What is not merged
 
@@ -131,7 +140,7 @@ that keeps the source plausible is merged after it has been read for behaviour a
 
 ## What does not move
 
-Most of the roughly 320 functions that still differ are register choice and instruction scheduling, decided by 8966
+Most of the roughly 310 functions that still differ are register choice and instruction scheduling, decided by 8966
 itself. The workers' notes (`src/decomp/NOTES-match-*.md`) name what was tried on each. Read them before you start on
 a function. `vc6-compare --align ADDR` shows whether the remaining difference is one block or spread through the
 function.

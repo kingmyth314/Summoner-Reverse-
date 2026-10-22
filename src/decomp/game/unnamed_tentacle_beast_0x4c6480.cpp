@@ -745,9 +745,8 @@ static void exp_tentacle_frame_hook(Character *c)
 }
 #endif // EXPERIMENTAL_BUILD
 
-// 0x4c6520  Confidence: likely (distance 2, D21804: only the first loop's `test bl, cl` operand order
-// differs; the candidate list holds 5: a held character first, then the visible
-// party-type entities). The squeeze (move 2, chance 0.3) goes to the nearest candidate within 3 of the
+// 0x4c6520  Confidence: exact (VC6 byte match, D21804, D26200; was likely). The candidate list holds 5: a
+// held character first, then the visible party-type entities. The squeeze (move 2, chance 0.3) goes to the nearest candidate within 3 of the
 // squeeze point; else the swipe (move 1) to the first candidate within reach. The grab (move 86) is chosen
 // when frand() < 0, i.e. never (NOTES, game bugs).
 int ai_state::tentacle_beast_ai_select_action()
@@ -816,8 +815,9 @@ int ai_state::tentacle_beast_ai_select_action()
         for (i = 0; i < count; i++) {
             vector3 a = list[i]->pos;
             vector3 b = tentacle_beast_active_tentacle->squeeze_pos;
-            a.y = 0.0f;
+            // D26200: b.y zeroed before a.y (the binary's store order; the other order swaps the two stores).
             b.y = 0.0f;
+            a.y = 0.0f;
             d = distance(&a, &b);
             if (d < 3.0f && d < best) {
                 best = d;

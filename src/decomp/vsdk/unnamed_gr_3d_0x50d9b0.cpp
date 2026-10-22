@@ -546,18 +546,20 @@ bool gr_cull_sphere(const vector3 *pos, float radius, bool ignore_far)
     return false;
 }
 
-// 0x50ed60  Confidence: likely.
-void gr_get_frustum_planes(plane *out, ubyte *flags)
+// 0x50ed60  Confidence: exact (VC6 byte match, D26000: returns the plane count; no caller reads it, but the
+// binary keeps the count in EAX for the return).
+int gr_get_frustum_planes(plane *out, ubyte *flags)
 {
     int i, n;
 
     for (i = 0; i < gr_num_frustum_planes; i++)
         out[i] = gr_frustum_planes[i].pl;
+    n = gr_num_frustum_planes;
     if (flags) {
-        n = gr_num_frustum_planes;
         for (i = 0; i < n; i++)
             flags[i] = gr_frustum_planes[i].flag;
     }
+    return n;
 }
 
 // 0x50edc0  Confidence: exact (do-while as in gr_cull_sphere; the plane count is read once).

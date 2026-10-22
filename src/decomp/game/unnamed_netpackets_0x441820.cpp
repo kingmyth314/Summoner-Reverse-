@@ -162,7 +162,7 @@ void multi_process_packet(ubyte *data, int len, void *from, bool reliable)
     mp_cur_packet_size = 0;
 }
 
-// 0x4419d0  Confidence: likely (the three memsets and the scalar stores; the timer's store sits between
+// 0x4419d0  Confidence: exact (the three memsets and the scalar stores; the timer's store sits between
 // the second and third memset). D24201: the first counter's store also before the third memset; its int zero
 // then lives across the rep stosd in its own register (EDX), the binary's second zero.
 void mp_reset_net_stats()
@@ -425,7 +425,7 @@ void mp_forward_cur_packet(void *from)
 // (compiler-generated).
 console_command ccmd_disp_rate("disp_rate", "Toggle whether net rate info for a packet is displayed", cmd_disp_rate);   // 0x65e0c0
 
-// 0x442380  Confidence: likely (the help branch is entered by a jump past its test after
+// 0x442380  Confidence: exact (the help branch is entered by a jump past its test after
 // doing_help_for_comand = 1). Toggles a type's rate display (the four hooks are told); refuses everything,
 // help and status included, in single player.
 void cmd_disp_rate()

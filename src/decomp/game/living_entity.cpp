@@ -269,7 +269,7 @@ void Character::scale_stats_to_level()
     }
 }
 
-// 0x44e060  Confidence: likely. The members are built in declaration order: the 18 status slots (the
+// 0x44e060  Confidence: exact. The members are built in declaration order: the 18 status slots (the
 // compiler's loop over the two GameTimers at +4 / +0x14 of each, count at ebp-0x18, stride 0x20),
 // timer2ec, ai (state 1 of the EH frame: ai_state has a destructor), combat, timer6d4,
 // net_update_timer; then the vtable store and the body. D19000: combat is a plain member with its
@@ -1144,30 +1144,38 @@ void Character::monster_drop_loot()
         container_spawn_loot(nx, drops, highlight, lock, &drop_pos1);
 }
 
-// 0x4530d0  Confidence: likely. Frame: ray -0x4c (its inline constructor's store at -0x1c comes
-// first), foot -0x5c, angle -0x60, dy -0x64, d -0x70, fwd -0x74, ch -0x78, hit -0xb0, head_orient
-// -0x104, len -0x108, head_pos -0x114, foot_orient -0x138, foot_pos -0x144, alt -0x148, sign -0x14c,
-// head -0x15c, this -0x1bc. Once per character (flag 0x4000000): the lean of the corpse, from the
+// 0x4530d0  Confidence: exact (VC6 byte match, m-1022 w3 D25500: locals named for the hash order, four
+// unused locals for the binary's empty slots, ray.dir.set (its inline expansions give the binary's
+// out-of-line vector3 calls in last_orient = orient), v constructed from the difference, v.dot; the
+// ray's +0x28 is not written). Frame: cast -0x4c (its inline constructor's store at -0x1c comes
+// first), norm -0x58, foot_bone -0x5c, lean -0x60, rise -0x64, v -0x70, fwd -0x74, ch -0x78, pivot
+// -0x84, hitinfo -0xb0, frame_m -0xe0, head_mat -0x104, duration -0x108, head_point -0x114, foot_mat
+// -0x138, foot_point -0x144, alt -0x148, sign -0x14c, dir -0x158, head_bone -0x15c, this -0x1bc. Once per character (flag 0x4000000): the lean of the corpse, from the
 // head and left-foot bones of the last frame of the death move dropped onto the floor; species 0xce,
 // species 0x9f, or no death move, get none.
 void Character::update_head_look()
 {
-    lobj_ray ray;
-    int foot;
-    float angle;
-    float dy;
-    vector3 d;
-    float fwd;
-    ca_character *ch;
-    lobj_hit hit;
-    matrix head_orient;
-    float len;
-    vector3 head_pos;
-    matrix foot_orient;
-    vector3 foot_pos;
-    int alt;
+    // D25500: the frame order is VC6's name hash (D25200), so the names are chosen for the binary's slots;
+    // dir, frame_m, pivot and norm are unused (the binary's frame keeps their slots).
+    int head_bone;
+    vector3 dir;
     float sign;
-    int head;
+    int alt;
+    vector3 foot_point;
+    matrix foot_mat;
+    vector3 head_point;
+    float duration;
+    matrix head_mat;
+    matrix43 frame_m;
+    lobj_hit hitinfo;
+    vector3 pivot;
+    ca_character *ch;
+    float fwd;
+    float rise;
+    float lean;
+    int foot_bone;
+    vector3 norm;
+    lobj_ray cast;
 
     if (flags & CF_HEAD_LOOK_DONE)
         return;
@@ -1181,70 +1189,64 @@ void Character::update_head_look()
         return;
     }
     ch = instance->character;
-    head = foot = -1;
-    head = ch->find_mesh_tag("BDBN-Head");
-    if (head == -1)
-        head = ch->find_mesh_tag("BDBN-Head01");
-    foot = ch->find_mesh_tag("BDBN-Foot-L");
-    if (foot != -1) {
+    head_bone = foot_bone = -1;
+    head_bone = ch->find_mesh_tag("BDBN-Head");
+    if (head_bone == -1)
+        head_bone = ch->find_mesh_tag("BDBN-Head01");
+    foot_bone = ch->find_mesh_tag("BDBN-Foot-L");
+    if (foot_bone != -1) {
         alt = ch->find_mesh_tag("BDBN-Foot-L01");
         if (alt != -1)
-            foot = alt;
+            foot_bone = alt;
     } else {
-        foot = ch->find_mesh_tag("BDBN-Foot-L02");
+        foot_bone = ch->find_mesh_tag("BDBN-Foot-L02");
     }
-    if (head == -1 || foot == -1) {
+    if (head_bone == -1 || foot_bone == -1) {
         last_orient = orient;
         return;
     }
-    len = instance->get_anim_length(death_move->anim);
-    instance->process(len - 0.01f, false, 0);
+    duration = instance->get_anim_length(death_move->anim);
+    instance->process(duration - 0.01f, false, 0);
     instance->process(0.0f, false, 0);
-    instance->get_bone_world_transform(head, &orient, &pos, &head_orient, &head_pos);
-    instance->get_bone_world_transform(foot, &orient, &pos, &foot_orient, &foot_pos);
-    ray.start = head_pos;
-    ray.start.y += 2.0f;
-    ray.dir.x = 0.0f;
-    ray.dir.y = -10.0f;
-    ray.dir.z = 0.0f;
-    ray._unk18 = 0.0f;
-    ray.flags = 0;
-    ray.require_flags = 0;
-    ray.exclude_flags = 0;
-    ray._unk28 = 0;
-    lobj_raycast_all(&ray, &hit);
-    if (hit.num_hits > 0)
-        head_pos.y += ray.dir.y * hit.t;
-    ray.start = foot_pos;
-    ray.start.y += 2.0f;
-    ray.dir.x = 0.0f;
-    ray.dir.y = -10.0f;
-    ray.dir.z = 0.0f;
-    ray._unk18 = 0.0f;
-    ray.flags = 0;
-    ray.require_flags = 0;
-    ray.exclude_flags = 0;
-    ray._unk28 = 0;
-    lobj_raycast_all(&ray, &hit);
-    if (hit.num_hits > 0)
-        foot_pos.y += ray.dir.y * hit.t;
+    instance->get_bone_world_transform(head_bone, &orient, &pos, &head_mat, &head_point);
+    instance->get_bone_world_transform(foot_bone, &orient, &pos, &foot_mat, &foot_point);
+    cast.start = head_point;
+    cast.start.y += 2.0f;
+    cast.dir.set(0.0f, -10.0f, 0.0f);
+    cast._unk18 = 0.0f;
+    cast.flags = 0;
+    cast.require_flags = 0;
+    cast.exclude_flags = 0;
+    lobj_raycast_all(&cast, &hitinfo);
+    if (hitinfo.num_hits > 0)
+        head_point.y += cast.dir.y * hitinfo.t;
+    cast.start = foot_point;
+    cast.start.y += 2.0f;
+    cast.dir.set(0.0f, -10.0f, 0.0f);
+    cast._unk18 = 0.0f;
+    cast.flags = 0;
+    cast.require_flags = 0;
+    cast.exclude_flags = 0;
+    lobj_raycast_all(&cast, &hitinfo);
+    if (hitinfo.num_hits > 0)
+        foot_point.y += cast.dir.y * hitinfo.t;
     play_move((int)death_move, 1.0f, 1, 1, 0);
     instance->process(0.0f, false, 0);
-    d = foot_pos - head_pos;
-    dy = d.y;
-    fwd = d.x * orient.fvec.x + d.y * orient.fvec.y + d.z * orient.fvec.z;
+    vector3 v = foot_point - head_point;
+    rise = v.y;
+    fwd = v.dot(orient.fvec);
     sign = -1.0f;
-    if (dy < 0.0f) {
+    if (rise < 0.0f) {
         sign *= -1.0f;
-        dy = -dy;
+        rise = -rise;
     }
     if (fwd < 0.0f) {
         sign *= -1.0f;
         fwd = -fwd;
     }
-    angle = atan2_fast(dy, fwd) * sign;
-    if (angle > -1.5707964f && angle < 1.5707964f)
-        move_turn_angle = angle;
+    lean = atan2_fast(rise, fwd) * sign;
+    if (lean > -1.5707964f && lean < 1.5707964f)
+        move_turn_angle = lean;
     else
         move_turn_angle = 0.0f;
 }
@@ -2993,7 +2995,8 @@ float Character::distance_to_reach_speed(float speed)
 // line, the last two through the COMDATs 0x45b680 / 0x45b6b0 emitted here). One profile label (EH
 // state 0). Frame: target -0x18, moved -0x1c, slid -0x28, ok -0x2c, ok2 -0x30, ahead -0x40, bone_ok
 // -0x44, bone_target -0x50, bone_pos -0x5c, bone_orient -0x80, step -0x8c, bone_slid -0x98, dest -0xa4,
-// fix -0xb0, fixed -0xbc, slid3 -0xc8, check -0xd4, this -0x2b0.
+// fix -0xb0, fixed -0xbc, slid3 -0xc8, check -0xd4, this -0x2b0. D25503: bone_target, step, bone_slid
+// and dest in the bone_ok block give the binary's out-of-line copies for target and ahead (992 -> 526).
 // Clips a move to the navigation mesh. Characters with char_info flag 4 and a navigation bone
 // (+0x25c) also keep that bone on the mesh: the body slides from pos towards pos + 2 * move (target +
 // move, as the code reads), then the bone's slide correction is added when the corrected position is
@@ -3008,12 +3011,8 @@ bool Character::clip_move_to_navmesh(vector3 *move)
     bool ok2;
     vector3 ahead;
     bool bone_ok;
-    vector3 bone_target;
     vector3 bone_pos;
     matrix bone_orient;
-    vector3 step;
-    vector3 bone_slid;
-    vector3 dest;
 
     moved = false;
     if (flags & 0x1000)
@@ -3033,6 +3032,11 @@ bool Character::clip_move_to_navmesh(vector3 *move)
             }
         }
         if (bone_ok) {
+            vector3 bone_target;
+            vector3 step;
+            vector3 bone_slid;
+            vector3 dest;
+
             step = pos + *move;
             instance->get_bone_world_transform(info->head_bone, &orient, &step, &bone_orient, &bone_target);
             ok2 = pf_slide_move(&bone_pos, &bone_target, &bone_slid, info->size, layer);
@@ -3327,31 +3331,32 @@ void Character::update_regen_and_status()
     }
 }
 
-// 0x45c340  Confidence: likely. One profile label (EH state 0). Frame: h -0x48, result -0x44, snap -0x3c,
-// b -0x38, speed -0x34, move -0x30, turn -0x24, len -0x14, p -0x10, old_pos -0x60, v -0x54, seen -0x6c,
-// t -0x78, this -0x1ac. One AI-driven step: the root speed eases towards target_speed (speed-up /
+// 0x45c340  Confidence: exact (VC6 byte match, m-1022 w3 D25502: names for the hash order; q constructed
+// from take_turn_delta, t from the sum and in its block, t.dot for the projection, `pos + delta_v`). One
+// profile label (EH state 0). Frame: p -0x10, mdist -0x14, q -0x24, delta_v -0x30, speed -0x34, b -0x38,
+// reground -0x3c, profile -0x40, ret -0x44, h -0x48, velo -0x54, from -0x60, seen_v -0x6c, t -0x78,
+// this -0x1ac. One AI-driven step: the root speed eases towards target_speed (speed-up /
 // slow-down rates), the locomotion blend follows, the animation's root motion and turn are applied, a
 // plane normal (when given) projects the step, other characters push it aside (result -3), and the
 // navigation mesh clips it. -4 when disabled (CF 0x2). The floor is searched again after a move of more
 // than 1 cm by a non-local or AI-flag-8 character, or when standing with object flag 2 and not 8.
 int Character::ai_move_frame(int unused, vector3 *plane_normal)
 {
-    profile_label label("character_ai_move_frame");
+    profile_label profile("character_ai_move_frame");
+    // D25502: names chosen for the binary's frame order (VC6's name hash, D25200).
+    vector3 seen_v;
+    vector3 velo;
     float h;
-    int result;
-    bool snap;
+    int ret;
+    bool reground;
     float b;
     float speed;
-    vector3 move;
-    quaternion turn;
-    float len;
+    vector3 delta_v;
+    float mdist;
     float p;
-    vector3 v;
-    vector3 seen;
-    vector3 t;
 
-    seen = v = instance->sum_root_velocity();
-    speed = v.len();
+    seen_v = velo = instance->sum_root_velocity();
+    speed = velo.len();
     if (speed < target_speed) {
         speed += info->speedup_rate * speed_scale * frametime;
         if (speed > target_speed)
@@ -3365,53 +3370,53 @@ int Character::ai_move_frame(int unused, vector3 *plane_normal)
     slowdown_rate = info->slowdown_rate;
     set_locomotion_speed(speed);
     update_locomotion_anim();
-    move = instance->get_motion_delta(frametime);
-    v = move / frametime;
+    delta_v = instance->get_motion_delta(frametime);
+    velo = delta_v / frametime;
     forward_speed = speed;
-    move.unrotate(orient);
-    turn = instance->take_turn_delta(frametime);
+    delta_v.unrotate(orient);
+    quaternion q = instance->take_turn_delta(frametime);
     orient.extract_angles(&p, &b, &h);
     p = 0.0f;
     b = 0.0f;
-    orient.set_from_angles(p, b, h + turn.w);
+    orient.set_from_angles(p, b, h + q.w);
     centre_offset = instance->get_root_offset(frametime);
     centre_offset.unrotate(orient);
     centre_offset.y = 0.0f;
     if (plane_normal != NULL) {
-        t = move + centre_offset;
-        t = *plane_normal * (t.x * plane_normal->x + t.y * plane_normal->y + t.z * plane_normal->z);
-        move = t - centre_offset;
+        vector3 t = delta_v + centre_offset;
+        t = *plane_normal * t.dot(*plane_normal);
+        delta_v = t - centre_offset;
     }
-    result = 0;
-    if (find_overlap(&move, unused, true))
-        result = -3;
-    vector3 old_pos = pos;
-    if (result == 0 && (!move.is_zero() || (info->flags & 4))) {
-        clip_move_to_navmesh(&move);
-        layer = pf_trace_edge_crossings(&pos, layer, move + pos);
-        pos += move;
+    ret = 0;
+    if (find_overlap(&delta_v, unused, true))
+        ret = -3;
+    vector3 from = pos;
+    if (ret == 0 && (!delta_v.is_zero() || (info->flags & 4))) {
+        clip_move_to_navmesh(&delta_v);
+        layer = pf_trace_edge_crossings(&pos, layer, pos + delta_v);
+        pos += delta_v;
     }
-    len = 0.0f;
-    if (!move.is_zero()) {
-        velocity = move / frametime;
-        len = move.len();
+    mdist = 0.0f;
+    if (!delta_v.is_zero()) {
+        velocity = delta_v / frametime;
+        mdist = delta_v.len();
     } else {
         velocity.zero();
     }
     if (flags & CF_SUMMONLIKE)
-        result = -4;
-    snap = false;
-    if (len > 0.01f) {
+        ret = -4;
+    reground = false;
+    if (mdist > 0.01f) {
         if ((character_is_locally_controlled(this) && (obj_flags & 2)) || (ai.flags & 8))
-            snap = true;
+            reground = true;
     } else if (!(obj_flags & 8) && (obj_flags & 2)) {
-        snap = true;
+        reground = true;
     }
-    if (snap == 1)
+    if (reground == 1)
         find_ground();
     update_regen_and_status();
     frametime = 0.0f;
-    return result;
+    return ret;
 }
 
 // 0x45ccb0  Confidence: exact. cdecl (the character is the argument). Characters flagged 0x40000 or
@@ -3424,22 +3429,22 @@ void character_update_render_flag(Character *c)
         c->obj_flags |= 4;
 }
 
-// 0x45cd00 living_entity_move_frame  Confidence: likely. Frame: move -0xc, left -0x1c, frac -0x20, m
-// -0x44, da -0x48, da2 -0x4c, m2 -0x70, fx -0x74, len -0x160, this -0x164. The frame of a dying or dead
+// 0x45cd00 living_entity_move_frame  Confidence: exact (VC6 byte match, m-1022 w3 D25501: the locals in
+// their blocks, which come after the function scope's in the frame and give the binary's inline
+// expansions of the two orient = m * orient; an unused delta in the binary's empty slot; `pos + move`
+// (the argument pointer stored first); the length tested without a local, its temporary is the
+// binary's -0x160). Frame: move -0xc, delta -0x18 (unused), left -0x1c, frac -0x20, m -0x44, step
+// -0x48, step2 -0x4c, m2 -0x70, fx -0x74, this -0x164. The frame of a dying or dead
 // character: the corpse leans towards update_head_look's angle over the death animation; once the
 // animation is over (and CF 0x8000), its effect or the render flag decides whether it stays visible;
 // otherwise the death animation's root motion moves it on the navigation mesh.
 void Character::move_frame()
 {
-    vector3 move;
+    // D25501: the locals in the blocks that use them; frame order by VC6's name hash (D25200), so the names
+    // are chosen for the binary's slots; delta is unused (the binary's -0x18).
     float left;
-    float frac;
-    matrix m;
-    float da;
-    float da2;
-    matrix m2;
-    obj *fx;
-    float len;
+    vector3 delta;
+    vector3 move;
 
     left = 0.0f;
     if (death_move != NULL)
@@ -3448,22 +3453,30 @@ void Character::move_frame()
     process_anim(reported_frametime);
     if (instance != NULL && death_move != NULL) {
         if (left > 0.0001f) {
+            float step;
+            matrix m;
+            float frac;
+
             frac = (instance->get_anim_length(death_move->anim) - left) * move_turn_angle
                  / instance->get_anim_length(death_move->anim);
-            da = frac - move_turn_applied;
+            step = frac - move_turn_applied;
             move_turn_applied = frac;
-            m.set_from_axis_angle(orient.rvec, da);
+            m.set_from_axis_angle(orient.rvec, step);
             orient = m * orient;
         } else if (move_turn_applied != move_turn_angle) {
-            da2 = move_turn_angle - move_turn_applied;
+            matrix m2;
+            float step2;
+
+            step2 = move_turn_angle - move_turn_applied;
             move_turn_applied = move_turn_angle;
-            m2.set_from_axis_angle(orient.rvec, da2);
+            m2.set_from_axis_angle(orient.rvec, step2);
             orient = m2 * orient;
         }
     }
     if ((flags & 0x8000) && left < 0.0001f) {
         if (move_fx != -1) {
-            fx = obj_from_handle(move_fx);
+            obj *fx = obj_from_handle(move_fx);
+
             if (fx == NULL || ((effect_object *)fx)->instance->get_time_left() < 0.0001f) {
                 character_update_render_flag(this);
             } else {
@@ -3490,7 +3503,7 @@ void Character::move_frame()
     move.unrotate(orient);
     if (left > 0.0001f) {
         clip_move_to_navmesh(&move);
-        layer = pf_trace_edge_crossings(&pos, layer, move + pos);
+        layer = pf_trace_edge_crossings(&pos, layer, pos + move);
     } else {
         if (flags & 0x40000) {
             switch (info->species) {
@@ -3504,8 +3517,7 @@ void Character::move_frame()
         move.zero();
     }
     pos += move;
-    len = move.len();
-    if (len > 0.1f)
+    if (move.len() > 0.1f)
         find_ground();
 }
 
@@ -3742,11 +3754,25 @@ void Character::play_flinch(int variant)
     else                                                                                              \
         fx_attach_to_character(spell_get_hit_effect(spell), handle, -1, -1, 0, 1)
 
-// 0x45dea0 living_entity_get_hit_by_spell  Confidence: likely for the flow (byte-indexed jump table
-// at 0x460115 over the 0x6c spells, bodies in the code's order), unsure for the frame of the many case
-// locals. Frame: die -4, flinch -8, chance -0xc, dist -0x10, count -0x14, src -0x18, p -0x1c, magic
-// -0x20, amount -0x24, retaliate -0x28, ms -0x2c, show_fx -0x30, status -0x34, use_resist -0x38, level
-// -0x3c, resist -0x40, c -0x44, this -0x1a0.
+/// D25504: by-value clamp helpers: their parameter b is the inline expansion's temporary (the binary's
+// -0x198 / -0x19c after the other temporaries), x and a bind to the caller's float directly.
+static inline void ghs_assign_max(float &x, const float &a, float b)
+{
+    if (a > b) x = a; else x = b;
+}
+static inline void ghs_assign_min(float &x, const float &a, float b)
+{
+    if (a < b) x = a; else x = b;
+}
+
+// 0x45dea0 living_entity_get_hit_by_spell  Confidence: exact (VC6 byte match, m-1022 w3 D25504: names
+// for the hash order of the function scope and of each case block; preloaded an int; the source-type 6
+// chain factor in each branch; the curse arrays declared after the two stores; the stun durations and
+// the 0x21 duration in block locals; the clamp helpers above; the AP-gain store in its test; the jade
+// distance from the source; a break in the first 0x18 branch). Byte-indexed jump table at 0x460115 over
+// the 0x6c spells, bodies in the code's order. Frame: die -4, wince -8, hit_chance -0xc, dist -0x10,
+// count1 -0x14, src_n -0x18, player -0x1c, mag -0x20, amount -0x24, retaliate -0x28, millis -0x2c,
+// play_fx -0x30, status -0x34, use_resist -0x38, lvl -0x3c, resistance -0x40, who -0x44, this -0x1a0.
 // The spell's level comes from the source: the caster's level (0, 8), its special / reflex ability
 // argument (1, 2), the item's triggered / charge effect value (3-5), a combat self-cast (6: a third,
 // quarter or half of the level, times 1 + 0.15 per chain hit) or 100 (7). A target resists with chance
@@ -3755,35 +3781,36 @@ void Character::play_flinch(int variant)
 // and 0x66, 0x68, 0x6a, 0x6b, 0x69 on non-party targets, 0xc / 0x54 / 0x57 / 0x65: dead stores, NOTES.md).
 // Nothing happens to the dead (except resurrection) or once the whole party is dead.
 void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *orient, int source_type,
-                                 ItemType *item, float power, bool preloaded)
+                                 ItemType *item, float power, int preloaded)
 {
-    int die;
-    int flinch;
-    float chance;
-    float dist;
-    int count;
-    Character *src;
-    Player *p;
-    float magic;
-    float amount;
-    bool retaliate;
-    int ms;
-    bool show_fx;
-    int status;
+    // D25504: the names are chosen for the binary's frame order (VC6's name hash, D25200).
+    Character *who;
+    float resistance;
+    int lvl;
     bool use_resist;
-    int level;
-    float resist;
-    Character *c;
+    int status;
+    bool play_fx;
+    int millis;
+    bool retaliate;
+    float amount;
+    float mag;
+    Player *player;
+    Character *src_n;
+    int count1;
+    float dist;
+    float hit_chance;
+    int wince;
+    int die;
 
-    flinch = 0;
+    wince = 0;
     if (((flags & CF_DEAD) || hp <= 0.0f) && spell != 5 && spell != 3 && spell != 0x69)
         return;
-    for (p = party_list.next; p != &party_list; p = p->next) {
-        c = living_from_handle(p->handle);
-        if (c != NULL && !(c->flags & CF_DEAD))
+    for (player = party_list.next; player != &party_list; player = player->next) {
+        who = living_from_handle(player->handle);
+        if (who != NULL && !(who->flags & CF_DEAD))
             break;
     }
-    if (p == &party_list)
+    if (player == &party_list)
         return;
     if (serpent_part_on_hit(this))
         return;
@@ -3797,54 +3824,57 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
             fx_attach_to_character(spells[7].hit_effect, handle, -1, -1, 0, 1);
         return;
     }
-    show_fx = true;
+    play_fx = true;
     retaliate = false;
     use_resist = true;
-    src = living_from_handle(source);
-    if (src == NULL)
+    src_n = living_from_handle(source);
+    if (src_n == NULL)
         return;
-    if ((spells[spell].flags & SPELL_OFFENSIVE) && type == 7 && src->get_team() != 0)
+    if ((spells[spell].flags & SPELL_OFFENSIVE) && type == 7 && src_n->get_team() != 0)
         combat_mode_set(1);
     if (spells[spell].distance > 0.0f) {
-        dist = distance(&this->pos, &src->pos);
+        dist = distance(&this->pos, &src_n->pos);
         if (dist > spells[spell].distance)
             return;
     }
     switch (source_type) {
     case 0:
     case 8:
-        level = src->level;
+        lvl = src_n->level;
         break;
     case 6:
-        if (spell == SPELL_HEAL)
-            level = (int)(src->level / 3.0f);
-        else if (spell == SPELL_VITALIZE)
-            level = (int)(src->level / 4.0f);
-        else
-            level = (int)(src->level / 2.0f);
-        level = (int)(level * (src->combat.chain_count * 0.15f + 1.0f));
+        if (spell == SPELL_HEAL) {
+            lvl = (int)(src_n->level / 3.0f);
+            lvl = (int)(lvl * (src_n->combat.chain_count * 0.15f + 1.0f));
+        } else if (spell == SPELL_VITALIZE) {
+            lvl = (int)(src_n->level / 4.0f);
+            lvl = (int)(lvl * (src_n->combat.chain_count * 0.15f + 1.0f));
+        } else {
+            lvl = (int)(src_n->level / 2.0f);
+            lvl = (int)(lvl * (src_n->combat.chain_count * 0.15f + 1.0f));
+        }
         break;
     case 7:
-        level = 100;
+        lvl = 100;
         break;
     case 1:
-        level = src->info->special_arg;
-        if (level <= 0)
-            level = src->level;
+        lvl = src_n->info->special_arg;
+        if (lvl <= 0)
+            lvl = src_n->level;
         break;
     case 2:
-        level = src->info->reflex_arg;
-        if (level == 0)
-            level = src->level;
+        lvl = src_n->info->reflex_arg;
+        if (lvl == 0)
+            lvl = src_n->level;
         break;
     case 3:
         printf("Item special\n");
         if (item != NULL && item->weapon_triggered_effect != NULL) {
             printf("Item special item found!\n");
-            level = item->weapon_triggered_effect->value;
-            if (level == 0) {
+            lvl = item->weapon_triggered_effect->value;
+            if (lvl == 0) {
                 printf("Item special failure 1!\n");
-                level = src->level;
+                lvl = src_n->level;
             }
         } else {
             printf("Item special failure 2!\n");
@@ -3853,9 +3883,9 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
         break;
     case 4:
         if (item != NULL && item->armour_triggered_effect != NULL) {
-            level = item->armour_triggered_effect->value;
-            if (level == 0)
-                level = src->level;
+            lvl = item->armour_triggered_effect->value;
+            if (lvl == 0)
+                lvl = src_n->level;
         } else {
             return;
         }
@@ -3863,9 +3893,9 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
         break;
     case 5:
         if (item != NULL && item->charge_effect != NULL) {
-            level = item->charge_effect->_unk0c;
-            if (level <= 0)
-                level = src->level;
+            lvl = item->charge_effect->_unk0c;
+            if (lvl <= 0)
+                lvl = src_n->level;
         } else {
             return;
         }
@@ -3874,36 +3904,36 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
         return;
     }
     status = damage_type_to_status(spell);
-    if (src->info->species == 0xb6)
-        chance = src->level * 2.0f / 100.0f;
+    if (src_n->info->species == 0xb6)
+        hit_chance = src_n->level * 2.0f / 100.0f;
     else if (spell == 0x50 && ghost_stage == 3)
-        chance = 0.5f;
+        hit_chance = 0.5f;
     else if (source_type == 8)
-        chance = 0.3f;
+        hit_chance = 0.3f;
     else
-        chance = spells[spell].hit_chance;
-    magic = get_resistance(3);
-    resist = (0.5f + magic) - level * 0.04f;
-    resist = 1.0f - (1.0f - resist) * chance;
-    count = 0;
+        hit_chance = spells[spell].hit_chance;
+    mag = get_resistance(3);
+    resistance = (0.5f + mag) - lvl * 0.04f;
+    resistance = 1.0f - (1.0f - resistance) * hit_chance;
+    count1 = 0;
     die = 0;
     amount = 0.0f;
     switch (spell) {
     case 0xf:
         retaliate = true;
-        count = level;
+        count1 = lvl;
         if (source_type == 0)
-            count = (int)(count * (src->get_skill(SKILL_ENERGY) + 1.0f));
+            count1 = (int)(count1 * (src_n->get_skill(SKILL_ENERGY) + 1.0f));
         die = -spells[spell].die;
-        flinch = 0x82;
+        wince = 0x82;
         break;
     case 0:
     case 4:
-        count = level;
+        count1 = lvl;
         die = spells[spell].die;
         break;
     case 1:
-        if (level >= 100) {
+        if (lvl >= 100) {
             status_effect_cure(STATUS_BLIND, true, false);
             status_effect_cure(STATUS_SILENCE, true, false);
             status_effect_cure(STATUS_CURSE, true, false);
@@ -3926,36 +3956,37 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
         }
         break;
     case 0x49:
-        if (src != NULL) {
+        if (src_n != NULL) {
             int paralyze_ms;
 
             paralyze_ms = 0;
-            if (src->info->species == 0x59)
+            if (src_n->info->species == 0x59)
                 paralyze_ms = 3000;
-            else if (src->info->species == 0x57)
+            else if (src_n->info->species == 0x57)
                 paralyze_ms = 8000;
             else
                 paralyze_ms = 5000;
-            status_effect_add(STATUS_PARALYZE, paralyze_ms, spell, 0.0f, src->handle, false);
+            status_effect_add(STATUS_PARALYZE, paralyze_ms, spell, 0.0f, src_n->handle, false);
         }
         return;
     case 2: case 6: case 7: case 8: case 0x10: case 0x13: case 0x15: case 0x16: case 0x17: case 0x22:
     case 0x24: case 0x25: case 0x3c: case 0x3d: case 0x43: case 0x50: case 0x55: case 0x56: case 0x58:
     case 0x59: case 0x5a: {
+        // D25504: the block locals in the binary's slots (VC6's name hash, D25200)
         float roll;
-        float mod;
         int duration;
+        float mod;
 
-        show_fx = false;
-        if (spell == 0x17 && !(src->flags & 0x800)) {
+        play_fx = false;
+        if (spell == 0x17 && !(src_n->flags & 0x800)) {
             vector3 dir;
-            matrix m;
+            matrix mat;
             int fx;
             effect_object *fx_obj;
 
-            dir = src->pos - this->pos;
+            dir = src_n->pos - this->pos;
             dir.normalize();
-            m.set_from_forward(dir);
+            mat.set_from_forward(dir);
             if (preloaded) {
                 fx = fx_attach_to_character(spells[0x17].hit_effect, handle, -1, -1, 0, 1);
             } else {
@@ -3964,96 +3995,96 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
             }
             fx_obj = (effect_object *)obj_from_handle_b(fx);
             if (fx_obj != NULL)
-                fx_obj->orient = m;
+                fx_obj->orient = mat;
         }
         if (!No_resist && (spells[spell].flags & SPELL_OFFENSIVE)) {
             roll = frand();
-            if (roll <= resist) {
-                if (spells[spell].hit_effect != NULL && spell != 0x17 && spell != 0x24 && !(src->flags & 0x800)) {
+            if (roll <= resistance) {
+                if (spells[spell].hit_effect != NULL && spell != 0x17 && spell != 0x24 && !(src_n->flags & 0x800)) {
                     ATTACH_SPELL_HIT_FX(spell, preloaded);
                 }
                 break;
             }
         }
-        if (src->info->species == 0xc3)
-            duration = (int)(src->level * 3.0f * 1000.0f);
-        else if (src->info->species == 0xb6)
-            duration = (int)(src->level * 4.0f * 1000.0f);
+        if (src_n->info->species == 0xc3)
+            duration = (int)(src_n->level * 3.0f * 1000.0f);
+        else if (src_n->info->species == 0xb6)
+            duration = (int)(src_n->level * 4.0f * 1000.0f);
         else
-            duration = spell_get_duration_ms(spell, level);
-        mod = status_effect_modifier(status, level);
+            duration = spell_get_duration_ms(spell, lvl);
+        mod = status_effect_modifier(status, lvl);
         if (spell_target_value(this, spell) > 0.01f) {
-            if (source_type == 0 && src->ai.mode_target != spell)
-                status_effect_add(status, duration, -1, mod, src->handle, source_type == 7);
+            if (source_type == 0 && src_n->ai.mode_target != spell)
+                status_effect_add(status, duration, -1, mod, src_n->handle, source_type == 7);
             else if (preloaded)
-                status_effect_add(status, duration, spell, mod, src->handle, source_type == 7);
+                status_effect_add(status, duration, spell, mod, src_n->handle, source_type == 7);
             else
-                status_effect_add(status, duration, -1, mod, src->handle, source_type == 7);
+                status_effect_add(status, duration, -1, mod, src_n->handle, source_type == 7);
             if ((spells[spell].flags & SPELL_OFFENSIVE) && spell != 0x24)
-                flinch = 0x81;
+                wince = 0x81;
         }
         break;
     }
     case 0x67: {
-        int i;
-        bool any;
-        float roll;
-        float mod;
-        int sub_spells[5] = { 0x3d, 7, 0x3c, 8, 0x17 };
-        int sub_spell;
-        int duration;
-        int statuses[5] = { STATUS_PARALYZE, STATUS_BLIND, STATUS_POISON, STATUS_SILENCE, STATUS_CURSE };
+        int length;
+        int sub;
+        float factor;
+        float r;
+        bool some;
+        int idx;
 
-        show_fx = false;
-        any = false;
-        for (i = 0; i < 5; i++) {
-            sub_spell = sub_spells[i];
+        play_fx = false;
+        some = false;
+        int subs[5] = { 0x3d, 7, 0x3c, 8, 0x17 };
+        int status_list[5] = { STATUS_PARALYZE, STATUS_BLIND, STATUS_POISON, STATUS_SILENCE, STATUS_CURSE };
+        for (idx = 0; idx < 5; idx++) {
+            sub = subs[idx];
             if (!No_resist && (spells[spell].flags & SPELL_OFFENSIVE)) {
-                roll = frand();
-                if (roll < resist)
+                r = frand();
+                if (r < resistance)
                     continue;
             }
-            duration = spell_get_duration_ms(sub_spell, level);
-            status = statuses[i];
-            mod = status_effect_modifier(status, level);
-            if (spell_target_value(this, sub_spell) > 0.01f) {
-                any = true;
+            length = spell_get_duration_ms(sub, lvl);
+            status = status_list[idx];
+            factor = status_effect_modifier(status, lvl);
+            if (spell_target_value(this, sub) > 0.01f) {
+                some = true;
                 if (preloaded)
-                    status_effect_add(status, duration, sub_spell, mod, src->handle, false);
+                    status_effect_add(status, length, sub, factor, src_n->handle, false);
                 else
-                    status_effect_add(status, duration, -1, mod, src->handle, false);
+                    status_effect_add(status, length, -1, factor, src_n->handle, false);
             }
         }
-        if (any == 1)
-            flinch = 0x81;
+        if (some == 1)
+            wince = 0x81;
         break;
     }
     case 0x21:
         die = -spells[spell].die;
-        count = level;
+        count1 = lvl;
         break;
     case 0xb:
-        ms = spell_get_duration_ms(0xb, level);
-        show_fx = false;
+        millis = spell_get_duration_ms(0xb, lvl);
+        play_fx = false;
         if (preloaded) {
-            if ((game_flags & GF_SINGLE_PLAYER) && level >= 50)
-                status_effect_add(status, ms, spell, 1.0f, src->handle, false);
+            if ((game_flags & GF_SINGLE_PLAYER) && lvl >= 50)
+                status_effect_add(status, millis, spell, 1.0f, src_n->handle, false);
             else
-                status_effect_add(status, ms, spell, 0.0f, src->handle, false);
+                status_effect_add(status, millis, spell, 0.0f, src_n->handle, false);
         } else {
-            if ((game_flags & GF_SINGLE_PLAYER) && level >= 50)
-                status_effect_add(status, ms, -1, 1.0f, src->handle, false);
+            if ((game_flags & GF_SINGLE_PLAYER) && lvl >= 50)
+                status_effect_add(status, millis, -1, 1.0f, src_n->handle, false);
             else
-                status_effect_add(status, ms, -1, 0.0f, src->handle, false);
+                status_effect_add(status, millis, -1, 0.0f, src_n->handle, false);
         }
         break;
     case 0xe:
-        ms = spell_get_duration_ms(0xe, level);
-        show_fx = false;
+        millis = spell_get_duration_ms(0xe, lvl);
+        play_fx = false;
         if (preloaded)
-            status_effect_add(status, ms, spell, 0.0f, src->handle, false);
+            status_effect_add(status, millis, spell, 0.0f, src_n->handle, false);
         else
-            status_effect_add(status, ms, -1, 0.0f, src->handle, false);
+            status_effect_add(status, millis, -1, 0.0f, src_n->handle, false);
         break;
     case 0x19:
     case 0x1a:
@@ -4063,20 +4094,20 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
         int fx;
 
         retaliate = true;
-        show_fx = false;
-        count = level;
+        play_fx = false;
+        count1 = lvl;
         if (source_type == 0) {
             if (spell == SPELL_FIRE_ARROW)
-                count = (int)(count * (src->get_skill(SKILL_FIRE) + 1.0f));
+                count1 = (int)(count1 * (src_n->get_skill(SKILL_FIRE) + 1.0f));
             else if (spell == 0x20)
-                count = (int)(count * (src->get_skill(SKILL_ICE) + 1.0f));
+                count1 = (int)(count1 * (src_n->get_skill(SKILL_ICE) + 1.0f));
         }
         die = -spells[spell].die;
         combat.flinch_if_idle(2);
         if (preloaded) {
             fx = fx_add_effect(spells[spell].hit_effect, pos, orient, 1);
             if (spell == SPELL_FIREBALL && fx != -1)
-                spell_effect_obj_set_timer(src->handle, fx, pos, layer, &this->orient);
+                spell_effect_obj_set_timer(src_n->handle, fx, pos, layer, &this->orient);
         } else {
             printf("Trying to get_hit_by_spell by an invalid method!!\n");
             fx_add_effect(spell_get_hit_effect(spell), pos, orient, 1);
@@ -4088,24 +4119,25 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
             int fx;
 
             retaliate = true;
-            show_fx = false;
-            count = level;
+            play_fx = false;
+            count1 = lvl;
             die = -spells[spell].die;
             combat.flinch_if_idle(2);
             if (preloaded) {
                 fx = fx_add_effect(spells[spell].hit_effect, pos, orient, 1);
                 if (spell == SPELL_FIREBALL && fx != -1)
-                    spell_effect_obj_set_timer(src->handle, fx, pos, layer, &this->orient);
+                    spell_effect_obj_set_timer(src_n->handle, fx, pos, layer, &this->orient);
             } else {
                 printf("Trying to get_hit_by_spell by an invalid method!!\n");
                 fx_add_effect(spell_get_hit_effect(spell), pos, orient, 1);
             }
+            break;      // D25504: the binary jumps straight to the switch end here
         } else {
             float dmg;
             int fx;
 
             retaliate = true;
-            show_fx = false;
+            play_fx = false;
             use_resist = false;
             combat.flinch_if_idle(2);
             if (preloaded)
@@ -4121,19 +4153,21 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
         int fx;
 
         retaliate = true;
-        show_fx = false;
-        count = 3;
+        play_fx = false;
+        count1 = 3;
         die = -spells[spell].die;
         combat.flinch_if_idle(2);
         if (preloaded) {
             fx = fx_add_effect(spells[spell].hit_effect, pos, orient, 1);
             if (fx != -1) {
-                spell_effect_obj_set_timer(src->handle, fx, pos, layer, &this->orient);
-                ai.knock_down(random_stun_duration());
+                spell_effect_obj_set_timer(src_n->handle, fx, pos, layer, &this->orient);
+                int stun = random_stun_duration();
+                ai.knock_down(stun);
             }
         } else {
             fx_add_effect(spell_get_hit_effect(spell), pos, orient, 1);
-            ai.knock_down(random_stun_duration());
+            int stun = random_stun_duration();
+            ai.knock_down(stun);
         }
         break;
     }
@@ -4141,14 +4175,14 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
         int fx;
 
         retaliate = true;
-        show_fx = false;
-        count = 3;
+        play_fx = false;
+        count1 = 3;
         die = -spells[spell].die;
         combat.flinch_if_idle(2);
         if (preloaded) {
             fx = fx_add_effect(spells[spell].hit_effect, pos, orient, 1);
             if (fx != -1)
-                spell_effect_obj_set_timer(src->handle, fx, pos, layer, &this->orient);
+                spell_effect_obj_set_timer(src_n->handle, fx, pos, layer, &this->orient);
         } else {
             fx_add_effect(spell_get_hit_effect(spell), pos, orient, 1);
         }
@@ -4156,29 +4190,29 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
     }
     case 0x39:
         retaliate = true;
-        show_fx = false;
-        count = 3;
+        play_fx = false;
+        count1 = 3;
         die = -spells[spell].die;
         combat.flinch_if_idle(2);
         break;
     case 0x40:
     case 0x41:
     case 0x42:
-        amount = (float)-level;
-        count = level;
+        amount = (float)-lvl;
+        count1 = lvl;
         die = 0;
-        show_fx = false;
+        play_fx = false;
         break;
     case 0x3e: {
         float roll;
 
-        show_fx = false;
+        play_fx = false;
         roll = frand();
-        if (!No_resist && roll < resist)
+        if (!No_resist && roll < resistance)
             break;
-        amount = power * 0.05f * level;
+        amount = power * 0.05f * lvl;
 #ifdef FIXED_BUILD
-        // FIXED_BUILD: G100 LeechDrain. The roll below (dice count 0) would overwrite the amount with 0:
+        // FIXED_BUILD: G100 LeechDrain. The roll below (dice count1 0) would overwrite the amount with 0:
         // take it from this character and give it to the caster instead, then skip the roll and add_hp.
         if (amount > 0.0f) {
             Character *drainer;
@@ -4199,29 +4233,29 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
     case 0x3f: {
         float roll;
 
-        show_fx = false;
+        play_fx = false;
         roll = frand();
-        if (!No_resist && roll < resist)
+        if (!No_resist && roll < resistance)
             break;
-        add_ap(-power * 0.05f * level);
+        add_ap(-power * 0.05f * lvl);
         break;
     }
     case 0x44: {
         float roll;
 
-        show_fx = false;
+        play_fx = false;
         roll = frand();
-        if (!No_resist && roll < resist)
+        if (!No_resist && roll < resistance)
             break;
-        add_ap((float)-level);
+        add_ap((float)-lvl);
         break;
     }
     case 0x3a: {
         float roll;
 
-        show_fx = false;
+        play_fx = false;
         roll = frand();
-        if (!No_resist && roll < resist)
+        if (!No_resist && roll < resistance)
             break;
         ai.disable_2f();
         break;
@@ -4229,9 +4263,9 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
     case 0x3b: {
         float roll;
 
-        show_fx = false;
+        play_fx = false;
         roll = frand();
-        if (!No_resist && roll < resist)
+        if (!No_resist && roll < resistance)
             break;
         ai.knock_down(rand_int_range(3000, 7000));
         break;
@@ -4239,9 +4273,9 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
     case 0x4c: {
         float roll;
 
-        show_fx = false;
+        play_fx = false;
         roll = frand();
-        if (!No_resist && roll < resist)
+        if (!No_resist && roll < resistance)
             break;
         if (preloaded)
             status_effect_add(STATUS_PARALYZE, 180000, 0x4c, 0.0f, -1, false);
@@ -4253,37 +4287,39 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
     case 0x1e:
     case 0x4f:
     case 0x64:
-        count = level;
-        if (src->info->species == 0x58)
+        count1 = lvl;
+        if (src_n->info->species == 0x58)
             die = -10;
         else
             die = -spells[spell].die;
-        flinch = 0x82;
-        show_fx = false;
+        wince = 0x82;
+        play_fx = false;
         retaliate = true;
         break;
     case 0x11: {
         float roll;
+        int leech;
         float gain;
-        int drained;
 
-        show_fx = false;
+        play_fx = false;
         retaliate = true;
         roll = frand();
-        if (!No_resist && roll < resist)
+        if (!No_resist && roll < resistance)
             break;
         roll = frand();
         if (roll < 0.05f) {
-            drained = ap;
-            ASSIGN_MAX(drained, drained, 0);
+            leech = ap;
+            ASSIGN_MAX(leech, leech, 0);
         } else {
-            drained = (int)(ap * (level * 0.01f) + 0.5f);
-            ASSIGN_MAX(drained, drained, 0);
+            leech = (int)(ap * (lvl * 0.01f) + 0.5f);
+            ASSIGN_MAX(leech, leech, 0);
         }
-        add_ap((float)-drained);
-        gain = (float)drained;
-        ASSIGN_MIN(gain, gain, 20.0f);
-        src->add_ap(gain);
+        add_ap((float)-leech);
+        if ((gain = (float)leech) < 20.0f)    // D25504: ASSIGN_MIN with the store in its test (fst)
+            gain = gain;
+        else
+            gain = 20.0f;
+        src_n->add_ap(gain);
         play_flinch(0x82);
         break;
     }
@@ -4292,37 +4328,33 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
     case 0x69:
         if (spell != 0x69 || type == 7) {
             float heal;
-            float cur;
-            float max_hp;
 
-            show_fx = false;
+            play_fx = false;
             resurrect();
             if (spell == 5) {
                 hp = (float)get_max_stat(0);
             } else if (spell == 0x69) {
-                heal = src->level * 2.0f;
-                cur = hp;
-                ASSIGN_MAX(heal, heal, cur);
-                max_hp = (float)get_max_stat(0);
-                ASSIGN_MIN(heal, heal, max_hp);
+                heal = src_n->level * 2.0f;
+                ghs_assign_max(heal, heal, hp);
+                ghs_assign_min(heal, heal, (float)get_max_stat(0));
                 hp = heal;
             } else {
                 hp = 1.0f;
             }
         } else {
-            amount = src->level * -7.0f;
-            count = src->level * 7;
+            amount = src_n->level * -7.0f;
+            count1 = src_n->level * 7;
             die = 0;
-            flinch = 0x82;
+            wince = 0x82;
         }
         break;
     case 0x68:
         retaliate = true;
-        show_fx = false;
-        amount = src->level * -20.0f;
-        count = src->level * 20;
+        play_fx = false;
+        amount = src_n->level * -20.0f;
+        count1 = src_n->level * 20;
         die = 0;
-        flinch = 0x82;
+        wince = 0x82;
         fx_add_effect(spells[spell].hit_effect, pos, orient, 1);
         break;
     case 0x6a:
@@ -4330,14 +4362,14 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
         get_hit_by_spell(7, source, pos, orient, source_type, item, power, false);
         get_hit_by_spell(8, source, pos, orient, source_type, item, power, false);
         get_hit_by_spell(0x3c, source, pos, orient, source_type, item, power, false);
-        amount = src->level * -10.0f;
-        count = src->level * 10;
+        amount = src_n->level * -10.0f;
+        count1 = src_n->level * 10;
         die = 0;
-        flinch = 0x82;
-        show_fx = false;
+        wince = 0x82;
+        play_fx = false;
         if (has_status(STATUS_CURSE) || has_status(STATUS_BLIND) || has_status(STATUS_SILENCE)
             || has_status(STATUS_POISON))
-            show_fx = true;
+            play_fx = true;
         break;
     case 0x6b:
         if (type == 7) {
@@ -4345,29 +4377,29 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
             get_hit_by_spell(0x13, source, pos, orient, source_type, item, power, false);
             get_hit_by_spell(2, source, pos, orient, source_type, item, power, false);
             get_hit_by_spell(0x10, source, pos, orient, source_type, item, power, false);
-            show_fx = false;
+            play_fx = false;
             if (has_status(STATUS_FAITH) || has_status(STATUS_BLESS) || has_status(STATUS_REGEN)
                 || has_status(STATUS_POWER))
-                show_fx = true;
+                play_fx = true;
         } else {
-            amount = src->level * -8.0f;
-            count = src->level * 8;
+            amount = src_n->level * -8.0f;
+            count1 = src_n->level * 8;
             die = 0;
-            show_fx = false;
-            flinch = 0x82;
+            play_fx = false;
+            wince = 0x82;
         }
         break;
     case 0x66: {
         float roll;
 
         retaliate = true;
-        show_fx = false;
+        play_fx = false;
         roll = frand();
-        if (!No_resist && roll < resist)
+        if (!No_resist && roll < resistance)
             break;
-        if (src != NULL && distance(&this->pos, &src->pos) < 10.0f)
-            amount = (float)-level;
-        count = level;
+        if (src_n != NULL && distance(&src_n->pos, &this->pos) < 10.0f)
+            amount = (float)-lvl;
+        count1 = lvl;
         die = -spells[spell].die;
         break;
     }
@@ -4380,21 +4412,21 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
         item_info *it;
 
         retaliate = true;
-        show_fx = false;
+        play_fx = false;
         if (spell == 0x65)
-            show_fx = true;
+            play_fx = true;
         if (type == 9 || (flags & 0x40))
             break;
         roll = frand();
-        if (!No_resist && roll < resist) {
+        if (!No_resist && roll < resistance) {
             if (spell == 0x65)
                 get_hit_by_spell(0x67, source, NULL, NULL, 0, NULL, 0.0f, false);
             break;
         }
         if (spell == 0x54)
-            show_fx = true;
+            play_fx = true;
         amount = -hp;
-        count = (int)ceil(hp);
+        count1 = (int)ceil(hp);
         die = 0;
         use_resist = false;
         if (type != 7) {
@@ -4405,31 +4437,31 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
                 }
             }
         }
-        flinch = 0x82;
+        wince = 0x82;
         break;
     }
     case 0xd: {
         float roll;
 
         roll = frand();
-        if (!No_resist && roll < resist)
+        if (!No_resist && roll < resistance)
             break;
-        if (this->level > 1) {   // the target's level, not the local spell level (D9816)
+        if (this->level > 1) {   // the target's lvl, not the local spell lvl (D9816)
             this->level -= 1;
             scale_stats_to_level();
         }
         break;
     }
     }
-    amount = spell_roll_amount(this, spell, count, die, use_resist ? magic : 0.0f);
+    amount = spell_roll_amount(this, spell, count1, die, use_resist ? mag : 0.0f);
     add_hp(amount, source, 0, false);
 #ifdef FIXED_BUILD
     // part of FIXED_BUILD G100: the leech case resumes here, after the roll and add_hp.
 leech_drained:
 #endif
-    if (amount < 0.0f && flinch != 0)
-        play_flinch(flinch);
-    if (show_fx == 1) {
+    if (amount < 0.0f && wince != 0)
+        play_flinch(wince);
+    if (play_fx == 1) {
         if (preloaded) {
             if (spells[spell].hit_effect != NULL)
                 fx_attach_to_character(spells[spell].hit_effect, handle, -1, -1, 0, 1);
@@ -4439,15 +4471,16 @@ leech_drained:
     }
     if (spell == 0x21) {
         float roll;
+        int duration;
 
         roll = frand();
-        if (No_resist || !(roll <= magic)) {
-            ms = spell_get_duration_ms(0x21, level);
-            show_fx = false;
+        if (No_resist || !(roll <= mag)) {
+            duration = spell_get_duration_ms(0x21, lvl);
+            play_fx = false;
             if (preloaded)
-                status_effect_add(status, ms, spell, 0.0f, src->handle, false);
+                status_effect_add(status, duration, spell, 0.0f, src_n->handle, false);
             else
-                status_effect_add(status, ms, -1, 0.0f, src->handle, false);
+                status_effect_add(status, duration, -1, 0.0f, src_n->handle, false);
             play_flinch(0x81);
         } else {
             combat.flinch_if_idle(2);
