@@ -11,10 +11,23 @@ nav_order: 6.475
 - the timing and start-up layers a modern PC needs (G1 the 2x speed, G2 the QPC frequency, G3 the uptime cutscene
   timer, C1 the no-sound crash) and a 1024x768 default without the launcher (5, see "Modern-PC layers" below).
 
-Each one is compiled and reviewed; **none has run in game yet.** Windows Smart App Control began blocking the
-SummonerFix DLL on this PC the same morning, and every in-game test goes through SummonerFix's agent mode. The tests
-to run are the reproductions in [Bugs in the original game](sum-exe/game-bugs.md); the workers' notes with the steps
-per fix are in `src/decomp/NOTES-fixed-2026-10-21.md`.
+Each one is compiled and reviewed. **First in-game run (2026-10-21 evening, after Smart App Control was turned off;
+the queued tests of `run-after-sac.ps1`):**
+- `Sum-fixed.exe` starts, loads saves and plays; SummonerFix loads and leaves out every patch the source already has
+  (the `.fixes` handshake: "fixed in this exe's source ... not patched" for the frame limiter, the cutscene timer,
+  the no-sound crash and C317).
+- **C317** (the Mist Elemental summoned as a cutscene starts): no crash, both on the original with SummonerFix's
+  patch and on `Sum-fixed.exe` with the source fix.
+- **Saves and memory** against the original, both with the fixes on (`link-savecheck`, Wolong2, WolongCaverns, sewer,
+  lenele2aa, three original runs): the differences are the known kinds (positions of characters that walk, timer
+  values a few milliseconds apart, values rolled from a clock-seeded random number). One looked new: six NPCs in
+  lenele2aa with base max AP 7 instead of 9. A bisect showed it is random too: a build from before the four
+  byte-match rounds gave 9 where that run's original gave 7.
+- **Screens** (`link-screencheck`: main menu, the prologue at 12 s, inventory, character): equal apart from 4 pixels
+  on the inventory screen, within what the original runs vary by elsewhere.
+
+The per-fix reproductions in [Bugs in the original game](sum-exe/game-bugs.md) (steps per fix in
+`src/decomp/NOTES-fixed-2026-10-21.md`) have not been run one by one yet.
 
 ## Modern-PC layers
 

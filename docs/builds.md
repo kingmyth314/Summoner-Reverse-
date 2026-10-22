@@ -120,5 +120,7 @@ Next:
    Still open: the display layer (scaling, mouse mapping, aspect, widescreen, brightness) and key bindings.
 5. Controller tier 1: done as a SummonerFix feature and tested by the user with a real controller (2026-10-21; see
    the SummonerFix docs). Still to do: the same code in the experimental build.
-6. Every in-game test above. Smart App Control was turned off on the test PC on 2026-10-21, so SummonerFix loads again
-   and these tests can run now (queue: `run-after-sac.ps1` in the test folder).
+6. Every in-game test above. Smart App Control was turned off on the test PC on 2026-10-21; the first queued run
+   (C317, the save, memory and screen checks of the fixed build) passed the same evening
+   ([Fixed build changes](fixed-build.md)). The per-fix reproductions are still to run.
+7. The experimental build: started 2026-10-21 ([Experimental build](experimental-build.md)).
