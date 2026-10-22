@@ -332,6 +332,11 @@ void mp_levelselect_update_kick_button()
 // not pressed; the level rows of the host only; ESC only while the chat box has no focus, so the ESC
 // switch sits in the else branch). The player rows advance by one line for every listed player but
 // mp_levelselect_draw_players only for type-3 players, so the hit rows can differ from the drawn ones.
+// D24603: the row positions written `top + row * font_h` (8966 strength-reduces them as the binary, the y
+// zeroed after the count test), rows as a ?: of the two loads, and the list / player rectangles read into
+// int locals before point_in_rect (the binary loads all three, then pushes); the player loop skips other
+// types with `continue`. 190 -> 126; left: font_h / row registers swapped (binary ESI / EDI), the list rows'
+// rectangle loads and the chat block's shared blink tail.
 int mp_levelselect_handle_click(int key)
 {
     int list;
@@ -386,22 +391,22 @@ int mp_levelselect_handle_click(int key)
 
     font_h = gr_get_font_height(-1);
     for (list = 0; list < 2; list++) {
-        int rows = mp_levelselect_list_count[list];
-        if (rows >= mp_levelselect_list_page[resolution_index][list])
-            rows = mp_levelselect_list_page[resolution_index][list];
+        int rows = mp_levelselect_list_count[list] < mp_levelselect_list_page[resolution_index][list]
+                       ? mp_levelselect_list_count[list] : mp_levelselect_list_page[resolution_index][list];
 
-        if (point_in_rect(game_mouse_x, game_mouse_y, mp_levelselect_list_pos[resolution_index][list][0],
-                          mp_levelselect_list_pos[resolution_index][list][1],
-                          mp_levelselect_list_width[resolution_index][list], rows * font_h)) {
+        int lx = mp_levelselect_list_pos[resolution_index][list][0];
+        int ly = mp_levelselect_list_pos[resolution_index][list][1];
+        int lw = mp_levelselect_list_width[resolution_index][list];
+        if (point_in_rect(game_mouse_x, game_mouse_y, lx, ly, lw, rows * font_h)) {
             mp_levelselect_drag_list = list;
             if (list == 1 && (game_flags & 2) && mp_local_player && (mp_local_player->flags & 1)) {
-                int row, y;
+                int row;
 
-                for (row = 0, y = 0; row < rows; row++, y += font_h) {
+                for (row = 0; row < rows; row++) {
                     if (mp_level_available_to_all(mp_levelselect_levels[mp_levelselect_scroll_pos[1] + row],
                                                   mp_game_difficulty)
                         && point_in_rect(game_mouse_x, game_mouse_y, mp_levelselect_list_pos[resolution_index][1][0],
-                                         mp_levelselect_list_pos[resolution_index][1][1] + y,
+                                         mp_levelselect_list_pos[resolution_index][1][1] + row * font_h,
                                          mp_levelselect_list_width[resolution_index][1], font_h)) {
                         mp_levelselect_hover_level = row;
                         if (mouse_was_double_clicked(0)) {
@@ -421,18 +426,21 @@ int mp_levelselect_handle_click(int key)
         }
     }
 
-    if (point_in_rect(game_mouse_x, game_mouse_y, mp_levelselect_players_pos[resolution_index][0],
-                      mp_levelselect_players_pos[resolution_index][1], mp_levelselect_players_width[resolution_index],
-                      font_h * 4)) {
+    int px = mp_levelselect_players_pos[resolution_index][0];
+    int py = mp_levelselect_players_pos[resolution_index][1];
+    int pw = mp_levelselect_players_width[resolution_index];
+    if (point_in_rect(game_mouse_x, game_mouse_y, px, py, pw, font_h * 4)) {
         mp_player *p;
-        int row, y;
+        int row;
 
-        for (p = MP_PLAYER_NEXT(&mp_player_list), row = 0, y = 0; p != &mp_player_list;
-             p = MP_PLAYER_NEXT(p), row++, y += font_h) {
-            if (MP_PLAYER_TYPE(p) == 3
-                && point_in_rect(game_mouse_x, game_mouse_y, mp_levelselect_players_pos[resolution_index][0],
-                                 mp_levelselect_players_pos[resolution_index][1] + y,
-                                 mp_levelselect_players_width[resolution_index], font_h)) {
+        for (p = MP_PLAYER_NEXT(&mp_player_list), row = 0; p != &mp_player_list;
+             p = MP_PLAYER_NEXT(p), row++) {
+            if (MP_PLAYER_TYPE(p) != 3)
+                continue;
+            int qx = mp_levelselect_players_pos[resolution_index][0];
+            int qy = mp_levelselect_players_pos[resolution_index][1] + row * font_h;
+            int qw = mp_levelselect_players_width[resolution_index];
+            if (point_in_rect(game_mouse_x, game_mouse_y, qx, qy, qw, font_h)) {
                 mp_levelselect_hover_player = row;
                 if (mouse_was_pressed(0)) {
                     strcpy(mp_levelselect_selected_player, MP_PLAYER_NAME(p));

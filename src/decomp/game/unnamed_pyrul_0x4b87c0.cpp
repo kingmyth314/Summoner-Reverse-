@@ -331,7 +331,8 @@ int ai_state::pyrul_choose_attack()
     attackers = count_attackers();
 
     if (pyrul_stage == 1) {
-        if (timer_up || !target) {
+        bool pick = timer_up || !target;   // D22606: through a bool (the retarget block goes after the pick)
+        if (pick) {
             handle = boss_target_list_pick(list, count, pyrul_threat_table, pyrul_target, false, 0);
             if (handle == -1)
                 return 0;
@@ -348,10 +349,13 @@ int ai_state::pyrul_choose_attack()
         index = boss_target_list_find(list, count, pyrul_target);
         if (index != -1 && (list[index].flags & 1))
             flagged = true;
+        int nw = 3;                 // D22606: the weight count as an if (mov eax, 3 / jne / mov eax, 2), before the weights
+        if (!flagged)
+            nw = 2;
         weights[0] = 0.4f;
         weights[1] = 0.4f;
         weights[2] = attackers * 0.1f;
-        switch (rand_weighted_index(weights, flagged ? 3 : 2)) {
+        switch (rand_weighted_index(weights, nw)) {
         case 2:
             pyrul_cur_move = pyrul_move_1_2;
             break;
@@ -364,7 +368,8 @@ int ai_state::pyrul_choose_attack()
             break;
         }
     } else if (pyrul_stage == 2) {
-        if (timer_up || !target) {
+        bool pick = timer_up || !target;
+        if (pick) {
             if ((attackers == 0 || frand() < 0.3f)
                 && (handle = boss_target_list_pick(list, count, pyrul_threat_table, pyrul_target, false, 8)) != -1) {
                 min_ms = 5000;
@@ -412,7 +417,8 @@ int ai_state::pyrul_choose_attack()
             }
         }
     } else if (pyrul_stage == 3) {
-        if (timer_up || !target) {
+        bool pick = timer_up || !target;
+        if (pick) {
             if ((attackers == 0 || frand() < 0.3f)
                 && (handle = boss_target_list_pick(list, count, pyrul_threat_table, pyrul_target, false, 8)) != -1) {
                 min_ms = 5000;

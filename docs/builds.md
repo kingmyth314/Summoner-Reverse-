@@ -36,7 +36,7 @@ The alternative, long-lived `fixed` and `experimental` git branches, keeps the r
 Its cost: every later decompilation fix on main has to be merged into both branches by hand, and the byte-match
 proof cannot check them.
 
-**2. Compiler: stay on VC6 SP5 (recommended) for now.** The 5,549 proven functions are proven only under that
+**2. Compiler: stay on VC6 SP5 (recommended) for now.** The 5,602 proven functions are proven only under that
 compiler; a modern compiler changes float precision, struct layout and every matching device at once. A port to a
 current compiler (and later 64-bit or other platforms) is listed as an experimental item, not a prerequisite.
 
@@ -99,7 +99,7 @@ on purpose. The rule:
 - **Experimental build:** with every experimental switch off it must pass the fixed build's checks; each feature is
   then tested on its own.
 - **Invariant, every commit:** `tools/vc6-sweep.mjs --check src/decomp/vc6-matches.txt` (with `VC6_STRICT=1`) on the
-  `shipped` configuration; the strict match count (5,549 since 2026-10-21) must not drop. The fixed and experimental code must never
+  `shipped` configuration; the strict match count (5,602 since 2026-10-21) must not drop. The fixed and experimental code must never
   change what the reference configuration compiles to.
 
 ## First steps

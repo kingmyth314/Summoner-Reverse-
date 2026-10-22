@@ -374,9 +374,18 @@ bool ai_state::combat_start_approach(Character *target, bool random_offset)
     return r;
 }
 
+// D23002: 1 when a goal_do_cast_at_target result is 0, as an int (the binary's neg / sbb / inc before the
+// bool conversion in combat_approach).
+static inline int cast_result_zero(int r)
+{
+    if (r)
+        return 0;
+    return 1;
+}
+
 // 0x4bda50  Confidence: likely (the reuse of the argument slot for the "use reach" byte is the compiler's).
 // D12902: the returns as `? true : false` give the binary's test / setne; still differs in the boss branch
-// (owner->info reloaded) and the goal_do_cast return (neg / sbb / inc, then test / setne).
+// (owner->info reloaded) and in register choice (D23002: the goal_do_cast return through cast_result_zero).
 // The combat decision: no target -> idle; a remote multiplayer character does nothing (the return value is
 // what AL holds: false); a monster beyond its fov range drops the attack goal; in reach -> the cast goal,
 // the choose-spell sub-mode (combat styles 4 / 5), ranged or melee; else approach.
@@ -437,7 +446,7 @@ bool ai_state::combat_approach(Character *target)
     }
     if (within_attack_radius(dist) && !crowded) {
         if (mode_target != -1)
-            return goal_do_cast_at_target(mode_target, this->target) == 0 ? true : false;
+            return cast_result_zero(goal_do_cast_at_target(mode_target, this->target)) ? true : false;
         if (!(flags & 0x80) && (style == 4 || style == 5))
             return set_mode(AI_STATE_COMBAT, AIS_CHOOSE_SPELL) ? true : false;
         if (ranged)
@@ -1219,14 +1228,13 @@ int ai_state::consider_jade_beam(boss_target *list, int count, boss_target *cur)
     return -1;
 }
 
-// 0x4bf5a0  Confidence: likely. Life drain on monsters above level 1 with Character +0x690 below 5,
+// 0x4bf5a0  Confidence: exact (VC6 byte match, D23000). Life drain on monsters above level 1 with Character +0x690 below 5,
 // weighted 0.5 / (+0x690 + 1); the running total is added to the record's old score instead of stored
 // (NOTES.md). Nothing when the total is 0.
 int ai_state::consider_life_drain(boss_target *list, int count, boss_target *cur)
 {
     float r;
     float total;
-    Character *c;
     int i;
 
     if (!owner->can_cast_spell(SPELL_LIFE_DRAIN))
@@ -1239,9 +1247,10 @@ int ai_state::consider_life_drain(boss_target *list, int count, boss_target *cur
         return -1;
     total = 0.0f;
     for (i = 0; i < count; i++) {
-        c = list[i].character;
-        if (c->_unk690 < 5 && c->level > 1 && c->type != CHAR_TYPE_PARTY) {
-            total += 1.0f / (c->_unk690 + 1.0f) * 0.5f;
+        // D23000: list[i].character written out in each test (no Character local), so the loop walks from list
+        if (list[i].character->_unk690 < 5 && list[i].character->level > 1
+            && list[i].character->type != CHAR_TYPE_PARTY) {
+            total += 1.0f / (list[i].character->_unk690 + 1.0f) * 0.5f;
             list[i].score += total;
         } else {
             list[i].score = 0.0f;
@@ -1366,8 +1375,8 @@ int ai_state::choose_offensive_spell(boss_target *list, int count, boss_target *
     return -1;
 }
 
-// 0x4bfaa0  Confidence: likely (D15009: the give-up blocks as inline copies; the zero register and the
-// frame still differ). Sub-mode AIS_CHOOSE_SPELL. Gives up (flag 0x80, approach) after 7 s, for
+// 0x4bfaa0  Confidence: exact (VC6 byte match, D23001; D15009: the give-up blocks as inline copies).
+// Sub-mode AIS_CHOOSE_SPELL. Gives up (flag 0x80, approach) after 7 s, for
 // cur_character, without spells (flag 4), silenced, attacked or without a ranged reach. Waits while a cast
 // goal of the chosen spell exists, on multiplayer clients (and for party members on the host) and while
 // more than two cast effects are tracked. Healers (style 5, not party): heal / cure / vitalize among the
@@ -1378,7 +1387,6 @@ void ai_state::combat_cast_frame(Character *target)
 {
     boss_target list[10];
     boss_target *pick;
-    ai_group *g;
     Character *c;
     float range;
     int elapsed;
@@ -1431,9 +1439,9 @@ void ai_state::combat_cast_frame(Character *target)
         count = 0;
         self = 0;
         if (target->type == CHAR_TYPE_PARTY) {
-            g = target->ai.group;
-            for (i = 0; i < g->num_enemies; i++) {
-                c = living_from_handle(g->enemies[i]);
+            // D23001: target->ai.group read in each test (no group local; the binary reloads it)
+            for (i = 0; i < target->ai.group->num_enemies; i++) {
+                c = living_from_handle(target->ai.group->enemies[i]);
                 if (!c)
                     continue;
                 if (c == owner)
@@ -1472,7 +1480,7 @@ void ai_state::combat_cast_frame(Character *target)
             if (c)
                 list[count++].character = c;
         }
-    } else if (cur_character && cur_character->ai.group && cur_character->ai.group->count > 0) {
+    } else if (cur_character && cur_character->ai.group) { // D23001: no count > 0 test (the loop's own entry test)
         for (i = 0; i < cur_character->ai.group->count; i++) {
             c = living_from_handle(cur_character->ai.group->members[i]);
             if (c)
@@ -1496,7 +1504,9 @@ void ai_state::combat_cast_frame(Character *target)
         return;
     }
     mode_target = spell;
-    if (owner->distance_between_edges(target, false, -1) > spells[mode_target].distance) {
+    // D23001: the distance through a float local: mode_target is then reloaded after the call, as in the binary
+    float d = owner->distance_between_edges(target, false, -1);
+    if (d > spells[mode_target].distance) {
         combat_approach(target);
         return;
     }

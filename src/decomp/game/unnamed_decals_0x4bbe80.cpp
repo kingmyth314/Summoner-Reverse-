@@ -123,11 +123,11 @@ void decal_record::set_v_axis(float scale)
     v_scale = scale;
 }
 
-// 0x4bc320  Confidence: likely (the age-ring insertion loop; D22001: the head removal written out without the
-// head test, d being decal_free, and `lit != 0` for the bit (the binary's setne); together they give the
-// binary's removal and bitfield code, neither alone; left: &d->next in EDI, the index / node registers, the
-// lifetime insert, the age-ring loop's loads). Takes a free record (with none free, the
-// oldest one by the age ring), clips it, puts it on the active ring and its node into the age ring before
+// 0x4bc320  Confidence: exact (VC6 byte match, m-1021e w20, D24100: the recycle test on the global decal_free,
+// the removal through `pn = &decal_free->next` (kept in EDI), the lifetime stored through a record pointer copy
+// and the age-ring record taken inside the lifetime test; with D22001: the head removal written out without the
+// head test, d being decal_free, and `lit != 0` for the bit (the binary's setne)). Takes a free record (with
+// none free, the oldest one by the age ring), clips it, puts it on the active ring and its node into the age ring before
 // the first decal with more time left (unlimited ones count as 0x7fffffff). Returns the record index.
 int decal_place(int bitmap, const vector3 *pos, const vector3 *u, const vector3 *v, int ms, bool lit,
                 int colour, float depth)
@@ -140,28 +140,30 @@ int decal_place(int bitmap, const vector3 *pos, const vector3 *u, const vector3 
     int left;
 
     d = decal_free;
-    if (d == NULL && decal_age != NULL) {
+    if (decal_free == NULL && decal_age != NULL) {     // the global, not d (D24100)
         decal_recycle(&decal_records[decal_age - decal_nodes], decal_age);
         d = decal_free;
     }
+    decal_record **pn = &decal_free->next;   // d->next kept in EDI (D24100)
     do {                              // plist_remove(decal_free, d) with d == decal_free (D22001)
-        if (d->next == d) {
-            d->next = NULL;
+        if (*pn == d) {
+            *pn = NULL;
             d->prev = NULL;
             decal_free = NULL;
             break;
         }
-        decal_free = d->next;
-        d->prev->next = d->next;
-        d->next->prev = d->prev;
-        d->next = NULL;
+        decal_free = *pn;
+        d->prev->next = *pn;
+        (*pn)->prev = d->prev;
+        *pn = NULL;
         d->prev = NULL;
     } while (0);
     index = d - decal_records;
     node = &decal_nodes[index];
     d->timer.SetTimeout(0);
     d->bitmap = bitmap;
-    d->lifetime = ms;
+    decal_record *dd = d;             // the lifetime bit-field insert as a separate xor (D24100)
+    dd->lifetime = ms;
     d->lit = lit != 0;
     d->in_use = 1;
     d->colour = colour;
@@ -177,10 +179,10 @@ int decal_place(int bitmap, const vector3 *pos, const vector3 *u, const vector3 
     }
     n = decal_age;
     do {
-        other = &decal_records[n - decal_nodes];
-        if (other->lifetime)
+        if (decal_records[n - decal_nodes].lifetime) {     // other taken inside (D24100)
+            other = &decal_records[n - decal_nodes];
             left = other->lifetime - other->timer.GetElapsedTime();
-        else
+        } else
             left = 0x7fffffff;
         if (left > (int)(d->lifetime - d->timer.GetElapsedTime())) {
             n->prev->next = node;

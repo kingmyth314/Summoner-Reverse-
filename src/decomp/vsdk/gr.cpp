@@ -235,6 +235,10 @@ void cmd_antialiasing()
 // ---- init ------------------------------------------------------------------------------------------------
 
 // 0x505e00  Confidence: likely (store order of the gr_screen fields, the work-area arithmetic).
+// D23503 (closer, 102 -> 54): case 201's exstyle as one SetWindowLongA call per branch (8966 cross-jumps them
+// to the binary's `push 0x20` / `push ebx`) and its aspect through two float locals (fild / fild / fdivp).
+// Left: the prologue's store schedule, case 200's x / wh registers and the dead argument slot of y and of
+// the GetSystemMetrics float (mode's in the binary, w's in ours).
 // (w, h, renderer, window_mode, hwnd, far_z, vsync). Window modes: 200 windowed (a captioned window
 // centred horizontally in the work area, at its top), 201 fullscreen (a topmost popup over the whole
 // desktop), 202 desktop size (window left alone). The aspect is (width / height) * 0.75; windowed and
@@ -294,7 +298,10 @@ int gr_init(int w, int h, int mode, int window_mode, HWND hwnd, float far_z, boo
         break;
     }
     case 201:
-        SetWindowLongA(hwnd, GWL_EXSTYLE, mode == GR_GLIDE ? WS_EX_TRANSPARENT : 0);
+        if (mode == GR_GLIDE)   // D23503: one call per branch (cross-jumped to the pushes)
+            SetWindowLongA(hwnd, GWL_EXSTYLE, WS_EX_TRANSPARENT);
+        else
+            SetWindowLongA(hwnd, GWL_EXSTYLE, 0);
         SetWindowLongA(hwnd, GWL_STYLE, WS_POPUP);
         ShowWindow(hwnd, SW_SHOWNORMAL);
         SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), 0);
@@ -304,7 +311,11 @@ int gr_init(int w, int h, int mode, int window_mode, HWND hwnd, float far_z, boo
         gr_fullscreen_rect.top = 0;
         gr_fullscreen_rect.right = gr_screen.max_w - 1;
         gr_fullscreen_rect.bottom = gr_screen.max_h - 1;
-        aspect = (float)gr_screen.max_w / (float)gr_screen.max_h;
+        {
+            float fw = (float)gr_screen.max_w;      // D23503: fild / fild / fdivp
+            float fh = (float)gr_screen.max_h;
+            aspect = fw / fh;
+        }
         break;
     case 202:
         aspect = (float)GetSystemMetrics(SM_CXSCREEN) / (float)GetSystemMetrics(SM_CYSCREEN);

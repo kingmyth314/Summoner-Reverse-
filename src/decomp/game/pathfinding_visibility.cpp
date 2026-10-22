@@ -292,21 +292,23 @@ void pathvis_insert_sorted(pathvis_edge *e, int layer)
 #ifdef _MSC_VER
 #pragma optimize("", off)
 #endif
-// 0x4b7e80  Confidence: likely (unoptimised; locals declared in frame order, first = highest address:
-// e ebp-0x10, the label -0x14, then -0x18..-0x30; `e->dist = len = sqrt(...)` from the fst / fstp pair).
+// 0x4b7e80  Confidence: exact (VC6 byte match, D23500; unoptimised). The frame slots of an unoptimised
+// function follow the compiler's hash of the local's name, not the declaration order (D23500): 16 buckets,
+// h = h * 4 + (h >> 4) + c over the name's characters (checked up to 5 characters), the lowest bucket at the
+// highest address, a later declaration first within a bucket. The names below are chosen for the binary's
+// slots: e ebp-0x10, the label -0x14, rdx (ray dx) -0x18, sdx (edge dx) -0x1c, rdy -0x20, sdy -0x24, dotn
+// (the new edge's projection) -0x28, dotp (the pending edge's) -0x2c, len -0x30. The rest of the body as an
+// if (not parallel) block (the binary's `jne` to the end), `e->dist = (len = (float)sqrt(...))` (fst / fstp).
 // An edge already in the list (either direction) is removed; an edge parallel to the sweep ray is
 // skipped. The first edge of a point is placed by side (pathvis_insert_by_side) and kept pending; the
 // second goes before or after it by its direction against the ray.
 void add_or_remove_edge(pf_edge *edge, int layer, vector2 *pos)
 {
+    profile_label prof("add_or_remove_edge");
     pathvis_edge *e;
-    profile_label label("add_or_remove_edge");
-    float ray_dx;
-    float edge_dx;
-    float ray_dy;
-    float edge_dy;
-    float proj_new;
-    float proj_pending;
+    float sdx, rdx;
+    float dotn, sdy, rdy;
+    float dotp;
     float len;
 
     for (e = pathvis_edge_lists[layer].next; e != &pathvis_edge_lists[layer]; e = e->next) {
@@ -317,38 +319,37 @@ void add_or_remove_edge(pf_edge *edge, int layer, vector2 *pos)
         }
     }
 
-    edge_dx = edge->a->x - edge->b->x;
-    edge_dy = edge->a->y - edge->b->y;
-    ray_dx = pathvis_origin->x - pathvis_target->x;
-    ray_dy = pathvis_origin->y - pathvis_target->y;
-    if (edge_dx * ray_dy - edge_dy * ray_dx == 0.0f)
-        return;
+    sdx = edge->a->x - edge->b->x;
+    sdy = edge->a->y - edge->b->y;
+    rdx = pathvis_origin->x - pathvis_target->x;
+    rdy = pathvis_origin->y - pathvis_target->y;
+    if (sdx * rdy - sdy * rdx != 0.0f) {
+        e = pathvis_add_edge_node();
+        if (edge->a == pos) {
+            e->a = edge->a;
+            e->b = edge->b;
+        } else {
+            e->a = edge->b;
+            e->b = edge->a;
+            sdx = -sdx;
+            sdy = -sdy;
+        }
+        e->dist = (len = (float)sqrt(sdx * sdx + sdy * sdy));
+        e->dx = sdx / e->dist;
+        e->dy = sdy / e->dist;
 
-    e = pathvis_add_edge_node();
-    if (edge->a == pos) {
-        e->a = edge->a;
-        e->b = edge->b;
-    } else {
-        e->a = edge->b;
-        e->b = edge->a;
-        edge_dx = -edge_dx;
-        edge_dy = -edge_dy;
-    }
-    e->dist = len = (float)sqrt(edge_dx * edge_dx + edge_dy * edge_dy);
-    e->dx = edge_dx / e->dist;
-    e->dy = edge_dy / e->dist;
-
-    if (pathvis_pending_edge) {
-        proj_new = ray_dx * e->dx + ray_dy * e->dy;
-        proj_pending = ray_dx * pathvis_pending_edge->dx + ray_dy * pathvis_pending_edge->dy;
-        if (proj_new < proj_pending)
-            pathvis_list_insert_before(pathvis_pending_edge, e);
-        else
-            pathvis_list_insert_after(pathvis_pending_edge, e);
-        pathvis_pending_edge = NULL;
-    } else {
-        pathvis_insert_by_side(e, layer);
-        pathvis_pending_edge = e;
+        if (pathvis_pending_edge) {
+            dotn = rdx * e->dx + rdy * e->dy;
+            dotp = rdx * pathvis_pending_edge->dx + rdy * pathvis_pending_edge->dy;
+            if (dotn < dotp)
+                pathvis_list_insert_before(pathvis_pending_edge, e);
+            else
+                pathvis_list_insert_after(pathvis_pending_edge, e);
+            pathvis_pending_edge = NULL;
+        } else {
+            pathvis_insert_by_side(e, layer);
+            pathvis_pending_edge = e;
+        }
     }
 }
 #ifdef _MSC_VER
@@ -389,6 +390,9 @@ void pathvis_insert_by_side(pathvis_edge *e, int layer)
 // layer (with `all`, any edge).
 // D20602: the two later `return 1`s as a `goto blocked` (the binary shares the early return's epilogue) and
 // seg.a stored right after a's copy (distance 76 -> 43); left: the binary has b (to) below a (from) in the frame.
+// D23501 (closer, 41 -> 39): b read through a pointer local in the mid sums puts b below a (8966 orders these
+// frame slots by use, not by name or declaration); with it the set-up order layer, a, seg.b, b, seg.a. Left:
+// the scheduling of the two copies.
 int do_single_vis_check(pf_vis_node *from, pf_vis_node *to, bool all)
 {
     profile_label label("do_single_vis_check");
@@ -401,11 +405,14 @@ int do_single_vis_check(pf_vis_node *from, pf_vis_node *to, bool all)
         return 1;
     layer = from->layer;
     a = *from->pos;
-    seg.a = &a;
-    b = *to->pos;
     seg.b = &b;
-    mid.x = (b.x + a.x) * 0.5f;
-    mid.y = (b.y + a.y) * 0.5f;
+    b = *to->pos;
+    seg.a = &a;
+    {
+        const vector2 *pb = &b;     // D23501: b below a in the frame
+        mid.x = (pb->x + a.x) * 0.5f;
+        mid.y = (pb->y + a.y) * 0.5f;
+    }
     if (pathvis_bsp_contains(&mid, pf_graphs[pf_cur_size][layer].bsp))
         goto blocked;
     for (e = pathvis_edge_lists[layer].next; e != &pathvis_edge_lists[layer]; e = e->next) {

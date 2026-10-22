@@ -1079,7 +1079,8 @@ void ai_state::tentacle_beast_ai_idle()
     set_mode(AI_STATE_COMBAT, AIS_CLOSE_COMBAT);
 }
 
-// 0x4c7070  Confidence: likely (the result switch and the sub-mode switch, byte table 0x4c7300 from 0xf).
+// 0x4c7070  Confidence: exact (VC6 byte match, D23400: the AIS_GET_CLOSE case written last; was likely)
+// (the result switch and the sub-mode switch, byte table 0x4c7300 from 0xf).
 // The stance toggle ends a rise (counted up) or a dive. While the battle runs and the tentacle is up: the
 // time above water, the victim's squeeze tick (+3 HP every 6 s: a heal; NOTES, game bugs), and while it
 // holds someone in the attack sub-mode only the hold time; otherwise a choice and the sub-mode action.
@@ -1153,14 +1154,14 @@ void ai_state::tentacle_beast_ai_frame()
         if (tentacle_beast_active_tentacle->move)
             owner->combat.update(tentacle_beast_active_tentacle->move->id);
         break;
-    case AIS_GET_CLOSE:
-        set_mode(AI_STATE_COMBAT, AIS_CLOSE_COMBAT);
-        break;
     case AIS_TENTACLE_GRAB:
         tentacle_beast_ai_grab(target);
         break;
     case AIS_TENTACLE_RELEASE:
         tentacle_beast_ai_release();
+        break;
+    case AIS_GET_CLOSE:                 // D23400: last, so its set_mode falls into the exit block
+        set_mode(AI_STATE_COMBAT, AIS_CLOSE_COMBAT);
         break;
     }
 }
@@ -1382,9 +1383,10 @@ bool tentacle_target_in_reach(Character *boss, Character *target)
 // out-of-line vector3 constructor and copied once more through the copy constructor; D16901: step as
 // `throw_velocity * reported_frametime` (one frametime load), ray / hit declared after the thrown test (the
 // ray constructor's store comes there), the landing and the miss through vector3 operators and fwd assigned
-// with operator= (the binary's discarded out-of-line copy); first 60 instructions now the binary's, the
-// landing still expands the constructors the binary calls, the binary keeps &r->pos in EBP, frame 0xb4 against
-// 0xa8). boss_ai_do_frame_hook
+// with operator= (the binary's discarded out-of-line copy); D23401: `down = uvec * 1.5f`, `p -= down` and
+// `up.set(0, 1, 0)` spend the inline budget as the binary (its out-of-line calls now the binary's), and fwd / up
+// in a block share the frame slots (frame 0xa8 as the binary); left: the step product's schedule against the
+// ray.start copy). boss_ai_do_frame_hook
 // case 0x93: a held victim hangs 1.5 below the grab bone (its orientation is the bone's); a thrown one
 // flies with the throw velocity (horizontal damping 0.75 per second, gravity growing by 9.8 per second)
 // until the level ray from its position along this frame's step hits ground with flag 0x40. On landing it
@@ -1409,10 +1411,8 @@ void tentacle_beast_frame_hook(Character *c)
     v = living_from_handle(t->victim);
     if (v) {
         c->instance->get_bone_world_transform(t->grab_tag, &c->orient, &c->pos, &v->orient, &p);
-        vector3 down(v->orient.uvec.x * 1.5f, v->orient.uvec.y * 1.5f, v->orient.uvec.z * 1.5f);
-        p.x -= down.x;
-        p.y -= down.y;
-        p.z -= down.z;
+        vector3 down = v->orient.uvec * 1.5f;     // D23401
+        p -= down;
         v->pos = p;
     }
     r = living_from_handle(t->thrown);
@@ -1445,11 +1445,14 @@ void tentacle_beast_frame_hook(Character *c)
         return;
     r->flags &= ~CF_TENTACLE_HELD;
     r->ai.go_idle();
-    vector3 fwd;
-    fwd = r->orient.fvec;
-    vector3 up(0.0f, 1.0f, 0.0f);
-    fwd.y = 0.0f;
-    r->orient.set_from_forward_up(fwd, up);
+    {
+        vector3 fwd;
+        fwd = r->orient.fvec;
+        vector3 up;
+        fwd.y = 0.0f;
+        up.set(0.0f, 1.0f, 0.0f);
+        r->orient.set_from_forward_up(fwd, up);
+    }
     r->find_ground();
     t->thrown = -1;
     tentacle_beast_grab_timer.SetTimeout(10000);

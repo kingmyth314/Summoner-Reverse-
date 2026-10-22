@@ -25,14 +25,16 @@ vector2 *geom_poly2d_clip_list[32];   // 0x2f135e8
 vector2 *geom_poly2d_clip_list2[32];  // 0x2f13668
 
 // 0x5519f0  Confidence: likely (the tail shared by the two split paths; the order of the |x| + |y|
-// sum). The edge normals are scaled by 1 / (|x| + |y|), not normalised; the normal is flipped for every
+// sum; D24505: b = edges then `if (i + 1 < num_edges) b = a + 1`, dst = list2 then `if (list != list1)
+// dst = list1` after the wrap stores, the first list filled through geom_poly2d_clip_list and list set
+// after it; left: n / the init counter in ESI / EBX, the dot loop's two pointers). The edge normals are scaled by 1 / (|x| + |y|), not normalised; the normal is flipped for every
 // edge when the clip polygon's third vertex lies in front of the first edge. Nothing bounds the point
 // lists (32 entries, n + 1 used) or the point buffer (64 per call). No caller.
 int polygon_clip_2d(int num_edges, const vector2 *edges, int n, vector2 *verts, vector2 *out,
                     vector2 **result)
 {
     vector2 *newp = geom_poly2d_clip_points;
-    vector2 **list = geom_poly2d_clip_list;
+    vector2 **list;
     vector2 normal;
     bool flip;
     int i, k;
@@ -40,11 +42,14 @@ int polygon_clip_2d(int num_edges, const vector2 *edges, int n, vector2 *verts, 
     *result = verts;
     flip = false;
     for (k = 0; k < n; k++)
-        list[k] = &verts[k];
+        geom_poly2d_clip_list[k] = &verts[k];
+    list = geom_poly2d_clip_list;
 
     for (i = 0; i < num_edges; i++) {
         const vector2 *a = &edges[i];
-        const vector2 *b = i + 1 < num_edges ? a + 1 : edges;
+        const vector2 *b = edges;
+        if (i + 1 < num_edges)
+            b = a + 1;
         normal.x = b->y - a->y;
         normal.y = a->x - b->x;
         float len = (float)(fabs(normal.y) + fabs(normal.x));
@@ -72,9 +77,11 @@ int polygon_clip_2d(int num_edges, const vector2 *edges, int n, vector2 *verts, 
         if (outside == 0)
             continue;
 
-        vector2 **dst = list == geom_poly2d_clip_list ? geom_poly2d_clip_list2 : geom_poly2d_clip_list;
+        vector2 **dst = geom_poly2d_clip_list2;
         geom_poly2d_clip_dists[n] = geom_poly2d_clip_dists[0];
         list[n] = list[0];
+        if (list != geom_poly2d_clip_list)
+            dst = geom_poly2d_clip_list;
         vector2 **p = dst;
         for (k = 0; k < n; k++) {
             if (geom_poly2d_clip_dists[k] < POLY_EPSILON) {

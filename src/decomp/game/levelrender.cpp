@@ -727,7 +727,9 @@ void levelrender_draw_list_glide(lobj *l, int alpha, unsigned int num_lights, at
 // ---- face helpers ----------------------------------------------------------------------------------
 
 // 0x48f8c0  Confidence: likely (D14406, closer: each byte cast in its own parentheses gives the binary's
-// fild / faddp sum; left: register and frame layout of the vertex loop). Fills levelrender_face_verts from a face: the view-space position and
+// fild / faddp sum; D23802, closer: the vertex read through `vector3 *p` gives the binary's loop induction on
+// lightmap_uv and frame 0x20, and `int v3 = v * 3` in the lit branch without a lightmap its spilled index; left: register
+// choices of the tint sum and of the clamped c). Fills levelrender_face_verts from a face: the view-space position and
 // clip code by the vertex index copied into a local array, the texture uv, lightmap uv and colour by
 // the face's index read again. The colour: grey (sum of the object's vertex RGB, clamped to 0..255,
 // times the tint) when the tint is on; the light colour times 255 with a lightmap; without a lightmap
@@ -752,9 +754,10 @@ gr_vertex **levelrender_face_vertex_colors(lobj *l, s3d_face *face, int unused, 
         gv = &levelrender_face_verts[i];
         v = face->v[i];
         levelrender_face_vert_list[i] = gv;
-        gv->x = verts[idx[i]].x;
-        gv->y = verts[idx[i]].y;
-        gv->z = verts[idx[i]].z;
+        vector3 *p = &verts[idx[i]];
+        gv->x = p->x;
+        gv->y = p->y;
+        gv->z = p->z;
         gv->u = l->mesh->uvs[v].x;
         gv->v = l->mesh->uvs[v].y;
         if (lightmap_uv) {
@@ -777,15 +780,16 @@ gr_vertex **levelrender_face_vertex_colors(lobj *l, s3d_face *face, int unused, 
                 gv->g = (ubyte)(int)(colors[v].y * 255.0f);
                 gv->b = (ubyte)(int)(colors[v].z * 255.0f);
             } else {
-                c = l->vertex_rgb[v * 3] - (int)(colors[v].x * -255.0f);
+                int v3 = v * 3;
+                c = l->vertex_rgb[v3] - (int)(colors[v].x * -255.0f);
                 if (c >= 255)
                     c = 255;
                 gv->r = (ubyte)c;
-                c = l->vertex_rgb[v * 3 + 1] - (int)(colors[v].y * -255.0f);
+                c = l->vertex_rgb[v3 + 1] - (int)(colors[v].y * -255.0f);
                 if (c >= 255)
                     c = 255;
                 gv->g = (ubyte)c;
-                c = l->vertex_rgb[v * 3 + 2] - (int)(colors[v].z * -255.0f);
+                c = l->vertex_rgb[v3 + 2] - (int)(colors[v].z * -255.0f);
                 if (c >= 255)
                     c = 255;
                 gv->b = (ubyte)c;

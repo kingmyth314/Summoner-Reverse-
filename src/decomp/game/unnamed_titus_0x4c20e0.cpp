@@ -325,6 +325,7 @@ int ai_state::titus_ai_select_action()
     bool retarget;
     bool valid10;
     bool valid13;
+    bool fresh;
     int count;
     int handle;
     int index;
@@ -362,7 +363,9 @@ int ai_state::titus_ai_select_action()
 
     if (titus_stage == 1) {
         handle = titus_target_handle;
-        if (timer_up || !target) {
+        // D23703: the test through a bool local puts the pick-0 block first and the retarget block after it.
+        fresh = timer_up || !target;
+        if (fresh) {
             handle = boss_target_list_pick(list, count, titus_threat_table, handle, false, 0);
             if (handle == -1)
                 return 0;
@@ -388,7 +391,8 @@ int ai_state::titus_ai_select_action()
     } else if (titus_stage == 2) {
         if (titus_flags & 1)
             timer_up = false;
-        if (!target || timer_up == true) {
+        fresh = !target || timer_up == true;    // D23703
+        if (fresh) {
             titus_flags = 0;
             handle = boss_target_list_pick(list, count, titus_threat_table, titus_target_handle, false, 0);
             if (handle == -1)
@@ -423,9 +427,10 @@ int ai_state::titus_ai_select_action()
                 if (valid13 == valid10)
                     titus_move13_timer.invalidate();
             } else if (!valid10) {
-                if (valid13)
+                if (!valid13)       // D23704: if / else with the goto in the else (move 10 path stays inline)
+                    titus_move10_timer.SetTimeout(20000);
+                else
                     goto move12_13;
-                titus_move10_timer.SetTimeout(20000);
             }
             titus_current_move = titus_move_10;
             titus_flags |= 1;
@@ -438,7 +443,8 @@ move12_13:
             weights[0] = 0.5f;
             weights[1] = 0.5f;
             index = rand_weighted_index(weights, 2);
-            if (index == -1 || index == 0)
+            fresh = index == -1 || index == 0;      // D23703 (the move 12 store first)
+            if (fresh)
                 titus_current_move = titus_move_12;
             else
                 titus_current_move = titus_move_13;
@@ -449,7 +455,8 @@ move12_13:
         }
     } else if (titus_stage == 3) {
         handle = titus_target_handle;
-        if (timer_up || !target) {
+        fresh = timer_up || !target;            // D23703
+        if (fresh) {
             handle = boss_target_list_pick(list, count, titus_threat_table, titus_target_handle, false, 0);
             if (handle == -1)
                 return 0;

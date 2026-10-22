@@ -198,7 +198,8 @@ void fx_recb0::spawn(vfx_emitter_desc *desc, float t, float dt, const vector3 &v
     }
 }
 
-// 0x5601f0  Confidence: likely (the two shape blocks share their tail in the binary). Shape 1: a sphere
+// 0x5601f0  Confidence: likely (the two shape blocks share their tail in the binary; D23300: case 1 without
+// braces gives the binary's frame; left: the binary converts desc->frames with fild + faddp, ours fiadd). Shape 1: a sphere
 // shell (radius width, speed outward); shape 0: a box (width x depth) in the emitter's frame, the
 // velocity down by speed with a spread. The start point is interpolated over the step, the particle
 // advanced by its age.
@@ -236,7 +237,7 @@ void fx_recb0::init_particle(vfx_emitter_desc *desc, fx_rec28 *p, float frac, fl
         p->set_lifetime((desc->frames + frand_range(-spread, spread)) * (1.0f / 4800.0f));
         break;
     }
-    case 1: {
+    case 1:                                   // D23300: no braces (v at switch scope, its own slot)
         pos.random_unit_vector();
         vector3 v = pos * (frand_range(-get_fixed12_94(), get_fixed12_94()) + get_fixed12_92());
         if (desc->add_velocity)
@@ -249,7 +250,6 @@ void fx_recb0::init_particle(vfx_emitter_desc *desc, fx_rec28 *p, float frac, fl
         spread = desc->frames * desc->rate;
         p->set_lifetime((desc->frames + frand_range(-spread, spread)) * (1.0f / 4800.0f));
         break;
-    }
     }
     if (desc->random_rot)
         p->set_size(frand_range(0.0f, 6.2831855f));
@@ -548,7 +548,8 @@ void fx_recb0::update(vfx_emitter_desc *desc, float t, const vector3 *pos, const
 }
 
 // 0x561900  Confidence: unsure (the corner arithmetic is scheduled across the six vertices; the order of
-// the statements is a guess; the lock flags test vb_pos == 0, D13605).
+// the statements is a guess; the lock flags test vb_pos == 0, D13605; the aspect divisor through a float
+// local, D23301).
 // No caller: the Direct3D batch path of render. Two triangles per particle
 // into the shared vertex buffer, flushed every 1000 vertices. Game bugs (NOTES.md): particles in the top
 // 100 pixels are culled (the y test is against +100, x against -100); rhw ends up as the view z.
@@ -597,10 +598,12 @@ void fx_recb0::render_d3d(vfx_emitter_desc *desc, float t)
                 bm_get_dimensions(gr_texture, &w, &h);
                 if (w < h) {
                     hw = size;
-                    hh = h * size / w;
+                    float fw = w;                   // D23301: a float copy of the divisor: fild + fdivp
+                    hh = h * size / fw;
                 } else if (w > h) {
                     hh = size;
-                    hw = w * size / h;
+                    float fh = h;
+                    hw = w * size / fh;
                 } else {
                     hw = hh = size;
                 }

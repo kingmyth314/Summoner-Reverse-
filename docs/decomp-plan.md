@@ -674,6 +674,34 @@ reference counted as a difference (`ui_choice_popup_show` 96, now 20). The origi
 with any dword that is an address in the image masked on both sides. Distances above about 30 from the rounds before
 this fix were too high; the ranking was still useful, as the yields show.
 
+**Fifth targeted round 2026-10-21 (thirty workers, D22200-D25199).** 5,549 -> 5,602, none lost (notes in
+`src/decomp/NOTES-match-2026-10-21e.md`). The 255 functions at distance 13-300 on the corrected score, in thirty
+batches of whole files; at most twenty workers ran at once (the app's subagent limit), the other ten as slots freed.
+53 matches, about 60 closer; many matched from above 100 (
+`combat_cast_frame` 158, `character_equip_item` 147, `machival_ai_select_action` 144, `add_or_remove_edge` 199,
+`resolve_exchange` 209, `automap_handle_click` 218, `ai_group_think_caster` 194, `script_editor_apply_action_params`
+174). Findings worth reusing:
+- **Unoptimised code places locals by a hash of their names** (worker 14, D23500): in functions compiled without
+  optimisation (`#pragma optimize` off or `/Od`), VC6's frame order is not the declaration order but 16 buckets of
+  `h & 15`, `h = h * 4 + (h >> 4) + c` over the name's characters (bucket 0 highest; within a bucket the later
+  declaration higher). Renaming a local moves it; the old "declared in frame order" comments held by coincidence.
+  This applies to `objects.cpp` and the other unoptimised functions.
+- A local that caches a pointer field (`c = list[i].character`, `g = target->ai.group`) steers the loop pointer, the
+  callee-saved registers and the frame size; writing the field out at each use matched two "register choice" cases
+  (D23000, D23001).
+- The source order of switch cases sets the binary's block order (D23400, D24101, D24702); `result = K; break;` in
+  place of returns where the binary keeps the result in a callee-saved register.
+- A call nested in another call's arguments: the original kept the inner result in a local (D22701, D22703).
+- `(r = frand()) < x` stops pointers being cached across the call (D22503, D22504); a store order of independent
+  fields decides whether a zero is kept in a register (D23100, D24201).
+Two decompilation errors fixed (constants one float step off the binary: `pf_find_nearest_navigable_point`'s
+threshold is `0.025f * 0.025f`, `item_obj_spawn`'s start height -999999.0f), both without effect in practice. Not
+merged: an unused pointer local in `state_game_frame` (a non-match, D25002). Kept: three unused vector3 locals in
+`camera_blend` (D23900), because they make VC6 emit the binary's out-of-line calls, which decide the x87 rounding of
+D9807. Every closer change (about 60 functions) was read for behaviour by four review agents against the previous
+version before the commit: all equivalent. One header change: `living_combat::send_net(bool, bool)` (D22505; the 23
+units that include it lose nothing).
+
 The
 `Confidence:` markers follow the sweep (`tools/decomp-confidence.mjs`): every compared function that matches is
 `exact`, none that differs is. The other 1,819 written functions are not compared (`tools/decomp-uncompared.mjs`):

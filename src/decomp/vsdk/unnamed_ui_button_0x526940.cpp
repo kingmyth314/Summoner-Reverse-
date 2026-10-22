@@ -72,7 +72,9 @@ bool ui_button::can_accept_drop()
     return false;
 }
 
-// 0x526a50  vtable slot 5. Confidence: likely (the order of the tests inside the cases).
+// 0x526a50  vtable slot 5. Confidence: exact (VC6 byte match, m-1021e, D23302: every return in the state
+// machine is `goto out` (one exit, so 8966 pushes EBP late), one `||` test for the two press conditions, case 5
+// as `if (is_mouse_over()) { ... }` with `state = 0` after it; was likely).
 // The click states (6 - 9) from the last frame end first: a held repeat button goes back to 2 / 3.
 // A disabled button passes the key on; a hidden one only plays the press sound. Then the state machine
 // runs until a case returns: a state change goes round again (a state above 9 would loop for ever).
@@ -107,13 +109,11 @@ int ui_button::process(int key)
     for (;;) {
         switch (state) {
         case 0:
-            if ((ui_current_gadget == NULL || ui_current_gadget->get_type() != UI_TYPE_INPUTBOX) &&
-                has_hotkey(key))
-                goto pressed;
-            if (is_selected() && key == 0x1c)
+            if (((ui_current_gadget == NULL || ui_current_gadget->get_type() != UI_TYPE_INPUTBOX) &&
+                 has_hotkey(key)) || (is_selected() && key == 0x1c))
                 goto pressed;
             if (!is_mouse_over())
-                return key;
+                goto out;
             if (ui_left_double_clicked) {
                 state = 8;
                 break;
@@ -145,7 +145,7 @@ int ui_button::process(int key)
                 break;
             }
             if (!can_accept_drop())
-                return key;
+                goto out;
             state = 5;
             break;
         pressed:
@@ -156,7 +156,7 @@ int ui_button::process(int key)
 
         case 1:
             if (!press_timer.elapsed())
-                return key;
+                goto out;
             state = 6;
             break;
 
@@ -167,7 +167,7 @@ int ui_button::process(int key)
                     break;
                 }
                 if (!(flags & UI_BUTTON_REPEATS) || !repeat_timer.elapsed())
-                    return key;
+                    goto out;
                 repeat_timer.SetTimeout(150);
                 state = 6;
                 break;
@@ -177,9 +177,9 @@ int ui_button::process(int key)
                 break;
             }
             if (!(flags & UI_BUTTON_DRAGGABLE) || drag_type == 0)
-                return key;
+                goto out;
             if (capacity >= 0 && count < drag_amount)
-                return key;
+                goto out;
             state = 4;
             ui_drag_gadget = this;
             break;
@@ -191,58 +191,60 @@ int ui_button::process(int key)
                     break;
                 }
                 if (!(flags & UI_BUTTON_REPEATS) || !repeat_timer.elapsed())
-                    return key;
+                    goto out;
                 repeat_timer.SetTimeout(150);
                 state = 7;
                 break;
             }
             if (!ui_right_released)
-                return key;
+                goto out;
             state = 0;
             break;
 
         case 4:
             if (!ui_left_released)
-                return key;
+                goto out;
             state = 0;
             break;
 
         case 5:
-            if (!is_mouse_over()) {
+            if (is_mouse_over()) {
+                if (!ui_left_released)
+                    goto out;
+                ui_drop_target = this;
+                if (capacity >= 0)
+                    count += ui_drag_gadget->drag_amount;
+                send_event(0x11, UI_USE_ID);
+                if (ui_drag_gadget->capacity >= 0)
+                    ui_drag_gadget->count -= ui_drag_gadget->drag_amount;
+                ui_drag_gadget->send_event(0x10, UI_USE_ID);
+                ui_drag_dropped = true;
+                ui_drag_gadget = NULL;
                 state = 0;
                 break;
             }
-            if (!ui_left_released)
-                return key;
-            ui_drop_target = this;
-            if (capacity >= 0)
-                count += ui_drag_gadget->drag_amount;
-            send_event(0x11, UI_USE_ID);
-            if (ui_drag_gadget->capacity >= 0)
-                ui_drag_gadget->count -= ui_drag_gadget->drag_amount;
-            ui_drag_gadget->send_event(0x10, UI_USE_ID);
-            ui_drag_dropped = true;
-            ui_drag_gadget = NULL;
-            state = 0;
+            state = 0;                        // D23302
             break;
 
         case 6:
             fire_click(0);
-            return key;
+            goto out;
 
         case 7:
             fire_click(1);
-            return key;
+            goto out;
 
         case 8:
             send_event(0xe, UI_USE_ID);
-            return key;
+            goto out;
 
         case 9:
             send_event(0xf, UI_USE_ID);
-            return key;
+            goto out;
         }
     }
+out:
+    return key;
 }
 
 // 0x526f30  vtable slot 0. Confidence: exact (the clear order; the drag bitmap is not cleared).

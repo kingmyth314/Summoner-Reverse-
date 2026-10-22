@@ -613,7 +613,7 @@ int TextFile::ParseDelimitedString(String *out, char open_quote, char close_quot
     return len;
 }
 
-// 0x5166b0  Confidence: likely (store order of the cursor and the terminator). Error line 1171
+// 0x5166b0  Confidence: exact (VC6 byte match, D24901: `int len = 0;` before the cursor++). Error line 1171
 // (0x493); the length is pushed once for both the sprintf and the strncpy.
 int TextFile::ParseString(char *dest, int size, char open_quote, char close_quote)
 {
@@ -622,10 +622,10 @@ int TextFile::ParseString(char *dest, int size, char open_quote, char close_quot
     SkipWhitespace();
     if (*cursor != open_quote)
         Error("a string");
+    int len = 0;
     cursor++;
 
-    int len;
-    for (len = 0; cursor[len] != '\0' && cursor[len] != '\r' && cursor[len] != close_quote; len++)
+    for (; cursor[len] != '\0' && cursor[len] != '\r' && cursor[len] != close_quote; len++)
         ;
     if (cursor[len] != close_quote)
         Error("a string terminator");

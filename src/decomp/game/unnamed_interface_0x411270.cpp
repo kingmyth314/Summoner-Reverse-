@@ -1464,7 +1464,8 @@ int ui_choice_popup_wait_release()
     return -1;
 }
 
-// 0x413c70  Confidence: likely (marked exact; differs under VC6 8966, match27).
+// 0x413c70  Confidence: likely (marked exact; differs under VC6 8966, match27; D24300 closer, 44 -> 11: left
+// are the choice pointer's set-up above the count test and popup_x's load after the hover load).
 void ui_choice_popup_draw()
 {
     int w, h;
@@ -1478,11 +1479,14 @@ void ui_choice_popup_draw()
     if (strlen(ui_choice_popup_title)) {
         gr_get_string_size(&w, &h, ui_choice_popup_title, -1, -1);
         x = (ui_choice_popup_flags & 1) ? (ui_choice_popup_w - w) / 2 : ui_choice_popup_margin[resolution_index];
-        gr_string(x + ui_choice_popup_x, y, ui_choice_popup_title, -1, gr_string_mode);
+        int *xp = &x;    // D24300: x moved through a pointer (the title add and h load as in Sum.exe)
+        *xp += ui_choice_popup_x;
+        gr_string(x, y, ui_choice_popup_title, -1, gr_string_mode);
         y += ui_choice_popup_title_gap[resolution_index] + h;
     }
-    for (i = 0; i < ui_choice_popup_count; i++) {
-        gr_get_string_size(&w, &h, ui_choice_popup_choices[i], -1, -1);
+    char **pp = ui_choice_popup_choices;    // D24300: walked with i (closer)
+    for (i = 0; i < ui_choice_popup_count; i++, pp++) {
+        gr_get_string_size(&w, &h, *pp, -1, -1);
         x = (ui_choice_popup_flags & 2) ? (ui_choice_popup_w - w) / 2 : ui_choice_popup_margin[resolution_index];
         x += ui_choice_popup_x;
         if (i == ui_choice_popup_hover && (ui_choice_popup_flags & 0x40000000))
@@ -1491,7 +1495,7 @@ void ui_choice_popup_draw()
             gr_set_color_ptr(&ui_color_disabled);
         else
             gr_set_color_ptr(&ui_color_text);
-        gr_string(x, y, ui_choice_popup_choices[i], -1, gr_string_mode);
+        gr_string(x, y, *pp, -1, gr_string_mode);
         y += h;
     }
 }

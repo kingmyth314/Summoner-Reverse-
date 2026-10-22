@@ -456,7 +456,8 @@ void s3d_read_geometry(s3d_level *level, s3d_geometry *g, File *f)
     }
 }
 
-// 0x46ebe0  Confidence: likely. One level object. The second name in the file is read and dropped
+// 0x46ebe0  Confidence: likely (D25004: the orientation check reads mesh->orient directly, no matrix pointer;
+// left: the binary keeps `untextured` in a frame byte and num_faces / the flags pointer in EBX). One level object. The second name in the file is read and dropped
 // (written back as ""). After the transform the orientation is checked (dot products and lengths
 // within 0.03; the code sums the z terms first, VC6 reordering, D504; the lengths are vector3::len
 // expanded), the layer and flags are read, and per-name hacks set flag bits: 0x400000 black polygons, 0x200000 (and not 0x400) sidewalks and
@@ -472,7 +473,6 @@ void s3d_read_meshes(s3d_level *level, lobj *mesh, File *f)
     int layer;
     int num_faces;
     int i;
-    matrix *m;
 
     if (f->check_flags(1)) {
         f->sync_string_buf(name, 0x20, 0, 0);
@@ -508,13 +508,15 @@ void s3d_read_meshes(s3d_level *level, lobj *mesh, File *f)
     f->sync_vector(&mesh->bbox_min, 0, &file_zero_vector);
     f->sync_vector(&mesh->bbox_max, 0, &file_zero_vector);
 
-    m = &mesh->orient;
-    if (fabs(m->uvec.x * m->fvec.x + m->uvec.y * m->fvec.y + m->uvec.z * m->fvec.z) > 0.03f
-        || fabs(m->rvec.x * m->fvec.x + m->rvec.y * m->fvec.y + m->rvec.z * m->fvec.z) > 0.03f
-        || fabs(m->rvec.x * m->uvec.x + m->rvec.y * m->uvec.y + m->rvec.z * m->uvec.z) > 0.03f
-        || fabs(m->fvec.len() - 1.0f) > 0.03f
-        || fabs(m->uvec.len() - 1.0f) > 0.03f
-        || fabs(m->rvec.len() - 1.0f) > 0.03f)
+    if (fabs(mesh->orient.uvec.x * mesh->orient.fvec.x + mesh->orient.uvec.y * mesh->orient.fvec.y
+             + mesh->orient.uvec.z * mesh->orient.fvec.z) > 0.03f
+        || fabs(mesh->orient.rvec.x * mesh->orient.fvec.x + mesh->orient.rvec.y * mesh->orient.fvec.y
+                + mesh->orient.rvec.z * mesh->orient.fvec.z) > 0.03f
+        || fabs(mesh->orient.rvec.x * mesh->orient.uvec.x + mesh->orient.rvec.y * mesh->orient.uvec.y
+                + mesh->orient.rvec.z * mesh->orient.uvec.z) > 0.03f
+        || fabs(mesh->orient.fvec.len() - 1.0f) > 0.03f
+        || fabs(mesh->orient.uvec.len() - 1.0f) > 0.03f
+        || fabs(mesh->orient.rvec.len() - 1.0f) > 0.03f)
         printf("WARNING: mesh '%s' may have an invalid orientation matrix!\n", mesh->name);
 
     layer = mesh->get_layer_n(0);

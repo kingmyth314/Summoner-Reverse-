@@ -288,7 +288,8 @@ void ui_listbox::sync_scrollbars()
 // fall). Mouse selection (event 0x18, a second click on the selection 0x19), the arrow and page keys,
 // the wheel, and type-ahead: typed characters select the first entry that starts with them
 // (case-insensitively), forgotten after 1.5 s. A hidden list box plays sound 7 on a click or its hotkey.
-// F6205: the clicked y is not corrected for v_margin.
+// F6205: the clicked y is not corrected for v_margin. D22903: the hidden case leaves through the final
+// return (124 -> 104); the binary still has a return of its own there and keeps key in EBP.
 int ui_listbox::process(int key)
 {
     if (is_disabled())
@@ -313,7 +314,7 @@ int ui_listbox::process(int key)
             ui_play_sound(7);
         if (has_hotkey(key))
             ui_play_sound(7);
-        return key;
+        goto out;       // D22903: the shared return (EBX takes the zero constant, as in the binary)
     }
 
     key = ui_gadget::process(key);
@@ -405,6 +406,7 @@ int ui_listbox::process(int key)
             }
         }
     }
+out:
     return key;
 }
 
@@ -977,7 +979,8 @@ void ui_listbox::scroll_line_down()
     set_vscroll(vscroll + 1, true);
 }
 
-// 0x52e380  Confidence: likely (the `if (vscroll != top)` shape that stores top on both paths).
+// 0x52e380  Confidence: likely (the `if (vscroll != top)` shape that stores top on both paths; D22901:
+// `top + fh` for the next line, 32 -> 20; left: the line snap's ECX / EDX and the binary's (line + 1) * fh).
 // One view height up, then snapped to an entry (BY_ENTRY) or a line. Moves vscroll directly (no scroll
 // bar update).
 void ui_listbox::scroll_page_up()
@@ -1021,7 +1024,7 @@ void ui_listbox::scroll_page_up()
                 else if (line == e->num_lines - 1)
                     vscroll = e->next->y;
                 else
-                    vscroll = (line + 1) * fh + e->y;
+                    vscroll = top + fh;     // D22901: the next line's top
             }
         }
     } else {
@@ -1450,8 +1453,10 @@ void ui_listbox::draw()
         if (bm_background >= 0) {
             gr_set_color(255, 255, 255, 255);
             gr_bitmap(bm_background, get_screen_x(0), get_screen_y(0), gr_bitmap_wrap_mode);
+        } else if (is_hidden()) {   // D22902: one call per colour pair (the binary's `push 1` before the test)
+            draw_sunken(&colors[3], 1);
         } else {
-            draw_sunken(is_hidden() ? &colors[3] : colors, 1);
+            draw_sunken(colors, 1);
         }
     }
 

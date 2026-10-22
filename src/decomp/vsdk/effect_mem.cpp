@@ -727,7 +727,8 @@ void effects_init_pools()
     }
 }
 
-// 0x51cf60  Confidence: likely. Returns -1 (File destructor only, no close) when a parse fails,
+// 0x51cf60  Confidence: likely (D24701: category is not reset per line, as the binary; the parser
+// sets it before every success). Returns -1 (File destructor only, no close) when a parse fails,
 // which includes reaching the end of the file through lines without entries. The inner _stricmp
 // loop's result is unused (a duplicate check whose warning was compiled out); it compares against
 // the first k names only, k being the position on the current line.
@@ -757,8 +758,7 @@ int effects_load_bases()
         return -1;
     line = 0;
     while (!f.eof()) {
-        num = 0;
-        category = 0;
+        num = 0;                              // D24701: category is not reset per line (the binary)
         if (effects_parse_arr_line(&f, &line, name, &category, &num, names))
             return -1;
 
@@ -1036,9 +1036,10 @@ int vfx_all_resident(const char **names)
     return 1;
 }
 
-// 0x51dd00  Confidence: likely (the result in vi, NULL when the base or the instance is missing, as the
-// binary's shared epilogue, match31; still differs in the copy of the base's two flag bits; the prefix test is written as a chain of ||; the copy of the base's two
-// flag bits into the instance is a guess at the source shape). An instance of a named effect: effects
+// 0x51dd00  Confidence: exact (VC6 byte match, D24700: the copy of the base's two flag bits sign-extends each
+// bit from 13 bits and masks it with ~3 / ~5, as the binary; the values are the same bits 1 and 2; the result
+// in vi, NULL when the base or the instance is missing, as the binary's shared epilogue, match31; the prefix
+// test is written as a chain of ||). An instance of a named effect: effects
 // whose names start with "nar-", "mi-" or "worl" pass flag 1 to vfx_instance_create. The base's
 // bitmaps are loaded with preload-on-load set.
 vfx_instance *vfx_load(const char *name, int a)
@@ -1064,7 +1065,11 @@ vfx_instance *vfx_load(const char *name, int a)
             vi->pos = base->pos;
             vi->_unk3c = base->_unk54;
             vi->category = b->category;
-            vi->id_bits = (vi->id_bits & ~0x190) | ((((base->flags & 4) ? 4 : 0) | ((base->flags & 2) ? 2 : 0)) << 6);
+            {                                 // D24700: each bit sign-extended from 13 bits, then masked
+                short t = (short)((base->flags & 4) << 3) >> 3, u = (short)((base->flags & 2) << 3) >> 3;
+
+                vi->id_bits = (vi->id_bits & ~0x190) | (((t & ~3) | (u & ~5)) << 6);
+            }
             bm_set_preload_on_load(1);
             base->load_bitmaps(-1);
             bm_set_preload_on_load(0);

@@ -324,8 +324,8 @@ void mp_send_new_path(Character *c)
         mp_broadcast_packet(data, packet_size, true);
 }
 
-// 0x4801f0  Confidence: likely (match29, D8800: n is a ubyte, each node read through a vector2 with memcpy, the
-// direction loop without a second path test; still differs: the vector2 is stored to the stack before the call; D21401: closer). multi_path_type 0 (full path): the nodes are
+// 0x4801f0  Confidence: exact (match29, D8800: n is a ubyte, each node read through a vector2 with memcpy, the
+// direction loop without a second path test; D21401: cost before last; D24801: v.x / v.z copied from the vector2 with memcpy). multi_path_type 0 (full path): the nodes are
 // rebuilt as sent, with their directions and the remaining cost counted back from the last node's;
 // 1 (generate): the AI searches from its position to the first node and appends a search to the last.
 void mp_handle_new_path(ubyte *data, void *from)
@@ -367,8 +367,8 @@ void mp_handle_new_path(ubyte *data, void *from)
         off += 4;
         memcpy(&p.y, data + off, 4);
         off += 4;
-        v.x = p.x;
-        v.z = p.y;
+        memcpy(&v.x, &p.x, 4);              // D24801: memcpy, so p needs no frame slot
+        memcpy(&v.z, &p.y, 4);
         layer = data[off++];
         if (multi_path_type == 0) {
             if (i == 0) {

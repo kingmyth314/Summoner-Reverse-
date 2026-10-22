@@ -283,7 +283,11 @@ bool character_is_locally_controlled(Character *c)
 
 // ---- goals -----------------------------------------------------------------------------------------
 // 0x475830  Confidence: likely (jump table 0x475cd4 over types 1..17; the returns all go through EBX,
-// so `result` is a variable; cases 10, 11, 13 and 17 set it to 0 explicitly). cdecl (ai, goal).
+// so `result` is a variable; cases 10, 11, 13 and 17 set it to 0 explicitly; D23403: every return in the
+// switch is `result = ...; break;` (8966 then copies the epilogue into each), the cases in the binary's
+// block order (hide and sneak after switch-combat) and the attack, cast, switch-combat and hide tests as
+// if / else chains, which keep their result blocks in place; left: the sneak ternary, where the binary
+// sign-extends the inverted low byte of the flags). cdecl (ai, goal).
 // GAME BUG (NOTES): a cast-at-target goal (4) whose target is gone reads the NULL target's type when a
 // cutscene script runs.
 int ai_goal_evaluate(ai_state *ai, ai_goal *goal)
@@ -297,34 +301,44 @@ int ai_goal_evaluate(ai_state *ai, ai_goal *goal)
     result = AI_GOAL_KEEP;
     switch (goal->type) {
     case AI_GOAL_ATTACK:
-        if (ai->is_casting() == true)
-            return AI_GOAL_SUSPEND;
-        if (ai->owner->flags & CF_COMBAT_READY) {
+        if (ai->is_casting() == true) {
+            result = AI_GOAL_SUSPEND;
+        } else if (ai->owner->flags & CF_COMBAT_READY) {
             t = living_from_handle(goal->target);
-            if (!t)
-                return AI_GOAL_LOST;
+            if (!t) {
+                result = AI_GOAL_LOST;
+                break;
+            }
             if ((t->flags & CF_HIDDEN) || (cutscene_script_is_active() && t->type == 7))
                 result = AI_GOAL_SUSPEND;
             if (t->flags & CF_DEAD)
                 result = AI_GOAL_DONE;
-            if (ai->owner->get_team() == 0 && t->get_team() == 0 && !t->has_status(0x10))
-                return AI_GOAL_DONE;
+            if (ai->owner->get_team() == 0 && t->get_team() == 0 && !t->has_status(0x10)) {
+                result = AI_GOAL_DONE;
+                break;
+            }
         }
         break;
     case AI_GOAL_FOLLOW:
     case AI_GOAL_PROTECT:
         t = living_from_handle(goal->target);
-        if (!t)
-            return AI_GOAL_LOST;
+        if (!t) {
+            result = AI_GOAL_LOST;
+            break;
+        }
         if (t->is_dead_type())
             result = AI_GOAL_DONE;
         if (goal->type == AI_GOAL_FOLLOW) {
             Character *o = ai->owner;
             if (o->type == 7) {
-                if (player_from_handle(o->handle)->flags & PF_HOLD)
-                    return AI_GOAL_SUSPEND;
-                if (cutscene_script_is_active())
-                    return AI_GOAL_SUSPEND;
+                if (player_from_handle(o->handle)->flags & PF_HOLD) {
+                    result = AI_GOAL_SUSPEND;
+                    break;
+                }
+                if (cutscene_script_is_active()) {
+                    result = AI_GOAL_SUSPEND;
+                    break;
+                }
             }
         }
         break;
@@ -333,44 +347,64 @@ int ai_goal_evaluate(ai_state *ai, ai_goal *goal)
     case AI_GOAL_CAST_LOCATION:
         if (goal->id == ai->cur_goal) {
             if (!ai->is_mode(AI_STATE_CAST_SPELL, -1))
-                return AI_GOAL_DONE;
-            break;
-        }
-        if (goal->type == AI_GOAL_CAST_TARGETED) {
+                result = AI_GOAL_DONE;
+        } else if (goal->type == AI_GOAL_CAST_TARGETED) {
             t = living_from_handle(goal->target);
             if (!t)
                 result = AI_GOAL_LOST;
-            if (cutscene_script_is_active() && t->type == 7)
-                return AI_GOAL_SUSPEND;
+            if (cutscene_script_is_active() && t->type == 7) {
+                result = AI_GOAL_SUSPEND;
+                break;
+            }
         }
         break;
     case AI_GOAL_SWITCH_COMBAT:
         if (goal->id == ai->cur_goal) {
             unsigned int f = ai->owner->flags;
             if ((f & CF_COMBAT_READY) && (f & 0x400))
-                return AI_GOAL_SUSPEND;
-            if (!ai->is_combat_e_or_sneak_attack())
-                return AI_GOAL_DONE;
+                result = AI_GOAL_SUSPEND;
+            else if (!ai->is_combat_e_or_sneak_attack())
+                result = AI_GOAL_DONE;
+        } else if (ai->is_casting() == true || ai->is_mode(AI_STATE_SNEAKING, -1))
+            result = AI_GOAL_SUSPEND;
+        break;
+    case AI_GOAL_HIDE:
+        if (goal->id == ai->cur_goal) {
+            if (!ai->is_mode(AI_STATE_HIDING, -1) && !(ai->owner->flags & CF_COMBAT_READY))
+                result = AI_GOAL_SUSPEND;
+        } else if (ai->owner->forward_speed > 0.0f || ai->is_casting() == true)
+            result = AI_GOAL_SUSPEND;
+        break;
+    case AI_GOAL_SNEAK:
+        if (goal->id == ai->cur_goal) {
+            if (ai->is_mode(AI_STATE_SNEAKING, -1))
+                break;
+            result = (ai->owner->flags & CF_COMBAT_READY) ? AI_GOAL_DONE : AI_GOAL_SUSPEND;
             break;
         }
-        if (ai->is_casting() == true)
-            return AI_GOAL_SUSPEND;
-        if (ai->is_mode(AI_STATE_SNEAKING, -1))
-            return AI_GOAL_SUSPEND;
+        if (ai->owner->forward_speed > 0.0f || ai->is_casting() == true
+            || ai->is_combat_e_or_sneak_attack()) {
+            result = AI_GOAL_SUSPEND;
+            break;
+        }
         break;
     case AI_GOAL_PATHFIND:
         if (ai->owner->is_rider()) {
             Character *mount = ai->owner->get_mount();
             if (!mount || goal->id != ai->cur_goal)
                 break;
-            if (!mount->ai.path_get_destination(&dest))
-                return AI_GOAL_DONE;
+            if (!mount->ai.path_get_destination(&dest)) {
+                result = AI_GOAL_DONE;
+                break;
+            }
             break;
         }
         if (goal->id != ai->cur_goal)
             break;
-        if (!ai->path_get_destination(&dest))
-            return AI_GOAL_DONE;
+        if (!ai->path_get_destination(&dest)) {
+            result = AI_GOAL_DONE;
+            break;
+        }
         break;
     case AI_GOAL_GOTO_NAVPOINT:
         if (goal->id != ai->cur_goal)
@@ -383,44 +417,32 @@ int ai_goal_evaluate(ai_state *ai, ai_goal *goal)
         ai->owner->set_6ac(0);
         ai->owner->set_locomotion_speed(0);
         ai->owner->find_ground();
-        return AI_GOAL_DONE;
+        result = AI_GOAL_DONE;
+        break;
     case AI_GOAL_BACKSTAB:
         t = living_from_handle(goal->target);
-        if (!t)
-            return AI_GOAL_LOST;
+        if (!t) {
+            result = AI_GOAL_LOST;
+            break;
+        }
         if (ai->owner->flags & 0x400)
             break;
         if (goal->id == ai->cur_goal) {
-            if (!ai->is_mode(AI_STATE_COMBAT, 0x11))
-                return AI_GOAL_DONE;
+            if (!ai->is_mode(AI_STATE_COMBAT, 0x11)) {
+                result = AI_GOAL_DONE;
+                break;
+            }
             break;
         }
-        if (!ai->can_backstab_target(t))
-            return AI_GOAL_LOST;
+        if (!ai->can_backstab_target(t)) {
+            result = AI_GOAL_LOST;
+            break;
+        }
         if (ai->owner->forward_speed > 0.0f || ai->is_combat_e_or_sneak_attack() == true
-            || ai->is_casting() == true)
-            return AI_GOAL_SUSPEND;
-        break;
-    case AI_GOAL_SNEAK:
-        if (goal->id == ai->cur_goal) {
-            if (ai->is_mode(AI_STATE_SNEAKING, -1))
-                break;
-            return (ai->owner->flags & CF_COMBAT_READY) ? AI_GOAL_DONE : AI_GOAL_SUSPEND;
+            || ai->is_casting() == true) {
+            result = AI_GOAL_SUSPEND;
+            break;
         }
-        if (ai->owner->forward_speed > 0.0f || ai->is_casting() == true
-            || ai->is_combat_e_or_sneak_attack())
-            return AI_GOAL_SUSPEND;
-        break;
-    case AI_GOAL_HIDE:
-        if (goal->id == ai->cur_goal) {
-            if (ai->is_mode(AI_STATE_HIDING, -1))
-                break;
-            if (ai->owner->flags & CF_COMBAT_READY)
-                break;
-            return AI_GOAL_SUSPEND;
-        }
-        if (ai->owner->forward_speed > 0.0f || ai->is_casting() == true)
-            return AI_GOAL_SUSPEND;
         break;
     case AI_GOAL_TURN_TO:
     case AI_GOAL_RUN_AWAY:
@@ -1005,7 +1027,10 @@ bool door_in_use_range(Character *c, lobj *door)
     return fabsf(d->floor_point().y - c->pos.y) < 0.5f;
 }
 
-// 0x476ab0  Confidence: likely (the loop exits and the ray set-up order). A door without a named path
+// 0x476ab0  Confidence: likely (D23402: mid as a vector2 constructed in the layer loop and the wall in a
+// `w` local give the binary's loops, registers and frame; the ray's stop_t / min_radius zeroed as floats
+// (immediate stores, not the zero register); left: mid's slot (the binary's is 4 bytes higher)
+// and the second sum's fmul scheduled before the argument pushes). A door without a named path
 // uses its object position. Otherwise the door's navigation edges (pf_edges with the door flag and this
 // door's index, at most four) are looked up in the grid cells around the first edge's middle, for size
 // classes 1-2 and the 20 layers; the middle of the first match is cast down (from 50 above, 100 long)
@@ -1015,7 +1040,6 @@ void door_find_floor_point(lobj *l)
     door_info *d;
     pf_edge *edges[4];
     int num_edges, door_index, size, layer, c, k, j, i, n;
-    vector2 mid;
     vector3 point;
 
     if (!(l->flags & LOBJ_FLAG_DOOR))
@@ -1035,14 +1059,14 @@ void door_find_floor_point(lobj *l)
         return;
     for (size = 1; size < 3; size++) {
         for (layer = 0; layer < 20; layer++) {
-            mid.x = (edges[0]->b->x + edges[0]->a->x) * 0.5f;
-            mid.y = (edges[0]->a->y + edges[0]->b->y) * 0.5f;
+            vector2 mid((edges[0]->b->x + edges[0]->a->x) * 0.5f, (edges[0]->a->y + edges[0]->b->y) * 0.5f);   // D23402
             n = pf_cells_in_box(layer, size, &mid, 0.1f);
             for (c = 0; c < n; c++) {
                 pf_grid_cell *cell = pf_grid_cell_results[c];
                 for (k = 0; k < cell->num_walls; k++) {
+                    pf_edge *w = cell->walls[k];
                     for (j = 0; j < num_edges; j++) {
-                        if (cell->walls[k] == edges[j])
+                        if (w == edges[j])
                             goto found;
                     }
                 }
@@ -1071,9 +1095,9 @@ found:
         ray.flags = 0;
         ray.require_flags = 0x40;
         ray.exclude_flags = 0;
-        ray._unk28 = 0;
+        ray.stop_t = 0.0f;                  // D23402: float zeros (immediate stores)
         ray._unk2c = 0;
-        ray._unk30 = 0;
+        ray.min_radius = 0.0f;
         lobj_raycast(i, &ray, &hit, true);
         if (hit.num_hits > 0) {
             d->floor_point() = ray.start + ray.dir * hit.t;

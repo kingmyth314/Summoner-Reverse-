@@ -96,7 +96,9 @@ void pf_debug_search_step(float sx, float sy, float gx, float gy, pf_vis_node *t
     } while (0)
 
 // 0x4a3890  Confidence: likely (D16702: the segment loop in vector2 operators, the macro's points assigned
-// from named to_vector3 results). The normal tick runs from the segment's midpoint to midpoint + normal / 2,
+// from named to_vector3 results; D25003: the segment and corner fields indexed through sl, `sl->segs[k]`
+// and `sl->corners[ia]`, with no seg / corner pointers, and the midpoint as a + b; left: ESI / EDI swapped
+// for cell / edge in the first loop). The normal tick runs from the segment's midpoint to midpoint + normal / 2,
 // both at the debug height (D17000: drawn through p0 / p1, there is no third point). game_render_frame when Render_3d_obstacles is set:
 // the cell walls of the debug size class (the highlighted layer, or all with obstacles_debug_all_layers),
 // the layer-transition edges, then for every used segment list of the highlighted layer its segments,
@@ -108,8 +110,6 @@ void obstacles_debug_render()
     pf_edge *e;
     pf_wall *w;
     avoid_seglist *sl;
-    avoid_seg_ref *s;
-    avoid_corner *ca, *cb;
     vector3 p0, p1;
     int layer, i, j, k, n_segs, ia, ib;
 
@@ -144,19 +144,16 @@ void obstacles_debug_render()
             continue;
         n_segs = sl->num_segs;
         for (k = 0; k < n_segs; k++) {
-            s = &sl->segs[k];
-            ia = s->a;
-            ca = &sl->corners[ia];
-            ib = s->b;
-            cb = &sl->corners[ib];
-            p0.x = ca->pos.x;
-            p0.z = ca->pos.y;
-            p1.x = cb->pos.x;
-            p1.z = cb->pos.y;
+            ia = sl->segs[k].a;
+            ib = sl->segs[k].b;
+            p0.x = sl->corners[ia].pos.x;
+            p0.z = sl->corners[ia].pos.y;
+            p1.x = sl->corners[ib].pos.x;
+            p1.z = sl->corners[ib].pos.y;
             p0.y = p1.y = obstacle_height_offset + cur_character->pos.y + 0.01f;
             gr_line_3d_world(&p0, &p1, gr_line_3d_mode);
-            vector2 m = 0.5f * (cb->pos + ca->pos);
-            vector2 n = 0.5f * s->normal;
+            vector2 m = 0.5f * (sl->corners[ia].pos + sl->corners[ib].pos);
+            vector2 n = 0.5f * sl->segs[k].normal;
             vector2 t = m + n;
             p0.x = m.x;   // p0.y / p1.y keep the debug height (D17000)
             p0.z = m.y;
@@ -165,19 +162,19 @@ void obstacles_debug_render()
             gr_line_3d_world(&p0, &p1, gr_line_3d_mode);
             vector2 a, b;
             if (obstacles_debug_axis_lines) {
-                a = 0.5f * *avoid_record_axis_at(sl, ia) + ca->pos;
-                b = 0.5f * *avoid_record_axis_at(sl, ib) + ca->pos;
+                a = 0.5f * *avoid_record_axis_at(sl, ia) + sl->corners[ia].pos;
+                b = 0.5f * *avoid_record_axis_at(sl, ib) + sl->corners[ia].pos;
             } else {
-                a = 0.5f * ca->offset + ca->pos;
-                b = 0.5f * cb->offset + cb->pos;
+                a = 0.5f * sl->corners[ia].offset + sl->corners[ia].pos;
+                b = 0.5f * sl->corners[ib].offset + sl->corners[ib].pos;
             }
-            p0.x = ca->pos.x;
-            p0.z = ca->pos.y;
+            p0.x = sl->corners[ia].pos.x;
+            p0.z = sl->corners[ia].pos.y;
             p1.x = a.x;
             p1.z = a.y;
             gr_line_3d_world(&p0, &p1, gr_line_3d_mode);
-            p0.x = cb->pos.x;
-            p0.z = cb->pos.y;
+            p0.x = sl->corners[ib].pos.x;
+            p0.z = sl->corners[ib].pos.y;
             p1.x = b.x;
             p1.z = b.y;
             gr_line_3d_world(&p0, &p1, gr_line_3d_mode);

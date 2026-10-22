@@ -828,8 +828,9 @@ void level_parse_trigger(TextFile *tf)
 
 // 0x4cc4d0  Confidence: likely (D14205: closer; D22000: the type test written again before the sell / buy branches,
 // `else if (type == -1)` holding the unknown-item message, so 8966 threads the tests and places that block
-// between the sell and buy scans as the binary does; left: the item_types row index in EAX, the game_flags
-// test, a dead lea before the count increment). "$Shopkeeper:" character
+// between the sell and buy scans as the binary does; D24400: the name test before the price read, indexing
+// item_types directly, gives the row index in EAX; left: the price store before the name test's branch, the
+// game_flags test, a dead lea before the count increment). "$Shopkeeper:" character
 // then any number of "+Sell List:" / "+Buy List:" blocks of item names up to "$End". A sell entry costs the
 // item's value; the shop pays 70 % of it for a buy entry (10 %, at least 1, in multiplayer). Entries of the
 // same item are kept once; both lists are sorted.
@@ -876,10 +877,9 @@ void level_parse_shopkeeper(TextFile *tf)
                 tf->ParseString(item, 0x100, '"', '"');
                 type = item_type_find(item);
                 if (type != -1) {
-                    ItemType *it = &item_types[type];
-                    price = it->value;
-                    if (!it->name)
+                    if (!item_types[type].name)
                         continue;
+                    price = item_types[type].value;
                 }
                 if (type != -1 && sell) {
                     for (i = 0; i < s->num_sell; i++)
@@ -1390,6 +1390,8 @@ int lc_find_by_hash(unsigned int hash)
 // 0x4cd5f0  Confidence: likely (one name buffer shared by the file name and the door names; the File object
 // is constructed and never used). <script>_script.tbl: #Town, #Navpoints, #Objects, #Doors (sounds, lock,
 // key and the saved open state of each door), #Clicks (the lc entries); returns TextFile::Open's error.
+// D24401: the lock bit masked with `& 1` (the binary's `and edx, 1`, a bit-field merge); left: the binary keeps
+// the zero constant in EBX and l (NULL per door) in EBP, ours merges both into EBP.
 int level_script_parse_table()
 {
     File f;
@@ -1456,7 +1458,7 @@ int level_script_parse_table()
                     break;
             }
             d = door_from_lobj(l);
-            d->state = (d->state & ~8) | ((locked ? 1 : 0) << 3);
+            d->state = (d->state & ~8) | (((locked ? 1 : 0) & 1) << 3);   // D24401
             if (locked && strlen(name))
                 d->key = &item_types[item_type_find(name)];
             savegame_state.two_stage_get(&open, &saved_locked, l);

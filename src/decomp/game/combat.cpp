@@ -134,8 +134,9 @@ void cmd_death()
 }
 
 // 0x463540  Confidence: exact (VC6 8966 byte match with both net handles in locals before the send, m1019). Sends the exchange to the other machines:
-// the attacking side's handles first.
-void living_combat::send_net(int state_arg, bool special)
+// the attacking side's handles first. D22505: state_arg is a bool (resolve_exchange passes its bool
+// argument as a dword without masking it; send_net passes it on unchanged).
+void living_combat::send_net(bool state_arg, bool special)
 {
     int a, b, variant, skill_id;
     move_info *defence;
@@ -314,10 +315,12 @@ void living_combat::play_defense()
     state = COMBAT_IDLE;
 }
 
-// 0x463910  Confidence: unsure (the vector temporaries: matrix assignment is expanded inline into three
-// vector3 copies, each followed by a copy-constructor call into one temporary, 0x463a60-0x463aa6).
-// The weapon's "$missile" tag through the hand bone (char_info +0x168) gives the arrow's start; the
-// phoenix (species 0x58) shoots fire arrows, everyone else the generic arrow.
+// 0x463910  Confidence: exact (VC6 8966 byte match, D22500: the two position sums written with vector3's
+// += operator use up the inline budget, so the matrix assignment's three row copies call the vector3 copy
+// constructor out of line as in the binary; the spell chosen by an if / else into a local after the sums
+// keeps the call's arguments after the float code). The weapon's "$missile" tag through the hand bone
+// (char_info +0x168) gives the arrow's start; the phoenix (species 0x58) shoots fire arrows, everyone else
+// the generic arrow.
 bool living_combat::fire_weapon_missile()
 {
     vector3 ofs;
@@ -343,14 +346,14 @@ bool living_combat::fire_weapon_missile()
     p.z = world.m[3][2];
     orient = owner->orient * rot;
     p.unrotate(owner->orient);
-    p.x = p.x + owner->pos.x;
-    p.y = p.y + owner->pos.y;
-    p.z = p.z + owner->pos.z;
-    p.x = ofs.x + p.x;
-    p.y = ofs.y + p.y;
-    p.z = ofs.z + p.z;
-    spell_fire_missile(owner->info->species == 0x58 ? SPELL_FIRE_ARROW : SPELL_GENERIC_ARROW, -1, owner,
-                       opponent->owner, &p, &orient);
+    p += owner->pos;
+    p += ofs;
+    int sp;
+    if (owner->info->species == 0x58)
+        sp = SPELL_FIRE_ARROW;
+    else
+        sp = SPELL_GENERIC_ARROW;
+    spell_fire_missile(sp, -1, owner, opponent->owner, &p, &orient);
     return true;
 }
 
@@ -747,11 +750,21 @@ void living_combat::play_skill_attack()
 }
 
 // Picks the player's chain attack from the four configured slots (25 % each; slot 3 before slot 2) and
-// announces it. Written out twice in the binary (0x46491d, 0x464af7): a macro here.
+// announces it. Written out twice in the binary (0x46491d, 0x464af7): a macro here. D22506: one call per
+// slot (8966 cross-jumps their tails as in the binary), and the buffer 0x50 bytes (the binary's frame is
+// 0x58 with 16 unused bytes above the buffer; the text needs less).
 #define COMBAT_PICK_CHAIN(rec) do { \
         float c_ = frand(); \
-        int s_ = character_get_chain_skill(party_leader, c_ < 0.25f ? 0 : c_ < 0.5f ? 1 : c_ < 0.75f ? 3 : 2); \
-        char buf_[0x40]; \
+        int s_; \
+        char buf_[0x50]; \
+        if (c_ < 0.25f) \
+            s_ = character_get_chain_skill(party_leader, 0); \
+        else if (c_ < 0.5f) \
+            s_ = character_get_chain_skill(party_leader, 1); \
+        else if (c_ < 0.75f) \
+            s_ = character_get_chain_skill(party_leader, 3); \
+        else \
+            s_ = character_get_chain_skill(party_leader, 2); \
         if (s_ == SKILL_NONE) \
             s_ = SKILL_ADDED_BLOW; \
         (rec)->chain_skill = s_; \
@@ -762,23 +775,40 @@ void living_combat::play_skill_attack()
         hud_show_message(buf_); \
     } while (0)
 
-// 0x464700  Confidence: likely (the multiplayer filter and the two chain blocks). One round of a melee
-// exchange: who attacks is decided by the speed share; the other side rolls its defence. one_sided =
-// the opponent does not fight back (living_combat_update_attack, _ranged).
+// The local player's multiplayer role (host = flags bit 0); resolve_exchange's filter (D22506: as inline
+// helpers through a pointer local, 8966 keeps the binary's second NULL and flag tests). Names ours.
+static inline bool combat_mp_host()
+{
+    mp_player *p = mp_local_player;
+    return p && (p->flags & 1);
+}
+
+static inline bool combat_mp_client()
+{
+    mp_player *p = mp_local_player;
+    return p && !(p->flags & 1);
+}
+
+// 0x464700  Confidence: exact (VC6 8966 byte match, D22506: the role tests as inline helpers through a
+// pointer local, the client test with the both-sides case first, the shares set before the learn calls,
+// the chain pick's calls per slot and its 0x50 buffer (COMBAT_PICK_CHAIN), the net send through a bool
+// local and send_net's bool first argument, D22505). One round of a melee exchange: who attacks is
+// decided by the speed share; the other side rolls its defence. one_sided = the opponent does not fight
+// back (living_combat_update_attack, _ranged).
 void living_combat::resolve_exchange(bool one_sided)
 {
     living_combat *att, *def;
     float r, share;
 
     if (game_flags & 2) {
-        if (mp_local_player && !(mp_local_player->flags & 1)) {
-            if (one_sided) {
-                if (!character_is_locally_controlled(owner))
+        if (combat_mp_client()) {
+            if (!one_sided) {
+                if (!character_is_locally_controlled(owner) &&
+                    !character_is_locally_controlled(opponent->owner))
                     return;
-            } else if (!character_is_locally_controlled(owner) &&
-                       !character_is_locally_controlled(opponent->owner))
+            } else if (!character_is_locally_controlled(owner))
                 return;
-        } else if (mp_local_player && (mp_local_player->flags & 1)) {
+        } else if (combat_mp_host()) {
             if (!(one_sided == true && character_is_locally_controlled(owner)) &&
                 (!character_is_locally_controlled(owner) || !character_is_locally_controlled(opponent->owner)))
                 return;
@@ -794,12 +824,12 @@ void living_combat::resolve_exchange(bool one_sided)
         if (!config_combat_flag) {
             if (chain_learn) {
                 chain_learn = false;
-                character_learn_chain_skill(party_leader, chain_skill, chain_count);
                 share = 1.0f;
+                character_learn_chain_skill(party_leader, chain_skill, chain_count);
             } else if (opponent->chain_learn) {
                 opponent->chain_learn = false;
-                character_learn_chain_skill(party_leader, opponent->chain_skill, opponent->chain_count);
                 share = 0.0f;
+                character_learn_chain_skill(party_leader, opponent->chain_skill, opponent->chain_count);
             } else {
                 last_chain_skill = SKILL_NONE;
                 if (owner == cur_character || opponent->owner == cur_character)
@@ -856,10 +886,15 @@ void living_combat::resolve_exchange(bool one_sided)
             combat_mode_set(true);
     }
     if (game_flags & 2) {
+        bool special;
+
         if (state == COMBAT_ATTACKING || state == COMBAT_SPECIAL)
-            send_net(one_sided, state == COMBAT_SPECIAL);
+            special = state == COMBAT_SPECIAL;
         else if (opponent && (opponent->state == COMBAT_ATTACKING || opponent->state == COMBAT_SPECIAL))
-            send_net(one_sided, opponent->state == COMBAT_SPECIAL);
+            special = opponent->state == COMBAT_SPECIAL;
+        else
+            return;
+        send_net(one_sided, special);
     }
 }
 
@@ -904,7 +939,9 @@ float combat_position_modifier(Character *attacker, Character *defender)
 // armour in slots 3, 4, 6, 7, 8: protection skill + level %; with armour: level % + sum of material
 // protection multiplier x item protection. An active bless adds its value. D21801: the bless tail written
 // in both branches puts the armour block after the epilogue, as in the binary (closer, 82 -> 53; left: e6
-// kept in EDX and the two tails not cross-jumped).
+// kept in EDX and the two tails not cross-jumped). D22501: under the 2026-10-21 distance the plain if / else
+// with one shared bless tail is closer (45 -> 36): the push of the tail is no longer scheduled into the fild;
+// left: the join placed after the armour block and e6 kept in EDX.
 float living_combat::get_protection()
 {
     Character *c = owner;
@@ -917,11 +954,7 @@ float living_combat::get_protection()
 
     if (!e3 && !e4 && !e7 && !e8 && !e6) {
         prot = c->get_skill(SKILL_PROTECTION) + c->level * 0.01f;
-        if (c->has_status(STATUS_BLESS))
-            return owner->status_value(STATUS_BLESS) + prot;
-        return prot;
-    }
-    {
+    } else {
         float p3 = e3 ? materials[e3->type->material].protection_mult * e3->type->protection : 0.0f;
         float p4 = e4 ? materials[e4->type->material].protection_mult * e4->type->protection : 0.0f;
         float p7 = e7 ? materials[e7->type->material].protection_mult * e7->type->protection : 0.0f;
@@ -929,10 +962,10 @@ float living_combat::get_protection()
         float p6 = c->equipment[6] ? materials[c->equipment[6]->type->material].protection_mult *
                                      c->equipment[6]->type->protection : 0.0f;
         prot = c->level * 0.01f + p6 + p8 + p7 + p4 + p3;
-        if (c->has_status(STATUS_BLESS))
-            return owner->status_value(STATUS_BLESS) + prot;
-        return prot;
     }
+    if (c->has_status(STATUS_BLESS))
+        return owner->status_value(STATUS_BLESS) + prot;
+    return prot;
 }
 
 // The self-cast of a combat skill (mend, steelskin, overpower, bless, revitalize, prayer): through the
@@ -1340,13 +1373,17 @@ void living_combat::apply_melee_hit(bool flinch)
 }
 
 // 0x4665f0  Confidence: likely (the matrix assignment of the dead `orient` is expanded inline, partly
-// through vector3::operator= calls). The bone of the defender nearest to the hit tag of the attacker's
+// through vector3::operator= calls). D22502 (closer, 150 -> 2): bp / bo block-scoped in the loop (they
+// share the slots of the orient temporaries: frame 0x178), the tag position copied as a vector3 and the
+// attacker's position added with += use up the inline budget as in the binary (row 0 expanded with the
+// copy constructor call, rows 1 and 2 through operator=); left: `add esp, 16` after the call is placed
+// before the products (the binary has it after the second fmul). The bone of the defender nearest to the hit tag of the attacker's
 // current move on the weapon (or to the hand bone when unarmed); -1 when there is no move.
 int combat_get_weapon_tag_position(Character *attacker, Character *defender)
 {
     move_info *m = (move_info *)attacker->get_current_move();
-    vector3 p, tag_pos, bone_pos, bp;
-    matrix tag_orient, bone_orient, rot, orient, bo;
+    vector3 p, tag_pos, bone_pos;
+    matrix tag_orient, bone_orient, rot, orient;
     int bone, tag, i, n, best;
     float best_d;
 
@@ -1363,28 +1400,24 @@ int combat_get_weapon_tag_position(Character *attacker, Character *defender)
         matrix43 tag_m(tag_pos, tag_orient);
         matrix43 world = tag_m * bone_m;
         world.get_rotation(&rot);
-        p.x = world.m[3][0];
-        p.y = world.m[3][1];
-        p.z = world.m[3][2];
+        p = *(vector3 *)world.m[3];
         orient = attacker->orient * rot;
     } else {
         bone = attacker->info->_unk168[0];
         attacker->instance->get_bone_transform(&bone_pos, &bone_orient, bone);
         matrix43 world(bone_pos, bone_orient);
         world.get_rotation(&rot);
-        p.x = world.m[3][0];
-        p.y = world.m[3][1];
-        p.z = world.m[3][2];
+        p = *(vector3 *)world.m[3];
         orient = attacker->orient * rot;
     }
     p.unrotate(attacker->orient);
     best = -1;
     best_d = 10000000.0f;
-    p.x = p.x + attacker->pos.x;
-    p.y = p.y + attacker->pos.y;
-    p.z = p.z + attacker->pos.z;
+    p += attacker->pos;
     n = defender->instance->character->mesh->skin->num_bones;
     for (i = 0; i < n; i++) {
+        vector3 bp;
+        matrix bo;
         float dx, dy, dz, dist;
 
         character_get_bone_world_matrix(defender, i, &bp, &bo);
@@ -1466,7 +1499,10 @@ void combat_play_weapon_hit_sound(Character *attacker, Character *defender)
 const float chain_window_per_speed = 2.0f;
 
 // 0x466ae0  Confidence: likely (dword jump table 0x466d04: only state 1 does work; the tail after the
-// window test is written once, the binary has it twice). The chain-attack timing window of the player's
+// window test is written once, the binary has it twice). D22507 (closer, 59 -> 47): the second window
+// branch jumps to the first one's learn tail (`goto learn` after a `!=` test); left: 8966 places the
+// labelled tail after the second branch's tests, the binary keeps it in the first branch (cross-jump
+// direction, D21805). The chain-attack timing window of the player's
 // input: 0 = accepted (chain started or continued), +100 = not allowed, -100 = no attack, otherwise
 // the signed distance to the window.
 float living_combat::chain_check_window(int skill_id)
@@ -1513,6 +1549,7 @@ float living_combat::chain_check_window(int skill_id)
                     return 0.0f;
                 if (skill_id == last_chain_skill)
                     return 100.0f;
+            learn:
                 chain_learn = true;
                 if (++chain_count == 1)
                     chain_index = 0;
@@ -1526,14 +1563,9 @@ float living_combat::chain_check_window(int skill_id)
             if (t < window) {
                 if (skill_id == SKILL_NONE)
                     return 0.0f;
-                if (skill_id == last_chain_skill)
-                    return 100.0f;
-                chain_learn = true;
-                if (++chain_count == 1)
-                    chain_index = 0;
-                chain_skill = skill_id;
-                last_chain_skill = skill_id;
-                return 0.0f;
+                if (skill_id != last_chain_skill)
+                    goto learn;
+                return 100.0f;
             }
             return -(window - t);
         }
@@ -1710,8 +1742,10 @@ void living_combat::update_ranged()
             spell_cast_execute((c), (sp), (sp_target), (tpos), (tlayer), (int)(itype), (src), 0); \
     } while (0)
 
-// 0x4670a0  Confidence: likely (written with combat_trigger_reflex_ability's macro; same size as the original,
-// a different register order in the prologue; D5700). The attacker answers its own landed hit:
+// 0x4670a0  Confidence: exact (VC6 8966 byte match, D22503: the frand result assigned to a float local
+// inside each test, `(r = frand()) < ...chance`, so the chance's owner / info / effect pointers are loaded
+// after the call and -1 stays in EDI; written with combat_trigger_reflex_ability's macro, D5700). The
+// attacker answers its own landed hit:
 // with the chance of its char_info special ability it casts that spell (source type 1), then its weapon's
 // triggered effect with that effect's chance (source type 3, the weapon type as the item). A beneficial spell
 // goes to the attacker itself (at its position + 1.2 up), any other to the defender.
@@ -1723,8 +1757,9 @@ void living_combat::trigger_special_ability(float damage)
     self_pos.y += 1.2f;
     int spell;
     item_info *w;
+    float r;
 
-    if (owner->info->special_ability != -1 && frand() < owner->info->special_chance) {
+    if (owner->info->special_ability != -1 && (r = frand()) < owner->info->special_chance) {
         spell = owner->info->special_ability;
         if (spells[spell].flags & SPELL_BENEFICIAL)
             COMBAT_TRIGGER_CAST(owner, spell, owner->handle, &self_pos, owner->layer, (ItemType *)0, 1,
@@ -1734,7 +1769,7 @@ void living_combat::trigger_special_ability(float damage)
                                 (ItemType *)0, 1, opponent->owner, opponent->owner->handle);
     }
     w = owner->equipment[5];
-    if (w && w->type->weapon_triggered_effect && frand() < w->type->weapon_triggered_effect->chance) {
+    if (w && w->type->weapon_triggered_effect && (r = frand()) < w->type->weapon_triggered_effect->chance) {
         spell = w->type->weapon_triggered_effect->spell;
         if (spells[spell].flags & SPELL_BENEFICIAL)
             COMBAT_TRIGGER_CAST(owner, spell, owner->handle, &self_pos, owner->layer, owner->equipment[5]->type,
@@ -1745,8 +1780,8 @@ void living_combat::trigger_special_ability(float damage)
     }
 }
 
-// 0x467670  Confidence: likely (VC6 compiles the same flow and stores, 1605 bytes, but keeps opponent->owner in
-// callee-saved registers across frand where the original reloads it and holds -1 in edi; D5506).
+// 0x467670  Confidence: exact (VC6 8966 byte match, D22504: `(r = frand()) < ...chance` in both tests, as in
+// trigger_special_ability (D22503), so opponent->owner is reloaded after frand and -1 stays in EDI; D5506).
 // The defender (opponent's owner) answers a hit: with the chance of its char_info reflex ability, it
 // casts that spell (source type 2); then every worn item whose type has an armour triggered effect
 // casts that effect's spell with its chance (source type 4, the item type as the item). A beneficial
@@ -1762,8 +1797,9 @@ void living_combat::trigger_reflex_ability(float damage)
     attacker_pos.y += 1.2f;
     int spell = opponent->owner->info->reflex_ability;
     int i;
+    float r;
 
-    if (spell != -1 && frand() < opponent->owner->info->reflex_chance) {
+    if (spell != -1 && (r = frand()) < opponent->owner->info->reflex_chance) {
         if (spells[spell].flags & SPELL_BENEFICIAL)
             COMBAT_TRIGGER_CAST(opponent->owner, spell, opponent->owner->handle, &self_pos,
                                 opponent->owner->layer, (ItemType *)0, 2, opponent->owner,
@@ -1775,7 +1811,7 @@ void living_combat::trigger_reflex_ability(float damage)
     for (i = 0; i < 9; i++) {
         item_info *it = opponent->owner->equipment[i];
         if (it && it->type->kind == 1 && it->type->armour_triggered_effect &&
-            frand() < it->type->armour_triggered_effect->chance) {
+            (r = frand()) < it->type->armour_triggered_effect->chance) {
             spell = it->type->armour_triggered_effect->spell;
             if (spells[spell].flags & SPELL_BENEFICIAL)
 #ifdef FIXED_BUILD

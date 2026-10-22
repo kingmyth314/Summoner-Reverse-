@@ -411,7 +411,8 @@ void mp_charselect_update_create_button()
         mp_charselect_buttons[15].flags |= 4;
 }
 
-// 0x406bf0  Confidence: likely (the button flags shifted unsigned with info_open on the left, D15703; frame 8
+// 0x406bf0  Confidence: likely (D22805: the button loop through b / d pointer locals, 299 -> 281;
+// the button flags shifted unsigned with info_open on the left, D15703; frame 8
 // against 0x14 and register choice left; the "if (!focus) return 0" after each key block, as in
 // gamecreate_handle_click; the list loop skips list 2 with a test inside the loop; the row loop of list 1
 // is skipped but the list still becomes the wheel target; the ESC case is a one-case switch). The typing
@@ -428,20 +429,21 @@ int mp_charselect_handle_click(int key)
     mp_charselect_hover_row = -1;
 
     for (i = 0; i < CHARSELECT_NUM_BUTTONS; i++) {
-        if (!(mp_charselect_buttons[i].flags & 4)
-            && mp_charselect_info_open == (((unsigned)mp_charselect_button_defs[i].flags >> 3) & 1)
-            && (mp_charselect_button_defs[i].flags & 7)
-            && point_in_rect(game_mouse_x, game_mouse_y, mp_charselect_buttons[i].x, mp_charselect_buttons[i].y,
-                             mp_charselect_buttons[i].w, mp_charselect_buttons[i].h)) {
+        ui_button_state *b = &mp_charselect_buttons[i];
+        ui_button_def *d = &mp_charselect_button_defs[i];
+        if (!(b->flags & 4)
+            && mp_charselect_info_open == (((unsigned)d->flags >> 3) & 1)
+            && (d->flags & 7)
+            && point_in_rect(game_mouse_x, game_mouse_y, b->x, b->y, b->w, b->h)) {
             mp_charselect_pressed_button = i;
-            mp_charselect_buttons[i].flags |= 2;
-            if (mp_charselect_button_defs[i].flags & 5) {
+            b->flags |= 2;
+            if (d->flags & 5) {
                 if (mouse_was_pressed(0)) {
                     mp_charselect_mouse_mode = 1;
                     mp_charselect_repeat_timer.invalidate();
                     return key;
                 }
-            } else if (mp_charselect_button_defs[i].flags & 2) {
+            } else if (d->flags & 2) {
                 if (mouse_was_pressed(0)) {
                     mp_charselect_mouse_mode = 1;
                     mp_charselect_button_action(mp_charselect_pressed_button + 1);

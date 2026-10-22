@@ -358,8 +358,8 @@ void fx_rec98::render_mesh(vfx_node_desc *desc, float t)
 void fx_rec98::update_frame(vfx_node_desc *desc, float t)
 {
     float tsec = t * (1.0f / 15.0f);
-    int rate = desc->mesh_flags >> 6;
-    float frame = (tsec - desc->start_time) * rate;
+    float frame = (float)(desc->mesh_flags >> 6);   // D23600: fild rate, then tsec - start_time
+    frame *= tsec - desc->start_time;
     int i, j;
 
     if (frame < 0.0f || desc->num_frames < frame) {
@@ -378,12 +378,14 @@ void fx_rec98::update_frame(vfx_node_desc *desc, float t)
         if (desc->is_billboard()) {
             float u = 1.0f - frac;
             v00 = desc->anim->get_vec(f0) * u + desc->anim->get_vec(f1) * frac;
-            width = desc->anim->get_a(f0) * u + desc->anim->get_a(f1) * frac;
-            height = desc->anim->get_b(f0) * u + desc->anim->get_b(f1) * frac;
+            float a0 = desc->anim->get_a(f0) * u;   // D23600: the f0 product first
+            width = a0 + desc->anim->get_a(f1) * frac;
+            float b0 = desc->anim->get_b(f0) * u;
+            height = b0 + desc->anim->get_b(f1) * frac;
         } else if (!(desc->mesh_flags & VFX_MESH_STATIC_VERTS)) {
             v00 = desc->morph->origin;
-            float u = 1.0f - frac;
             for (i = 0; i < desc->num_verts; i++) {
+                float u = 1.0f - frac;   // D23600: hoisted after the loop guard
                 vfx_mesh_verts[i] = desc->morph->get_pos(i, f0) * u + desc->morph->get_pos(i, f1) * frac;
                 if (desc->mesh_flags & VFX_MESH_X64)
                     vfx_mesh_verts[i] *= 64.0f;
@@ -399,8 +401,11 @@ void fx_rec98::update_frame(vfx_node_desc *desc, float t)
             }
         }
     } else if (desc->mesh_flags & VFX_MESH_SKINNED) {
-        int ticks = (int)(tsec * 30.0f * 160.0f);
-        int start = (int)(desc->start_time * 30.0f * 160.0f);
+        // D23600: two multiplies (* 30, * 160), not the folded 4800
+        float tf = tsec * 30.0f;
+        int ticks = (int)(tf * 160.0f);
+        float sf = desc->start_time * 30.0f;
+        int start = (int)(sf * 160.0f);
         vector3 rest_pos(desc->rest_pos);
         matrix rest_rot;
         quaternion rq;
@@ -408,20 +413,21 @@ void fx_rec98::update_frame(vfx_node_desc *desc, float t)
         rq.to_matrix_b(&rest_rot);
         vector3 rest_scale(desc->rest_scale);
         vector3 pos;
-        if (desc->track->num_pos_keys)
+        if (desc->track->num_pos_keys > 0)   // D23600: jbe
             pos = desc->track->get_position(ticks - start);
         else
             pos = desc->xform->get_pos((desc->mesh_flags >> 3) & 1, 0);
         matrix rot;
-        if (desc->track->num_rot_keys) {
-            desc->track->get_rotation(ticks - start, false).to_matrix_b(&rot);
+        if (desc->track->num_rot_keys > 0) {
+            quaternion tq = desc->track->get_rotation(ticks - start, false);   // D23600: a named result
+            tq.to_matrix_b(&rot);
         } else {
             quaternion q;
             q.unpack_short4(desc->xform->get_rot(0));
             q.to_matrix_b(&rot);
         }
         vector3 scale;
-        if (desc->track->num_scale_keys)
+        if (desc->track->num_scale_keys > 0)
             scale = desc->track->get_scale(ticks - start);
         else
             scale = desc->xform->get_scale(0);
@@ -505,8 +511,8 @@ void fx_rec98::update_frame(vfx_node_desc *desc, float t)
 
     if (!desc->is_billboard()) {
         if ((desc->vis_flags & VFX_MESH_UV_ANIM) && !(desc->mesh_flags & VFX_MESH_STATIC_UVS)) {
-            float u = 1.0f - frac;
             for (i = 0; i < desc->num_faces; i++) {
+                float u = 1.0f - frac;   // D23600: hoisted after the loop guard
                 for (j = 0; j < 3; j++) {
                     vfx_mesh_face_uvs[i].set_u(j, desc->uv_anims[i].get_u(j, f0) * u
                                                   + desc->uv_anims[i].get_u(j, f1) * frac);

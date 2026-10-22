@@ -156,6 +156,9 @@ void ai_state::phoenix_set_dive_point()
 // (stage 1) or 5-8 m away. The mount travels there when there is one.
 // When the side point has no path the second try paths to the negated point (-dest), not to the
 // mirrored side point (NOTES.md).
+// D24602: the else branch's centre copied with memcpy and `centre + p` written per member (no vector3
+// operator=: its returned copy became an out-of-line copy-constructor call under 8966), and the mounted
+// branch with its own timer / return (the binary keeps two copies). 238 -> 156.
 bool ai_state::phoenix_reposition_update()
 {
     vector3 centre;
@@ -206,7 +209,7 @@ bool ai_state::phoenix_reposition_update()
             hi = 8.0f;
             lo = 5.0f;
         }
-        centre = owner->pos;
+        memcpy(&centre, &owner->pos, sizeof(vector3));     // D24602
     }
     float range = hi - lo;
     int tries = 7;
@@ -214,14 +217,18 @@ bool ai_state::phoenix_reposition_update()
         vector3 p;
         p.random_direction();
         p *= frand() * range + lo;
-        p = centre + p;
+        p.x = centre.x + p.x;     // D24602: centre + p without operator=
+        p.y = centre.y + p.y;
+        p.z = centre.z + p.z;
         if (pf_point_is_navigable(&p, owner->info->size, owner->layer)
             && path_find_new(&owner->pos, owner->layer, &p, owner->layer, owner->info->size, 0.0f)) {
             Character *m = owner->get_mount();
-            if (m)
+            if (m) {
                 m->ai.set_mode(AI_STATE_MOUNT_TRAVEL, -1);
-            else
-                set_mode(AI_STATE_TRAVELING, -1);
+                phoenix_wander_timer.SetTimeout(5000);
+                return true;
+            }
+            set_mode(AI_STATE_TRAVELING, -1);
             phoenix_wander_timer.SetTimeout(5000);
             return true;
         }
@@ -493,7 +500,9 @@ void ai_state::phoenix_ai_idle()
 // used are kept as statements). Returns 0 out of combat or without a target, 5 while an attack plays,
 // 1 with a pending sub-mode (0x20 reposition, 0x3a / 0x3b the end moves), else 3 after choosing
 // phoenix_cur_attack (ai_set_mode(3, 0x10) for the ranged moves, (3, 0x16) for the others, no mode
-// change for the dive and the timed moves).
+// change for the dive and the timed moves). D24601: the busy test written with the same return in both arms
+// (D16404's form) gives the binary's dead `cmp al, 1`; the stage-2 ranged roll through r gives its fxch / fcompp.
+// Left: `this` in EBX and spilled (binary: EBP, n in EBX, stage 3's hi in a frame slot).
 int ai_state::phoenix_choose_attack()
 {
     boss_target list[5];
@@ -504,9 +513,10 @@ int ai_state::phoenix_choose_attack()
 
     if (!phoenix_combat)
         return 0;
-    bool busy = owner->combat.is_busy() == true;     // computed, not used
-    (void)busy;
-    if (phoenix_cur_attack)
+    if (owner->combat.is_busy() == true) {     // the result does not matter: both arms are the same
+        if (phoenix_cur_attack)
+            return 5;
+    } else if (phoenix_cur_attack)
         return 5;
     if (is_mode(AI_STATE_COMBAT, 0x20))
         return 5;
@@ -601,7 +611,8 @@ int ai_state::phoenix_choose_attack()
             return 3;
         }
         if (list[cur].flags & PHOENIX_TF_FAR) {
-            if (frand() < 0.3f / (phoenix.ranged_count * 0.25f + 1.0f)) {
+            r = frand();     // D24601
+            if (r < 0.3f / (phoenix.ranged_count * 0.25f + 1.0f)) {
                 phoenix.ranged_count++;
                 phoenix_cur_attack = phoenix_move_s2_2;
                 return 3;

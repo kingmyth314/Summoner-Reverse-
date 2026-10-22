@@ -474,7 +474,8 @@ int buysell_frame(int key)
     return key;
 }
 
-// 0x405260  Confidence: likely (the B / Esc and I / Q / R bodies share tails; key jump table 0x405668,
+// 0x405260  Confidence: likely (D24803, closer: the list item through a local before item_page_in; the B / Esc and
+// I / Q / R bodies share tails; key jump table 0x405668,
 // index bytes 0x40567c for key - 1 in 0..0x2f). Buttons, thumb, list rows, keys, mouse wheel.
 int buysell_handle_click(int key)
 {
@@ -536,8 +537,8 @@ int buysell_handle_click(int key)
                     if (buysell_selected_item != buysell_scroll_pos + i) {
                         buysell_selected_item = buysell_scroll_pos + i;
                         item_page_out_all(BUYSELL_PAGE_SLOT);
-                        item_page_in(buysell_get_list_item(buysell_selected_item)->item_type,
-                                     BUYSELL_PAGE_SLOT, 0);
+                        shop_item *it = buysell_get_list_item(buysell_selected_item); // D24803
+                        item_page_in(it->item_type, BUYSELL_PAGE_SLOT, 0);
                     }
                     if (buysell_mode == 0)
                         buysell_buy_item(buysell_selected_item);
@@ -549,8 +550,8 @@ int buysell_handle_click(int key)
                     if (buysell_selected_item != buysell_scroll_pos + i) {
                         buysell_selected_item = buysell_scroll_pos + i;
                         item_page_out_all(BUYSELL_PAGE_SLOT);
-                        item_page_in(buysell_get_list_item(buysell_selected_item)->item_type,
-                                     BUYSELL_PAGE_SLOT, 0);
+                        shop_item *it = buysell_get_list_item(buysell_selected_item); // D24803
+                        item_page_in(it->item_type, BUYSELL_PAGE_SLOT, 0);
                     }
                     return key;
                 }

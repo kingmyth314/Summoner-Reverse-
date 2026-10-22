@@ -40,7 +40,7 @@ public:
     int   get_special_skill();                      // 0x468c60
     void  set_40(int hits);                         // 0x468c70
 
-    void  send_net(int state_arg, bool special);    // 0x463540 living_combat_send_net
+    void  send_net(bool state_arg, bool special);   // 0x463540 living_combat_send_net (D22505: bool)
     void  play_attack(move_info *move);             // 0x463620
     void  play_special(move_info *move);            // 0x463660
     void  play_flinch_secondary(int variant);       // 0x4636a0

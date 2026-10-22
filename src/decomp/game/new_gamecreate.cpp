@@ -243,7 +243,11 @@ void gamecreate_update_create_button()
 // default case of the field switch zeroes key, so the buffer pointer is never used uninitialised).
 // The backspace and typing paths share their timer tail in the binary (cross-jumping). D16902: the final
 // Escape test is a one-case switch (the binary's `mov eax, ecx; dec eax; je` with key kept in ECX); the tail
-// now matches. Still differs: the field-check block after the default case is laid out right after it.
+// now matches. D23201: the guard is followed by a redundant `if (gamecreate_field_active[i]) break;` (8966
+// folds the second test); the default case then jumps forward to the field check and the case bodies and the
+// typing path are laid out in the binary's order (distance 92 -> 62). Still differs: the c == 0xff key switch
+// is laid out right after the typing path (the binary has it after the mouse loop), so the timer tail is the
+// backspace path's in ours and the typing path's in the binary.
 int gamecreate_handle_click(int key)
 {
     int i;
@@ -319,7 +323,8 @@ int gamecreate_handle_click(int key)
 
         if (!gamecreate_field_active[i])
             return 0;
-        break;
+        if (gamecreate_field_active[i])     // D23201: redundant, sets the block order
+            break;
     }
 
     if (mouse_was_pressed(0)) {

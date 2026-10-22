@@ -270,7 +270,9 @@ item_obj::item_obj()
     in_container = NULL;
 }
 
-// 0x46a1b0  Confidence: likely. Frame: ray ebp-0x4c (its inline constructor is the store to ebp-0x1c =
+// 0x46a1b0  Confidence: exact (VC6 byte match, D24204: the ray direction through the inline vector3::set in
+// both blocks, which spends the inline budget so that orient's row copies go out of line as in the binary; the
+// best height starts at -999999, not -1e6). Frame: ray ebp-0x4c (its inline constructor is the store to ebp-0x1c =
 // ray+0x30 before the first loop), floor ebp-0x50, found ebp-0x54, hit ebp-0x80, io ebp-0x84, i ebp-0x88,
 // best ebp-0x8c, lo ebp-0x90; ebp-0x9c..-0xf0 are the temporaries of the expanded vector3 / matrix
 // assignments. Two literal quirks: the free-slot search has no overflow check (i = 1000 indexes past the
@@ -302,7 +304,7 @@ item_obj *item_obj_spawn(item_info *item, const vector3 *pos, const matrix *orie
     io->obj_flags |= 1;
     if (layer >= 0) {
         any = false;
-        top = -1000000.0f;
+        top = -999999.0f;   // D24204: the binary's constant is 0xc97423f0 (-999999), not -1e6
         floor = -1;
         for (i = 0; i < num_lobjs; i++) {
             l = &lobjs[i];
@@ -310,9 +312,7 @@ item_obj *item_obj_spawn(item_info *item, const vector3 *pos, const matrix *orie
                 continue;
             cast.start = io->pos;
             cast.start.y += 3.0f;
-            cast.dir.x = 0.0f;
-            cast.dir.y = -10.0f;
-            cast.dir.z = 0.0f;
+            cast.dir.set(0.0f, -10.0f, 0.0f);   // D24204: the inline set (both rays) uses the inline budget
             cast._unk18 = 0.0f;
             cast.flags = 0;
             cast.require_flags = 0;
@@ -334,9 +334,7 @@ item_obj *item_obj_spawn(item_info *item, const vector3 *pos, const matrix *orie
     if (layer < 0) {
         cast.start = io->pos;
         cast.start.y += 3.0f;
-        cast.dir.x = 0.0f;
-        cast.dir.y = -10.0f;
-        cast.dir.z = 0.0f;
+        cast.dir.set(0.0f, -10.0f, 0.0f);       // D24204
         cast._unk18 = 0.0f;
         cast.flags = 0;
         cast.require_flags = 0;

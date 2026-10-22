@@ -62,8 +62,9 @@ void credits_init()
 }
 
 // 0x408620, reads the "#<language>" section of credits.tbl into credits_lines, wrapping lines
-// wider than the column. Confidence: likely (stack layout of the locals not checked; see the
-// '&' test below).
+// wider than the column. Confidence: exact (VC6 byte match, D24502: the piece length written out as
+// `end - start` three times instead of a len local, so start is not coalesced with the zero register;
+// see the '&' test below).
 void credits_parse_table()
 {
     TextFile tf;
@@ -112,10 +113,9 @@ void credits_parse_table()
                     end = strlen(line);
                 else
                     end = starts[i + 1];
-                int len = end - start;
-                strncpy(credits_lines + out, line + start, len);
+                strncpy(credits_lines + out, line + start, end - start);
                 credits_lines[out + end - start] = 0;
-                out += len + 1;
+                out += end - start + 1;
                 // The binary tests credits_lines[start], i.e. the output buffer indexed by the
                 // input offset (probably meant line[start]). A '&' piece shares the previous row.
                 if (credits_lines[start] != '&')

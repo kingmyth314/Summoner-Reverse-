@@ -162,10 +162,16 @@ void assess_format_info(Character *target)
     level = target->level;
     hp = (int)target->hp;
     max_hp = target->get_max_stat(0);
-    if (target->equipment[5] && !(target->info->flags & 0x200))
-        damage = target->equipment[5]->type->damage;
-    else
-        damage = target->info->damage;
+    {
+        // D24203 (closer only, 43 -> 28): a pointer to the chosen ushort, read once after the branches
+        // (the binary loads the damage in both branches into EAX and stores it once at the join).
+        ushort *dp;
+        if (target->equipment[5] && !(target->info->flags & 0x200))
+            dp = &target->equipment[5]->type->damage;
+        else
+            dp = &target->info->damage;
+        damage = *dp;
+    }
     protection = (int)(target->combat.get_protection() * 100.0f + 0.5f);
     magic = (int)(target->get_resistance(3) * 100.0f + 0.5f);
     res = target->info->resistance;

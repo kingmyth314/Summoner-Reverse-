@@ -700,15 +700,17 @@ void gr_d3d_tmapper_multipass(int nv, gr_multipass_vertex **verts, int npasses, 
                                  m.get_zbuffer_type(), m.get_fog_type());
                 gr_d3d_set_state(m);
                 float u_off, v_off, u_scale, v_scale;
-                int section = gr_poly_get_section(nv, verts, i, pass->bitmap, &u_off, &v_off, &u_scale,
+                // D23705: one walking vertex-pointer local for the call and the loop (the binary keeps it in EDI).
+                gr_multipass_vertex **vv = verts;
+                int section = gr_poly_get_section(nv, vv, i, pass->bitmap, &u_off, &v_off, &u_scale,
                                                   &v_scale);
                 gr_d3d_tcache_set(0, pass->bitmap, section, &gr_d3d_texture_scale_u[0],
                                   &gr_d3d_texture_scale_v[0], 1);
                 u_scale = gr_d3d_texture_scale_u[0] * u_scale;
                 v_scale = gr_d3d_texture_scale_v[0] * v_scale;
-                for (j = 0; j < nv; j++) {
-                    dv[j].tu = (verts[j]->pass[i].u - u_off) * u_scale;
-                    dv[j].tv = (verts[j]->pass[i].v - v_off) * v_scale;
+                for (j = 0; j < nv; j++, vv++) {
+                    dv[j].tu = ((*vv)->pass[i].u - u_off) * u_scale;
+                    dv[j].tv = ((*vv)->pass[i].v - v_off) * v_scale;
                 }
             } else {
                 gr_d3d_set_state(pass->mode);
@@ -1542,15 +1544,16 @@ void gr_d3d_init_device()
     if (d3d_max_texture_h < 16)
         d3d_max_texture_h = 256;
     gr_screen.max_bitmap_h = d3d_max_texture_h;
-    d3d_pow2_textures_only = (d3d_device_desc->dpcTriCaps.dwTextureCaps & D3DPTEXTURECAPS_POW2) ? 1 : 0;
+    // D23701: square before pow2 (closer; the binary's two `& 0xff` copies are still not reproduced).
     d3d_square_textures_only = (d3d_device_desc->dpcTriCaps.dwTextureCaps & D3DPTEXTURECAPS_SQUAREONLY) ? 1 : 0;
+    d3d_pow2_textures_only = (d3d_device_desc->dpcTriCaps.dwTextureCaps & D3DPTEXTURECAPS_POW2) ? 1 : 0;
     d3d_driver_caps.dwSize = d3d_hel_caps.dwSize = sizeof(DDCAPS);
     gr_screen.max_bitmap_w = d3d_max_texture_w;
     IDirectDraw7_GetCaps(d3d_ddraw, &d3d_driver_caps, &d3d_hel_caps);
 
-    // The blend modes the game cannot do without.
-    strcpy(msg, XSTR("Your video card is missing the following features required by Summoner:\r\n\r\n", 938));
+    // The blend modes the game cannot do without. D23702: missing cleared before the strcpy (register order).
     missing = 0;
+    strcpy(msg, XSTR("Your video card is missing the following features required by Summoner:\r\n\r\n", 938));
     if (!(d3d_device_desc->dpcTriCaps.dwTextureBlendCaps & D3DPTBLENDCAPS_MODULATE)) {
         strcat(msg, XSTR("Texture blending mode = Modulate\r\n", 939));
         missing++;
@@ -1680,7 +1683,11 @@ void gr_d3d_init_device()
     }
     d3d_vertex_buffer_pos = 0;
     levelrender_d3d_vertex_buffer_pos = 0;
-    gr_d3d_set_render_state(D3DRENDERSTATE_ALPHAREF, d3d_use_vertex_buffer ? 0x18 : 0);
+    // D23700: an if / else with two calls (8966 merges their common tail: push 0x18 or 0, then one push / call).
+    if (d3d_use_vertex_buffer)
+        gr_d3d_set_render_state(D3DRENDERSTATE_ALPHAREF, 0x18);
+    else
+        gr_d3d_set_render_state(D3DRENDERSTATE_ALPHAREF, 0);
     IDirect3DDevice7_SetTextureStageState(d3d_device, 0, D3DTSS_MIPFILTER, D3DTFP_LINEAR);
     IDirect3DDevice7_SetTextureStageState(d3d_device, 1, D3DTSS_MIPFILTER, D3DTFP_LINEAR);
     d3d_device_ready = 1;

@@ -342,6 +342,9 @@ bool ix_sphere_plane_front(const vector3 *c, const vector3 *d, float r, plane *p
 // 0x53bb50  Confidence: unsure (the branch shape around the early times). The moving sphere against the
 // cylinder around a-b: an entry time in -0.05..0 counts as 1e-6, an earlier one (starting inside the
 // cylinder) or an entry outside the edge falls back to the sphere around a. The hit is the edge point.
+// D24903 (closer only): the edge hit and the vertex hit share the `found:` tail (*t, *hit, return true), as
+// the binary's shared near_pt assignment shows. Left: the binary places the edge hit block after the vertex
+// block (the vertex tail jumps into it) and the t0 < 0 branch after the best test.
 // 0x53bf40 atexit_nop_53bf40: the atexit handler of centre_pt (compiler-generated). Confidence: exact.
 // 0x53bf50 atexit_nop_53bf50: the atexit handler of near_pt (compiler-generated). Confidence: exact.
 bool ix_sphere_polygon_edge(vector3 *hit, const vector3 *p0, const vector3 *d, float r, const vector3 *a,
@@ -388,9 +391,7 @@ bool ix_sphere_polygon_edge(vector3 *hit, const vector3 *p0, const vector3 *d, f
         u = (centre_pt - *a).dot(e) / ee;
         if (u >= 0.0f && u <= 1.0f) {
             near_pt = *a + e * u;
-            *t = t0;
-            *hit = near_pt;
-            return true;
+            goto found;
         }
     }
 vertex:
@@ -407,6 +408,7 @@ vertex:
         return false;
     centre_pt = *p0 + *d * t0;
     near_pt = *a;
+found:
     *t = t0;
     *hit = near_pt;
     return true;
@@ -528,6 +530,10 @@ bool ix_sphere_box_oriented(const vector3 *p, float r, const vector3 *centre, co
 // wrong axis (see NOTES decomp67): test 3 multiplies Bf[1][0] by b[2] instead of b[0] (the binary adds
 // Bf[1][2] + Bf[1][0] first), test 5 Bf[0][1] by a[2] instead of a[0], test 8 Bf[0][2] by b[2] instead of
 // b[0], test 9 Bf[0][1] by b[2] instead of b[0] (the product shared with test 7).
+// D24902 (closer only): Bf read through the row pointer F (D21906's first step) and plain float copies of
+// single operands (bf*, tz*, ty*, tx15, b20) and a copy of T (T5): exact copies, no product is rounded into a
+// local; they set 8966's term and operand order where the source order is ignored. Left: test 2's T terms,
+// test 5's T->x * B[0][1], test 6's B[0][2] * T->x, tests 7 / 9's first two terms, tests 11 / 12's b->x term.
 int ix_box_oriented_box_oriented(const float B[3][4], const vector3 *T, const vector3 *a, const vector3 *b)
 {
     float Bf[3][3];
@@ -544,65 +550,81 @@ int ix_box_oriented_box_oriented(const float B[3][4], const vector3 *T, const ve
     Bf[2][1] = (float)fabs(B[2][1]) + 1e-6f;
     Bf[2][2] = (float)fabs(B[2][2]) + 1e-6f;
 
+    const float (*F)[3] = Bf;
     r = 1;
     t = (float)fabs(T->x);
-    r &= (t <= Bf[0][2] * b->z + Bf[0][1] * b->y + Bf[0][0] * b->x + a->x);
+    r &= (t <= F[0][2] * b->z + F[0][1] * b->y + F[0][0] * b->x + a->x);
     if (!r)
         return 1;
     t = (float)fabs(T->z * B[2][0] + T->y * B[1][0] + B[0][0] * T->x);
-    r &= (t <= Bf[0][0] * a->x + Bf[2][0] * a->z + Bf[1][0] * a->y + b->x);
+    float bf00 = F[0][0];
+    r &= (t <= bf00 * a->x + F[2][0] * a->z + F[1][0] * a->y + b->x);
     if (!r)
         return 2;
     t = (float)fabs(T->y);
-    r &= (t <= (Bf[1][2] + Bf[1][0]) * b->z + Bf[1][1] * b->y + a->y);
+    r &= (t <= (F[1][2] + F[1][0]) * b->z + F[1][1] * b->y + a->y);
     if (!r)
         return 3;
     t = (float)fabs(T->z);
-    r &= (t <= Bf[2][2] * b->z + Bf[2][1] * b->y + Bf[2][0] * b->x + a->z);
+    r &= (t <= F[2][2] * b->z + F[2][1] * b->y + F[2][0] * b->x + a->z);
     if (!r)
         return 4;
-    t = (float)fabs(T->z * B[2][1] + T->y * B[1][1] + T->x * B[0][1]);
-    r &= (t <= (Bf[2][1] + Bf[0][1]) * a->z + Bf[1][1] * a->y + b->y);
+    const vector3 *T5 = T;
+    t = (float)fabs(T5->z * B[2][1] + T5->y * B[1][1] + T5->x * B[0][1]);
+    r &= (t <= (F[2][1] + F[0][1]) * a->z + F[1][1] * a->y + b->y);
     if (!r)
         return 5;
-    t = (float)fabs(T->z * B[2][2] + T->y * B[1][2] + B[0][2] * T->x);
-    r &= (t <= Bf[0][2] * a->x + Bf[2][2] * a->z + Bf[1][2] * a->y + b->z);
+    float tz6 = T->z;
+    float tz6b = tz6;
+    float ty6 = T->y;
+    t = (float)fabs(tz6b * B[2][2] + ty6 * B[1][2] + B[0][2] * T->x);
+    float bf02 = F[0][2];
+    r &= (t <= bf02 * a->x + F[2][2] * a->z + F[1][2] * a->y + b->z);
     if (!r)
         return 6;
     t = (float)fabs(T->z * B[1][0] - T->y * B[2][0]);
-    r &= (t <= Bf[0][2] * b->y + Bf[2][0] * a->y + Bf[1][0] * a->z + Bf[0][1] * b->z);
+    float bf20 = F[2][0];
+    r &= (t <= F[0][2] * b->y + bf20 * a->y + F[1][0] * a->z + F[0][1] * b->z);
     if (!r)
         return 7;
-    t = (float)fabs(T->z * B[1][1] - T->y * B[2][1]);
-    r &= (t <= (Bf[0][2] + Bf[0][0]) * b->z + Bf[2][1] * a->y + Bf[1][1] * a->z);
+    float tz8 = T->z;
+    t = (float)fabs(tz8 * B[1][1] - T->y * B[2][1]);
+    float bf21 = F[2][1];
+    r &= (t <= (F[0][2] + F[0][0]) * b->z + bf21 * a->y + F[1][1] * a->z);
     if (!r)
         return 8;
-    t = (float)fabs(T->z * B[1][2] - T->y * B[2][2]);
-    r &= (t <= Bf[0][0] * b->y + Bf[2][2] * a->y + Bf[1][2] * a->z + Bf[0][1] * b->z);
+    float ty9 = T->y;
+    t = (float)fabs(T->z * B[1][2] - ty9 * B[2][2]);
+    float bf22 = F[2][2];
+    r &= (t <= F[0][0] * b->y + bf22 * a->y + F[1][2] * a->z + F[0][1] * b->z);
     if (!r)
         return 9;
-    t = (float)fabs(B[2][0] * T->x - T->z * B[0][0]);
-    r &= (t <= Bf[1][2] * b->y + Bf[1][1] * b->z + Bf[2][0] * a->x + Bf[0][0] * a->z);
+    float b20 = B[2][0];
+    t = (float)fabs(b20 * T->x - T->z * B[0][0]);
+    float bf12 = F[1][2];
+    r &= (t <= bf12 * b->y + F[1][1] * b->z + F[2][0] * a->x + F[0][0] * a->z);
     if (!r)
         return 10;
     t = (float)fabs(T->x * B[2][1] - T->z * B[0][1]);
-    r &= (t <= Bf[1][0] * b->z + Bf[2][1] * a->x + Bf[1][2] * b->x + Bf[0][1] * a->z);
+    r &= (t <= F[1][0] * b->z + F[2][1] * a->x + F[1][2] * b->x + F[0][1] * a->z);
     if (!r)
         return 11;
     t = (float)fabs(B[2][2] * T->x - T->z * B[0][2]);
-    r &= (t <= Bf[1][0] * b->y + Bf[2][2] * a->x + Bf[1][1] * b->x + Bf[0][2] * a->z);
+    r &= (t <= F[1][0] * b->y + F[2][2] * a->x + F[1][1] * b->x + F[0][2] * a->z);
     if (!r)
         return 12;
     t = (float)fabs(T->y * B[0][0] - T->x * B[1][0]);
-    r &= (t <= Bf[2][2] * b->y + Bf[2][1] * b->z + Bf[1][0] * a->x + Bf[0][0] * a->y);
+    float bf22b = F[2][2];
+    r &= (t <= bf22b * b->y + F[2][1] * b->z + F[1][0] * a->x + F[0][0] * a->y);
     if (!r)
         return 13;
     t = (float)fabs(T->y * B[0][1] - B[1][1] * T->x);
-    r &= (t <= Bf[2][0] * b->z + Bf[1][1] * a->x + Bf[2][2] * b->x + Bf[0][1] * a->y);
+    r &= (t <= F[2][0] * b->z + F[1][1] * a->x + F[2][2] * b->x + F[0][1] * a->y);
     if (!r)
         return 14;
-    t = (float)fabs(T->y * B[0][2] - T->x * B[1][2]);
-    r &= (t <= Bf[2][0] * b->y + Bf[1][2] * a->x + Bf[2][1] * b->x + Bf[0][2] * a->y);
+    float tx15 = T->x;
+    t = (float)fabs(T->y * B[0][2] - tx15 * B[1][2]);
+    r &= (t <= F[2][0] * b->y + F[1][2] * a->x + F[2][1] * b->x + F[0][2] * a->y);
     if (!r)
         return 15;
     return 0;

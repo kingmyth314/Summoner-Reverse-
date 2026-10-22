@@ -215,8 +215,9 @@ void vfx_node_header::relocate(char *header_base, char *base)
 // The cache (cursor, frame) moves forward only; an earlier frame restarts from the first key.
 // D22102: one `cursor += inc` after both branches (the binary's `add word [ecx+8], ax`), the run step as
 // `inc = 4; if (bytes) inc = 3;`, `switch (p[0])` for the run test (`and ebx, 0xff; dec ebx`), an unsigned n
-// (jb), p recomputed for the literal return: 125 -> 28. Left: the found-in-run path's registers (p in EAX,
-// not ESI) and its returns' load order.
+// (jb), p recomputed for the literal return: 125 -> 28. D22900: the found-in-run path indexes d[cursor + k]
+// (the binary's `lea esi, [edx + eax]`), tests the run byte with a switch (`dec eax`) and builds the two-byte
+// value in a short (`mov ah` / `or`): 28 -> 6. Left: the one-byte return loads base_value into EAX, ours ECX.
 short vfx_channel::eval(int t)
 {
     ushort f = (ushort)t;
@@ -237,12 +238,18 @@ short vfx_channel::eval(int t)
             if (n == 0)
                 goto bad;
             if (frame <= f && f < frame + n) {
-                p = (ubyte *)data + cursor;
-                if (p[0] != 1)
+                ubyte *d = (ubyte *)data;
+                switch (d[cursor]) {
+                case 1:
+                    break;
+                default:
                     return 0;
+                }
                 if (bytes)
-                    return base_value + p[2];
-                return base_value + (p[2] | (p[3] << 8));
+                    return base_value + d[cursor + 2];
+                short v = d[cursor + 3] << 8;
+                v |= d[cursor + 2];
+                return base_value + v;
             }
             switch (p[0]) {
             case 1:

@@ -303,8 +303,9 @@ int machival_pick_random_party_member()
     return -1;
 }
 
-// 0x4c13a0  Confidence: likely (the order of the tests matches; the compiler shares the "return 1" tails).
-// The spell timers run only after the first target was picked (machival_reset_timers); spells 0x64-0x66 are
+// 0x4c13a0  Confidence: exact (VC6 byte match) (D24001: target set from a `t` copy and re-read from its
+// frame slot through a volatile read when hidden, t used for the null test; machival_target_handle read
+// into handle before the pick test). The spell timers run only after the first target was picked (machival_reset_timers); spells 0x64-0x66 are
 // rearmed to 56-104 s, the party spell to 3-5 s. When nobody is in reach of any move, the party spell goes
 // to the current target, else the choice is weighted: move 3 by 0.1 per candidate in reach, the melee and
 // move 1 by 0.5 per candidate in their cones.
@@ -325,16 +326,19 @@ int ai_state::machival_ai_select_action()
 
     if (machival_casting_spell != -1 || submode == AIS_MACHIVAL_TELEPORT || submode == AIS_MACHIVAL_ARRIVE)
         return 5;
-    target = living_from_handle(machival_target_handle);
-    if (target && (target->flags & CF_HIDDEN))
+    Character *t = living_from_handle(machival_target_handle);
+    target = t;
+    if (t && (t->flags & CF_HIDDEN)) {
         target = NULL;
+        t = *(Character * volatile *)&target;   // D24001: the binary reloads target from its slot
+    }
     moving = owner->get_current_move() != NULL;
     busy = owner->combat.is_busy();
     if (!moving && busy) {
         owner->combat.state = COMBAT_IDLE;
         busy = false;
     }
-    if (target == NULL) {
+    if (t == NULL) {
         machival_current_move = NULL;
         machival_248b030 = 0;
     }
@@ -346,8 +350,9 @@ int ai_state::machival_ai_select_action()
     timer_up = machival_attack_timer.elapsed();
     machival_update_offense_points(owner);
     count = boss_target_list_build(owner, list, machival_threat_table);
+    handle = machival_target_handle;
     if (timer_up || !target) {
-        handle = boss_target_list_pick(list, count, machival_threat_table, machival_target_handle, false, 0);
+        handle = boss_target_list_pick(list, count, machival_threat_table, handle, false, 0);
         if (handle == -1) {
             if (machival_party_spell_timer.elapsed() == true) {
                 machival_party_spell_timer.SetRandomTimeout(3000, 5000);

@@ -595,13 +595,13 @@ ui_listbox *ui_window::parse_listbox(TextFile *tf, ui_element *parent)
     return lb;
 }
 
-// 0x529d70  Confidence: likely (the screen position is read before each ParseInt: written with the
-// temporaries px / py to fix that order).
+// 0x529d70  Confidence: exact. VC6 calls get_screen_x / _y before the ParseInt of `ParseInt() - get_screen_x(0)`.
 // "#Radio button": only inside a container, so the parent is always a gadget (no kind test).
+// D23800: gx / gy as one expression each (no px / py temporaries) and label_x declared before label_y.
 ui_radio_button *ui_window::parse_radio_button(TextFile *tf, ui_element *parent)
 {
-    int label_y = 0;
     int label_x = 0;
+    int label_y = 0;
     int font = -1;
     char name[64];
     char buf[64];
@@ -614,11 +614,9 @@ ui_radio_button *ui_window::parse_radio_button(TextFile *tf, ui_element *parent)
     tf->Expect("$Id:");
     int id = tf->ParseInt();
     tf->Expect("$Position:");
-    int px = ((ui_gadget *)parent)->get_screen_x(0);
-    int gx = tf->ParseInt() - px;
+    int gx = tf->ParseInt() - ((ui_gadget *)parent)->get_screen_x(0);
     tf->Expect(",");
-    int py = ((ui_gadget *)parent)->get_screen_y(0);
-    int gy = tf->ParseInt() - py;
+    int gy = tf->ParseInt() - ((ui_gadget *)parent)->get_screen_y(0);
     tf->Expect("$Box size:");
     int box_w = tf->ParseInt();
     tf->Expect(",");
@@ -669,20 +667,21 @@ ui_radio_button *ui_window::parse_radio_button(TextFile *tf, ui_element *parent)
     return rb;
 }
 
-// 0x52a180  Confidence: unsure (two pointer variables for the two constructions: scroll is NULL unless
+// 0x52a180  Confidence: exact (two pointer variables for the two constructions: scroll is NULL unless
 // "+Scrollbar"; the binary calls create_scrollbar on that variable, which is NULL for a plain slider).
+// D23801: scroll = NULL in the else branch (not at its declaration) and parent_x declared first.
 // "#Slider". Looks ahead (GetPosition / SkipTo / SetPosition) for the arrow-button blocks before the
 // next '#': if they are there, flag 1 is set and they are parsed at the end as buttons of the slider.
 // "+Marker bitmap:" and "+Background bitmap:" are read but not used.
 ui_slider_base *ui_window::parse_slider(TextFile *tf, ui_element *parent)
 {
+    int parent_x = 0;
     char marker_bitmap[64] = "";
     int parent_y = 0;
     int marker_pos = 0;
     int positions = 1;
     int flags = 0;
     int type = 0;
-    int parent_x = 0;
     char name[64];
     char buf[64];
     char background[260];
@@ -748,12 +747,14 @@ ui_slider_base *ui_window::parse_slider(TextFile *tf, ui_element *parent)
     }
     tf->SetPosition(&pos);
 
-    ui_slider *scroll = NULL;
+    ui_slider *scroll;
     ui_slider_base *s;
-    if (scrollbar)
+    if (scrollbar) {
         s = scroll = new ui_slider;
-    else
+    } else {
+        scroll = NULL;
         s = new ui_slider_base;
+    }
 
     if (kind == 0) {
         if (type == UI_TYPE_CONTAINER) {

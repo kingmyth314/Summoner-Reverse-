@@ -181,7 +181,10 @@ void vif_reset_all()
 // the interval curve gives the spawn count of the frame; each new particle takes a random lifetime and a
 // position and velocity in a box (VIF_SPAWN_BOX) or a sphere. Every live particle ages (dying ones go back to
 // the free list), falls (VIF_GRAVITY), is pushed (VIF_FORCE) and moves. The time is kept for the next frame.
-// The last argument is the effect time's raw dword (D4704).
+// The last argument is the effect time's raw dword (D4704). D24002 (143 -> 8): the spawn_timer store chained
+// with remaining, the late time kept in remaining, spawn as `!(late > interval) ? 1 : n`, the speed spread
+// tested and passed from rec directly, and the free-list relink in the binary's store order; left: 8966 keeps
+// the late time on the x87 stack after `interval - late` (fld / fsub / fstp st(0); the binary has fsubr).
 void vif_emitter_update(vfx_inst21c *em, vfx_desc21c *rec, int flag, const vector3 *pos,
                         const matrix *orient, int unk0c)
 {
@@ -242,19 +245,16 @@ void vif_emitter_update(vfx_inst21c *em, vfx_desc21c *rec, int flag, const vecto
     interval = vif_curve__evaluate(&rec->interval_curve, em->time, true);
     if (em->interval <= 0.0f && interval > 0.0f)
         em->spawn_timer = interval;
-    remaining = float_min(em->spawn_timer, interval) - reported_frametime;
+    em->spawn_timer = remaining = float_min(em->spawn_timer, interval) - reported_frametime;
     em->interval = interval;
-    em->spawn_timer = remaining;
 
     if (flag && remaining <= 0.0f && interval > 0.0f) {
-        float late = (float)fabs(remaining);
-        int n = (int)(late / interval);
-        spawn = 1;
-        if (late > interval)
-            spawn = n;
-        if (late > interval)
-            late -= n * interval;
-        em->spawn_timer = interval - late;
+        remaining = (float)fabs(remaining);
+        int n = (int)(remaining / interval);
+        spawn = !(remaining > interval) ? 1 : n;
+        if (remaining > interval)
+            remaining -= n * interval;
+        em->spawn_timer = interval - remaining;
         for (i = 0; i < spawn; i++) {
             float speed;
 
@@ -278,13 +278,12 @@ void vif_emitter_update(vfx_inst21c *em, vfx_desc21c *rec, int flag, const vecto
                 p->x = m.fvec.x * ry + m.rvec.x * rx + world.x;
                 p->y = m.fvec.y * ry + m.rvec.y * rx + world.y;
                 p->z = m.fvec.z * ry + m.rvec.z * rx + world.z;
-                speed = rec->speed_spread;
-                if (speed == 0.0f) {
+                if (rec->speed_spread == 0.0f) {
                     p->vx = m.uvec.x * rec->speed;
                     p->vy = m.uvec.y * rec->speed;
                     p->vz = m.uvec.z * rec->speed;
                 } else {
-                    speed = frand_range(-speed, speed) + rec->speed;
+                    speed = frand_range(-rec->speed_spread, rec->speed_spread) + rec->speed;
                     p->vx = speed * m.uvec.x;
                     p->vy = speed * m.uvec.y;
                     p->vz = speed * m.uvec.z;
@@ -294,13 +293,12 @@ void vif_emitter_update(vfx_inst21c *em, vfx_desc21c *rec, int flag, const vecto
                 p->x = dir.x * rec->spread_x * 2.0f + world.x;
                 p->y = dir.y * rec->spread_x * 2.0f + world.y;
                 p->z = dir.z * rec->spread_x * 2.0f + world.z;
-                speed = rec->speed_spread;
-                if (speed == 0.0f) {
+                if (rec->speed_spread == 0.0f) {
                     p->vx = dir.x * rec->speed;
                     p->vy = dir.y * rec->speed;
                     p->vz = dir.z * rec->speed;
                 } else {
-                    speed = frand_range(-speed, speed) + rec->speed;
+                    speed = frand_range(-rec->speed_spread, rec->speed_spread) + rec->speed;
                     p->vx = dir.x * speed;
                     p->vy = dir.y * speed;
                     p->vz = dir.z * speed;
@@ -314,11 +312,11 @@ void vif_emitter_update(vfx_inst21c *em, vfx_desc21c *rec, int flag, const vecto
             p->prev->next = p->next;
             p->next->prev = p->prev;
             p->next = em->free.next;
-            em->num_live--;
             em->free.next->prev = p;
-            p->prev = &em->free;
             em->free.next = p;
+            p->prev = &em->free;
             p->flags &= ~VIF_PARTICLE_ALIVE;
+            em->num_live--;
             continue;
         }
         if (rec->vis_flags & VIF_GRAVITY)

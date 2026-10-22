@@ -1125,8 +1125,9 @@ void hud_key_skills()
         interface_set_screen(0, 0);
 }
 
-// 0x40e480  Confidence: likely (the distance is an inline vector length; the FPU order z, y, x of the squares
-// and the stack slots are VC6's). Nearest of: active item (type 3, unless item_obj_is_in_view says so) or
+// 0x40e480  Confidence: likely (the distance is an inline vector length, vector3::len, D24702; the FPU order
+// z, y, x of the squares and the stack slots are VC6's; still differs: the binary keeps best_door in the frame
+// and pushes EDI / EBP only around the door and container loops). Nearest of: active item (type 3, unless item_obj_is_in_view says so) or
 // type 11 objects within 3 units (and 3 in height); in single player also doors in use range and
 // containers (lc_entries, not hidden, not empty gold) within 5 units. An object wins over a door or
 // container only when strictly closer.
@@ -1147,8 +1148,6 @@ void hud_interact_nearest()
     best_door = 0;
     best_door_dist = 999999.0f;
     for (obj = (Character *)obj_active_list.next; obj != (Character *)&obj_active_list; obj = (Character *)obj->next) {
-        float dx, dy, dz;
-
         if (!(obj->obj_flags & 2))
             continue;
         if (obj->type == 3) {
@@ -1157,10 +1156,7 @@ void hud_interact_nearest()
         } else if (obj->type != 11) {
             continue;
         }
-        dx = cur_character->pos.x - obj->pos.x;
-        dy = cur_character->pos.y - obj->pos.y;
-        dz = cur_character->pos.z - obj->pos.z;
-        d = (float)sqrt(dx * dx + dy * dy + dz * dz);
+        d = (cur_character->pos - obj->pos).len();   // D24702: vector3::len (the height test is not CSE'd)
         if (d <= 3.0f && d <= best_obj_dist && fabsf(cur_character->pos.y - obj->pos.y) <= 3.0f) {
             best_obj = obj;
             best_obj_dist = d;
@@ -1207,14 +1203,9 @@ void hud_interact_nearest()
         }
     }
 
-    if (best_obj) {
-        if (!best_door || best_obj_dist < best_door_dist) {
-            world_hover_object = best_obj;
-            world_interact_kind = (best_obj->type != 3) + 1;
-            return;
-        }
-        world_interact_object = best_door;
-        world_interact_kind = (((lobj *)best_door)->flags & 0x100) ? 3 : 4;
+    if (best_obj && (!best_door || best_obj_dist < best_door_dist)) {   // D24702: one if / else-if
+        world_hover_object = best_obj;
+        world_interact_kind = (best_obj->type != 3) + 1;
     } else if (best_door) {
         world_interact_object = best_door;
         world_interact_kind = (((lobj *)best_door)->flags & 0x100) ? 3 : 4;

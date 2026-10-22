@@ -152,8 +152,9 @@ obj *obj_from_handle_b(int handle)
     return obj_from_handle(handle);
 }
 
-// 0x489f10  Confidence: likely (the scale's unsigned conversion: fild qword of 32 - i; D15009: dx as an int
-// local; y and the pixel pointer still swap register and frame slot). A grey palette and
+// 0x489f10  Confidence: exact (VC6 byte match, D24500: the ramps indexed shadow_blob_pixels[i][row * 64 + x]
+// in a for over i, so 8966 makes the row pointer its own induction register and keeps y in the frame; y-- before
+// row++. The scale's unsigned conversion: fild qword of 32 - i; D15009: dx as an int local). A grey palette and
 // 16 radial ramps of 64 x 64 (alpha 255 at the centre, falling to 0 at radius 32; ramp i is steeper by
 // 32 / (32 - i)), each made a bitmap. Nothing reads shadow_blob_bms (shadows use Shadow01.tga).
 int shadow_create_blob_bitmap()
@@ -172,11 +173,9 @@ int shadow_create_blob_bitmap()
         shadow_blob_palette[i * 3 + 1] = (ubyte)i;
         shadow_blob_palette[i * 3 + 2] = (ubyte)i;
     }
-    p = shadow_blob_pixels[0];
-    i = 0;
-    do {
+    for (i = 0; i < NUM_SHADOW_BLOBS; i++) {
         scale = 32.0f / (32 - i);
-        for (row = 0, y = 32; row < 64; row++, y--) {
+        for (row = 0, y = 32; row < 64; y--, row++) {
             for (x = 0; x < 64; x++) {
                 int dx = 32 - x;
                 v = 32.0f - (float)sqrt((float)(dx * dx + y * y));
@@ -186,12 +185,10 @@ int shadow_create_blob_bitmap()
                 if (32.0f < v)
                     v = 32.0f;
                 v *= 255.0f;
-                p[x] = (ubyte)(int)(v * 0.03125f);
+                shadow_blob_pixels[i][row * 64 + x] = (ubyte)(int)(v * 0.03125f);
             }
-            p += 64;
         }
-        i++;
-    } while (p < shadow_blob_pixels[NUM_SHADOW_BLOBS - 1] + SHADOW_BLOB_SIZE * SHADOW_BLOB_SIZE);
+    }
     for (bm = shadow_blob_bms, p = shadow_blob_pixels[0];
          p < shadow_blob_pixels[NUM_SHADOW_BLOBS - 1] + SHADOW_BLOB_SIZE * SHADOW_BLOB_SIZE;
          p += SHADOW_BLOB_SIZE * SHADOW_BLOB_SIZE, bm++)
@@ -904,54 +901,64 @@ bool fx_update_missile(effect_object *fx, float frametime)
     return false;
 }
 
+// Inlined into fx_missile_hit (not a function of the binary; D24503): the spell-missile part. As a helper
+// 8966 saves EBP / ESI only around it, as the binary does. Name ours.
+static inline bool fx_missile_spell_part(effect_object *fx, float frametime)
+{
+    vfx_instance *vi;
+    fx_recb0 *n;
+    Character *c;
+
+    vi = fx->instance;
+    if (!vi->is_stopped()) {
+        c = living_from_handle(fx->owner);
+        vi->stop();
+        if (fx->spell == 0x1a || fx->spell == 0x4e)
+            fx->aim.y += 0.6f;
+        if (game_flags & 2) {
+            if (fx->spell_effect) {
+                spell_hit hit;
+                FX_FILL_HIT(hit, fx, &fx->aim, &fx->orient);
+                c->spell_apply_hit_effects(&hit);
+            }
+        } else {
+            c->get_hit_by_spell(fx->spell, fx->caster, &fx->aim, &fx->orient, fx->target ? 5 : 0,
+                                (ItemType *)fx->target, 0.0f, true);
+        }
+    }
+    vi->process(frametime, NULL, NULL);
+    for (n = vi->emitters; n; ) {
+        if (n->num_live > 0)
+            return false;
+        n = n->next;
+        if (n == vi->emitters)
+            break;
+    }
+    return true;
+}
+
 // 0x48bac0  Confidence: likely (the result variable: BL holds true for the weapon branch; D15009: the
-// weapon tail as vector operations ending in `done = false; return done;`). A spell missile
+// weapon tail as vector operations ending in `done = false; return done;`; D24503: the spell part as an
+// inline helper and the timeout as ((d * 0.75f) * 1000.0f) * 0.05f, the binary's three fmuls; left: vi /
+// c in EBP / EBX, the binary has them the other way round). A spell missile
 // hits once (its instance stops, fireballs 0.6 higher) and is finished when no node has live particles; a
 // weapon missile resolves the melee hit of its caster once, then its trail start catches up with the aim
 // point (20 / s) for 0.75 * distance / 20 s.
 bool fx_missile_hit(effect_object *fx, float frametime)
 {
     bool done = true;
-    vfx_instance *vi;
-    fx_recb0 *n;
     Character *c;
     vector3 d;
     float s;
 
-    if (!(fx->fx_flags & 8)) {
-        vi = fx->instance;
-        if (!vi->is_stopped()) {
-            c = living_from_handle(fx->owner);
-            vi->stop();
-            if (fx->spell == 0x1a || fx->spell == 0x4e)
-                fx->aim.y += 0.6f;
-            if (game_flags & 2) {
-                if (fx->spell_effect) {
-                    spell_hit hit;
-                    FX_FILL_HIT(hit, fx, &fx->aim, &fx->orient);
-                    c->spell_apply_hit_effects(&hit);
-                }
-            } else {
-                c->get_hit_by_spell(fx->spell, fx->caster, &fx->aim, &fx->orient, fx->target ? 5 : 0,
-                                    (ItemType *)fx->target, 0.0f, true);
-            }
-        }
-        vi->process(frametime, NULL, NULL);
-        for (n = vi->emitters; n; ) {
-            if (n->num_live > 0)
-                return false;
-            n = n->next;
-            if (n == vi->emitters)
-                break;
-        }
-        return true;
-    }
+    if (!(fx->fx_flags & 8))
+        return fx_missile_spell_part(fx, frametime);
     if (!(fx->fx_flags & 0x10)) {
         c = living_from_handle(fx->caster);
         if (c)
             c->combat.resolve_hit();
         fx->fx_flags |= 0x10;
-        fx->timer.SetTimeout((int)(distance(&fx->aim, &fx->start) * 0.75f * 1000.0f * 0.05f));
+        fx->timer.SetTimeout((int)(((distance(&fx->aim, &fx->start) * 0.75f) * 1000.0f) * 0.05f));
     }
     if (!fx->timer.elapsed()) {
         d = fx->aim - fx->start;

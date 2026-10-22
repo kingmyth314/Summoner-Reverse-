@@ -359,9 +359,13 @@ void conversation_controller::camera_compute_shot()
 // b flipped to a's side and the angles kept less than pi apart. Precision as the binary (D9807): 1 - t is one
 // unrounded value for the three axis_b products (0x4d9c29..0x4d9c4f) and rounded for the angle and the
 // position; the binary sums the axis in z, y, x order (the operator+ constructor is called out of line,
-// 0x4d9c53..0x4d9c9f), so z adds the two unrounded products and x, y the rounded ones. With 8966 the
-// constructor expands and sums x first, hence the sum written out z first. The direction is
-// transform((0, 0, 1)) of the rotation, folded to m[3] + m[2] (0x4d9cdc).
+// 0x4d9c53..0x4d9c9f), so z adds the two unrounded products and x, y the rounded ones. The direction is
+// transform((0, 0, 1)) of the rotation, folded to m[3] + m[2] (0x4d9cdc). m-1021e w18 D23900: written
+// with the operators (dot, axis_a * t + axis_b * (1 - t)) and three unused vector3 locals after the axis:
+// their empty inline constructors spend VC6's inline budget (here it only counts when placed after the axis,
+// not at the top), so the binary's out-of-line calls follow (the flip's operator= result copy, the axis
+// constructor, the transform and direction copies); same values and rounding. 172 -> 8, left: the store
+// of the eased t is scheduled one instruction earlier than the binary's (after push esi, not mov edi).
 void conversation_controller::camera_blend(dialog_camera_pose *out, dialog_camera_pose *a,
                                            dialog_camera_pose *b, float t)
 {
@@ -379,7 +383,7 @@ void conversation_controller::camera_blend(dialog_camera_pose *out, dialog_camer
     mb.set_from_forward(b->dir);
     mb.get_axis_angle(&axis_b, &angle_b);
 
-    if (axis_a.z * axis_b.z + axis_a.y * axis_b.y + axis_b.x * axis_a.x < 0.0f) {
+    if (axis_a.dot(axis_b) < 0.0f) {
         axis_b = axis_b * -1.0f;
         angle_b = -angle_b;
     }
@@ -390,21 +394,20 @@ void conversation_controller::camera_blend(dialog_camera_pose *out, dialog_camer
             angle_b += 2 * PI;
     }
 
-    vector3 tb = axis_b * (1.0f - t);
-    vector3 ta = axis_a * t;
-    vector3 axis;
-    axis.z = ta.z + tb.z;
-    axis.y = ta.y + tb.y;
-    axis.x = ta.x + tb.x;
+    vector3 axis = axis_a * t + axis_b * (1.0f - t);
+    vector3 unused0, unused1, unused2;  // D23900: inline budget (see above)
     m.set_from_axis_angle(axis, angle_a * t + angle_b * (1.0f - t));
     out->dir = matrix43(m).transform(vector3(0.0f, 0.0f, 1.0f));
     out->pos = t * a->pos + (1.0f - t) * b->pos;
 }
 
 // 0x4d9d90  Confidence: likely (the `cam_mode == 3` test of the no-zoom branch is reached through two
-// earlier compares in the binary: a switch with empty cases 1 and 0 is assumed; the copies of a pose are
+// earlier compares in the binary, written as the three tests below; the copies of a pose are
 // member by member here, the pose assignment elsewhere). Returns -1 when the camera is back and the
-// conversation is over.
+// conversation is over. m-1021e w18 D23901: the no-zoom test through a bool local (the binary places the
+// no-zoom block first) and its mode test as `cam_mode != 1 && cam_mode != 0 && cam_mode == 3` (the
+// binary's three compares, in line); 235 -> 219. Left: VC6's inline budget (the binary calls
+// vector3::operator= for the first dir copies and the copy constructor for the later ones; see D23901).
 int conversation_controller::camera_update()
 {
     int result = 0;
@@ -412,54 +415,51 @@ int conversation_controller::camera_update()
     float t;
 
     camera_capture();
-    if ((speaker_flags & CFLAG_NO_CAMERA_MOVEMENT) || Summoner_options.dialogue_camera == 1
-        || (Summoner_options.dialogue_camera == 2 && !(speaker_flags & CFLAG_IMPORTANT))) {
-        // No zoom: the view stays the game camera's.
+    bool still = (speaker_flags & CFLAG_NO_CAMERA_MOVEMENT) || Summoner_options.dialogue_camera == 1
+        || (Summoner_options.dialogue_camera == 2 && !(speaker_flags & CFLAG_IMPORTANT));
+    if (still) {
         out.pos = game.pos;
         out.dir = game.dir;
-        switch (cam_mode) {
-        case 1:
-        case 0:
-            break;
-        case 3:
+        if (cam_mode != 1 && cam_mode != 0 && cam_mode == 3) {
             game_camera.pop_state();
             game_camera.resume_follow();
             state = 0;
             result = -1;
-            break;
         }
-    } else if (cam_mode == 0) {
-        out.pos = game.pos;
-        out.dir = game.dir;
-    } else if (cam_mode == 2) {
-        out.pos = shot.pos;
-        out.dir = shot.dir;
     } else {
-        mode = cam_mode;
-        if (mode != 3)
-            camera_compute_shot();
-        if (cam_mode == 1 || cam_mode == 3) {
-            float total = (cam_mode == 1) ? move_in_time : move_out_time;
-            t = 1.0f - cam_timer.GetRemainingTime() / total;
-            if (t >= 1.0f) {
-                t = 1.0f;
-                if (cam_mode == 1) {
-                    cam_mode = 2;
-                } else {
-                    game_camera.pop_state();
-                    game_camera.resume_follow();
-                    state = 0;
-                    result = -1;
-                }
-            }
-            t = (mode == 1) ? t : 1.0f - t;
-            camera_blend(&blend, &shot, &start, t);
+        if (cam_mode == 0) {
+            out.pos = game.pos;
+            out.dir = game.dir;
+        } else if (cam_mode == 2) {
+            out.pos = shot.pos;
+            out.dir = shot.dir;
         } else {
-            blend.pos = shot.pos;
-            blend.dir = shot.dir;
+            mode = cam_mode;
+            if (mode != 3)
+                camera_compute_shot();
+            if (cam_mode == 1 || cam_mode == 3) {
+                float total = (cam_mode == 1) ? move_in_time : move_out_time;
+                t = 1.0f - cam_timer.GetRemainingTime() / total;
+                if (t >= 1.0f) {
+                    t = 1.0f;
+                    if (cam_mode == 1) {
+                        cam_mode = 2;
+                    } else {
+                        game_camera.pop_state();
+                        game_camera.resume_follow();
+                        state = 0;
+                        result = -1;
+                    }
+                }
+                t = (mode == 1) ? t : 1.0f - t;
+                camera_blend(&blend, &shot, &start, t);
+            } else {
+                blend.pos = shot.pos;
+                blend.dir = shot.dir;
+            }
+            out.pos = blend.pos;
+            out.dir = blend.dir;
         }
-        out.pos = blend.pos;
-        out.dir = blend.dir;
     }
     camera_view_pos = out.pos;
     camera_view_orient.set_from_forward(out.dir);
@@ -647,14 +647,14 @@ bool character_has_ai_goal_10(Character *c)
     return c->ai.goal_find(1, 10, 0, 0, -1, 0, 0, 0x6c) != -1;
 }
 
-// 0x4da890  Confidence: likely (the order of the stores between the calls is partly the compiler's).
+// 0x4da890  Confidence: exact (m-1021e w18 D23902: the speaker direction as
+// `matrix43(orient).transform((0, 0, 1))` assigned directly, the flags read before the name store, and the
+// two bit-field clears after the three int zeroes).
 // Starts a conversation with `speaker` under the conversation file's name `name`: 0, or -1 when the
 // file has no such speaker (or its hail topic is hidden).
 int conversation_controller::camera_begin(const char *name, Character *character)
 {
     conversation_slot *s;
-    matrix43 m;
-    vector3 fwd;
 
     if (conversation_db.set_speaker(name) != 0) {
         end_cleanup(false);
@@ -667,27 +667,23 @@ int conversation_controller::camera_begin(const char *name, Character *character
     flag0 = 0;
     move_in_time = (float)conversation_db.speaker->move_in_time;
     move_out_time = (float)conversation_db.speaker->move_out_time;
-    this->name = name;
     speaker_flags = conversation_db.speaker->flags;
+    this->name = name;
     game_camera.push_state();
     game_camera.set_follow_flags(true, false);
     speaker = character;
     frame_height = (cur_character->size_height() + character->size_height()) * 0.5f + 0.25f;
     timer.SetTimeout(4000);
     state = 3;
-    shot_cut = 0;
-    sliding = 0;
     approach = 0;
     cam_mode = 0;
     facing = 0;
+    shot_cut = 0;
+    sliding = 0;
     player_pos = cur_character->get_center();
     if (character->script_object >= 0)
         script_object_suspend(character->script_object);
-    m = matrix43(character->orient);
-    fwd.x = m.m[3][0] + m.m[2][0];
-    fwd.y = m.m[3][1] + m.m[2][1];
-    fwd.z = m.m[3][2] + m.m[2][2];
-    speaker_dir = fwd;
+    speaker_dir = matrix43(character->orient).transform(vector3(0.0f, 0.0f, 1.0f));
     character->ai.go_idle();
     shot_valid = 0;
     return 0;

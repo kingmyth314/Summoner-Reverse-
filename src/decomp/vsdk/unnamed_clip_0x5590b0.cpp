@@ -195,31 +195,23 @@ gr_vertex **gr_clip_polygon(gr_vertex **src, gr_vertex **tmp, int *nv, ubyte *co
 }
 
 // 0x5594f0  Confidence: likely (the distances are kept in a local array for the second pass; z read once,
-// D6803).
+// D6803). D24600: the d[1] / d[2] / d[3] tests as one || chain keep xs and ys on the FPU stack and give the
+// binary's fst / fcomp and fstp / reload pairs; left: 8966 keeps nz in memory (the binary: two copies on the stack).
 int gr_classify_sphere_view(const vector3 *p, float r)
 {
     float d[4];
-    float nz;
-    float xs;
-    float ys;
-
+    float nz, xs, ys;
     float z = p->z;
+
     if (z + r <= 0.0f)
         return -1;
     nz = z * -0.70710677f;
     xs = p->x * 0.70710677f;
-    d[0] = nz - xs;
-    if (d[0] >= r)
+    if ((d[0] = nz - xs) >= r)
         return -1;
-    d[1] = xs + nz;
-    if (d[1] >= r)
-        return -1;
-    ys = p->y * 0.70710677f;
-    d[2] = ys + nz;
-    if (d[2] >= r)
-        return -1;
-    d[3] = nz - ys;
-    if (d[3] >= r)
+    if ((d[1] = xs + nz) >= r
+        || (d[2] = (ys = p->y * 0.70710677f) + nz) >= r
+        || (d[3] = nz - ys) >= r)
         return -1;
     r = -r;
     if (d[0] < r && d[1] < r && d[2] < r && d[3] < r)

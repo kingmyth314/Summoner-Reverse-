@@ -89,8 +89,9 @@ bool seg2d_point_left_of(const vector2 *p, const seg2d *s, int flags)
     return (p->x - s->a->x) * n.x + (p->y - s->a->y) * n.y > 0.0f;
 }
 
-// 0x4a4fb0  Confidence: likely (the four corner sides are or-ed as 1 / 2; the obstacle counter is
-// raised before the bounds test, as the code does). True when the segment a-b is clear: flags 1 tests
+// 0x4a4fb0  Confidence: exact (VC6 byte match, D25101: the bounds through float_min / float_max, the
+// edge's end points in block-scope pointer locals declared b first, the obstacle loop over an int index).
+// The four corner sides are or-ed as 1 / 2; the obstacle counter is raised before the bounds test. True when the segment a-b is clear: flags 1 tests
 // the nav walls of every cell of the selected graph whose bounds meet the segment's and whose corners
 // lie on both sides of it; flags 2 / 4 the prohibit / avoid obstacles of the current size and layer.
 bool pf_segment_hits_walls(const vector2 *a, const vector2 *b, int layer, int flags)
@@ -109,10 +110,10 @@ bool pf_segment_hits_walls(const vector2 *a, const vector2 *b, int layer, int fl
     seg.b = (vector2 *)b;
     if (layer == -1)
         layer = pf_cur_layer;
-    min_x = a->x < b->x ? a->x : b->x;
-    max_x = a->x > b->x ? a->x : b->x;
-    min_y = a->y < b->y ? a->y : b->y;
-    max_y = a->y > b->y ? a->y : b->y;
+    min_x = float_min(a->x, b->x);
+    max_x = float_max(a->x, b->x);
+    min_y = float_min(a->y, b->y);
+    max_y = float_max(a->y, b->y);
     if (flags & 1) {
         for (cell = pf_graphs[pf_cur_size][layer].cells; cell; cell = cell->next) {
             if (!(min_x < cell->bounds.max_x) || !(max_x > cell->bounds.min_x)
@@ -134,10 +135,11 @@ bool pf_segment_hits_walls(const vector2 *a, const vector2 *b, int layer, int fl
                 continue;
             e = cell->edges;
             for (i = 0; i < cell->num_edges; i++, e++) {
-                e_min_x = e->a->x < e->b->x ? e->a->x : e->b->x;
-                e_max_x = e->a->x > e->b->x ? e->a->x : e->b->x;
-                e_min_y = e->a->y < e->b->y ? e->a->y : e->b->y;
-                e_max_y = e->a->y > e->b->y ? e->a->y : e->b->y;
+                const vector2 *eb = e->b, *ea = e->a;
+                e_min_x = float_min(ea->x, eb->x);
+                e_max_x = float_max(ea->x, eb->x);
+                e_min_y = float_min(ea->y, eb->y);
+                e_max_y = float_max(ea->y, eb->y);
                 if (e_min_x < max_x && e_max_x > min_x && e_min_y < max_y && e_max_y > min_y) {
                     r = seg2d_segment_intersect(&seg, e, NULL);
                     if (r == 1 || r == 4)
@@ -154,7 +156,8 @@ bool pf_segment_hits_walls(const vector2 *a, const vector2 *b, int layer, int fl
     if (avoid)
         n += avoid_obstacle_counts_b[pf_cur_size * PF_MAX_LAYERS + layer];
     found = 0;
-    for (ob = avoid_obstacles; ob < &avoid_obstacles[AVOID_NUM_OBSTACLES]; ob++) {
+    for (i = 0; i < AVOID_NUM_OBSTACLES; i++) {
+        ob = &avoid_obstacles[i];
         if (found == n)
             break;
         if (!(ob->flags & AVOID_OB_USED) || ob->layer != layer || ob->size != pf_cur_size)
@@ -293,14 +296,20 @@ bool pf_straight_walk_clear(const vector2 *a, int a_layer, const vector2 *b, int
     return pf_segment_hits_walls(&cur, b, b_layer, flags);
 }
 
-// 0x4a5750  Confidence: likely (the order of the shared-endpoint tests and of the collinear cases).
+// 0x4a5750  Confidence: likely (the order of the shared-endpoint tests and of the collinear cases; D25100:
+// the vertical case ends in its own if / else with both returns, which stops 8966 cross-jumping its distance
+// test into the other case's, and a / b are copies of the arguments; the end-point order tests read b's
+// end points, and the horizontal case's distance test goes through t = a->b; left: a and b in EBP / EBX
+// swapped).
 // Classifies the crossing of segments a and b: 3 a shared end point, -1 parallel or collinear and
 // apart, 2 collinear and overlapping (out = an end point inside), 1 a proper crossing, 4 a touch at an
 // end point, 0 none. The denominator and the two numerators stay in seg2d_denom / seg2d_cross /
 // seg2d_param (callers divide them). Game bug: for a->b == b->a the reported point is b->b, the far end
 // of b, not the shared point.
-int seg2d_segment_intersect(const seg2d *a, const seg2d *b, vector2 *out)
+int seg2d_segment_intersect(const seg2d *a_, const seg2d *b_, vector2 *out)
 {
+    const seg2d *a = a_;
+    const seg2d *b = b_;
     vector2 *p, *q, *lo, *hi, *t;
     float dax, day, dbx, dby, cx, cy;
 
@@ -343,7 +352,7 @@ int seg2d_segment_intersect(const seg2d *a, const seg2d *b, vector2 *out)
         lo = b->a;
         hi = b->b;
         if (dax == 0.0f) {
-            if (lo->y > hi->y) {
+            if (b->a->y > b->b->y) {
                 lo = b->b;
                 hi = b->a;
             }
@@ -361,9 +370,13 @@ int seg2d_segment_intersect(const seg2d *a, const seg2d *b, vector2 *out)
                 if (out)
                     *out = *lo;
                 return 2;
+            } else {
+                if (out)
+                    *out = *hi;
+                return 2;
             }
         } else {
-            if (lo->x > hi->x) {
+            if (b->a->x > b->b->x) {
                 lo = b->b;
                 hi = b->a;
             }
@@ -377,7 +390,8 @@ int seg2d_segment_intersect(const seg2d *a, const seg2d *b, vector2 *out)
                 return -1;
             if (p->x > hi->x && a->b->x > hi->x)
                 return -1;
-            if (abs((int)(a->b->x - lo->x)) < abs((int)(a->b->x - hi->x))) {
+            t = a->b;
+            if (abs((int)(t->x - lo->x)) < abs((int)(t->x - hi->x))) {
                 if (out)
                     *out = *lo;
                 return 2;
@@ -578,7 +592,9 @@ int pf_grid_cells_in_box(const vector2 *pt, float half, pf_grid *grid)
 }
 
 // 0x4a6060  Confidence: likely (the four direction cases are written out; the compiler merges their
-// tails). Walks the grid cells crossed by a-b (a DDA in cell units: fx / fy the position inside the
+// tails; D25102: case 1's first branch adds s before the cell steps, so 8966 keeps it apart from case
+// 3's (the scheduler gives both the same code), and case 0 tests -sx < -sy; left: the frame (0x3c), the
+// registers of grid / cx / cy and the bx / by stores after the loop test). Walks the grid cells crossed by a-b (a DDA in cell units: fx / fy the position inside the
 // current cell, px / py the position, bx / by the next boundary) into pf_grid_cell_results; returns
 // the count. The step count is the cell distance in x plus the one in y.
 int pf_grid_cells_along_segment(const vector2 *a, const vector2 *b, pf_grid *grid)
@@ -674,11 +690,11 @@ int pf_grid_cells_along_segment(const vector2 *a, const vector2 *b, pf_grid *gri
             sy = fx * dy;
             if (-sx < sy) {
                 s = sx / dy;
+                px += s;
+                fx += s;
                 cy++;
                 by++;
                 fy = 0.0f;
-                px += s;
-                fx += s;
                 py = (float)cy;
             } else {
                 s = -(sy / dx);
@@ -693,7 +709,7 @@ int pf_grid_cells_along_segment(const vector2 *a, const vector2 *b, pf_grid *gri
         case 0:                                    // -x, -y
             sx = fy * dx;
             sy = fx * dy;
-            if (-sy > -sx) {
+            if (-sx < -sy) {
                 s = sx / dy;
                 px -= s;
                 fx -= s;

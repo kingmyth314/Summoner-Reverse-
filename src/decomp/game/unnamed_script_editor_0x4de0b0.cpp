@@ -1754,7 +1754,10 @@ bool script_editor_ray_hit_object(vector3 *pos, matrix *orient, vector3 *size, f
         }                                                                                   \
     } while (0)
 
-// 0x4e30d0  Confidence: likely (the label blocks as a macro; jump order of the type switch). The markers
+// 0x4e30d0  Confidence: likely (the label blocks as a macro; jump order of the type switch; D22202: the case
+// blocks in the binary's layout order ambient / camera / level, and the second marker call written in both
+// branches of the start-navpoint test, which 8966 tail-merges as the binary does; still differs: the
+// cutscene loop's pointer base and the register for the constant 1). The markers
 // of the level navpoints (by type; the selected character's start navpoint in red), the ambient sound
 // ranges of the selected ambient navpoint, the cutscene navpoints, and with Render_s3d_navpoints the
 // level file's navpoints. Names are shown in navpoint mode while Shift is held, or for the selected
@@ -1769,17 +1772,10 @@ void script_editor_draw_navpoints()
     for (i = 0, np = navpoints; i < navpoint_count; i++, np++) {
         orient.set_from_angles(0, 0, np->heading);
         switch (np->type) {
-        case NAVPOINT_TYPE_LEVEL:
-            if (script_editor_sel.kind == SE_PICK_CHARACTER
-                && ((Character *)script_editor_sel.object)->start_navpoint == np) {
-                gr_set_color(0xff, 0, 0x40, 0xff);
-                script_editor_draw_marker(&np->pos, np->ground_height, &orient, 0.3f, gr_line_3d_mode);
-                gr_set_color(0xff, 0, 0x40, 0x80);
-            } else {
-                gr_set_color(0, 0xa0, 0xa0, 0xff);
-                script_editor_draw_marker(&np->pos, np->ground_height, &orient, 0.3f, gr_line_3d_mode);
-                gr_set_color(0, 0xa0, 0xa0, 0x80);
-            }
+        case NAVPOINT_TYPE_AMBIENT:
+            gr_set_color(0xff, 0xff, 0, 0xff);
+            script_editor_draw_marker(&np->pos, np->ground_height, &orient, 0.3f, gr_line_3d_mode);
+            gr_set_color(0xff, 0xff, 0, 0x80);
             script_editor_draw_marker(&np->pos, np->ground_height, &orient, 0.3f, gr_line_mode);
             break;
         case NAVPOINT_TYPE_CAMERA:
@@ -1788,11 +1784,19 @@ void script_editor_draw_navpoints()
             gr_set_color(0xa0, 0xa0, 0xff, 0x80);
             script_editor_draw_marker(&np->pos, np->ground_height, &orient, 0.3f, gr_line_mode);
             break;
-        case NAVPOINT_TYPE_AMBIENT:
-            gr_set_color(0xff, 0xff, 0, 0xff);
-            script_editor_draw_marker(&np->pos, np->ground_height, &orient, 0.3f, gr_line_3d_mode);
-            gr_set_color(0xff, 0xff, 0, 0x80);
-            script_editor_draw_marker(&np->pos, np->ground_height, &orient, 0.3f, gr_line_mode);
+        case NAVPOINT_TYPE_LEVEL:
+            if (script_editor_sel.kind == SE_PICK_CHARACTER
+                && ((Character *)script_editor_sel.object)->start_navpoint == np) {
+                gr_set_color(0xff, 0, 0x40, 0xff);
+                script_editor_draw_marker(&np->pos, np->ground_height, &orient, 0.3f, gr_line_3d_mode);
+                gr_set_color(0xff, 0, 0x40, 0x80);
+                script_editor_draw_marker(&np->pos, np->ground_height, &orient, 0.3f, gr_line_mode);
+            } else {
+                gr_set_color(0, 0xa0, 0xa0, 0xff);
+                script_editor_draw_marker(&np->pos, np->ground_height, &orient, 0.3f, gr_line_3d_mode);
+                gr_set_color(0, 0xa0, 0xa0, 0x80);
+                script_editor_draw_marker(&np->pos, np->ground_height, &orient, 0.3f, gr_line_mode);
+            }
             break;
         default:
             continue;
@@ -1821,12 +1825,13 @@ void script_editor_draw_navpoints()
             gr_set_color(0xff, 0, 0x40, 0xff);
             script_editor_draw_marker(&np->pos, np->ground_height, &orient, 0.3f, gr_line_3d_mode);
             gr_set_color(0xff, 0, 0x40, 0x80);
+            script_editor_draw_marker(&np->pos, np->ground_height, &orient, 0.3f, gr_line_mode);
         } else {
             gr_set_color(0x28, 0xa0, 0x28, 0xff);
             script_editor_draw_marker(&np->pos, np->ground_height, &orient, 0.3f, gr_line_3d_mode);
             gr_set_color(0x28, 0xa0, 0x28, 0x80);
+            script_editor_draw_marker(&np->pos, np->ground_height, &orient, 0.3f, gr_line_mode);
         }
-        script_editor_draw_marker(&np->pos, np->ground_height, &orient, 0.3f, gr_line_mode);
         if (script_editor_mode == SE_MODE_NAVPOINT
             && (key_is_down(KEY_LSHIFT) || key_is_down(KEY_RSHIFT)
                 || ((key_is_down(KEY_LCONTROL) || key_is_down(KEY_RCONTROL)) && script_editor_sel.object == np)))
@@ -1944,8 +1949,8 @@ void script_editor_handle_input()
         }
         if (script_editor_change_button.is_latched()) {
             if (script_editor_hover.kind == SE_PICK_NAVPOINT) {
+                np = (navpoint *)script_editor_hover.object;   // D22204: before index, as the binary loads it
                 index = script_editor_cur_action->data;
-                np = (navpoint *)script_editor_hover.object;
                 if (!cutscene && np->type == NAVPOINT_TYPE_CUTSCENE) {
                     script_editor_set_status("Cannot use a cutscene navpoint in a level script.");
                     return;
@@ -4023,8 +4028,11 @@ bool script_editor_action_window_cb(int event, int value)
         script_editor_cur_action->set_text(string_buffer);                                 \
     } while (0)
 
-// 0x4e84b0  Confidence: likely (jump table 0x4e886c over the list kind; kinds 3 and 9 share the move
-// lookup tail, kinds 2 / 5 / 9 / 10 the line update). The action window's choice by list kind: 1 a new
+// 0x4e84b0  Confidence: exact (jump table 0x4e886c over the list kind; kinds 3 and 9 share the move
+// lookup tail, kinds 5 / 9 / 10 the line update; D22203: the type list's data / text read into the `d` /
+// `t` locals before the action's address is formed (kinds 2, 3, 4, 5, 8: the binary calls get_selected
+// before it scales the index or pushes the other arguments), and kind 6 with the object stored before the
+// kind in the source (8966 then stores the kind first, after the call, as the binary). The action window's choice by list kind: 1 a new
 // action (script_create), 2 a locomotion anim, 3 a move's anim, 4 a .mvf (its anim loaded for the
 // character), 5 a .vfx, 6 / 7 select a character / a level navpoint, 8 equips the weapon at once, 9 the
 // death move, 10 an item. Kinds 6-8 are set nowhere in this unit. Game bug: kind 9 ignores the choice and
@@ -4037,6 +4045,8 @@ void script_editor_apply_action_params()
     move_info *m;
     item_info *old1, *old2;
     int index;
+    int d;
+    const char *t;
 
     script_editor_action_window.set_disabled(true);
     script_editor_action_type_listbox.set_sorted(false);
@@ -4046,33 +4056,35 @@ void script_editor_apply_action_params()
         return;
     case 2:
         index = script_editor_action_listbox.get_selected()->data;
-        script_editor_cur_script->actions[index].arg0c = script_editor_action_type_listbox.get_selected()->data;
+        d = script_editor_action_type_listbox.get_selected()->data;
+        script_editor_cur_script->actions[index].arg0c = d;
         SE_UPDATE_ACTION_LINE(&script_editor_cur_script->actions[index]);
         return;
     case 3:
         index = script_editor_action_listbox.get_selected()->data;
-        m = charinfo_find_move(((Character *)script_editor_sel.object)->info, 8,
-                               script_editor_action_type_listbox.get_selected()->data, true);
+        d = script_editor_action_type_listbox.get_selected()->data;
+        m = charinfo_find_move(((Character *)script_editor_sel.object)->info, 8, d, true);
         script_editor_cur_script->actions[index].arg0c = m->anim;
         SE_UPDATE_ACTION_LINE(&script_editor_cur_script->actions[index]);
         return;
     case 4:
         index = script_editor_action_listbox.get_selected()->data;
         a = &script_editor_cur_script->actions[index];
-        script_editor_store_string(a, script_editor_action_type_listbox.get_selected()->text);
+        t = script_editor_action_type_listbox.get_selected()->text;
+        script_editor_store_string(a, t);
         a->arg0c = charinfo_load_script_anim(((Character *)script_editor_sel.object)->info, a->text, cutscene_path_id);
         SE_UPDATE_ACTION_LINE(&script_editor_cur_script->actions[index]);
         return;
     case 5:
         index = script_editor_action_listbox.get_selected()->data;
-        script_editor_store_string(&script_editor_cur_script->actions[index],
-                                   script_editor_action_type_listbox.get_selected()->text);
+        t = script_editor_action_type_listbox.get_selected()->text;
+        script_editor_store_string(&script_editor_cur_script->actions[index], t);
         SE_UPDATE_ACTION_LINE(&script_editor_cur_script->actions[index]);
         return;
     case 6:
         script_editor_action_type_listbox.get_selected();
-        script_editor_sel.kind = SE_PICK_CHARACTER;
         script_editor_sel.object = (void *)script_editor_action_type_listbox.get_selected()->data;
+        script_editor_sel.kind = SE_PICK_CHARACTER;
         script_editor_focus_selection();
         return;
     case 7: {
@@ -4087,8 +4099,8 @@ void script_editor_apply_action_params()
         return;
     }
     case 8:
-        character_equip_item(&old1, &old2, (Character *)script_editor_sel.object, 5,
-                             item_create_weapon(script_editor_action_type_listbox.get_selected()->data));
+        d = script_editor_action_type_listbox.get_selected()->data;
+        character_equip_item(&old1, &old2, (Character *)script_editor_sel.object, 5, item_create_weapon(d));
         if (old1 != NULL)
             item_free(old1);
         if (old2 != NULL)
@@ -5861,10 +5873,9 @@ bool script_editor_level_item_count_cb(int event, int value)
         }                                                                                    \
     } while (0)
 
-// 0x4ecbe0  Confidence: likely (the name search loop; the dirty flag's form; D20905: the search as a loop
-// entered on `level_item_count > 0` with the end test `if (i >= level_item_count) break;` after i++, the
-// binary's rotated loop with its `jge` / `jmp`; same passes, as count > i >= 1 on every back edge; still
-// differs: the table pointer set before the entry test, and the entry pointer read early). OK of the level item window
+// 0x4ecbe0  Confidence: exact (D22201: the name search as `do { found = false; for (i = 0; i <
+// level_item_count; i++) if (match) { sprintf; found = true; break; } } while (found);`, which 8966 threads
+// into the binary's jump back to the count load; the new record's type stored before its count). OK of the level item window
 // for a level navpoint: an item and count change the navpoint's level item (its object respawned), a
 // new one is added ("<level>-000", the number bumped to one past the index of a clash until it is free;
 // 32 at most), an empty choice or count 0 removes it. The level_items table is marked for saving.
@@ -5906,19 +5917,20 @@ bool script_editor_level_item_ok(int event, int value)
         } else if (level_item_count < MAX_LEVEL_ITEMS) {
             li = &level_items[level_item_count];
             sprintf(li->name, "%s-000", level_script_table[cur_level_index].name);
-        again:
-            for (i = 0; level_item_count > 0;) {
-                if (strcmp(li->name, level_items[i].name) == 0) {
-                    sprintf(li->name, "%s-%.3d", level_script_table[cur_level_index].name, i + 1);
-                    goto again;
+            bool found;
+            do {
+                found = false;
+                for (i = 0; i < level_item_count; i++) {
+                    if (strcmp(li->name, level_items[i].name) == 0) {
+                        sprintf(li->name, "%s-%.3d", level_script_table[cur_level_index].name, i + 1);
+                        found = true;
+                        break;
+                    }
                 }
-                i++;
-                if (i >= level_item_count)
-                    break;
-            }
+            } while (found);
             strcpy(li->script, level_script_name);
-            li->count = count;
             li->type = &item_types[e->data];
+            li->count = count;
             li->navpoint = (navpoint *)script_editor_sel.object;
             li->flag_level = -1;
             li->flag[0] = 0;

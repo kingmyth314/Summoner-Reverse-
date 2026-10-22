@@ -264,7 +264,9 @@ void script_parse_navpoints(TextFile *tf)
     np->level_item = -1;
 }
 
-// 0x4dba30  Confidence: likely (local layout and the order of the two +Hidden / +Trigger: tests; jump
+// 0x4dba30  Confidence: exact (VC6 byte match, D22701: the start navpoint in a block-local np before the spawn
+// call, the trigger flag as `if (!get_flag) set_ai_active(0); else set_ai_active(1);`, Play action's move id
+// through n and an if / else for the anim; was likely: local layout and the order of the two +Hidden / +Trigger: tests; jump
 // table 0x4dc448 over the 33 action types). One $Name: record of #Objects. "+No create" binds the
 // script to a living entity or party member that already has the name (a dead party member is
 // resurrected with 1 HP); otherwise the character is created at its start navpoint. Each "+Action:"
@@ -369,7 +371,10 @@ void script_parse_objects(TextFile *tf, bool level)
         tf->Expect("$Start position:");
         tf->ParseString(navname, 0xf, '"', '"');
 
-        c = living_from_handle(script_object_spawn_at_navpoint(ci, type, navpoint_find(navname), char_level));
+        {   // D22701: navpoint_find is called before the spawn's arguments are pushed
+            navpoint *np = navpoint_find(navname);
+            c = living_from_handle(script_object_spawn_at_navpoint(ci, type, np, char_level));
+        }
         if (level_set)
             c->flags |= 0x400000;
         if (miniboss)
@@ -428,8 +433,12 @@ void script_parse_objects(TextFile *tf, bool level)
             so->hidden = hidden;
             if (hidden)
                 c->set_ai_active(0);
-            if (trigger_level != -1)
-                c->set_ai_active(savegame_state.get_flag(trigger_level, trigger) ? 1 : 0);
+            if (trigger_level != -1) {   // D22701: two calls (push eax / push 1, one shared call)
+                if (!savegame_state.get_flag(trigger_level, trigger))
+                    c->set_ai_active(0);
+                else
+                    c->set_ai_active(1);
+            }
         }
 
         a = &so->actions[so->num_actions];
@@ -475,12 +484,12 @@ void script_parse_objects(TextFile *tf, bool level)
             break;
 
         case SCRIPT_ACTION_PLAY_ACTION:
-            m = charinfo_find_move(c->info, 8, tf->ParseInt(), true);
-            if (m == NULL) {
+            n = tf->ParseInt();   // D22701
+            m = charinfo_find_move(c->info, 8, n, true);
+            if (m != NULL)
+                a->arg0c = m->anim;
+            else
                 a->arg0c = -1;
-                break;
-            }
-            a->arg0c = m->anim;
             break;
 
         case SCRIPT_ACTION_DIE:
@@ -630,7 +639,8 @@ bool navpoint_get_position(const char *name, vector3 *pos, matrix *orient)
     return false;
 }
 
-// 0x4dc6e0  Confidence: likely (the walk to the last path node; D14205: closer, the binary keeps so in EBX). Actions 0-2. "move through" only
+// 0x4dc6e0  Confidence: likely (the walk to the last path node; D14205: closer, the binary keeps so in EBX; D22700:
+// a `goal` pointer local for &np->pos, closer). Actions 0-2. "move through" only
 // builds the path (appended to the one the previous move through left, flag 2 keeps the corner); the
 // walk / run hands the whole path to a goto-navpoint goal (flag 0x20, the script's goal).
 bool script_action_walk_to(Character *c, script_object *so)
@@ -641,6 +651,7 @@ bool script_action_walk_to(Character *c, script_object *so)
     ai_path *path;
     bool walk;
     int g;
+    vector3 *goal;
 
     if (so->cur_action == 0 || so->actions[so->cur_action - 1].type != SCRIPT_ACTION_MOVE_THROUGH) {
         ai_path_free((ai_path *)so->path);
@@ -648,14 +659,15 @@ bool script_action_walk_to(Character *c, script_object *so)
     }
 
     np = a->nav;
+    goal = &np->pos;
     for (last = (ai_path *)so->path; last != NULL; last = last->next) {
         if (last->next == NULL)
             break;
     }
     if (last != NULL)
-        path = last->next = ai_path_find(&last->pos, last->layer, &np->pos, np->layer, c->info->size, 0.0f);
+        path = last->next = ai_path_find(&last->pos, last->layer, goal, np->layer, c->info->size, 0.0f);
     else
-        path = (ai_path *)(so->path = ai_path_find(&c->pos, c->layer, &np->pos, np->layer, c->info->size, 0.0f));
+        path = (ai_path *)(so->path = ai_path_find(&c->pos, c->layer, goal, np->layer, c->info->size, 0.0f));
 
     if (a->type == SCRIPT_ACTION_MOVE_THROUGH) {
         if (path != NULL) {
@@ -668,7 +680,7 @@ bool script_action_walk_to(Character *c, script_object *so)
     walk = false;
     if (a->type == SCRIPT_ACTION_WALK_TO)
         walk = true;
-    g = c->ai.add_move_to(&np->pos, np->layer, walk, 100);
+    g = c->ai.add_move_to(goal, np->layer, walk, 100);
     if (g == -1)
         return false;
     c->ai.goals[g].flags |= 0x20;
@@ -849,7 +861,8 @@ bool script_action_combat_mode(script_action *a, script_object *so, Character *c
     return true;
 }
 
-// 0x4dccb0  Confidence: likely (D14205: only the c / count register pair differs; the slot mapping written as an if / else if after the record's first two
+// 0x4dccb0  Confidence: exact (VC6 byte match, D22703: the new item in a block-local `it` before the equip call
+// (it moves c to ESI); was likely, D14205: the slot mapping written as an if / else if after the record's first two
 // fields). Action 29 (cutscenes): equips a new weapon of the type (or empties slot 5 for "(none)"). The
 // items taken off are kept in cutscene_saved_equipment for the rewind, once per character (a second
 // replace frees them); an item whose ItemType slot is not 4, 5 or 9 is recorded with a stale slot. For
@@ -872,9 +885,10 @@ bool script_action_replace_weapon(script_action *a, Character *c)
         }
     }
 
-    if (a->arg0c >= 0)
-        character_equip_item(&old1, &old2, c, 5, item_create(a->arg0c));
-    else
+    if (a->arg0c >= 0) {
+        item_info *it = item_create(a->arg0c);   // D22703
+        character_equip_item(&old1, &old2, c, 5, it);
+    } else
         old1 = character_unequip_slot(c, 5, 1);
 
     if (old1 != NULL) {
@@ -916,7 +930,9 @@ bool script_action_replace_weapon(script_action *a, Character *c)
     return true;
 }
 
-// 0x4dce60  Confidence: likely (the early-out tests). Action 31: the same for the armour (slot 7; ItemType
+// 0x4dce60  Confidence: likely (the early-out tests; D22704: the records indexed with the count as in
+// replace_weapon, closer; left: Sum.exe keeps a zero register in EBX and `save` in the frame). Action 31: the
+// same for the armour (slot 7; ItemType
 // slots 6 / 8 save as 7, 7 as 8). Nothing happens when the new type is a slot-6 item (or "(none)")
 // and the worn armour is not a slot-8 item, or when both are slot-8 items. When the slots 7 / 8 were
 // empty, records with a NULL item note that for the rewind.
@@ -966,14 +982,13 @@ bool script_action_replace_armor(script_action *a, Character *c)
 
     if (old1 != NULL) {
         if (save) {
-            cutscene_saved_item *rec = &cutscene_saved_equipment[cutscene_saved_equipment_count];
-            rec->c = c;
-            rec->item = old1;
+            cutscene_saved_equipment[cutscene_saved_equipment_count].c = c;
+            cutscene_saved_equipment[cutscene_saved_equipment_count].item = old1;
             s = old1->type->slot;
             if (s == 6 || s == 8)
-                rec->slot = 7;
+                cutscene_saved_equipment[cutscene_saved_equipment_count].slot = 7;
             else if (s == 7)
-                rec->slot = 8;
+                cutscene_saved_equipment[cutscene_saved_equipment_count].slot = 8;
             cutscene_saved_equipment_count++;
         } else {
             item_free(old1);
@@ -981,14 +996,13 @@ bool script_action_replace_armor(script_action *a, Character *c)
     }
     if (old2 != NULL) {
         if (save) {
-            cutscene_saved_item *rec = &cutscene_saved_equipment[cutscene_saved_equipment_count];
-            rec->c = c;
-            rec->item = old2;
+            cutscene_saved_equipment[cutscene_saved_equipment_count].c = c;
+            cutscene_saved_equipment[cutscene_saved_equipment_count].item = old2;
             s = old2->type->slot;
             if (s == 6 || s == 8)
-                rec->slot = 7;
+                cutscene_saved_equipment[cutscene_saved_equipment_count].slot = 7;
             else if (s == 7)
-                rec->slot = 8;
+                cutscene_saved_equipment[cutscene_saved_equipment_count].slot = 8;
             cutscene_saved_equipment_count++;
         } else {
             item_free(old2);
@@ -997,32 +1011,35 @@ bool script_action_replace_armor(script_action *a, Character *c)
 
     if (it != NULL) {
         if (!had7) {
-            cutscene_saved_item *rec = &cutscene_saved_equipment[cutscene_saved_equipment_count++];
-            rec->c = c;
-            rec->item = NULL;
-            rec->slot = 7;
+            cutscene_saved_equipment[cutscene_saved_equipment_count].c = c;
+            cutscene_saved_equipment[cutscene_saved_equipment_count].item = NULL;
+            cutscene_saved_equipment[cutscene_saved_equipment_count].slot = 7;
+            cutscene_saved_equipment_count++;
         }
         if (!had8) {
-            cutscene_saved_item *rec = &cutscene_saved_equipment[cutscene_saved_equipment_count++];
-            rec->c = c;
-            rec->item = NULL;
-            rec->slot = 8;
+            cutscene_saved_equipment[cutscene_saved_equipment_count].c = c;
+            cutscene_saved_equipment[cutscene_saved_equipment_count].item = NULL;
+            cutscene_saved_equipment[cutscene_saved_equipment_count].slot = 8;
+            cutscene_saved_equipment_count++;
         }
     }
     return true;
 }
 
-// 0x4dd0b0  Confidence: likely (jump table 0x4dd698 over type + 1; the cases that finish at once return
-// without the retry message). Starts the current action; an action that cannot start formats "Unable
+// 0x4dd0b0  Confidence: exact (VC6 byte match, D22705: `ok = true` with an explicit `case -1: return;` and no
+// default (the table starts at -1, other types fall out with ok set), the cases in the binary's code order, the
+// wander flag passed as the bool it is, the next action through a pointer, the move found before the second
+// _stricmp, the name copied by an if / else of two strcpy; was likely: jump table 0x4dd698 over type + 1; the
+// cases that finish at once return without the retry message). Starts the current action; an action that cannot start formats "Unable
 // to start script entry ..." (into a local buffer that is never shown) and retries in 5 s.
 void script_entry_start(script_object *so, Character *c)
 {
     char name[64];
     char msg[256];
     script_action *a;
-    bool ok;
+    bool ok = true;   // D22705
     bool hold;
-    int next;
+    move_info *m;
 
     if (so->end_mode == -1 || so->cur_action < 0)
         return;
@@ -1030,6 +1047,9 @@ void script_entry_start(script_object *so, Character *c)
     so->timer.invalidate();
     a = &so->actions[so->cur_action];
     switch (a->type) {
+    case -1:
+        return;
+
     case SCRIPT_ACTION_WALK_TO:
     case SCRIPT_ACTION_RUN_TO:
     case SCRIPT_ACTION_MOVE_THROUGH:
@@ -1042,7 +1062,7 @@ void script_entry_start(script_object *so, Character *c)
 
     case SCRIPT_ACTION_WANDER:
     case SCRIPT_ACTION_WANDER_FOR:
-        ok = script_action_wander(c, a, a->flag14);
+        ok = script_action_wander(c, a, *(bool *)&a->flag14);
         if (a->type == SCRIPT_ACTION_WANDER_FOR)
             so->timer.SetTimeout(a->arg10 * 1000);
         break;
@@ -1061,15 +1081,15 @@ void script_entry_start(script_object *so, Character *c)
                 boss_set_foot_anims(c);
         }
         if (so->cur_action + 1 < so->num_actions) {
-            next = so->actions[so->cur_action + 1].type;
-            if (next == SCRIPT_ACTION_SYNCH || next == SCRIPT_ACTION_SYNCH_TELEPORT) {
+            script_action *na = &so->actions[so->cur_action + 1];
+            if (na->type == SCRIPT_ACTION_SYNCH || na->type == SCRIPT_ACTION_SYNCH_TELEPORT) {
                 ok = script_action_play_action(c, a, true);
             } else {
                 hold = false;
                 if ((game_flags & 0x20) && c->info->species == 0
                     && _stricmp(cutscene_data->name, "game-intro") == 0
-                    && _stricmp(charinfo_find_move_any(c->info, a->arg0c, true)->action,
-                                "gi-Josp-Sneak-Ready.mvf") == 0)
+                    && (m = charinfo_find_move_any(c->info, a->arg0c, true),
+                        _stricmp(m->action, "gi-Josp-Sneak-Ready.mvf") == 0))
                     hold = true;
                 ok = script_action_play_action(c, a, hold);
             }
@@ -1094,6 +1114,13 @@ void script_entry_start(script_object *so, Character *c)
         c->type = 4;
         return;
 
+    case SCRIPT_ACTION_NO_BLOCK:
+        if (a->arg0c)
+            c->flags |= 0x20;
+        else
+            c->flags &= ~0x20;
+        return;
+
     case SCRIPT_ACTION_SAY:
         c->say(a->text, (float)a->arg0c);
         return;
@@ -1106,13 +1133,6 @@ void script_entry_start(script_object *so, Character *c)
     case SCRIPT_ACTION_GOTO:
         ok = script_action_goto(c, a, so);
         break;
-
-    case SCRIPT_ACTION_NO_BLOCK:
-        if (a->arg0c)
-            c->flags |= 0x20;
-        else
-            c->flags &= ~0x20;
-        return;
 
     case SCRIPT_ACTION_TELEPORT_TO:
         c->flags &= ~0x1000;
@@ -1127,6 +1147,10 @@ void script_entry_start(script_object *so, Character *c)
         script_npc_send_go(a->text);
         script_entry_advance(so, c);
         return;
+
+    case SCRIPT_ACTION_FOLLOW:
+        ok = script_action_follow(so, c, a->text, a->arg0c);
+        break;
 
     case SCRIPT_ACTION_SHOW_HIDE:
         c->set_ai_active(a->arg0c);
@@ -1155,10 +1179,6 @@ void script_entry_start(script_object *so, Character *c)
             script_entry_advance(so, c);
         return;
 
-    case SCRIPT_ACTION_FOLLOW:
-        ok = script_action_follow(so, c, a->text, a->arg0c);
-        break;
-
     case SCRIPT_ACTION_COMBAT_MODE:
         ok = script_action_combat_mode(a, so, c);
         break;
@@ -1172,6 +1192,10 @@ void script_entry_start(script_object *so, Character *c)
         ok = script_action_replace_weapon(a, c);
         break;
 
+    case SCRIPT_ACTION_REPLACE_ARMOR:
+        ok = script_action_replace_armor(a, c);
+        break;
+
     case SCRIPT_ACTION_GUARD_SPLINE:
         if (a->arg0c) {
             script_alloc_avoid_spline(c->handle, cur_character->handle);
@@ -1180,21 +1204,18 @@ void script_entry_start(script_object *so, Character *c)
         script_free_avoid_spline(c->handle);
         return;
 
-    case SCRIPT_ACTION_REPLACE_ARMOR:
-        ok = script_action_replace_armor(a, c);
-        break;
-
     case SCRIPT_ACTION_ONE_HAND:
         c->set_armour_alt_texture(a->arg0c != 0, 0);
         return;
 
-    default:
-        return;
     }
 
     if (!ok) {
         Character *o = living_from_handle(so->handle);
-        strcpy(name, o != NULL ? o->info->name : XSTR("Unknown", 352));
+        if (o != NULL)
+            strcpy(name, o->info->name);
+        else
+            strcpy(name, XSTR("Unknown", 352));
         sprintf(msg, "Unable to start script entry %d for %s.  Try again in 5 seconds\n", so->cur_action, name);
         so->timer.SetTimeout(5000);
     }
@@ -1221,7 +1242,10 @@ void script_entry_advance(script_object *so, Character *c)
     script_entry_start(so, c);
 }
 
-// 0x4dd780  Confidence: likely (switch through the byte table 0x4dda08 / jump table 0x4dd9d4: the
+// 0x4dd780  Confidence: exact (VC6 byte match, D22702: one exit for the switch (the EDI push is shrink-wrapped
+// into it), the cases in the binary's code order, the "not done" cases as `done = false; break;` with play
+// action jumping into follow's copy, the next action through a pointer, `done = true` before the flag store;
+// was likely: switch through the byte table 0x4dda08 / jump table 0x4dd9d4: the
 // actions that finish when started share the "true" case; "wander", "die" return false, "play effect"
 // and unknown types fall to the end with false). An action followed by a synch waits while a cutscene
 // is loaded.
@@ -1229,61 +1253,31 @@ bool script_entry_check_done(script_object *so, Character *c)
 {
     bool done = false;
     script_action *a;
-    int next, prev;
+    int prev;
 
     if (so->cur_action < 0)
         return true;
     if (so->end_mode == 2 && so->cur_action >= so->num_actions)
         return false;
     if (cutscene_data != NULL && so->cur_action < so->num_actions - 1) {
-        next = so->actions[so->cur_action + 1].type;
-        if (next == SCRIPT_ACTION_SYNCH || next == SCRIPT_ACTION_SYNCH_TELEPORT)
+        script_action *na = &so->actions[so->cur_action + 1];
+        if (na->type == SCRIPT_ACTION_SYNCH || na->type == SCRIPT_ACTION_SYNCH_TELEPORT)
             return false;
     }
 
     a = &so->actions[so->cur_action];
     switch (a->type) {
-    case -1:
-    case SCRIPT_ACTION_MOVE_THROUGH:
-    case SCRIPT_ACTION_WAIT_AT:
-    case SCRIPT_ACTION_DO_STATE:
-    case SCRIPT_ACTION_TURN_HOSTILE:
-    case SCRIPT_ACTION_SAY:
-    case SCRIPT_ACTION_LABEL:
-    case SCRIPT_ACTION_GOTO:
-    case SCRIPT_ACTION_NO_BLOCK:
-    case SCRIPT_ACTION_TELEPORT_TO:
-    case SCRIPT_ACTION_PASS_GO:
-    case SCRIPT_ACTION_SHOW_HIDE:
-    case SCRIPT_ACTION_MOUNT_ANIM:
-    case SCRIPT_ACTION_DISMOUNT_ANIM:
-    case SCRIPT_ACTION_REPLACE_WEAPON:
-    case SCRIPT_ACTION_GUARD_SPLINE:
-    case SCRIPT_ACTION_REPLACE_ARMOR:
-    case SCRIPT_ACTION_ONE_HAND:
-        done = true;
-        break;
-
     case SCRIPT_ACTION_WALK_TO:
     case SCRIPT_ACTION_RUN_TO:
         done = c->ai.goal_find(9, AI_GOAL_GOTO_NAVPOINT, 0, 0, -1, &a->nav->pos, a->nav->layer, AI_NO_SPELL) == -1;
         break;
 
-    case SCRIPT_ACTION_WANDER:
-    case SCRIPT_ACTION_DIE:
-        return false;
-
-    case SCRIPT_ACTION_WANDER_FOR:
-        done = true;
-        c->ai.goal_remove(c->ai.goal_find(1, AI_GOAL_WANDER, 0, 0, -1, NULL, 0, AI_NO_SPELL));
-        break;
-
     case SCRIPT_ACTION_PLAY_ACTION:
     case SCRIPT_ACTION_PLAY_MVF:
         if (a->arg0c >= 0 && c->instance->get_anim_time_left(a->arg0c) > reported_frametime)
-            return false;
-        c->flags &= ~0x1000;
+            goto not_done;
         done = true;
+        c->flags &= ~0x1000;
         if (c->type == 9 && so->cur_action > 0) {
             prev = so->actions[so->cur_action - 1].type;
             if (prev == SCRIPT_ACTION_MOUNT_ANIM)
@@ -1311,16 +1305,50 @@ bool script_entry_check_done(script_object *so, Character *c)
         done = script_check_visit_count(a->arg0c);
         break;
 
-    case SCRIPT_ACTION_SYNCH:
-    case SCRIPT_ACTION_SYNCH_TELEPORT:
-        done = cutscene_data == NULL;
+    case -1:
+    case SCRIPT_ACTION_MOVE_THROUGH:
+    case SCRIPT_ACTION_WAIT_AT:
+    case SCRIPT_ACTION_DO_STATE:
+    case SCRIPT_ACTION_TURN_HOSTILE:
+    case SCRIPT_ACTION_SAY:
+    case SCRIPT_ACTION_LABEL:
+    case SCRIPT_ACTION_GOTO:
+    case SCRIPT_ACTION_NO_BLOCK:
+    case SCRIPT_ACTION_TELEPORT_TO:
+    case SCRIPT_ACTION_PASS_GO:
+    case SCRIPT_ACTION_SHOW_HIDE:
+    case SCRIPT_ACTION_MOUNT_ANIM:
+    case SCRIPT_ACTION_DISMOUNT_ANIM:
+    case SCRIPT_ACTION_REPLACE_WEAPON:
+    case SCRIPT_ACTION_GUARD_SPLINE:
+    case SCRIPT_ACTION_REPLACE_ARMOR:
+    case SCRIPT_ACTION_ONE_HAND:
+        done = true;
+        break;
+
+    case SCRIPT_ACTION_WANDER:
+    case SCRIPT_ACTION_DIE:
+        done = false;
+        break;
+
+    case SCRIPT_ACTION_WANDER_FOR:
+        done = true;
+        c->ai.goal_remove(c->ai.goal_find(1, AI_GOAL_WANDER, 0, 0, -1, NULL, 0, AI_NO_SPELL));
         break;
 
     case SCRIPT_ACTION_FOLLOW:
-        if (!so->timer.valid())
-            return false;
+        if (!so->timer.valid()) {
+        not_done:
+            done = false;
+            break;
+        }
         done = true;
         c->ai.goal_remove(c->ai.goal_find(1, AI_GOAL_FOLLOW, 0, 0, -1, NULL, 0, AI_NO_SPELL));
+        break;
+
+    case SCRIPT_ACTION_SYNCH:
+    case SCRIPT_ACTION_SYNCH_TELEPORT:
+        done = cutscene_data == NULL;
         break;
 
     case SCRIPT_ACTION_COMBAT_MODE:

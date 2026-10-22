@@ -227,14 +227,12 @@ bool float_strictly_between(float a, float b, float x)
 }
 
 // 0x55f900  Confidence: likely (the colour bytes are converted to float before the lerps, as in
-// gr_clip_edge).
+// gr_clip_edge; D24703: a->pass[i] / b->pass[i] / n->pass[i] indexed in place, no pass pointer locals,
+// gives the binary's induction pointers; only the load of b's red byte is scheduled one place later).
 gr_multipass_vertex *gr_poly_split_edge_vertex(gr_multipass_vertex *a, gr_multipass_vertex *b, float t,
                                                int npasses, gr_tmapper_pass *passes)
 {
     gr_multipass_vertex *n = gr_poly_alloc_clip_vertex();
-    gr_pass_vertex_data *pa;
-    gr_pass_vertex_data *pb;
-    gr_pass_vertex_data *pn;
     float r, g, bl, al;
     int i;
 
@@ -243,24 +241,21 @@ gr_multipass_vertex *gr_poly_split_edge_vertex(gr_multipass_vertex *a, gr_multip
     n->v->flags = 0;
     gr_project_vertex(n->v);
     for (i = 0; i < npasses; i++) {
-        pa = &a->pass[i];
-        pb = &b->pass[i];
-        pn = &n->pass[i];
         if (passes[i].enabled) {
-            pn->u = (pb->u - pa->u) * t + pa->u;
-            pn->v = (pb->v - pa->v) * t + pa->v;
+            n->pass[i].u = (b->pass[i].u - a->pass[i].u) * t + a->pass[i].u;
+            n->pass[i].v = (b->pass[i].v - a->pass[i].v) * t + a->pass[i].v;
         }
         if (passes[i].vertex_color) {
-            r = pa->r;
-            g = pa->g;
-            bl = pa->b;
-            pn->r = (ubyte)(int)((pb->r - r) * t + r);
-            pn->g = (ubyte)(int)((pb->g - g) * t + g);
-            pn->b = (ubyte)(int)((pb->b - bl) * t + bl);
+            r = a->pass[i].r;
+            g = a->pass[i].g;
+            bl = a->pass[i].b;
+            n->pass[i].r = (ubyte)(int)((b->pass[i].r - r) * t + r);
+            n->pass[i].g = (ubyte)(int)((b->pass[i].g - g) * t + g);
+            n->pass[i].b = (ubyte)(int)((b->pass[i].b - bl) * t + bl);
         }
         if (passes[i].vertex_alpha) {
-            al = pa->a;
-            pn->a = (ubyte)(int)((pb->a - al) * t + al);
+            al = a->pass[i].a;
+            n->pass[i].a = (ubyte)(int)((b->pass[i].a - al) * t + al);
         }
     }
     return n;

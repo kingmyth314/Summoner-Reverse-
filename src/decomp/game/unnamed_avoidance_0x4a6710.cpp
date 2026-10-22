@@ -415,7 +415,8 @@ bool avoid_prim_test_exact(const vector2 *p, const avoid_obstacle *ob)
     return avoid_prim_test(p, ob, 0.0f);
 }
 
-// 0x4a73f0  Confidence: likely (the walk's pointer bookkeeping). Adds an obstacle to a polygon of the
+// 0x4a73f0  Confidence: likely (the walk's pointer bookkeeping; D22803: the point copies as vector2
+// assignments, distance 263 -> 233; left: frame 0x250 against 0x22c, register choice in the walk). Adds an obstacle to a polygon of the
 // same kind: a polygon wholly inside the obstacle takes the obstacle's outline; else the outline of the
 // union is walked from the first polygon point outside the obstacle, switching between the two outlines
 // at every edge crossing (at most 30 points; an odd number of switches fails).
@@ -448,8 +449,7 @@ bool avoid_merge_obstacle_polys(avoid_poly *poly, const avoid_obstacle *ob)
         poly->obstacles[poly->count] = (char)(ob - avoid_obstacles);
         poly->count++;
         for (i = 0; i < poly->num_points; i++) {
-            poly->points[i].x = ob->points[i].x;
-            poly->points[i].y = ob->points[i].y;
+            poly->points[i] = ob->points[i];
         }
         return true;
     }
@@ -468,8 +468,7 @@ bool avoid_merge_obstacle_polys(avoid_poly *poly, const avoid_obstacle *ob)
             cur = alt;
             alt = tmp;
             switches++;
-            out[count].x = hit.x;
-            out[count].y = hit.y;
+            out[count] = hit;
             count++;
             p = &out[count - 1];
             next = edge;
@@ -478,8 +477,7 @@ bool avoid_merge_obstacle_polys(avoid_poly *poly, const avoid_obstacle *ob)
         if (next == start && cur == poly) {
             done = true;
         } else {
-            out[count].x = cur->points[next].x;
-            out[count].y = cur->points[next].y;
+            out[count] = cur->points[next];
             count++;
             p = &out[count - 1];
         }
@@ -970,10 +968,12 @@ void avoid_seglist_ensure_corner_offset(avoid_seglist *sl, int corner)
     avoid_seglist_calc_shared_corner_offset(sl, sl, s1, s2, corner, corner);
 }
 
-// 0x4a8390  Confidence: likely (the visible-count bookkeeping; D21204: p through vec2_set, the door offset
-// through one vector2 d (frame 0x24) added to node->pos again, and the other list's corner count in a local
-// (the count-down loop): distance 131 -> 58; left: the binary keeps p.y on the FPU across the door test and
-// adds p.x from memory, the o loop's end test, the exits' register for saved_size). Links every corner of a segment list:
+// 0x4a8390  Confidence: exact (D21204: p through vec2_set, the door offset through one vector2 d (frame
+// 0x24), and the other list's corner count in a local (the count-down loop); D22800: the door add as
+// `p.x = p.x + d.x` and d.y through a float local added to p.y (p.y stays on the FPU), the corner's flags
+// through sl->corners[k].node (the node pointer's bias), the other lists by an int index (signed end
+// test), the out-of-memory exit as a break to the one restore, the graph point indexed in place).
+// Links every corner of a segment list:
 // its two neighbours along the outline, the visible corners of the other lists of the size class and
 // layer, then the visible graph nodes, up to 20 links (the corner's link block).
 void avoid_do_poly_seg_list_links(avoid_seglist *sl)
@@ -992,19 +992,19 @@ void avoid_do_poly_seg_list_links(avoid_seglist *sl)
         node = &sl->corners[k].node;
         if (!node->links) {
             printf("do_poly_seg_list_links -- out of memory\n");
-            pf_cur_size = saved_size;
-            return;
+            break;
         }
         vec2_set(p, node->pos->x, node->pos->y);
         if (sl->flags & AVOID_SEGLIST_DOOR) {
             vector2 d = 0.03f * sl->corners[k].offset;
-            p.x = d.x + node->pos->x;
-            p.y = d.y + node->pos->y;
+            p.x = p.x + d.x;
+            float t = d.y;
+            p.y = t + p.y;
         }
         visible = pf_mark_nodes_visible_from_point(&p, layer, 7);
         n = 0;
-        if (node->flags & PFN_VISIBLE) {
-            node->flags &= ~PFN_VISIBLE;
+        if (sl->corners[k].node.flags & PFN_VISIBLE) {
+            sl->corners[k].node.flags &= ~PFN_VISIBLE;
             visible--;
         }
         found = 0;
@@ -1032,7 +1032,8 @@ void avoid_do_poly_seg_list_links(avoid_seglist *sl)
             if (found == 2)
                 break;
         }
-        for (o = avoid_seglists; o < &avoid_seglists[AVOID_NUM_SEGLISTS]; o++) {
+        for (int j = 0; j < AVOID_NUM_SEGLISTS; j++) {
+            o = &avoid_seglists[j];
             if (!(o->flags & AVOID_SEGLIST_USED) || (o->flags & AVOID_SEGLIST_OFF) || o->layer != layer
                 || o->size != pf_cur_size)
                 continue;
@@ -1047,9 +1048,8 @@ void avoid_do_poly_seg_list_links(avoid_seglist *sl)
         }
         g = &pf_graphs[pf_cur_size][layer];
         for (i = 0; i < g->count; i++) {
-            other = &g->points[i];
-            if (other->flags & PFN_VISIBLE) {
-                node->links[n++] = other;
+            if (g->points[i].flags & PFN_VISIBLE) {
+                node->links[n++] = &g->points[i];
                 node->num_links = (short)n;
                 if (n >= 20 || n == visible)
                     break;
@@ -1068,14 +1068,15 @@ void rect2d_add_point(rect2d *r, const vector2 *p)
     r->min_y = min_f(r->min_y, p->y);
 }
 
-// 0x4a8680  Confidence: likely (the reuse of sl's argument slot for b's corner index). Appends the
+// 0x4a8680  Confidence: likely (the reuse of sl's argument slot for b's corner index; D22804: ws as a
+// pf_edge, 264 -> 262; ib still does not take sl's slot). Appends the
 // segment a-b (reusing corners at the same points). Soft lists compute the miter at the ends that lie on
 // walls; prohibit lists add a closing segment along each wall to the wall's end point on a's side.
 // Returns -1 when the 30 corners are used up.
 int avoid_seglist_add_segment(const vector2 *a, const vector2 *b, pf_edge *wall_a, pf_edge *wall_b,
                               avoid_seglist *sl)
 {
-    seg2d ws;
+    pf_edge ws;
     vector2 *ep;
     int ia, ib, nc, ns, i, idx;
 
@@ -1240,7 +1241,8 @@ void avoid_sort_refs_along_segment(int count, avoid_seg_ref_entry *refs)
 }
 
 // 0x4a8b80  Confidence: likely (the "previous segment" index arithmetic, segs[index - 1] or
-// segs[index - 2], is the code's). Where several prohibit lists end on the same nav wall, the corners
+// segs[index - 2], is the code's; D22802: the corner point copied as one vector2 assignment, which lets
+// 8966 cross-jump the two calc_shared_corner_offset calls as the binary does, 191 -> 128). Where several prohibit lists end on the same nav wall, the corners
 // that lie between two neighbouring references along the wall are joined (the later one takes the
 // earlier one's point) and get a shared miter.
 void avoid_merge_shared_segments(avoid_seglist *sl)
@@ -1270,8 +1272,7 @@ void avoid_merge_shared_segments(avoid_seglist *sl)
                     c = avoid_ref_entry(&refs[k - 1])->a;
                     p = &refs[k - 1].list->corners[c];
                     cc = avoid_ref_entry(&refs[k])->a;
-                    refs[k].list->corners[cc].pos.x = p->pos.x;
-                    refs[k].list->corners[cc].pos.y = p->pos.y;
+                    refs[k].list->corners[cc].pos = p->pos;
                     l = refs[k - 1].list;
                     sp = &l->segs[refs[k - 1].index - 1];
                     if (sp->b != c)
@@ -1283,8 +1284,7 @@ void avoid_merge_shared_segments(avoid_seglist *sl)
                     c = avoid_ref_entry(&refs[k + 1])->b;
                     p = &refs[k + 1].list->corners[c];
                     cc = avoid_ref_entry(&refs[k])->b;
-                    refs[k].list->corners[cc].pos.x = p->pos.x;
-                    refs[k].list->corners[cc].pos.y = p->pos.y;
+                    refs[k].list->corners[cc].pos = p->pos;
                     l = refs[k + 1].list;
                     sp = &l->segs[refs[k + 1].index - 1];
                     if (sp->a != c)
@@ -1832,16 +1832,18 @@ avoid_poly *avoid_poly_get(avoid_seglist *s)
 }
 
 // 0x4aa400  Confidence: likely (the hit count and the early exits; the hit point as vector2 operators,
-// D9803). The extra path length of an A* edge through an obstacle: the whole edge when both ends are inside,
+// D9803; D22801: the previous point by an index j (`j = i` at the loop end), `hits[nhits++]`, and each
+// length as `(p - q).len()` on its own temporary (three separate exits), distance 167 -> 8; left: the
+// binary stores a float 0 into i's slot before the overlap call and its early exit loads it from there).
+// The extra path length of an A* edge through an obstacle: the whole edge when both ends are inside,
 // else the length of the part inside (two outline crossings, or the inside end to the one crossing); 0 when
 // the edge misses the obstacle.
 float avoid_poly_add_search_nodes(const avoid_prim *seg, const avoid_obstacle *ob)
 {
     vector2 hits[2];
-    vector2 d;
-    const vector2 *a, *b, *prev;
+    const vector2 *a, *b;
     float t, u;
-    int inside, nhits, i;
+    int inside, nhits, i, j;
     bool a_inside;
 
     if (!avoid_prim_overlap(ob, seg, 0.0f))
@@ -1859,35 +1861,25 @@ float avoid_poly_add_search_nodes(const avoid_prim *seg, const avoid_obstacle *o
     if (inside == 2)
         return seg->half_a;
     nhits = 0;
-    if (ob->num_points > 0) {
-        prev = &ob->points[ob->num_points - 1];
-        for (i = 0; i < ob->num_points; i++) {
-            if (seg2d_intersect_params(a, b, prev, &ob->points[i], &t, &u) && u >= 0.0f && u <= 1.0f
-                && t >= 0.0f && t <= 1.0f) {
-                hits[nhits] = t * (*b - *a) + *a;
-                nhits++;
-                if (nhits == 2)
-                    break;
-                if (inside == 1 && nhits == 1)
-                    break;
-            }
-            prev = &ob->points[i];
+    j = ob->num_points - 1;
+    for (i = 0; i < ob->num_points; i++) {
+        if (seg2d_intersect_params(a, b, &ob->points[j], &ob->points[i], &t, &u) && u >= 0.0f && u <= 1.0f
+            && t >= 0.0f && t <= 1.0f) {
+            hits[nhits++] = t * (*b - *a) + *a;
+            if (nhits == 2)
+                break;
+            if (inside == 1 && nhits == 1)
+                break;
         }
+        j = i;
     }
     if (nhits == 2) {
-        d.x = hits[1].x - hits[0].x;
-        d.y = hits[1].y - hits[0].y;
-        return d.len();
+        return (hits[1] - hits[0]).len();
     }
     if (nhits == 1) {
-        if (a_inside) {
-            d.x = hits[0].x - a->x;
-            d.y = hits[0].y - a->y;
-            return d.len();
-        }
-        d.x = hits[0].x - b->x;
-        d.y = hits[0].y - b->y;
-        return d.len();
+        if (a_inside)
+            return (hits[0] - *a).len();
+        return (hits[0] - *b).len();
     }
     return 0.0f;
 }

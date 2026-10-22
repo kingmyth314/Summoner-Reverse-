@@ -31,7 +31,8 @@ char alt_texture_bases[MAX_ALT_TEXTURE_BASES][ALT_TEXTURE_BASE_LEN]; // 0x2476fb
 int  alt_texture_counts[MAX_ALT_TEXTURE_BASES];                     // 0x24790b8 sets per base
 int  num_alt_texture_bases;                                         // 0x24794b8
 
-// 0x4aac10  Confidence: likely (the two passes are read from the loop rotations; the second pass's counter
+// 0x4aac10  Confidence: exact (D24802: the base loop's exits as two `tf.Close(); break;` blocks, n = 0 before
+// GetPosition, the new array through a local; the two passes are read from the loop rotations; the second pass's counter
 // runs down in [esp + 0x10] with the entry offset in ebp, which is VC6's strength reduction of the j loop).
 // The first pass counts the "+Textures:" lines of a base and skips their names, then the position is
 // restored and the second pass fills the array. The base name buffer is 0x21 bytes but ParseString is
@@ -52,12 +53,20 @@ void alt_textures_parse_table()
 
     if (tf.Open("alt_textures.tbl", 9999999) == 0) {
         num_alt_texture_bases = 0;
-        while (!tf.Accept("#End") && !tf.AtEnd() && num_alt_texture_bases < MAX_ALT_TEXTURE_BASES) {
+        for (;;) {                      // D24802: two exits (8966 then pushes EBX / EBP at the entry)
+            if (tf.Accept("#End")) {
+                tf.Close();
+                break;
+            }
+            if (tf.AtEnd() || num_alt_texture_bases >= MAX_ALT_TEXTURE_BASES) {
+                tf.Close();
+                break;
+            }
             tf.Expect("$Base:");
             tf.ParseString(alt_texture_bases[num_alt_texture_bases], 0x28, '"', '"');
+            n = 0;                          // D24802: before GetPosition (the binary's xor esi, esi)
             tf.GetPosition(&pos);
 
-            n = 0;
             while (!tf.Accept("#End") && !tf.AtEnd() && !tf.Accept("$Base:")) {
                 n++;
                 tf.Expect("+Textures:");
@@ -68,8 +77,9 @@ void alt_textures_parse_table()
             tf.SetPosition(&pos);
 
             if (n > 0) {
-                alt_texture_lists[num_alt_texture_bases] =
-                    (alt_texture_set *)operator new(n * sizeof(alt_texture_set));
+                // D24802: through a local, so the index is read after the call
+                alt_texture_set *a = (alt_texture_set *)operator new(n * sizeof(alt_texture_set));
+                alt_texture_lists[num_alt_texture_bases] = a;
                 alt_texture_counts[num_alt_texture_bases] = n;
                 for (j = 0; j < n; j++) {
                     tf.Expect("+Textures:");
@@ -86,7 +96,6 @@ void alt_textures_parse_table()
             }
             num_alt_texture_bases++;
         }
-        tf.Close();
     }
 }
 

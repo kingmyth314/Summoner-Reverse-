@@ -117,21 +117,24 @@ void gr_d3d_tcache_frame()
 // is the compiler's). The texture size: the section size, rounded up to a power of two when the device
 // needs it, clamped to the device minimum and gr_screen's maximum, square when the device needs it. The
 // caps set before the level loop are dead: the loop clears the descriptor before each Lock, and
-// GetAttachedSurface gets the caps Lock returned.
+// GetAttachedSurface gets the caps Lock returned. m-1021e w18 D23903 (141 -> 15): the texture size read
+// first and the section size copied from it, the two scales from float locals (the binary converts both
+// operands with fild, no fidiv), the mipmap caps stored before the size product, and the section written
+// through `e->sections[section]` at the end (no pointer local). Left: the section width and height have
+// each other's frame slots (the binary stores the height first, and level / size share them the other way).
 int gr_d3d_create_texture_section(int bm, d3d_tcache_entry *e, int section, ubyte *data, ubyte *palette,
                                   int bm_w, int bm_h, int format, int num_levels)
 {
     DDSURFACEDESC2 ddsd;
     IDirectDrawSurface7 *level, *top, *prev;
-    d3d_tcache_section *s;
     int bpp, i, w, h, tex_w, tex_h, size;
     float u_scale, v_scale;
 
     bpp = bm_bits_per_pixel(format);
-    w = e->sections[section].w;
-    h = e->sections[section].h;
-    tex_w = w;
-    tex_h = h;
+    tex_w = e->sections[section].w;
+    tex_h = e->sections[section].h;
+    w = tex_w;
+    h = tex_h;
     if (d3d_pow2_textures_only) {
         for (i = 0; i < 16; i++) {
             if (tex_w > (1 << i) && tex_w <= (1 << (i + 1))) {
@@ -159,10 +162,12 @@ int gr_d3d_create_texture_section(int bm, d3d_tcache_entry *e, int section, ubyt
             tex_w = tex_h;
         tex_h = tex_w;
     }
-    u_scale = (float)w / (float)tex_w;
+    float fw = (float)w, ftw = (float)tex_w;
+    u_scale = fw / ftw;
     memset(&ddsd, 0, sizeof(ddsd));
     ddsd.dwSize = sizeof(ddsd);
-    v_scale = (float)h / (float)tex_h;
+    float fh = (float)h, fth = (float)tex_h;
+    v_scale = fh / fth;
     level = NULL;
     if (num_levels > 1) {
         ddsd.dwFlags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT | DDSD_MIPMAPCOUNT;
@@ -197,8 +202,8 @@ int gr_d3d_create_texture_section(int bm, d3d_tcache_entry *e, int section, ubyt
     }
     top = level;
     IDirectDrawSurface7_AddRef(level);
-    size = tex_h * tex_w * 2;
     ddsd.ddsCaps.dwCaps = DDSCAPS_TEXTURE | DDSCAPS_MIPMAP;
+    size = tex_h * tex_w * 2;
     while (num_levels) {
         memset(&ddsd, 0, sizeof(ddsd));
         ddsd.dwSize = sizeof(ddsd);
@@ -220,12 +225,11 @@ int gr_d3d_create_texture_section(int bm, d3d_tcache_entry *e, int section, ubyt
         }
         IDirectDrawSurface7_Release(prev);
     }
-    s = &e->sections[section];
-    s->surface = top;
+    e->sections[section].surface = top;
     d3d_texture_mem_used += size;
-    s->size = size;
-    s->u_scale = u_scale;
-    s->v_scale = v_scale;
+    e->sections[section].size = size;
+    e->sections[section].u_scale = u_scale;
+    e->sections[section].v_scale = v_scale;
     return 1;
 }
 

@@ -639,7 +639,8 @@ void game_cleanup()
 
 // ---- summoner.cfg ----------------------------------------------------------------------------------
 
-// 0x43e250  Confidence: likely (the goto; the clamp is `>=` for the JL at 0x43e345, the final test
+// 0x43e250  Confidence: exact (VC6 byte match, D25000: the sfx volume through memcpy into a one-float
+// array; was likely) (the goto; the clamp is `>=` for the JL at 0x43e345, the final test
 // unsigned for the JAE at 0x43e36a). A missing or short file keeps the defaults, and then 8 MB of
 // video memory or less drops the texture quality to 0.
 void summoner_cfg_load()
@@ -662,7 +663,11 @@ void summoner_cfg_load()
     if (gr_get_video_memory_mb() <= 8)
         Summoner_options.texture_quality = 0;
 loaded:
-    snd_set_group_volume(0, Summoner_options.sfx_volume);
+    // D25000: the sfx volume copied with memcpy into a one-float array: the copy is still an integer move, and
+    // it puts the tail's registers in the binary's EAX / ECX / EDX rotation.
+    float vv[1];
+    memcpy(vv, &Summoner_options.sfx_volume, sizeof(float));
+    snd_set_group_volume(0, vv[0]);
     music_set_volume(Summoner_options.music_volume);
     if (snd_is_eax_enabled()) {
         if (Summoner_options.eax)

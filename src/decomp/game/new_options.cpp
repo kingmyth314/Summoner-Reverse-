@@ -133,16 +133,16 @@ ui_button_state options_buttons[OPTIONS_NUM_BUTTONS];     // 0x5c3328
 // 0x41ee90 init_options_config_defaults_thunk (jmp, entry 61). Confidence: exact.
 // 0x41eea0 init_options_config_defaults (the inline SummonerOptions constructor on options_edit). Confidence: exact.
 
-// 0x41ef30  Confidence: likely (byte table 0x41f09c over i 0..70 into the two-entry jump table 0x41f094:
-// the entries that are always drawn are written as a switch inside the load branch).
+// 0x41ef30  Confidence: exact (VC6 byte match, D23602) (byte table 0x41f09c over i 0..70 into the two-entry
+// jump table 0x41f094: the entries that are always drawn are written as a switch inside the load branch).
 void options_load_bitmaps()
 {
     float scale = ui_get_scale();
     int i;
 
     for (i = 0; i < OPTIONS_NUM_BUTTONS; i++) {
+        ui_button_def *d = &options_button_defs[i];   // D23602: d declared before b (i reloaded into EDI)
         ui_button_state *b = &options_buttons[i];
-        ui_button_def *d = &options_button_defs[i];
         b->flags = 0;
         b->bitmap = -1;
         b->x = 0;
@@ -810,60 +810,66 @@ void options_button_action(int button)
     }
 }
 
-// 0x41fff0  Confidence: likely (byte table 0x4202cc over pressed-1, 0..69, into 0x4202b8). The slider width
-// is converted to a float local and copied once more before the clamp (an inline helper or a temporary);
+// 0x41fff0  Confidence: exact (VC6 byte match, D23603) (byte table 0x4202cc over pressed-1, 0..69, into
+// 0x4202b8). The slider width is converted to a float local w for the clamp; the division converts the
+// width again (8966 spills that conversion and copies it into w, the "copied once more" of earlier notes);
 // the value is rounded to steps of 0.1. Any other pressed entry ends the drag at once.
+// D23603: w declared in each case block (sets its slot per case) and the divisor written as the conversion.
 void options_drag_sliders()
 {
-    float x, w, v;
+    float x, v;
 
     switch (options_pressed_button) {
-    case 1:
+    case 1: {
         x = (float)(game_mouse_x - options_sfx_slider_pos[resolution_index][0]);
         if (x <= 0.0f)
             x = 0.0f;
-        w = (float)options_sfx_slider_size[resolution_index][0];
+        float w = (float)options_sfx_slider_size[resolution_index][0];
         if (x >= w)
             x = w;
-        v = (int)((x / w + 0.05f) * 10.0f) * 0.1f;
+        v = (int)((x / (float)options_sfx_slider_size[resolution_index][0] + 0.05f) * 10.0f) * 0.1f;
         if (options_edit.sfx_volume != v)
             options_set_sfx_volume(v);
         break;
-    case 2:
+    }
+    case 2: {
         x = (float)(game_mouse_x - options_music_slider_pos[resolution_index][0]);
         if (x <= 0.0f)
             x = 0.0f;
-        w = (float)options_music_slider_size[resolution_index][0];
+        float w = (float)options_music_slider_size[resolution_index][0];
         if (x >= w)
             x = w;
-        v = (int)((x / w + 0.05f) * 10.0f) * 0.1f;
+        v = (int)((x / (float)options_music_slider_size[resolution_index][0] + 0.05f) * 10.0f) * 0.1f;
         if (options_edit.music_volume != v)
             options_set_music_volume(v);
         break;
-    case 19:
+    }
+    case 19: {
         x = (float)(game_mouse_x - options_camera_slider_pos[resolution_index][0]);
         if (x <= 0.0f)
             x = 0.0f;
-        w = (float)options_camera_slider_size[resolution_index][0];
+        float w = (float)options_camera_slider_size[resolution_index][0];
         if (x >= w)
             x = w;
-        v = (int)((x / w + 0.05f) * 10.0f) * 0.1f + 1.0f;
+        v = (int)((x / (float)options_camera_slider_size[resolution_index][0] + 0.05f) * 10.0f) * 0.1f + 1.0f;
         if (options_edit.camera_speed != v)
             options_set_camera_speed(v);
         break;
-    case 70:
+    }
+    case 70: {
         x = (float)(game_mouse_x - options_gamma_slider_pos[resolution_index][0]);
         if (x <= 0.0f)
             x = 0.0f;
-        w = (float)options_gamma_slider_size[resolution_index][0];
+        float w = (float)options_gamma_slider_size[resolution_index][0];
         if (x >= w)
             x = w;
         // Two statements: in one, VC6 folds 0.1f * 1.5f into 0.15f (D9801).
-        v = (int)((x / w + 0.05f) * 10.0f) * 0.1f;
+        v = (int)((x / (float)options_gamma_slider_size[resolution_index][0] + 0.05f) * 10.0f) * 0.1f;
         v = v * 1.5f + 0.7f;
         if (options_edit.gamma_correction != v)
             options_apply_gamma(v);
         break;
+    }
     default:
         options_mouse_mode = 0;
         return;

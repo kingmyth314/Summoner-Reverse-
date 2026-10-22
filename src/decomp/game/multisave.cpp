@@ -152,7 +152,8 @@ int mp_player_file_create(const char *name, int char_info_index, const char *des
     return 0;
 }
 
-// 0x46d0b0  Confidence: likely (the description: an existing file keeps its own, read back through
+// 0x46d0b0  Confidence: exact (VC6 byte match, D25001: the inventory type index through an int local; was
+// likely) (the description: an existing file keeps its own, read back through
 // mp_player_file_read_summary into a local summary; a new one gets L237). The flags word is the owner's
 // mp_player +0x30; the HP written is the base plus the HP lent to a summon (Player +0x178).
 int mp_player_file_write(Player *p)
@@ -197,7 +198,9 @@ int mp_player_file_write(Player *p)
 
     f.write_int(party_inventory_count);
     for (i = 0; i < party_inventory_count; i++) {
-        f.write_int(party_inventory[i].item->type - item_types);
+        // D25001: the type index through an int local puts the loop's scratch registers in the binary's order.
+        int t = party_inventory[i].item->type - item_types;
+        f.write_int(t);
         f.write_int(party_inventory[i].count);
         f.write_int(party_inventory[i].item->charges);
     }

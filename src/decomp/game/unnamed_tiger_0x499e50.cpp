@@ -672,12 +672,16 @@ struct tiger_candidate {
     float score;                      // +0xc cumulative weight
 };
 
-// 0x49b0a0  Confidence: likely (the threat base is assigned per candidate, not summed; NOTES.md). A
+// 0x49b0a0  Confidence: exact (VC6 byte match, D23100) (the threat base is assigned per candidate, not
+// summed, as the binary; NOTES.md). A
 // party member the tiger sees or that hurt it recently, weighted by its threat (the only one when there
 // is one).
 // D21002: the base-threat sum through a float local (`s = threat[1]; s += threat[0]`: threat[1] loaded first,
 // as the binary) and the weight base in two statements (`base = bt * 0.1f; base += 10.0f`: the handle loads
-// before the fadd, as the binary). Left: the start-up zero in EBX (binary EDX), reused in the first loop.
+// before the fadd, as the binary).
+// D23100: the query's stores in the order _unk08, best, result, self, candidate (boss_target_list_build's
+// order): 8966 then stores result's zero as an immediate and keeps no zero register across the first loop
+// (the start-up zero in EDX, as the binary). Byte match.
 int tiger_pick_target(Character *boss)
 {
     tiger_candidate cand[5];
@@ -696,8 +700,8 @@ int tiger_pick_target(Character *boss)
             continue;
         ai_target_query q;
         q._unk08 = 2;
-        q.result = 0;
         q.best = boss->info->fov_range;
+        q.result = 0;
         q.self = boss;
         q.candidate = c;
         ai_score_target(&q, 1);

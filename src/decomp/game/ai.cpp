@@ -1759,7 +1759,8 @@ void cast_effect_tracks_reset()
 // 0x4750b0  Confidence: likely (effect_get_base is called again for the time, not kept). Remembers the
 // effect of a spell below 0x26 for its animation's length * 1.5 (15 frames per second). D22101: the free
 // slot found through a pointer walk set in the for's init, `e++, i++`, gives the binary's counter / pointer
-// registers (EAX / ECX); left: the loop tests i, not the pointer end, and the time code's registers rotated.
+// registers (EAX / ECX); left: the loop tests i, not the pointer end. D24000: fx->instance read into an `in`
+// local for the time gives the binary's EAX / ECX / EDX there.
 void cast_effect_track_add(int spell, int handle)
 {
     effect_object *fx = (effect_object *)obj_from_handle_b(handle);
@@ -1777,7 +1778,8 @@ void cast_effect_track_add(int spell, int handle)
         return;
     cast_effect_tracks[i].spell = spell;
     cast_effect_tracks[i].handle = handle;
-    float t = effect_get_base(fx->instance->id_bits >> 9)->num_frames * (1.0f / 15.0f);
+    vfx_instance *in = fx->instance;
+    float t = effect_get_base(in->id_bits >> 9)->num_frames * (1.0f / 15.0f);
     cast_effect_tracks[i].time = t * 1.5f;
 }
 

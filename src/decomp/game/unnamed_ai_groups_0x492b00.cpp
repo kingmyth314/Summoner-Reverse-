@@ -462,9 +462,11 @@ void ai_group_think_style2(Character *c, ai_group *g)
         ai_group_order_attack(c, ai_think_enemies[0], g, true);
 }
 
-// 0x4936c0  Confidence: likely (the candidate count is incremented twice per scored member, as in the
-// binary; the candidate records are boss_target (0x10 bytes, six on the stack at esp+0x30, ending at the
-// return address: list[6] gives the binary's 0x80-byte frame, D17100). Healer / caster: with
+// 0x4936c0  Confidence: exact (VC6 byte match, D24900: has_ap an int, count = 0 at the top of the rating
+// block, foe declared before own, the score computed before the flag and count updates). The candidate
+// count is incremented twice per scored member, as in the binary; the candidate records are boss_target
+// (0x10 bytes, six on the stack at esp+0x30, ending at the return address: list[6] gives the binary's
+// 0x80-byte frame, D17100). Healer / caster: with
 // more than a quarter of its AP a support spell (ai_choose_support_spell) on the members; on the second
 // pass, when the enemies' attack rating is more than three times the group's, spell 0x15 or 0x13 on
 // the members that are not blessed (weighted by attackers and lost HP); else the melee (style 3) or
@@ -494,8 +496,7 @@ void ai_group_think_caster(Character *c, ai_group *g, int first_pass)
     int can_group = c->can_cast_spell(SPELL_GROUP_SUPPORT);
     int can_member = c->can_cast_spell(SPELL_MEMBER_SUPPORT);
     float ap = (float)c->ap;
-    bool has_ap = ap / (float)c->get_max_stat(1) > 0.25f;
-    count = 0;
+    int has_ap = ap / (float)c->get_max_stat(1) > 0.25f;
     for (i = 0; i < ai_think_num_members; i++) {
         list[i].character = ai_think_members[i];
         list[i].score = 0;
@@ -516,13 +517,14 @@ void ai_group_think_caster(Character *c, ai_group *g, int first_pass)
         if (first_pass != 0)
             return;
 
-        float own = 0.0f, foe = 0.0f;
+        float foe = 0.0f, own = 0.0f;
         for (i = 0; i < ai_think_num_members; i++)
             own += ai_think_members[i]->combat.attack_rating();
         for (i = 0; i < g->num_enemies; i++)
             foe += ai_think_enemies[i]->combat.attack_rating();
         if (foe / own > 3.0f) {
             float total = 0.0f;
+            count = 0;
             for (i = 0; i < ai_think_num_members; i++) {
                 Character *m = ai_think_members[i];
                 list[i].flags = 0;
@@ -530,6 +532,7 @@ void ai_group_think_caster(Character *c, ai_group *g, int first_pass)
                 if (can_member && !m->has_status(STATUS_BLESS)) {
                     float frac = m->hp / (float)m->get_max_stat(0);
                     int n = m->ai.count_engaged_attackers(true);
+                    float score = (float)n * 10.0f + (30.0f - frac * 30.0f);
                     list[i].flags |= 4;
 #ifdef FIXED_BUILD
                     // FIXED_BUILD: C210 AiBlessCount
@@ -537,7 +540,6 @@ void ai_group_think_caster(Character *c, ai_group *g, int first_pass)
 #else
                     count++;
 #endif
-                    float score = (float)n * 10.0f + (30.0f - frac * 30.0f);
                     if (score > 0.0f) {
                         total += score;
                         count++;

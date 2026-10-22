@@ -730,12 +730,13 @@ int savegame::find_flag_level(unsigned int hash)
 // then four bits per topic (bit = 4 * topic + kind).
 
 // 0x4d02d0  Confidence: likely (the speaker / topic induction variables; the speaker-bit loop runs over one
-// kind with a one-case switch, written as in the binary). The first use of a slot stores the hashes; the
+// kind with a one-case switch, written as in the binary; D22304: the save info read through CONVERSATION_SAVE_INFO
+// at each use (no info local) and n zeroed before the speaker hash store: 140 -> 112; left: register choice and the
+// binary keeps the source slot in the dead speakers argument slot). The first use of a slot stores the hashes; the
 // persistent speakers (CFLAG_PERSISTENT) then take their bits from the first other slot of the level that
 // has data.
 void savegame::init_conversation_slot(int level, int slot, conversation_speaker *speakers)
 {
-    conversation_save_info *info;
     ubyte *data;
     int counts_off, topics_off, num_topics, n, i, kind, bit;
     conversation_speaker *s;
@@ -743,18 +744,17 @@ void savegame::init_conversation_slot(int level, int slot, conversation_speaker 
 
     if (level < 0 || level >= SAVEGAME_NUM_LEVELS || !conversation_data || slot < 0 || slot >= SAVEGAME_NUM_SLOTS)
         return;
-    info = CONVERSATION_SAVE_INFO(level, slot);
-    if (!info->name)
+    if (!CONVERSATION_SAVE_INFO(level, slot)->name)
         return;
     data = conversations[level][slot].data;
-    counts_off = info->num_speakers * 4 + 4;
-    topics_off = counts_off + info->num_speakers * 4;
+    counts_off = CONVERSATION_SAVE_INFO(level, slot)->num_speakers * 4 + 4;
+    topics_off = counts_off + CONVERSATION_SAVE_INFO(level, slot)->num_speakers * 4;
     if (*(int *)data != 0)
         return;
     num_topics = 0;
     for (s = speakers, i = 0; s; s = s->next, i++) {
-        *(unsigned int *)(data + 4 + i * 4) = name_hash_nocase(s->name);
         n = 0;
+        *(unsigned int *)(data + 4 + i * 4) = name_hash_nocase(s->name);
         for (t = s->topics; t; t = t->next) {
             *(unsigned int *)(data + topics_off + num_topics * 4) = name_hash_nocase(t->name);
             n++;
@@ -873,7 +873,9 @@ int savegame::get_speaker_bit(int level, int slot, const char *speaker, int kind
 }
 
 // 0x4d06e0  Confidence: likely (differs under cl 8966 in match26; D20801: mask and byte index as int locals before
-// the value test, as set_bit's D12300, give the binary's bit code. Left: level / this / the hash pointer registers).
+// the value test, as set_bit's D12300, give the binary's bit code. Left: level / this / the hash pointer registers;
+// D22305: the search as get_speaker_bit's hp walk with n as the bound and the re-test through the macro: 73 -> 54;
+// left: level in EBX (the binary: this), and hp set before the count test).
 // propagate copies the bit to the level's other non-"_m1" slots that have data.
 void savegame::set_speaker_bit(int level, int slot, const char *speaker, int kind, bool value, bool propagate)
 {
@@ -894,10 +896,16 @@ void savegame::set_speaker_bit(int level, int slot, const char *speaker, int kin
         return;
     hash = name_hash_nocase(speaker);
     n = CONVERSATION_SAVE_INFO(level, slot)->num_speakers;
-    for (i = 0; i < n; i++)
-        if (hash == ((unsigned int *)(data + 4))[i])
-            break;
-    if (i >= n)
+    {
+        unsigned int *hp = (unsigned int *)(data + 4);
+        for (i = 0; i < n; i++) {
+            unsigned int h = *hp;
+            hp++;
+            if (hash == h)
+                break;
+        }
+    }
+    if (i >= CONVERSATION_SAVE_INFO(level, slot)->num_speakers)
         return;
     int bit = i + kind;
     int mask = 1 << (bit & 7);
@@ -924,7 +932,9 @@ void savegame::set_speaker_bit(int level, int slot, const char *speaker, int kin
 // 0x4d0870  Confidence: likely (differs under cl 8966 in match26; D20802: the speaker count read through the macro
 // in the loop and the re-test (as D16806), a `counts` pointer local and first zeroed before count give the binary's
 // 8-byte frame with hash spilled and count zeroed; left: 8966 walks two pointers where the binary walks the counts
-// and reaches the hashes by a fixed difference, and data / first stay in other places).
+// and reaches the hashes by a fixed difference, and data / first stay in other places; D22303: that difference
+// written out (each hash read at cp + (4 - counts_off) from its count, as set_topic_bit's D22302) with count zeroed
+// before first: 76 -> 73; data / first / hash registers left).
 int savegame::get_topic_bit(int level, int slot, const char *speaker, const char *topic, int kind)
 {
     ubyte *data;
@@ -944,12 +954,14 @@ int savegame::get_topic_bit(int level, int slot, const char *speaker, const char
     if (*(int *)data == 0)
         return 0;
     hash = name_hash_nocase(speaker);
-    first = 0;
     count = 0;
+    first = 0;
     int *counts = (int *)(data + counts_off);
     for (i = 0; i < CONVERSATION_SAVE_INFO(level, slot)->num_speakers; i++) {
-        count = counts[i];
-        if (hash == *(unsigned int *)(data + 4 + i * 4))
+        int *cp = &counts[i];
+        unsigned int h = *(unsigned int *)((ubyte *)cp + (4 - counts_off));
+        count = *cp;
+        if (hash == h)
             break;
         first += count;
     }
@@ -965,13 +977,16 @@ int savegame::get_topic_bit(int level, int slot, const char *speaker, const char
     return (data[bits_off + (i >> 3)] & (1 << (i & 7))) != 0;
 }
 
-// 0x4d09e0  Confidence: likely (differs under cl 8966 in match26).
+// 0x4d09e0  Confidence: likely (differs under cl 8966 in match26; D22302: the speaker count through the macro in the
+// loop and the re-test, a counts pointer with each hash read at the fixed difference 4 - counts_off from its count
+// (the binary walks one pointer), and mask / byte as int locals before the value test (D20801): 134 -> 67. Left:
+// the binary keeps first in EBP and spills hash and data, ours keeps data and the hash in registers).
 void savegame::set_topic_bit(int level, int slot, const char *speaker, const char *topic, int kind, bool value,
                              bool propagate)
 {
     ubyte *data;
     const char *name;
-    int counts_off, topics_off, bits_off, n, i, j, first, count;
+    int counts_off, topics_off, bits_off, i, j, first, count;
     unsigned int hash;
 
     if (level < 0 || level >= SAVEGAME_NUM_LEVELS || !conversation_data || slot < 0 || slot >= SAVEGAME_NUM_SLOTS)
@@ -987,16 +1002,18 @@ void savegame::set_topic_bit(int level, int slot, const char *speaker, const cha
     if (*(int *)data == 0)
         return;
     hash = name_hash_nocase(speaker);
-    n = CONVERSATION_SAVE_INFO(level, slot)->num_speakers;
     count = 0;
     first = 0;
-    for (i = 0; i < n; i++) {
-        count = *(int *)(data + counts_off + i * 4);
-        if (hash == *(unsigned int *)(data + 4 + i * 4))
+    int *counts = (int *)(data + counts_off);
+    for (i = 0; i < CONVERSATION_SAVE_INFO(level, slot)->num_speakers; i++) {
+        int *cp = &counts[i];
+        unsigned int h = *(unsigned int *)((ubyte *)cp + (4 - counts_off));
+        count = *cp;
+        if (hash == h)
             break;
         first += count;
     }
-    if (i >= n)
+    if (i >= CONVERSATION_SAVE_INFO(level, slot)->num_speakers)
         return;
     hash = name_hash_nocase(topic);
     for (j = 0; j < count; j++)
@@ -1005,10 +1022,12 @@ void savegame::set_topic_bit(int level, int slot, const char *speaker, const cha
     if (j >= count)
         return;
     i = kind + (j + first) * 4;
+    int mask = 1 << (i & 7);
+    int byte = (i >> 3) + bits_off;
     if (value)
-        data[bits_off + (i >> 3)] |= 1 << (i & 7);
+        data[byte] |= mask;
     else
-        data[bits_off + (i >> 3)] &= ~(1 << (i & 7));
+        data[byte] &= ~mask;
     if (!propagate)
         return;
     for (j = 0; j < SAVEGAME_NUM_SLOTS; j++) {
@@ -1133,12 +1152,18 @@ int savegame::level_item_has(const char *name)
 
 // 0x4d0e20  Confidence: likely (D17003: the container path that finds an existing entry stores open in
 // bit 0 and clears bit 1). Doors (lobj flag 0x100) keep open and locked; a new container entry keeps open only.
+// D22300: the count and hash-row byte offsets (coff, hoff) computed at the top from cur_level_index, the row read
+// by index (8966 strength-reduces it as the binary), name[0x41] (the binary's 0x50 frame), the printfs as if / else,
+// the container entry's byte and shift as block locals and `open ? true : locked`: 297 -> 178. Left: the binary
+// keeps hash in EBX and i in the frame (ours the reverse), and reloads locked after the printf.
 void savegame::two_stage_set(bool open, bool locked, lobj *obj)
 {
+    int coff = cur_level_index * 4;
     int level = cur_level_index;
+    int hoff = SAVEGAME_NUM_LEVELS * 4 + level * SAVEGAME_MAX_TWO_STAGE * 4;
     int base = level * SAVEGAME_MAX_TWO_STAGE * 2;
-    int count = TWO_STAGE->counts[level];
-    char name[0x40];
+    int count = *(int *)(two_stage.data + coff);
+    char name[0x41];
     unsigned int hash;
     int i, bit, shift;
     ubyte *p;
@@ -1147,9 +1172,11 @@ void savegame::two_stage_set(bool open, bool locked, lobj *obj)
     strncpy(name, level_script_name, 0x40);
     strncat(name, obj->name, 0x40);
     hash = name_hash_nocase(name);
-    for (i = 0; i < count; i++)
-        if (hash == TWO_STAGE->hashes[level][i])
+    for (i = 0; i < count; i++) {
+        unsigned int h = ((unsigned int *)(two_stage.data + hoff))[i];
+        if (hash == h)
             break;
+    }
     if (obj->flags & 0x100) {
         if (i < count) {
             bit = base + i * 2;
@@ -1166,7 +1193,7 @@ void savegame::two_stage_set(bool open, bool locked, lobj *obj)
         }
         if (count >= SAVEGAME_MAX_TWO_STAGE)
             return;
-        TWO_STAGE->hashes[level][count] = hash;
+        ((unsigned int *)(two_stage.data + hoff))[count] = hash;
         bit = base + count * 2;
         p = &TWO_STAGE->bits[bit / 8];
         shift = bit % 8;
@@ -1177,7 +1204,8 @@ void savegame::two_stage_set(bool open, bool locked, lobj *obj)
         if (locked)
             v |= 2;
         *p = (v << shift) | old;
-        TWO_STAGE->counts[level] = count + 1;
+        count++;
+        *(int *)(two_stage.data + coff) = count;
         return;
     }
     printf("finding lc\n");
@@ -1186,21 +1214,26 @@ void savegame::two_stage_set(bool open, bool locked, lobj *obj)
         return;
     }
     if (i < count) {
-        printf(open ? "open\n" : "closed\n");
+        if (open)
+            printf("open\n");
+        else
+            printf("closed\n");
         bit = base + i * 2;
-        shift = bit % 8;
-        old = TWO_STAGE->bits[bit / 8] & ~(3 << shift);
+        int byte = bit / 8;
+        int cshift = bit % 8;
+        old = TWO_STAGE->bits[byte] & ~(3 << cshift);
         printf("stuffing flag\n");
-        // D17003: locked is zeroed (0x4d1035), but the test reads open (0x4d1043, one push outstanding), so
-        // bit 0 keeps open and bit 1 is cleared, as for a new container entry.
         locked = false;
-        TWO_STAGE->bits[bit / 8] = ((open ? 1 : (int)locked) << shift) | old;
+        TWO_STAGE->bits[byte] = ((open ? true : locked) << cshift) | old;
         return;
     }
-    printf(open ? "open 2\n" : "closed 2\n");
+    if (open)
+        printf("open 2\n");
+    else
+        printf("closed 2\n");
     if (count >= SAVEGAME_MAX_TWO_STAGE)
         return;
-    TWO_STAGE->hashes[level][count] = hash;
+    ((unsigned int *)(two_stage.data + hoff))[count] = hash;
     bit = base + count * 2;
     p = &TWO_STAGE->bits[bit / 8];
     shift = bit % 8;
@@ -1209,7 +1242,8 @@ void savegame::two_stage_set(bool open, bool locked, lobj *obj)
     if (open)
         v = 1;
     *p = (v << shift) | old;
-    TWO_STAGE->counts[level] = count + 1;
+    count++;
+    *(int *)(two_stage.data + coff) = count;
 }
 
 // 0x4d1110  Confidence: likely (the bool outputs are stored from `& 1` without setne; D20803: the hash row as a byte
@@ -2343,12 +2377,14 @@ int savegame::read_level_items()
 }
 
 // 0x4d34e0  Confidence: likely (the length check is written twice, as in the binary; the counter runs
-// down while the hash pointer runs up). Doors go to their saved pose; containers are marked used from bit 0.
+// down while the hash pointer runs up; D22301: the hashes read at a running byte offset hoff of the data, re-read
+// each pass, as the binary; left: 8966 keeps i and count where the binary runs one down-counter). Doors go to
+// their saved pose; containers are marked used from bit 0.
 int savegame::read_two_stage()
 {
     int level = cur_level_index;
     int count = TWO_STAGE->counts[level];
-    unsigned int *hashes = TWO_STAGE->hashes[level];
+    int hoff = SAVEGAME_NUM_LEVELS * 4 + level * SAVEGAME_MAX_TWO_STAGE * 4; // D22301: byte offset of hashes[level]
     unsigned int hash;
     char name[0x40];
     int i, d, lc;
@@ -2357,7 +2393,8 @@ int savegame::read_two_stage()
     bool open, locked, used_, flag2;
 
     for (i = 0; i < count; i++) {
-        hash = hashes[i];
+        hash = *(unsigned int *)(two_stage.data + hoff);
+        hoff += 4;
         for (d = 0; d < num_doors; d++) {
             door = &doors[d];
             l = &lobjs[door->lobj_index];

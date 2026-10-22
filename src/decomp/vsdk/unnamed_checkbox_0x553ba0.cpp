@@ -146,7 +146,14 @@ bool ui_checkbox::is_checked()
     return checked;
 }
 
-// 0x553f00  vtable slot 7. Confidence: likely (the tails the states share). The box is a bitmap when
+// A line in gr_line_mode, for ui_checkbox::draw's cross (D24800; ours: the helper's call boundary is what
+// gives 8966 the binary's order of the int-to-float temporaries and the far-corner lea).
+static inline void cb_line(float x0, float y0, float x1, float y1)
+{
+    gr_line(x0, y0, x1, y1, gr_line_mode);
+}
+
+// 0x553f00  vtable slot 7. Confidence: exact (D24800: the cross's lines through cb_line). The box is a bitmap when
 // one is set for the state, else a filled rectangle with a cross (two lines) when checked; the label
 // right of it, with a shadow one pixel down-right when the shadow colour is not transparent.
 void ui_checkbox::draw()
@@ -184,8 +191,8 @@ void ui_checkbox::draw()
                 gr_set_color_ptr(&colors[0]);
                 gr_rect(sx, sy, box_w, box_h, gr_rect_mode, 1.0f);
                 gr_set_color_ptr(&colors[1]);
-                gr_line((float)sx, (float)sy, (float)(sx + box_w - 1), (float)(sy + box_h - 1), gr_line_mode);
-                gr_line((float)(sx + box_w - 1), (float)sy, (float)sx, (float)(sy + box_h - 1), gr_line_mode);
+                cb_line((float)sx, (float)sy, (float)(sx + box_w - 1), (float)(sy + box_h - 1));
+                cb_line((float)(sx + box_w - 1), (float)sy, (float)sx, (float)(sy + box_h - 1));
             }
         } else if (bm_unchecked >= 0) {
             gr_set_color(255, 255, 255, 255);
@@ -209,8 +216,8 @@ void ui_checkbox::draw()
             gr_rect(sx, sy, box_w, box_h, gr_rect_mode, 1.0f);
             if (checked) {
                 gr_set_color_ptr(&colors[9]);
-                gr_line((float)sx, (float)sy, (float)(sx + box_w - 1), (float)(sy + box_h - 1), gr_line_mode);
-                gr_line((float)(sx + box_w - 1), (float)sy, (float)sx, (float)(sy + box_h - 1), gr_line_mode);
+                cb_line((float)sx, (float)sy, (float)(sx + box_w - 1), (float)(sy + box_h - 1));
+                cb_line((float)(sx + box_w - 1), (float)sy, (float)sx, (float)(sy + box_h - 1));
             }
         }
         if (colors[11].a) {
@@ -228,8 +235,8 @@ void ui_checkbox::draw()
                 gr_set_color_ptr(&colors[0]);
                 gr_rect(sx, sy, box_w, box_h, gr_rect_mode, 1.0f);
                 gr_set_color_ptr(&colors[1]);
-                gr_line((float)sx, (float)sy, (float)(sx + box_w - 1), (float)(sy + box_h - 1), gr_line_mode);
-                gr_line((float)(sx + box_w - 1), (float)sy, (float)sx, (float)(sy + box_h - 1), gr_line_mode);
+                cb_line((float)sx, (float)sy, (float)(sx + box_w - 1), (float)(sy + box_h - 1));
+                cb_line((float)(sx + box_w - 1), (float)sy, (float)sx, (float)(sy + box_h - 1));
             }
         } else if (bm_unchecked >= 0) {
             gr_set_color(255, 255, 255, 255);

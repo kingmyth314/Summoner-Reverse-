@@ -120,7 +120,8 @@ void mp_write_spell_targets(spell_cast_request *req, ubyte *data, ushort *offset
 // 0x4affb0  Confidence: likely (jump table 0x4b0100; modes 2 / 9 and 3 / 6 / 7 share their bodies here).
 // m-1021d w9 D21602: a pointer local for the target array (82 -> 73: the pops are now late as in the
 // binary); left: Sum.exe keeps req itself in EDI (all four pushes first) and reuses it as the loop pointer.
-// The 4th argument (the spell, unused) is pushed by mp_handle_release_spell (D21603).
+// The 4th argument (the spell, unused) is pushed by mp_handle_release_spell (D21603). D25103: case 10's
+// loop runs i over 5..9 (t[i - 5], t[i]), which gives the binary's loop pointer at the second half.
 void mp_read_spell_targets(spell_cast_request *req, ubyte *data, int *offset, int spell)
 {
     spell_cast_params *p = &req->params;
@@ -158,9 +159,9 @@ void mp_read_spell_targets(spell_cast_request *req, ubyte *data, int *offset, in
         MP_GET_INT(data, offset, t[0]);
         break;
     case 10:
-        for (i = 0; i < 5; i++) {
+        for (i = 5; i < 10; i++) {
+            MP_GET_INT(data, offset, t[i - 5]);
             MP_GET_INT(data, offset, t[i]);
-            MP_GET_INT(data, offset, t[5 + i]);
         }
         break;
     case 8:

@@ -1112,17 +1112,18 @@ void bm_lock_vbm(int index)
     }
 }
 
-// 0x503aa0  Confidence: likely (differs under cl 8966 in match26; no entry pointer: every field is indexed from
-// bm_bitmaps; the bytes per pixel in a local first gives the binary's `imul ecx, eax` (D18703); left: 8966
-// pre-shifts 9 * index by 8, the binary scales it in each address).
+// 0x503aa0  Confidence: exact (VC6 byte match, D24202; no entry pointer: every field is indexed; the bytes per
+// pixel in a local first gives the binary's `imul ecx, eax` (D18703); D24202: indexing through a copy of the
+// array base (`bm = bm_bitmaps`) keeps 9 * index scaled by 8 in each address, as the binary does).
 bool bm_lock_pcx(int index)
 {
-    int bpp = bm_bytes_per_pixel(bm_bitmaps[index].format);
-    bm_bitmaps[index].data = new ubyte[bpp * bm_bitmaps[index].num_pixels];
-    if (bm_bitmaps[index].format == BM_FORMAT_8_PALETTED)
-        bm_bitmaps[index].palette = new ubyte[0x300];
-    if (pcx_read_bitmap(bm_bitmaps[index].name, (ubyte *)bm_bitmaps[index].data,
-                        (ubyte *)bm_bitmaps[index].palette, bm_bitmaps[index].path_id) != 0)
+    bitmap_entry *bm = bm_bitmaps;
+    int bpp = bm_bytes_per_pixel(bm[index].format);
+    bm[index].data = new ubyte[bpp * bm[index].num_pixels];
+    if (bm[index].format == BM_FORMAT_8_PALETTED)
+        bm[index].palette = new ubyte[0x300];
+    if (pcx_read_bitmap(bm[index].name, (ubyte *)bm[index].data,
+                        (ubyte *)bm[index].palette, bm[index].path_id) != 0)
         return false;
     return true;
 }

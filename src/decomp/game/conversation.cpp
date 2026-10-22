@@ -378,6 +378,13 @@ void conversation::save_topics()
     }
 }
 
+// D23200: restore_state's first three topic-bit reads go through this inline helper (the fourth is a plain
+// call); it moves 8966's argument loads closer to the binary's (distance 30 -> 18; not a match).
+static inline int rs_topic_bit(int level, int slot, const char *sn, const char *tn, int k)
+{
+    return savegame_state.get_topic_bit(level, slot, sn, tn, k);
+}
+
 // 0x4d84d0  Confidence: likely (if / else per bit: the binary branches to an `or` or an `and` of the flag
 // word; the important bit is or byte / and word on the 16-bit flags).
 void conversation::restore_state()
@@ -391,9 +398,9 @@ void conversation::restore_state()
         else
             s->flags &= ~CFLAG_IMPORTANT;
         for (t = s->topics; t; t = t->next) {
-            int bit0 = savegame_state.get_topic_bit(level, slot, s->name, t->name, 0);
-            int bit1 = savegame_state.get_topic_bit(level, slot, s->name, t->name, 1);
-            int bit2 = savegame_state.get_topic_bit(level, slot, s->name, t->name, 2);
+            int bit0 = rs_topic_bit(level, slot, s->name, t->name, 0);
+            int bit1 = rs_topic_bit(level, slot, s->name, t->name, 1);
+            int bit2 = rs_topic_bit(level, slot, s->name, t->name, 2);
             int bit3 = savegame_state.get_topic_bit(level, slot, s->name, t->name, 3);
             if (bit0)
                 t->flag0 = 1;

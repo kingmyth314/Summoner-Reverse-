@@ -1160,9 +1160,10 @@ bool skill_is_available(int skill, Character *c)
     return c->equipment[5]->type->weapon_class == 8 ? true : false;
 }
 
-// 0x429410  Confidence: likely (match31: the hide / sneak test as if / else-if with a goto past the payment;
-// the appraise root needs no variable: 8966 itself stores the sqrt in the dead target slot (D15203); still differs
-// at the pick-lock test (the binary loads door->lock and uses fcompp); the AP payment's two jump tables 0x4297d0 / 0x4297d8 and the action's
+// 0x429410  Confidence: exact (VC6 byte match, D23502: the pick-lock test as `skill + 0.05f >= (double)door->lock`;
+// match31: the hide / sneak test as if / else-if with a goto past the payment;
+// the appraise root needs no variable: 8966 itself stores the sqrt in the dead target slot (D15203); the
+// pick-lock test's fld / fcompp comes from the double cast, D23502); the AP payment's two jump tables 0x4297d0 / 0x4297d8 and the action's
 // 0x4297fc / 0x42981c are written as switches; the identify root goes through a dead float store; the
 // two_stage out-values live in the dead argument slots). Pays the AP (not when hide / sneak are toggled off,
 // not for backstab / assess / the summons, which pay later), then: summon skills and backstab / assess wait for a
@@ -1257,7 +1258,7 @@ paid:
                 break;
             if (door->lock == 0.0f)
                 return true;
-            if (door->lock <= user->get_skill(SKILL_PICK_LOCK) + 0.05f) {
+            if (user->get_skill(SKILL_PICK_LOCK) + 0.05f >= (double)door->lock) {   // D23502
                 bool open, locked;
 
                 savegame_state.two_stage_get(&open, &locked, l);

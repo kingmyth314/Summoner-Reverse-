@@ -428,8 +428,11 @@ void equipment_free(item_info **equipment)
     }
 }
 
-// 0x46bdf0  Confidence: likely (the case bodies: VC6 shares the "*out_old2 = NULL" and the second
-// unequip calls between cases; the two item_is_identified calls are in the binary, see D5205).
+// 0x46bdf0  Confidence: exact (VC6 byte match, m-1021e w20, D24101: the three switches' cases in the binary's
+// block order (hands, feet before the ring / weapon case; the heavy pieces before hands / feet in both texture
+// switches) and the status-effect modifier through a float local with the level test choosing between two
+// calls; VC6 shares the "*out_old2 = NULL" and the second unequip calls between cases; the two
+// item_is_identified calls are in the binary, see D5205).
 // Equipment indices: 0 neck, 1-2 rings, 3 hands, 4 feet, 5 weapon, 6 shield, 7 torso, 8 legs. A heavy
 // suit sits in 7 and frees 8, a two-handed weapon sits in 5 and frees 6. The items taken off come back in
 // *out_old1 / *out_old2. The main hero's model switches between the light and heavy meshes when a heavy
@@ -468,17 +471,17 @@ void character_equip_item(item_info **out_old1, item_info **out_old2, Character 
         *out_old1 = character_unequip_slot(c, 0, false);
         *out_old2 = NULL;
         break;
-    case ITEM_SLOT_FINGER:
-    case ITEM_SLOT_WEAPON:
-        *out_old1 = character_unequip_slot(c, slot, false);
-        *out_old2 = NULL;
-        break;
-    case ITEM_SLOT_HANDS:
+    case ITEM_SLOT_HANDS:                 // before the ring / weapon case (D24101)
         *out_old1 = character_unequip_slot(c, 3, false);
         *out_old2 = NULL;
         break;
     case ITEM_SLOT_FEET:
         *out_old1 = character_unequip_slot(c, 4, false);
+        *out_old2 = NULL;
+        break;
+    case ITEM_SLOT_FINGER:
+    case ITEM_SLOT_WEAPON:
+        *out_old1 = character_unequip_slot(c, slot, false);
         *out_old2 = NULL;
         break;
     case ITEM_SLOT_SHIELD:
@@ -555,31 +558,18 @@ void character_equip_item(item_info **out_old1, item_info **out_old2, Character 
             }
         } else if (item->type->kind == 1) {
             char **tex = NULL;
-            switch (item->type->slot) {
-            case ITEM_SLOT_HANDS:
-            case ITEM_SLOT_FEET:
-                tex = item->type->armour_textures[0][c->info->species];
-                break;
+            switch (item->type->slot) {   // the heavy pieces first (D24101)
             case ITEM_SLOT_TORSO:
             case ITEM_SLOT_LEGS:
             case ITEM_SLOT_HEAVY:
                 tex = item->type->armour_textures[heavy][c->info->species];
                 break;
-            }
-            switch (item->type->slot) {
             case ITEM_SLOT_HANDS:
-                if (c->flags & CF_ALT_ARMOUR_TEXTURE) {
-                    if (c->info->species == SPECIES_JOSEPH)
-                        c->set_underwear_textures(5, tex[1]);
-                    else
-                        c->set_underwear_textures(5, tex[0]);
-                } else {
-                    c->set_underwear_textures(5, tex[0]);
-                }
-                break;
             case ITEM_SLOT_FEET:
-                c->set_underwear_textures(4, tex[0]);
+                tex = item->type->armour_textures[0][c->info->species];
                 break;
+            }
+            switch (item->type->slot) {   // heavy, torso, legs, feet, hands (D24101)
             case ITEM_SLOT_HEAVY:
                 c->set_underwear_textures(3, tex[3]);
                 // fall through
@@ -590,6 +580,19 @@ void character_equip_item(item_info **out_old1, item_info **out_old2, Character 
                 break;
             case ITEM_SLOT_LEGS:
                 c->set_underwear_textures(3, tex[0]);
+                break;
+            case ITEM_SLOT_FEET:
+                c->set_underwear_textures(4, tex[0]);
+                break;
+            case ITEM_SLOT_HANDS:
+                if (c->flags & CF_ALT_ARMOUR_TEXTURE) {
+                    if (c->info->species == SPECIES_JOSEPH)
+                        c->set_underwear_textures(5, tex[1]);
+                    else
+                        c->set_underwear_textures(5, tex[0]);
+                } else {
+                    c->set_underwear_textures(5, tex[0]);
+                }
                 break;
             }
         }
@@ -602,9 +605,12 @@ void character_equip_item(item_info **out_old1, item_info **out_old2, Character 
         for (int i = 0; i < 9; i++) {
             int level = item->type->status_effects[i];
             if (level >= 0) {
+                float mod;                // two calls, as in the binary (D24101)
                 if (level == 0)
-                    level = c->level;
-                c->status_effect_add_from_item(i, item, status_effect_modifier(i, level));
+                    mod = status_effect_modifier(i, c->level);
+                else
+                    mod = status_effect_modifier(i, level);
+                c->status_effect_add_from_item(i, item, mod);
             }
         }
     }

@@ -232,8 +232,11 @@ bool ai_find_nearest_wall_hit(vector2 *from, vector2 *to, vector3 *dir, int size
     if (obstacles) {
         avoid_obstacle *ob;
         int n = 0;
+        int k;
 
-        for (ob = avoid_obstacles; ob < &avoid_obstacles[AVOID_NUM_OBSTACLES]; ob++) {
+        // D23202: an index loop; 8966 strength-reduces it to the binary's signed (jl) pointer compare.
+        for (k = 0; k < AVOID_NUM_OBSTACLES; k++) {
+            ob = &avoid_obstacles[k];
             if (n == avoid_obstacle_counts[index])
                 break;
             if ((ob->flags & AVOID_OB_USED) && (ob->flags & AVOID_OB_PROHIBIT) && ob->layer == layer

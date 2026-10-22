@@ -375,8 +375,12 @@ int float_compare(const void *a, const void *b)
     return 0;
 }
 
-// 0x517e00  Confidence: likely (long function: the do / while (rcode > 0) form is from the rotated loop; the
-// order of the header stores; the dead `cmp 0x258`).
+// 0x517e00  Confidence: likely (long function; D24504: `if (!rcode) break;` in the do / while (rcode > 0) gives
+// the binary's rotated loop and the recvfrom error block's place; rsocket = NULL after nw_receive_all; the
+// status read once into a local in the not-connected block; the wrap test as `< 0x10000 - NW_MAX_NET_BUFFERS`;
+// the resend and heartbeat headers written send_time first and type last. Left: the IAMHERE status store is
+// scheduled after the reply's argument loads in the binary, the dead `cmp 0x258` and the seq register at the
+// rsequence store).
 // Defects: rsocket is not reset per packet, so a packet from an unknown address after one from a known peer
 // is handled as the earlier peer's; a duplicate connection request still opens a second LIMBO link; the
 // pings are int milliseconds sorted with float_compare (fine for non-negative values); the sequence wrap
@@ -389,12 +393,13 @@ void nw_WorkReliable()
     reliable_header heartbeat;
     int sort_ping[NW_PING_HISTORY];
     net_addr from;
-    reliable_socket *rsocket = NULL;
+    reliable_socket *rsocket;
     int rcode;
     int i;
     int j;
 
     nw_receive_all();
+    rsocket = NULL;
     if (nw_server_socket != -1 && nw_reliable_sockets[nw_server_socket].status == RNF_LIMBO) {
         int now = timer_get(1000);
         if (now < nw_last_heartbeat_time)
@@ -410,7 +415,7 @@ void nw_WorkReliable()
     do {
         rcode = nw_reliable_slot_status(NW_TYPE_RELIABLE);
         if (!rcode)
-            continue;
+            break;
         int bytesin = nw_buffer_receive((ubyte *)&nw_reliable_recv_buf, sizeof(reliable_header), 0, &from,
                                         NW_TYPE_RELIABLE);
         if (bytesin < 0) {
@@ -461,7 +466,8 @@ void nw_WorkReliable()
 
         rsocket->last_packet_received = timer_get(1000);
         if (rsocket->status != RNF_CONNECTED) {
-            if (rsocket->status == RNF_LIMBO) {
+            int status = rsocket->status;
+            if (status == RNF_LIMBO) {
                 if (nw_server_socket != -1) {
                     if (nw_reliable_recv_buf.type == RNT_ACK) {
                         if (*(int *)nw_reliable_recv_buf.data == NW_IAMHERE_SEQ) {
@@ -481,7 +487,7 @@ void nw_WorkReliable()
                 rsocket->status = RNF_CONNECTED;
             } else {
                 sprintf(msg, "Packet from nonconnected socket -- seq: %d status: %d\n", nw_reliable_recv_buf.seq,
-                        rsocket->status);
+                        status);
                 rsocket->last_packet_received = timer_get(1000);
                 continue;
             }
@@ -526,7 +532,7 @@ void nw_WorkReliable()
         if (distance >= NW_MAX_NET_BUFFERS - 1)
             continue;
         int savepacket = 1;
-        if (rsocket->theirsequence <= 0xffff - NW_MAX_NET_BUFFERS) {
+        if (rsocket->theirsequence < 0x10000 - NW_MAX_NET_BUFFERS) {
             if (rsocket->theirsequence > nw_reliable_recv_buf.seq)
                 savepacket = 0;
         } else if (nw_reliable_recv_buf.seq < rsocket->theirsequence
@@ -599,10 +605,10 @@ void nw_WorkReliable()
                 int elapsed = now - rsocket->timesent[j];
                 if ((float)elapsed < retry_cutoff)
                     continue;
-                send_header.type = RNT_DATA;
-                send_header.seq = rsocket->ssequence[j];
-                send_header.data_len = rsocket->send_len[j];
                 send_header.send_time = timer_get(1000);
+                send_header.data_len = rsocket->send_len[j];
+                send_header.seq = rsocket->ssequence[j];
+                send_header.type = RNT_DATA;
                 memcpy(send_header.data, rsocket->sbuffers[j], rsocket->send_len[j]);
                 if (nw_send_packet(&send_header, rsocket->send_len[j] + NW_RELIABLE_HEADER_SIZE, 0, &rsocket->addr,
                                    NW_TYPE_RELIABLE) == -2) {
@@ -619,10 +625,10 @@ void nw_WorkReliable()
             if (now < rsocket->last_packet_sent)
                 rsocket->last_packet_sent = now;
             if (now - rsocket->last_packet_sent > 10000) {
-                heartbeat.type = RNT_HEARTBEAT;
-                heartbeat.seq = 0;
-                heartbeat.data_len = 0;
                 heartbeat.send_time = timer_get(1000);
+                heartbeat.data_len = 0;
+                heartbeat.seq = 0;
+                heartbeat.type = RNT_HEARTBEAT;
                 if (nw_send_packet(&heartbeat, NW_RELIABLE_HEADER_SIZE, 0, &rsocket->addr, NW_TYPE_RELIABLE) >= 0)
                     rsocket->last_packet_sent = timer_get(1000);
             }
@@ -684,7 +690,9 @@ void nw_close()
     }
 }
 
-// 0x5188d0  Confidence: likely (VC6 shares the `status = 0; return` of "none" with an unknown speed).
+// 0x5188d0  Confidence: exact (VC6 byte match, D24501: the speed chain only sets the status, then
+// `if (status == 0) return;` and `if (status != 3)` around the RAS probe; 8966 threads both tests into the
+// chain's branches, sharing the "none" return and placing the 56k / fast tests last).
 // "slow" and "56k" probe RAS (nw_networking_ok = a dial-up IP was found); "fast" skips it; anything else
 // (and "none") stops before WinSock.
 void nw_init_networking(unsigned short port)
@@ -698,19 +706,18 @@ void nw_init_networking(unsigned short port)
         nw_network_status = 0;
         return;
     }
-    if (_stricmp(nw_connection_speed, "slow") == 0) {
+    if (_stricmp(nw_connection_speed, "slow") == 0)
         nw_network_status = 1;
-    } else if (_stricmp(nw_connection_speed, "56k") == 0) {
+    else if (_stricmp(nw_connection_speed, "56k") == 0)
         nw_network_status = 2;
-    } else if (_stricmp(nw_connection_speed, "fast") == 0) {
+    else if (_stricmp(nw_connection_speed, "fast") == 0)
         nw_network_status = 3;
-        goto start_winsock;
-    } else {
+    else
         nw_network_status = 0;
+    if (nw_network_status == 0)
         return;
-    }
-    nw_networking_ok = nw_ras_init() != 0;
-start_winsock:
+    if (nw_network_status != 3)
+        nw_networking_ok = nw_ras_init() != 0;
     int error = WSAStartup(0x101, &wsa_data);
     if (error != 0) {
         sprintf(msg, "There was an error initializing networking! Error=%d\n", error);

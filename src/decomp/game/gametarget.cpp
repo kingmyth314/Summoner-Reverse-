@@ -130,7 +130,7 @@ void party_order_attack(Character *target)
     game_play_sound(SOUND_CLICK_BAD, 1.0f, 0, 0, 0);
 }
 
-// 0x43a460  Confidence: likely (the order of the length sum's terms; the name test is written on the
+// 0x43a460  Confidence: exact (VC6 byte match, D23601) (the order of the length sum's terms; the name test is written on the
 // array member, the code tests its address too). Not while a conversation runs or the NPC is dead; on
 // level 0x1d not while a type 5 / 9 entity in AI mode 3 targets a party member; then within 5 m between
 // the body edges and 0.5 m of height, and a speaker of the conversation file (single player) or a
@@ -153,11 +153,16 @@ int character_can_talk_to(Character *npc)
         }
     }
 
-    vector3 a = cur_character->pos + cur_character->centre_offset;
-    vector3 b = npc->centre_offset + npc->pos;
+    // D23601: a Character * local and both sums pos + centre_offset (8966 then loads centre_offset first);
+    // double dx / dz (dx first) and the z term first keep d.z duplicated on the FPU (0x43a557)
+    Character *cc = cur_character;
+    vector3 a = cc->pos + cc->centre_offset;
+    vector3 b = npc->pos + npc->centre_offset;
     vector3 d = b - a;
     if (fabsf(d.y) <= 0.5f) {
-    float dist = (float)sqrt(d.x * d.x + d.z * d.z);
+    double dx = d.x;
+    double dz = d.z;
+    float dist = (float)sqrt(dz * dz + dx * dx);
     if (!(dist - npc->size_radius() - cur_character->size_radius() < 5.0f))
         return 0;
 
@@ -575,12 +580,15 @@ void world_pick_under_mouse(vector3 *eye, vector3 *dir, vector3 *out, unsigned i
 // world_pick_under_mouse; its -1.0f is this unit's .rdata 0x580e1c. Confidence: exact (compiler-generated
 // from the header).
 
-// 0x43b5e0  Confidence: likely (two jump tables: 0x43bb60 by hud_target_mode + 1, 0x43bb70 by object type
+// 0x43b5e0  Confidence: exact (VC6 byte match, D23604) (two jump tables: 0x43bb60 by hud_target_mode + 1, 0x43bb70 by object type
 // - 3). Tints what is under the mouse and says what a click does (WORLD_CLICK_*); for a targeted skill or
 // item it also places the target decal and sets *valid.
 //   hud_target_mode -1: the object under the mouse by type (7 party / other player, 4 NPC, 5 and 9
 //   monsters, 3 items, 11 containers), else the level object (door 8 / container 9);
 //   0: a character for ui_pending_use_skill; 1: a ground point; 2: lock picking (doors, containers).
+// D23604: the door case as the else of `if (picked)` (placed after the type switch, 0x43b833); in case 7
+// a bool for the select test and the 0x100 test around the trade path; case 0 with one exit (8966 then
+// pushes EBX only inside it, 0x43b87c).
 int world_mouse_hover_target(unsigned int *input, lobj *l, lobj *door, int face, vector3 *hit,
                              obj *picked, Character *target, bool *valid)
 {
@@ -591,31 +599,30 @@ int world_mouse_hover_target(unsigned int *input, lobj *l, lobj *door, int face,
 
     switch (hud_target_mode) {
     case -1:
-        if (!picked) {
-            if (!door)
-                return WORLD_CLICK_NONE;
-            world_hover_tint_object(NULL, world_hover_tint[0], world_hover_tint[1], world_hover_tint[2]);
-            return ((~door->flags & 0x100) | (WORLD_CLICK_DOOR << 8)) >> 8;
-        }
+        if (picked) {
         world_hover_object = picked;
         switch (picked->type) {
         case 7: {
             if (!target || target == cur_character || (target->flags & (CF_SUMMONLIKE | CF_HIDDEN | CF_DEAD)))
                 return WORLD_CLICK_NONE;
+            bool sel = true;   // D23604
             if (game_flags & GF_MULTIPLAYER) {
                 Player *p = player_from_handle(target->handle);
-                if (!p || p->mp_owner != mp_local_player) {
-                    vector3 d = cur_character->pos - target->pos;
-                    if (target->flags & 0x100)
-                        return WORLD_CLICK_NONE;
-                    if (!(d.len_sq() <= 25.0f))
-                        return WORLD_CLICK_NONE;
-                    world_hover_tint_object(picked, world_tint_party[0], world_tint_party[1], world_tint_party[2]);
-                    return WORLD_CLICK_TRADE;
-                }
+                if (!p || p->mp_owner != mp_local_player)
+                    sel = false;
             }
-            world_hover_tint_object(picked, world_tint_party[0], world_tint_party[1], world_tint_party[2]);
-            return WORLD_CLICK_SELECT;
+            if (sel) {
+                world_hover_tint_object(picked, world_tint_party[0], world_tint_party[1], world_tint_party[2]);
+                return WORLD_CLICK_SELECT;
+            }
+            vector3 d = cur_character->pos - target->pos;
+            if (!(target->flags & 0x100)) {
+                if (!(d.len_sq() <= 25.0f))
+                    return WORLD_CLICK_NONE;
+                world_hover_tint_object(picked, world_tint_party[0], world_tint_party[1], world_tint_party[2]);
+                return WORLD_CLICK_TRADE;
+            }
+            return WORLD_CLICK_NONE;
         }
         case 4: {
             target->get_name();             // result unused
@@ -642,6 +649,10 @@ int world_mouse_hover_target(unsigned int *input, lobj *l, lobj *door, int face,
             world_hover_tint_object(picked, world_tint_enemy[0], world_tint_enemy[1], world_tint_enemy[2]);
             return WORLD_CLICK_NONE;
         }
+        }
+        } else if (door) {
+            world_hover_tint_object(NULL, world_hover_tint[0], world_hover_tint[1], world_hover_tint[2]);
+            return ((~door->flags & 0x100) | (WORLD_CLICK_DOOR << 8)) >> 8;
         }
         break;
 
@@ -672,11 +683,11 @@ int world_mouse_hover_target(unsigned int *input, lobj *l, lobj *door, int face,
             world_hover_tint_object(picked, world_hover_tint[0], world_hover_tint[1], world_hover_tint[2]);
             *valid = world_pick_ground_point(cursor_spot_target_bm, cursor_spot_invalid_bm, l, face,
                                              &picked->pos, false);
-            return WORLD_CLICK_AT_TARGET;
+        } else {   // D23604: one exit
+            world_hover_tint_object(picked, world_tint_enemy[0], world_tint_enemy[1], world_tint_enemy[2]);
+            *valid = false;
+            world_pick_ground_point(cursor_spot_invalid_bm, cursor_spot_invalid_bm, l, face, &picked->pos, false);
         }
-        world_hover_tint_object(picked, world_tint_enemy[0], world_tint_enemy[1], world_tint_enemy[2]);
-        *valid = false;
-        world_pick_ground_point(cursor_spot_invalid_bm, cursor_spot_invalid_bm, l, face, &picked->pos, false);
         return WORLD_CLICK_AT_TARGET;
     }
 
@@ -820,7 +831,8 @@ void world_click_move(unsigned int *input, vector3 *pos, lobj *l)
     world_last_click_pos = *pos;
 }
 
-// 0x43c060  Confidence: likely (the key search's flag; the duplicated message tails are the compiler's).
+// 0x43c060  Confidence: exact (VC6 byte match, D23605) (the key search's flag; the duplicated message tails
+// are the compiler's).
 // A key (party inventory or equipped by a party member) unlocks a locked door for good ("Unlocked!").
 // A client then sends service request 4 / 5 (closed / open) when unlocked, else only shows the message;
 // single player and the host toggle the door and the host tells the others (door_find_by_mesh).
@@ -866,10 +878,8 @@ void object_try_unlock_or_open(lobj *l)
                 if (d->key) {
                     hud_show_message(XSTR("Locked, Cannot Pick", 624));
                     feedback_play(cur_character->info->species, 3, &cur_character->pos);
-                } else {
+                } else {   // D23605: joins the shared sound tail
                     hud_show_message(XSTR("Cannot be opened from here", 625));
-                    sound_play_2d(5, 1.0f);
-                    return;
                 }
             } else {
                 feedback_play(cur_character->info->species, 3, &cur_character->pos);
@@ -888,39 +898,35 @@ void object_try_unlock_or_open(lobj *l)
         return;
     }
 
-    if (door_toggle_state(l, 0)) {
-        if (MP_IS_HOST())
-            door_find_by_mesh(mp_local_player->id, l - lobjs, !open);
-        return;
-    }
-    if (is_door) {
-        if (d->lock == 0.0f) {
-            if (!d->key) {
-                if (lobj_door_is_open(l, 1.0f)) {
+    if (!door_toggle_state(l, 0)) {   // D23605: the toggled tail last (0x43c3c2); the messages join one sound
+        if (is_door) {
+            if (d->lock == 0.0f) {
+                if (d->key) {
+                    hud_show_message(XSTR("Locked, Cannot Pick", 624));
+                    feedback_play(cur_character->info->species, 3, &cur_character->pos);
+                } else if (lobj_door_is_open(l, 1.0f)) {
                     hud_show_message(XSTR("Cannot be closed", 629));
-                    sound_play_2d(5, 1.0f);
-                    return;
+                } else {
+                    hud_show_message(XSTR("Cannot be opened", 630));
                 }
-                hud_show_message(XSTR("Cannot be opened", 630));
-                sound_play_2d(5, 1.0f);
-                return;
+            } else {
+                feedback_play(cur_character->info->species, 3, &cur_character->pos);
+                hud_show_message(XSTR("Locked", 626));
             }
-            hud_show_message(XSTR("Locked, Cannot Pick", 624));
-            feedback_play(cur_character->info->species, 3, &cur_character->pos);
-        } else {
-            feedback_play(cur_character->info->species, 3, &cur_character->pos);
-            hud_show_message(XSTR("Locked", 626));
+            sound_play_2d(5, 1.0f);
+            return;
         }
-        sound_play_2d(5, 1.0f);
+        if (d->key) {
+            hud_show_message(XSTR("Need item to use", 627));
+            sound_play_2d(5, 1.0f);
+            return;
+        }
+        hud_show_message(XSTR("Can't use", 628));
+        sound_play_2d(SOUND_CLICK_BAD, 1.0f);
         return;
     }
-    if (d->key) {
-        hud_show_message(XSTR("Need item to use", 627));
-        sound_play_2d(5, 1.0f);
-        return;
-    }
-    hud_show_message(XSTR("Can't use", 628));
-    sound_play_2d(SOUND_CLICK_BAD, 1.0f);
+    if (MP_IS_HOST())
+        door_find_by_mesh(mp_local_player->id, l - lobjs, !open);
 }
 
 // 0x43c420  Confidence: exact (D10401: the format strings read into locals before the item name call; text is

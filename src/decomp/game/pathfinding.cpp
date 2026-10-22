@@ -229,10 +229,9 @@ void pf_read_edge_list(File *f, pf_grid_cell *cell)
         cell->walls[i] = &pf_edges[f->read_int(0, 0)];
 }
 
-// 0x49cc50  Confidence: likely (marked exact; differs under VC6 8966, match27). The wall grid of a graph.
+// 0x49cc50  Confidence: exact. The wall grid of a graph.
 void pf_read_region(File *f, pf_grid *grid)
 {
-    pf_grid_row *row;
     int i, k, n;
 
     grid->bounds[0] = f->read_float(0, 0);
@@ -251,9 +250,8 @@ void pf_read_region(File *f, pf_grid *grid)
     grid->_unk28 = f->read_int(0, 0);
     for (i = 0; i < grid->num_rows; i++) {
         grid->rows[i].num_cells = f->read_uint16(0, 0);
-        row = &grid->rows[i];
-        row->_pad02 = 0;
-        n = row->num_cells;
+        n = grid->rows[i].num_cells; // D22400: indexed, no row pointer; the count read before the pad store
+        grid->rows[i]._pad02 = 0;
         if (n > 0) {
             pf_region_pool_remaining -= n;
             grid->rows[i].cells = &pf_grid_cell_pool[pf_region_pool_remaining];
@@ -342,7 +340,8 @@ int pathfinding_load_graph(const char *level_name)
 
     pf_node_count = f.read_int(0, 0);
     if (pf_node_count > 0) {
-        pf_nodes = new vector2[pf_node_count];
+        // D22404: a plain operator new (no vector2 constructor loop: the binary has none of its vestige)
+        pf_nodes = (vector2 *)operator new(pf_node_count * sizeof(vector2));
         for (i = 0; i < pf_node_count; i++) {
             pf_nodes[i].x = f.read_float(0, 0);
             pf_nodes[i].y = f.read_float(0, 0);
@@ -379,8 +378,8 @@ int pathfinding_load_graph(const char *level_name)
         n = f.read_int(0, 0);
         if (n != 0) {
             pf_dword_pool_remaining -= n;
-            pf_layer_lists[layer].count = n;
             pf_layer_lists[layer].list = &pf_dword_pool[pf_dword_pool_remaining];
+            pf_layer_lists[layer].count = n; // D22404: the list before the count
             for (k = 0; k < n; k++)
                 pf_layer_lists[layer].list[k] = f.read_int(0, 0);
         } else {
@@ -669,7 +668,7 @@ bool pf_door_index_is_open(int door, float fraction)
 bool pf_sweep_test_wall(pf_sweep *s)
 {
     pf_edge *wall = s->wall;
-    vector2 dir, n, rel, off, p, q, cp;
+    vector2 dir, n, rel, off, p, q, cp, fa;
     vector2 *corner;
     float len, eps, t, u, tt, c;
     int kind;
@@ -682,15 +681,15 @@ bool pf_sweep_test_wall(pf_sweep *s)
     vector2 b(wall->b->x, wall->b->y);
     dir = b - a;
     len = dir.normalize();
-    n.x = dir.y;
-    n.y = -dir.x;
+    { float nx = dir.y; float ny = -dir.x; n.x = nx; n.y = ny; } // D22406: n through float locals (x87),
     if (wall->flags & PF_EDGE_SIDE)
         n.negate();
     kind = 2;
     if ((wall->flags & PF_EDGE_DOOR) && pf_door_index_is_open(wall->door, 0.4f))
         return false;
+    fa = s->from - a; // D22406: from - a in a local, computed before rel
     rel = s->to - a;
-    if ((s->from - a).dot(n) <= 0.0f)
+    if (fa.dot(n) <= 0.0f)
         return false;
     if (rel.y * n.y + rel.x * n.x > 0.03f)
         return false;
@@ -774,27 +773,31 @@ void pf_sweep_record_hit(pf_sweep *s, float *t, pf_edge *wall, vector2 *pt, int 
 // hit (best t still 99.9).
 bool pf_sweep_segment(pf_sweep *s)
 {
-    float best_t = 99.9f;
-    int best_kind = 2;
-    vector2 *best_corner = NULL;
+    float best_t;
+    int best_kind;
+    vector2 *best_corner;
     vector2 best_hit;
     pf_edge best_wall;
     pf_edge w;
-    int size, layer, count, i, k, prev, found;
+    int size, layer, count, i, k, prev, found, n, j;
     pf_grid_cell *cell;
     avoid_obstacle *ob;
     avoid_spline *sp;
     avoid_spline_point *pt;
 
-    size = s->size;
-    layer = s->layer;
-    best_wall.flags = 0;
+    best_wall.flags = 0; // D22405: the initial stores in this order; the wall count in n; the
+    best_t = 99.9f;      // obstacles by index j with ob taken after the count test; prev = k before the wall store
+    best_kind = 2;
+    best_corner = NULL;
     best_hit.x = 0.0f;
     best_hit.y = 0.0f;
+    size = s->size;
+    layer = s->layer;
     count = pf_cells_along_segment(s->layer, s->size, &s->from, &s->to);
     for (i = 0; i < count; i++) {
         cell = pf_grid_cell_results[i];
-        for (k = 0; k < cell->num_walls; k++) {
+        n = cell->num_walls;
+        for (k = 0; k < n; k++) {
             s->wall = cell->walls[k];
             if (pf_sweep_test_wall(s) && fabsf(s->t) < fabsf(best_t))
                 pf_sweep_record_hit(s, &best_t, &best_wall, &best_hit, &best_kind, &best_corner);
@@ -802,17 +805,19 @@ bool pf_sweep_segment(pf_sweep *s)
     }
 
     found = 0;
-    for (ob = avoid_obstacles; ob < &avoid_obstacles[AVOID_NUM_OBSTACLES]; ob++) {
+    for (j = 0; j < AVOID_NUM_OBSTACLES; j++) {
         if (found == avoid_obstacle_counts[size * PF_MAX_LAYERS + layer])
             break;
+        ob = &avoid_obstacles[j];
         if ((ob->flags & 1) && (ob->flags & 2) && ob->layer == layer && ob->size == size) {
             if (avoid_segment_hits_prim(ob, &s->from, &s->to, -0.1f)) {
                 prev = ob->num_points - 1;
-                for (k = 0; k < ob->num_points; prev = k++) {
+                for (k = 0; k < ob->num_points; k++) {
                     w.a = &ob->points[prev];
                     w.b = &ob->points[k];
                     w.search_id = 0;
                     w.flags = 0;
+                    prev = k;
                     s->wall = &w;
                     if (pf_sweep_test_wall(s) && fabsf(s->t) < fabsf(best_t))
                         pf_sweep_record_hit(s, &best_t, &best_wall, &best_hit, &best_kind, &best_corner);
@@ -957,18 +962,17 @@ bool pf_check_direct_walk(const vector3 *from, const vector3 *to, int layer, int
     return false;
 }
 
-// 0x49e8c0  Confidence: likely (the squared-distance operand order and the restart loop's form). Pushes
+// 0x49e8c0  Confidence: exact (D22403). Pushes
 // *pos 0.035 off every cell edge it is within 0.025 of (or, when it starts off the mesh, onto the
 // nearest edge), repeating with the two edges just used excluded; when it still ends off the mesh it
 // takes the midpoint of the last two positions. The height is kept. True when it moved the point.
 bool pf_find_nearest_navigable_point(vector3 *pos, int size, int layer)
 {
-    profile_label label("pf_find_nearest_navigable_point");
-    bool found = false;
-    float best = 1e9f;
+    bool found = false; // D22403: found / best before the label; the cells read from pf_graphs in the
+    float best = 1e9f;  // loop head, nrm by set(), the to_vector3 result in a block local per branch,
+    profile_label label("pf_find_nearest_navigable_point"); // p1 = *pos last in the restart
     vector3 p1, p2, nrm;
     pf_edge *best_edge, *last, *prev, *e;
-    pf_cell **cells;
     pf_cell *c;
     vector2 p, cp;
     float y, dx, dy, d2;
@@ -982,10 +986,9 @@ bool pf_find_nearest_navigable_point(vector3 *pos, int size, int layer)
     y = pos->y;
     last = NULL;
     again = !pf_point_is_navigable(pos, size, layer);
-    cells = &pf_graphs[size][layer].cells;
     for (;;) {
         p.from_xz(pos);
-        for (c = *cells; c; c = c->next) {
+        for (c = pf_graphs[size][layer].cells; c; c = c->next) {
             in_x = c->bounds.max_x + 1.0f > pos->x && c->bounds.min_x - 1.0f < pos->x;
             in_z = c->bounds.max_y + 1.0f > pos->z && c->bounds.min_y - 1.0f < pos->z;
             if (!((in_x && in_z) || again))
@@ -997,21 +1000,22 @@ bool pf_find_nearest_navigable_point(vector3 *pos, int size, int layer)
                 dx = cp.x - p.x;
                 dy = cp.y - p.y;
                 d2 = dy * dy + dx * dx;
-                if (d2 < 0.000625f)
+                if (d2 < 0.025f * 0.025f) // D22403: the binary's constant is 0.025f squared in float (0x3a23d70b), not 0.000625f
                     again = true;
                 else if (!again)
                     continue;
                 if (d2 < best) {
                     best = d2;
                     best_edge = e;
-                    nrm.x = e->b->y - e->a->y;
-                    nrm.y = 0.0f;
-                    nrm.z = e->a->x - e->b->x;
+                    nrm.set(e->b->y - e->a->y, 0.0f, e->a->x - e->b->x);
                     nrm.normalize();
-                    if (e->flags & PF_EDGE_SIDE)
-                        *pos = cp.to_vector3() - nrm * 0.035f;
-                    else
-                        *pos = cp.to_vector3() + nrm * 0.035f;
+                    if (e->flags & PF_EDGE_SIDE) {
+                        vector3 t = cp.to_vector3();
+                        *pos = t - nrm * 0.035f;
+                    } else {
+                        vector3 t = cp.to_vector3();
+                        *pos = t + nrm * 0.035f;
+                    }
                 }
             }
         }
@@ -1020,10 +1024,10 @@ bool pf_find_nearest_navigable_point(vector3 *pos, int size, int layer)
         prev = last;
         last = best_edge;
         p2 = p1;
-        p1 = *pos;
         again = false;
         found = true;
         best = 1e9f;
+        p1 = *pos;
     }
     if (!pf_point_is_navigable(pos, size, layer) && last && prev)
         *pos = (p1 + p2) * 0.5f;
@@ -1221,7 +1225,7 @@ int pf_mark_nodes_visible_from_point(const vector2 *pt, int layer, int walk_flag
     return visible;
 }
 
-// 0x49f340  Confidence: likely (statement forms of the flag copies). PFN_VISIBLE of the start goes to
+// 0x49f340  Confidence: exact. PFN_VISIBLE of the start goes to
 // PFN_FROM_START, of the end to PFN_FROM_GOAL; with Precalc_vis_method by the edge sweep of
 // pathfinding_visibility.cpp (graph nodes only), else by pf_mark_nodes_visible_from_point (with the
 // avoidance corners of the current size).
@@ -1230,7 +1234,8 @@ void pf_compute_endpoint_visibility(const vector2 *start, int start_layer, const
     profile_label label("pf_compute_endpoint_visibility");
     pf_graph *g;
     avoid_seglist *sl;
-    int l, i, k;
+    int l, i, k, j;
+    short n; // D22401: the seglists by index j, the corner count once into a short n (int n: 9)
 
     timer_get(1000);
     if (Precalc_vis_method) {
@@ -1260,9 +1265,10 @@ void pf_compute_endpoint_visibility(const vector2 *start, int start_layer, const
             for (i = 0; i < g->count; i++)
                 g->points[i].flags &= 0xfe80;
         }
-        for (sl = avoid_seglists; sl < &avoid_seglists[AVOID_NUM_SEGLISTS]; sl++) {
+        for (j = 0; j < AVOID_NUM_SEGLISTS; j++) {
+            sl = &avoid_seglists[j];
             if ((sl->flags & AVOID_SEGLIST_USED) && sl->size == pf_cur_size) {
-                for (k = 0; k < sl->num_corners; k++)
+                for (k = 0, n = sl->num_corners; k < n; k++)
                     sl->corners[k].node.flags &= 0xfe80;
             }
         }
@@ -1275,9 +1281,10 @@ void pf_compute_endpoint_visibility(const vector2 *start, int start_layer, const
                 g->points[i].flags &= ~PFN_VISIBLE;
             }
         }
-        for (sl = avoid_seglists; sl < &avoid_seglists[AVOID_NUM_SEGLISTS]; sl++) {
+        for (j = 0; j < AVOID_NUM_SEGLISTS; j++) {
+            sl = &avoid_seglists[j];
             if ((sl->flags & AVOID_SEGLIST_USED) && sl->size == pf_cur_size) {
-                for (k = 0; k < sl->num_corners; k++) {
+                for (k = 0, n = sl->num_corners; k < n; k++) {
                     if (sl->corners[k].node.flags & PFN_VISIBLE)
                         sl->corners[k].node.flags |= PFN_FROM_START;
                     sl->corners[k].node.flags &= ~PFN_VISIBLE;
@@ -1292,9 +1299,10 @@ void pf_compute_endpoint_visibility(const vector2 *start, int start_layer, const
                     g->points[i].flags |= PFN_FROM_GOAL;
             }
         }
-        for (sl = avoid_seglists; sl < &avoid_seglists[AVOID_NUM_SEGLISTS]; sl++) {
+        for (j = 0; j < AVOID_NUM_SEGLISTS; j++) {
+            sl = &avoid_seglists[j];
             if ((sl->flags & AVOID_SEGLIST_USED) && sl->size == pf_cur_size) {
-                for (k = 0; k < sl->num_corners; k++) {
+                for (k = 0, n = sl->num_corners; k < n; k++) {
                     if (sl->corners[k].node.flags & PFN_VISIBLE)
                         sl->corners[k].node.flags |= PFN_FROM_GOAL;
                 }
@@ -1369,7 +1377,7 @@ ai_path *ai_path_smooth(ai_path *path, const vector3 *start, int start_layer)
     return path;
 }
 
-// 0x49f810  Confidence: likely (the FLT_MAX store is the code's, its variable a guess). For a search
+// 0x49f810  Confidence: exact (the FLT_MAX store is the code's, its variable a guess). For a search
 // edge on one layer: the avoidance polygons of its layer / size whose bounds meet the edge's either
 // block it (door-type lists, skipped when an end has PFN_SKIP_DOOR_LISTS) or add the cost of going
 // round their obstacles. True when blocked or when a cost was added.
@@ -1380,8 +1388,8 @@ bool pf_add_avoidance_nodes(pf_search_seg *s)
     avoid_seglist *sl;
     avoid_poly *poly;
     avoid_obstacle *ob;
-    bool have_rect;
-    int any, door, k;
+    int have_rect; // D22402: an int flag, the seglists by index j, the rect from pointer locals with
+    int any, door, k, j; // float_min / float_max, and `return s->cost != 0.0f`
 
     s->blocked = false;
     s->cost = 0.0f;
@@ -1393,7 +1401,8 @@ bool pf_add_avoidance_nodes(pf_search_seg *s)
         any = 0;
     else
         any = 1;
-    for (sl = avoid_seglists; sl < &avoid_seglists[AVOID_NUM_SEGLISTS]; sl++) {
+    for (j = 0; j < AVOID_NUM_SEGLISTS; j++) {
+        sl = &avoid_seglists[j];
         if (!(sl->flags & AVOID_SEGLIST_USED))
             continue;
         door = sl->flags & AVOID_SEGLIST_DOOR;
@@ -1402,12 +1411,16 @@ bool pf_add_avoidance_nodes(pf_search_seg *s)
         if (sl->layer != s->a->layer || sl->size != s->size)
             continue;
         if (!have_rect) {
-            r.min_y = r.max_y = s->a->pos->y;
-            r.min_x = r.max_x = s->a->pos->x;
-            r.min_y = min(r.min_y, s->b->pos->y);
-            r.max_y = max(r.max_y, s->b->pos->y);
-            r.min_x = min(r.min_x, s->b->pos->x);
-            r.max_x = max(r.max_x, s->b->pos->x);
+            const vector2 *pa = s->a->pos;
+            const vector2 *pb = s->b->pos;
+            r.min_y = pa->y;
+            r.max_y = pa->y;
+            r.min_x = pa->x;
+            r.max_x = pa->x;
+            r.min_y = float_min(r.min_y, pb->y);
+            r.max_y = float_max(r.max_y, pb->y);
+            r.min_x = float_min(r.min_x, pb->x);
+            r.max_x = float_max(r.max_x, pb->x);
             have_rect = true;
         }
         poly = avoid_poly_get(sl);
@@ -1426,9 +1439,7 @@ bool pf_add_avoidance_nodes(pf_search_seg *s)
             }
         }
     }
-    if (s->cost != 0.0f)
-        return true;
-    return false;
+    return s->cost != 0.0f;
 }
 
 // 0x49fa70  Confidence: likely (the local nodes' field stores are in a guessed order; `direct` is a

@@ -163,14 +163,15 @@ void multi_process_packet(ubyte *data, int len, void *from, bool reliable)
 }
 
 // 0x4419d0  Confidence: likely (the three memsets and the scalar stores; the timer's store sits between
-// the second and third memset).
+// the second and third memset). D24201: the first counter's store also before the third memset; its int zero
+// then lives across the rep stosd in its own register (EDX), the binary's second zero.
 void mp_reset_net_stats()
 {
     memset(net_stats_recv_history, 0, sizeof(net_stats_recv_history));
     memset(net_stats_sent_bytes_history, 0, sizeof(net_stats_sent_bytes_history));
     net_stats_timer = 0.0f;
-    memset(net_stats_sent_packets_history, 0, sizeof(net_stats_sent_packets_history));
     net_stats_avg_sent_packets = 0;
+    memset(net_stats_sent_packets_history, 0, sizeof(net_stats_sent_packets_history));
     net_stats_avg_sent_bytes = 0;
     net_stats_avg_recv_bytes = 0;
     net_stats_history_index = 0;
@@ -458,11 +459,15 @@ void cmd_disp_rate()
                 debug_noop_disp_rate(0, rate_name, mp_packet_table[i].rate_flags[1]);
                 strncpy(rate_name, "INC R ", MP_RATE_PREFIX_LEN);
                 debug_noop_disp_rate(0, rate_name, mp_packet_table[i].rate_flags[1]);
-                if (mp_packet_table[i].rate_flags[1])
+                // D24200: print_to_console written in both branches (8966 merges the tails, then pushes EBP at
+                // the entry and merges the two stack pops as the binary does).
+                if (mp_packet_table[i].rate_flags[1]) {
                     sprintf(string_buffer, "Net rate info for %s is now ON.", mp_packet_table[i].name);
-                else
+                    print_to_console(string_buffer, 0);
+                } else {
                     sprintf(string_buffer, "Net rate info for %s is now OFF.", mp_packet_table[i].name);
-                print_to_console(string_buffer, 0);
+                    print_to_console(string_buffer, 0);
+                }
             }
         } else {
             doing_help_for_comand = 1;

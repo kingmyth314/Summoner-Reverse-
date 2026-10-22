@@ -407,9 +407,13 @@ int automap_frame(int key)
     return key;
 }
 
-// 0x402760  Confidence: likely (VC6 shares the key-switch tails; the second type test in the Delete case is
-// in the code and kept as written). Keys (jump tables 0x402c84 / 0x402ca0): ESC and M close the screen,
-// R / I / S / C open screens 2 / 1 / 6 / 5, Delete removes the selected custom label.
+// 0x402760  Confidence: exact (VC6 byte match, D23101) (VC6 shares the key-switch tails; the second type test
+// in the Delete case is in the code and kept as written). Keys (jump tables 0x402c84 / 0x402ca0): ESC and M
+// close the screen, R / I / S / C open screens 2 / 1 / 6 / 5, Delete removes the selected custom label.
+// D23101: the two label-box rectangles as x / y locals after the reveal test (as automap_label_box_hover /
+// automap_labels_hover; the selected box as view + scroll + box offset, else the two loads swap their
+// globals), the case bodies in the binary's order (Delete, ESC / M, C, I, R, S) and the script
+// index in a local before automap_label_remove.
 int automap_handle_click(int key)
 {
     int i;
@@ -441,30 +445,32 @@ int automap_handle_click(int key)
             }
             if (automap_selected_label >= 0
                 && automap_map_point_revealed(automap_label_screen_pos[automap_selected_label][0],
-                                              automap_label_screen_pos[automap_selected_label][1], true)
-                && point_in_rect(game_mouse_x, game_mouse_y,
-                                 automap_view_pos[resolution_index][0] + automap_label_box_x + automap_scroll_x,
-                                 automap_view_pos[resolution_index][1] + automap_label_box_y + automap_scroll_y,
-                                 automap_label_w, automap_label_h)) {
-                if (automap_labels[automap_selected_label].type == AUTOMAP_LABEL_CUSTOM) {
-                    automap_label_editing = true;
-                    automap_mouse_mode = 5;
+                                              automap_label_screen_pos[automap_selected_label][1], true)) {
+                int x = automap_view_pos[resolution_index][0] + automap_scroll_x + automap_label_box_x;
+                int y = automap_view_pos[resolution_index][1] + automap_scroll_y + automap_label_box_y;
+
+                if (point_in_rect(game_mouse_x, game_mouse_y, x, y, automap_label_w, automap_label_h)) {
+                    if (automap_labels[automap_selected_label].type == AUTOMAP_LABEL_CUSTOM) {
+                        automap_label_editing = true;
+                        automap_mouse_mode = 5;
+                    }
+                    return key;
                 }
-                return key;
             }
             for (i = 0; i < automap_num_labels; i++) {
                 if (automap_labels[i].layer == automap_layer
-                    && automap_map_point_revealed(automap_label_screen_pos[i][0], automap_label_screen_pos[i][1], true)
-                    && point_in_rect(game_mouse_x, game_mouse_y,
-                                     automap_view_pos[resolution_index][0] - automap_label_bm_w / 2
-                                         + automap_label_screen_pos[i][0] + automap_scroll_x,
-                                     automap_view_pos[resolution_index][1] - automap_label_bm_h / 2
-                                         + automap_scroll_y + automap_label_screen_pos[i][1],
-                                     automap_label_bm_w, automap_label_bm_h)) {
-                    automap_hover_label = i;
-                    automap_label_editing = true;
-                    automap_mouse_mode = 6;
-                    return key;
+                    && automap_map_point_revealed(automap_label_screen_pos[i][0], automap_label_screen_pos[i][1], true)) {
+                    int x = automap_view_pos[resolution_index][0] - automap_label_bm_w / 2
+                            + automap_label_screen_pos[i][0] + automap_scroll_x;
+                    int y = automap_view_pos[resolution_index][1] - automap_label_bm_h / 2
+                            + automap_scroll_y + automap_label_screen_pos[i][1];
+
+                    if (point_in_rect(game_mouse_x, game_mouse_y, x, y, automap_label_bm_w, automap_label_bm_h)) {
+                        automap_hover_label = i;
+                        automap_label_editing = true;
+                        automap_mouse_mode = 6;
+                        return key;
+                    }
                 }
             }
             automap_select_label(-1);
@@ -493,13 +499,29 @@ int automap_handle_click(int key)
     }
 
     switch (key) {
+    case KEY_DELETE:
+        if (automap_selected_label >= 0
+            && automap_labels[automap_selected_label].type == AUTOMAP_LABEL_CUSTOM) {
+            automap_label *label = &automap_labels[automap_selected_label];
+
+            if (label->type == AUTOMAP_LABEL_CUSTOM) {
+                int idx = level_script_find_index(cur_level_index, level_script_name);
+
+                SAVEGAME_AUTOMAP.automap_label_remove(cur_level_index, idx, label);
+            }
+            automap_label_delete(automap_selected_label);
+            automap_labels_update_positions();
+            automap_select_label(-1);
+            return 0;
+        }
+        break;
     case KEY_ESC:
     case KEY_M:
         interface_close_screen();
         game_play_sound(0x24, 1.0f, 0, 0, 0);
         return 0;
-    case KEY_R:
-        interface_set_screen(2, 0);
+    case KEY_C:
+        interface_set_screen(5, 0);
         game_play_sound(0x27, 1.0f, 0, 0, 0);
         return 0;
     case KEY_I: {
@@ -509,28 +531,14 @@ int automap_handle_click(int key)
         game_play_sound(0x27, 1.0f, 0, 0, 0);
         return 0;
     }
+    case KEY_R:
+        interface_set_screen(2, 0);
+        game_play_sound(0x27, 1.0f, 0, 0, 0);
+        return 0;
     case KEY_S:
         interface_set_screen(6, 0);
         game_play_sound(0x27, 1.0f, 0, 0, 0);
         return 0;
-    case KEY_C:
-        interface_set_screen(5, 0);
-        game_play_sound(0x27, 1.0f, 0, 0, 0);
-        return 0;
-    case KEY_DELETE:
-        if (automap_selected_label >= 0
-            && automap_labels[automap_selected_label].type == AUTOMAP_LABEL_CUSTOM) {
-            automap_label *label = &automap_labels[automap_selected_label];
-
-            if (label->type == AUTOMAP_LABEL_CUSTOM)
-                SAVEGAME_AUTOMAP.automap_label_remove(cur_level_index,
-                    level_script_find_index(cur_level_index, level_script_name), label);
-            automap_label_delete(automap_selected_label);
-            automap_labels_update_positions();
-            automap_select_label(-1);
-            return 0;
-        }
-        break;
     }
     return key;
 }

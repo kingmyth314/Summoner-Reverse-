@@ -606,8 +606,8 @@ void levelrender_render_scene()
         overhead_label_slots_expire();
         levelrender_draw_speaker_icons();
         if (!(game_flags & 0x20000)) {
-            for (character_speech_record *s = character_speech; s < character_speech + MAX_CHARACTER_SPEECH; s++)
-                levelrender_draw_speech_text(s);
+            for (i = 0; i < MAX_CHARACTER_SPEECH; i++)     // D22603: by index (jl)
+                levelrender_draw_speech_text(&character_speech[i]);
             levelrender_draw_name_labels();
             if (levelrender_hover_target)
                 levelrender_draw_health_bars(levelrender_hover_target);
@@ -624,10 +624,15 @@ void levelrender_render_scene()
     }
     level_vis_cache_key[0] = (int)sets;
     level_vis_cache_key[1] = count;
-    for (i = 0; i < count; i++) {
+    for (i = 0; i < count; i++) {      // D22603: lobjs, the count and the index list read once per set
         s3d_vis_set *set = sets[i];
-        for (j = 0; j < set->count; j++)
-            lobjs[set->indices[j]].flags &= ~0x6000;
+        lobj *lo = lobjs;
+        int n = set->count;
+        int *ix = set->indices;
+        for (j = 0; j < n; j++) {
+            lobj *o = &lo[ix[j]];
+            o->flags &= ~0x6000;
+        }
     }
     decals_recycle_unused();
     level_rendered_layer = level_current_layer;
@@ -693,16 +698,21 @@ void levelrender_fog_enable()
 // then each object fades: an occluder fades out (state 3, 270 ms down to 0x80) and stays at 0x80
 // (state 1); 1 s after it stops occluding it fades back in (state 2, 270 ms) to opaque (state 0).
 // A fade reversed halfway restarts its timer so that the alpha continues from where it was.
+// D22605: each set's count and index list read once (`*ix++`), the occluder count read once and its index in a
+// local, alpha set before the third loop, the switch as case 3 / 1 / 2 / 0 with the expired fades falling through
+// to the constant alpha (the binary's case order and shared tails).
 void levelrender_fade_occluders(s3d_vis_set **sets, int count)
 {
     render_scope scope;
-    ubyte alpha = 0xff;
+    ubyte alpha;
     int i, j, k;
 
     for (i = 0; i < count; i++) {
         s3d_vis_set *set = sets[i];
-        for (j = 0; j < set->count; j++) {
-            int index = set->indices[j];
+        int n = set->count;
+        int *ix = set->indices;
+        for (j = 0; j < n; j++) {
+            int index = *ix++;
             lobj *l = &lobjs[index];
             if (!(l->flags & 0x4000)) {
                 l->flags |= 0x4000;
@@ -714,19 +724,24 @@ void levelrender_fade_occluders(s3d_vis_set **sets, int count)
     }
     if (game_flags & 0x20)
         return;
-    for (k = 0; k < camera_num_occluders; k++) {
-        lobj_render_state *st = &levelrender_lobj_states[camera_occluders[k]];
-        st->flags |= LRS_OCCLUDING;
-        s3d_vis_set *see = levelrender_lobj_states[camera_occluders[k]].seethru;
+    int nc = camera_num_occluders;
+    for (k = 0; k < nc; k++) {
+        int oc = camera_occluders[k];
+        levelrender_lobj_states[oc].flags |= LRS_OCCLUDING;
+        s3d_vis_set *see = levelrender_lobj_states[oc].seethru;
         if (see) {
-            for (j = 0; j < see->count; j++)
+            int sn = see->count;
+            for (j = 0; j < sn; j++)
                 levelrender_lobj_states[see->indices[j]].flags |= LRS_OCCLUDING;
         }
     }
+    alpha = 0xff;
     for (i = 0; i < count; i++) {
         s3d_vis_set *set = sets[i];
-        for (j = 0; j < set->count; j++) {
-            int index = set->indices[j];
+        int n = set->count;
+        int *ix = set->indices;
+        for (j = 0; j < n; j++) {
+            int index = *ix++;
             lobj_render_state *st = &levelrender_lobj_states[index];
             if (!(st->flags & 0xf))
                 continue;
@@ -754,9 +769,15 @@ void levelrender_fade_occluders(s3d_vis_set **sets, int count)
                 }
             }
             switch (st->flags & 3) {
-            case 0:
-                alpha = 0xff;
-                break;
+            case 3: {
+                int t = st->timer.GetElapsedTime();
+                if (t < 270) {
+                    alpha = (ubyte)(0xff - t * 127 / 270);
+                    break;
+                }
+                st->flags = (st->flags & ~2) | 1;
+            }
+            // fall through
             case 1:
                 alpha = 0x80;
                 break;
@@ -764,22 +785,14 @@ void levelrender_fade_occluders(s3d_vis_set **sets, int count)
                 int t = st->timer.GetElapsedTime();
                 if (t < 270) {
                     alpha = (ubyte)(t * 127 / 270 + 0x80);
-                } else {
-                    st->flags &= ~3;
-                    alpha = 0xff;
+                    break;
                 }
-                break;
+                st->flags &= ~3;
             }
-            case 3: {
-                int t = st->timer.GetElapsedTime();
-                if (t < 270) {
-                    alpha = (ubyte)(0xff - t * 127 / 270);
-                } else {
-                    st->flags = (st->flags & ~2) | 1;
-                    alpha = 0x80;
-                }
+            // fall through
+            case 0:
+                alpha = 0xff;
                 break;
-            }
             }
             st->flags = (st->flags & ~LRS_ALPHA_MASK) | ((alpha & 0xff) << LRS_ALPHA_SHIFT);
         }
@@ -835,6 +848,8 @@ void levelrender_setup_level_lights()
 // for type 9 / species 0x55) gets flag 0x20. In a cutscene the limit is 225 m and only the cutscene's
 // actors are drawn when the cutscene says so (flag 2). Attachments within 30 m (50 m with game flag 8).
 // Note: character_is_culled returns true when the sphere is culled (gr_cull_sphere's result).
+// D22600: the living case written first in the switch (the binary places it right after the jump), the item and
+// container cases after it.
 void levelrender_build_draw_lists()
 {
     render_scope scope;
@@ -842,12 +857,6 @@ void levelrender_build_draw_lists()
 
     for (o = obj_active_list.next; o != &obj_active_list; o = o->next) {
         switch (o->type) {
-        case 3:
-            levelrender_add_items((item_obj *)o);
-            break;
-        case 11:
-            levelrender_add_containers((container *)o);
-            break;
         case 4: case 5: case 6: case 7: case 8: case 9: case 10: {
             Character *c = (Character *)o;
             unsigned int f = c->obj_flags;
@@ -913,8 +922,10 @@ void levelrender_build_draw_lists()
                 levelrender_opaque_list[levelrender_opaque_count++] = e;
             e->type = LRE_CHARACTER;
             e->object = c;
-            e->depth = levelrender_eye_orient.fvec.z * d.z + levelrender_eye_orient.fvec.y * d.y
-                     + d.x * levelrender_eye_orient.fvec.x;
+            // D22600: the z and y products in one statement, then d.x copied into a local
+            float dep = levelrender_eye_orient.fvec.z * d.z + levelrender_eye_orient.fvec.y * d.y;
+            float dx = d.x;
+            e->depth = dep + dx * levelrender_eye_orient.fvec.x;
             e->dist = e->depth - c->bound_radius;
             if (c->type != 1 && c->type != 3) {
                 if (((game_flags & 8) && dist_sq < 2500.0f) || (c->is_dead_type() && dist_sq < 400.0f)
@@ -924,6 +935,12 @@ void levelrender_build_draw_lists()
             c->obj_flags |= 2;
             break;
         }
+        case 3:
+            levelrender_add_items((item_obj *)o);
+            break;
+        case 11:
+            levelrender_add_containers((container *)o);
+            break;
         }
     }
 }
@@ -1184,6 +1201,8 @@ void levelrender_add_lobj(lobj *l, int index)
 // effects (bit 4) and the inactive owner's own character effect are skipped, the instance sphere is
 // culled (bit 2), then the shown nodes (glow nodes refresh their lamp glow), the vif particle records
 // (updated unless paused, marked for fx_draw_flagged_particles) and the emitters (vfx_emitter_desc) become entries.
+// D22604 (closer): the sums written rotated-offset + position (the emitter's through a reference to centre), the
+// emitter sum through operator+, the hidden node's skip with its own index++ / next, index declared before n.
 void levelrender_add_effects(s3d_vis_set **sets, int count)
 {
     render_scope scope;
@@ -1214,22 +1233,25 @@ void levelrender_add_effects(s3d_vis_set **sets, int count)
         }
         vfx_instance *vi = fx->instance;
         if (fx->bits & 2) {
-            vector3 c = fx->pos + vi->pos.unrotated(fx->orient);
+            vector3 c = vi->pos.unrotated(fx->orient) + fx->pos;
             if (gr_cull_sphere(&c, vi->_unk3c, 0))
                 continue;
         }
-        fx_rec98 *n = vi->nodes;
         int index = 0;
+        fx_rec98 *n = vi->nodes;
         if (n) {
             do {
                 vfx_node_desc *rec = &base->node_descs[index];
-                if (rec->vis_flags & 0x600) {
-                    if (levelrender_add_effect_entry(rec->pos, rec->cull_radius, rec->glow_radius, fx, 0, index, n,
-                                                     !(fx->instance->id_bits & 0x80))
-                        && (rec->flags & 0x40)) {
-                        lamp_glow_fade_out(n->glow, reported_frametime);
-                        lamp_glow_set(n->glow, &rec->pos, rec->glow_radius);
-                    }
+                if (!(rec->vis_flags & 0x600)) {
+                    index++;
+                    n = n->next;
+                    continue;
+                }
+                if (levelrender_add_effect_entry(rec->pos, rec->cull_radius, rec->glow_radius, fx, 0, index, n,
+                                                 !(fx->instance->id_bits & 0x80))
+                    && (rec->flags & 0x40)) {
+                    lamp_glow_fade_out(n->glow, reported_frametime);
+                    lamp_glow_set(n->glow, &rec->pos, rec->glow_radius);
                 }
                 index++;
                 n = n->next;
@@ -1245,10 +1267,8 @@ void levelrender_add_effects(s3d_vis_set **sets, int count)
                     float radius;
                     vif_record_get_bounds(erec, &centre, &radius);
                     if (!(em->flags & 0x10) && !(fx->instance->id_bits & 0x80)) {
-                        vector3 c = centre.unrotated(fx->orient);
-                        c.x = fx->pos.x + c.x;
-                        c.y = fx->pos.y + c.y;
-                        c.z = fx->pos.z + c.z;
+                        const vector3 &cp = centre;
+                        vector3 c = cp.unrotated(fx->orient) + fx->pos;
                         if (gr_cull_sphere(&c, radius, 0))
                             goto next_emitter;
                     }
@@ -1597,7 +1617,8 @@ void levelrender_draw_speech_text(character_speech_record *s)
         return;
     if (!conversation_active.is_idle())
         return;
-    if (c->type == 7 || !_stricmp(c->name, "Ulsadana")) {
+    bool always = c->type == 7 || !_stricmp(c->name, "Ulsadana");   // D22601: through a bool (one shared return)
+    if (always) {
         if (c->type == 7 && (c->flags & CF_DEAD))
             return;
     } else if (fabsf(cur_character->pos.y - c->pos.y) > 4.0f || distance_squared(&cur_character->pos, &c->pos) > 2500.0f
@@ -1610,10 +1631,10 @@ void levelrender_draw_speech_text(character_speech_record *s)
     gr_project_vertex(&v);
     gr_get_clip(&clip_x, &clip_y, &clip_w, &clip_h);
     v.sx = v.sx - clip_x;
-    for (side = 0; side < 2; side++) {
-        for (row = 0; row < 3; row++) {
-            if (overhead_label_slot_owner[side][row] == s) {
-                overhead_label_slot_used[side][row] = true;
+    for (int i = 0; i < 2; i++) {      // D22601: own loop indexes (side / row are only the placed slot)
+        for (int j = 0; j < 3; j++) {
+            if (overhead_label_slot_owner[i][j] == s) {
+                overhead_label_slot_used[i][j] = true;
                 return;
             }
         }
@@ -1656,11 +1677,12 @@ void levelrender_draw_speech_text(character_speech_record *s)
 // 0x484e30  Confidence: likely (the max / min / abs macro uses, each test evaluated twice as the code
 // does). The column is the side of the screen centre, the row the third of (height - 120); a used
 // slot moves to the other column when it is nearer than the row boundary, else up or down a row first.
+// D22602 (closer): two thirds and y - third assigned in the tests (tt, d1 at function scope).
 void overhead_label_place(int x, int y, int h, int *side, int *row)
 {
     int screen_h = gr_screen_height() - 120;
     int half = (gr_screen_width() - 20) / 2;
-    int dx, dy;
+    int dx, dy, tt, d1;
     int s, r, s2;
 
     if (x < half) {
@@ -1676,13 +1698,13 @@ void overhead_label_place(int x, int y, int h, int *side, int *row)
         *row = 1;
         if (y > h)
             *row = 0;
-    } else if (y < screen_h * 2 / 3) {
-        dy = min(screen_h * 2 / 3 - y, y - third);
+    } else if (y < (tt = screen_h * 2 / 3)) {
+        dy = min(tt - y, d1 = y - third);
         *row = 0;
-        if (y - third > h)
+        if (d1 > h)
             *row = 1;
     } else {
-        dy = y - screen_h * 2 / 3;
+        dy = y - tt;
         *row = 1;
         if (dy > h)
             *row = 2;

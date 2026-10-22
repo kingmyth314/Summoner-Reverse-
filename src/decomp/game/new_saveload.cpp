@@ -474,8 +474,10 @@ void saveload_update_delete_button()
     saveload_buttons[19].flags &= ~4;
 }
 
-// 0x425de0  Confidence: likely (the shape of the text input part and the cursor blink expression; the
-// typing and backspace paths jump straight to the SetTimeout, the others test the timer first).
+// 0x425de0  Confidence: exact (VC6 byte match, m-1021e, D23303: the closing Escape test as a one-case
+// switch, and the description box's Escape and Enter cases each with their own `editing = false; break;`
+// (8966 merges the two tails); was likely). The typing and backspace paths jump straight to the SetTimeout,
+// the others test the timer first.
 int saveload_handle_input(int key)
 {
     int i;
@@ -570,9 +572,10 @@ int saveload_handle_input(int key)
                 }
             } else {
                 switch (key) {
-                case KEY_ESC:
+                case KEY_ESC:                       // D23303: no fall-through into KEY_ENTER
                     saveload_name_input[0] = 0;
-                    // fall through
+                    saveload_editing_name = false;
+                    break;
                 case KEY_ENTER:
                     saveload_editing_name = false;
                     break;
@@ -607,7 +610,8 @@ int saveload_handle_input(int key)
         return key;
     }
 
-    if (key == KEY_ESC) {
+    switch (key) {                          // D23303: a switch (dec eax / je), not an if
+    case KEY_ESC:
         saveload_close();
         game_play_sound(0x24, 1.0f, 0, 0, 0);
         return 0;
