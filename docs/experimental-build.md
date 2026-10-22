@@ -28,7 +28,9 @@ decided (2026-10-21) on one tree with three configurations, so the features are 
   `experimental.log` next to the exe.
 - **SummonerFix stands down** for a feature the exe has in its source: such code carries
   `// EXPERIMENTAL_BUILD: <feature> <Key>`, `link-build` writes the key into `Sum-exp.fixes`, and SummonerFix's
-  `RebuiltFixInSource` check leaves its own version out (the controller and the tentacle grab check it).
+  `RebuiltFixInSource` check leaves its own version out. The controller depends on it (SummonerFix then forwards agent
+  mode's `pad` to the exe's `ExpControllerSetSynthetic` export); for the tentacle grab it is only a safeguard, because
+  SummonerFix never installs its tentacle patches in a rebuilt exe (so the log shows no tentacle line there).
 
 ## Features
 

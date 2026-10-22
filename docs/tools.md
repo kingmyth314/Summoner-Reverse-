@@ -247,7 +247,12 @@ decompiled source and VC6 SP5's own libraries (LIBCMT, the Windows and DirectX i
 $env:VC6_DIR = 'C:\path\to\VC98'
 node tools/link-build.mjs --define SHIPPED_NOCD --define REBUILT_OPENGL
 node tools/link-build.mjs --config fixed        # build/link-fixed/Sum-fixed.exe (docs/builds.md)
+node tools/link-build.mjs --config experimental # build/link-exp/Sum-exp.exe (docs/experimental-build.md)
 ```
+
+The experimental configuration also compiles `src/decomp/experimental/*.cpp` (not part of Sum.exe, so not in
+`vc6-matches.txt` and never swept). `<exe>.fixes` lists the `// FIXED_BUILD: <bug> <Key>` markers, and for the
+experimental build also the `// EXPERIMENTAL_BUILD: <feature> <Key>` ones; SummonerFix leaves those parts out.
 
 | Option | Meaning |
 |---|---|

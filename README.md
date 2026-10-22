@@ -31,7 +31,11 @@ documentation and the decompilation notes are also a working log, so they mentio
 - **The fixed build:** `node tools/link-build.mjs --config fixed` builds `Sum-fixed.exe`, the decompiled game with
   43 bugs fixed in the source, plus the timing and start-up fixes a modern PC needs (correct speed, the >4 GHz timer,
   the cutscene timer, no crash without an audio device, 1024x768 without the launcher). See
-  [Fixed build changes](docs/fixed-build.md); not yet tested in game.
+  [Fixed build changes](docs/fixed-build.md). First in-game run 2026-10-21: the queued checks against the original
+  pass; the per-fix reproductions are still to run.
+- **The experimental build:** `node tools/link-build.mjs --config experimental` builds `Sum-exp.exe`, the fixed build
+  plus new features, each off by default: controller support, autosave, a frame-rate cap and vsync, the Tentacle
+  Beast's grab ([Experimental build](docs/experimental-build.md); smoke-tested in game 2026-10-21).
 - **The decompilation:** Microsoft Visual C++ 6.0 with Service Pack 5 (compiler build 8966, the one Sum.exe was built
   with), which you have to supply yourself; set `VC6_DIR` to its `VC98` folder. `tools/vc6-sweep.mjs` compares every
   function with your `Sum.exe`; `tools/link-build.mjs` links the standalone executable (it also needs libjpeg 6b
