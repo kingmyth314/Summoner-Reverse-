@@ -203,7 +203,7 @@ the plan for a fixed build and an experimental build that take them up is in
 - **dgVoodoo 2.** It wraps Glide and old DirectX for modern Direct3D 11/12. SummonerFix now forces the OpenGL
   renderer; dgVoodoo 2 would make the original Glide and Direct3D renderers usable too (with their own gamma,
   K90 does not apply there). To find out: which dgVoodoo DLLs Summoner loads, and whether the launcher-free start
-  and the widescreen output can work with it.
+  and the widescreen output can work with it. Research done 2026-10-21: [dgVoodoo 2 (design)](future/dgvoodoo.md).
 - **Auto-saving.** The game already has `quicksave` (`quicksave.sav`) and the rules for when saving is allowed
   (`savegame_location_allowed`, [Savegame](sum-exe/savegame.md#saving-and-loading)). An autosave could write a
   rotating slot on level change and every few minutes when saving is allowed.

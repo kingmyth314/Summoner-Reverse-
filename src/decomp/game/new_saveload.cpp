@@ -30,6 +30,7 @@
 #include "levelscripts/savegame.h"
 #include "levelscripts/conversation.h"
 #include "summoner/interface/new_saveload.h"
+#include "experimental/experimental.h"   // EXPERIMENTAL_BUILD only (autosave rows)
 
 #define SAVELOAD_NUM_BUTTONS 23
 #define SAVELOAD_MAX_SAVES   32
@@ -291,6 +292,12 @@ void saveload_scan_saves()
     for (node = list.next; node != (file_find_node *)&list; node = node->next) {
         if (saveload_num_saves >= SAVELOAD_MAX_SAVES)
             break;
+#ifdef EXPERIMENTAL_BUILD
+        // [Experimental] Autosave: the Save screen does not offer the autosave files to save over (the rotation
+        // would replace that save later); the Load screen lists them.
+        if (saveload_save_mode && exp_autosave_enabled() && !_strnicmp(node->name, "autosave", 8))
+            continue;
+#endif
         char level_name[0x80];
         char script_name[0x20];
         char description[0x100];
@@ -935,6 +942,14 @@ void saveload_draw_list()
             int hours;
 
             saveload_format_level_name(buf, e->level);
+#ifdef EXPERIMENTAL_BUILD
+            // [Experimental] Autosave: the autosave files' rows read "(Auto) <level>", cut to the same width.
+            if (!_strnicmp(e->filename, "autosave", 8)) {
+                char full[256];
+                sprintf(full, "(Auto) %s", buf);
+                gr_string_truncate_ellipsis(buf, full, saveload_level_name_w[resolution_index], -1);
+            }
+#endif
             gr_string(x, y, buf, -1, gr_string_mode);
             hours = (int)(e->level_time / 3600.0f);
             sprintf(buf, "%02d:%02d", hours, (int)(e->level_time - hours * 3600) / 60);

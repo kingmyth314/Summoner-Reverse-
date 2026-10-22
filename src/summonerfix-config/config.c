@@ -47,7 +47,8 @@ static const Hotkey k_hotkeys[] = {
 
 enum { ID_LIST = 100, ID_CHANGE, ID_CLEAR, ID_RESET, ID_CLOSE, ID_STATUS, ID_SKIPMOVIES, ID_ZOOM, ID_INTERACT, ID_CONTAINER, ID_APPLY, ID_SPEEDTOGGLE,
        ID_CONSOLE_CMD, ID_CONSOLE_BIND, ID_FIXALL, ID_FIXLIST, ID_FIXSAVE, ID_FIXCLOSE, ID_TENTACLE, ID_TENTCHANCE,
-       ID_PADOPEN, ID_PADENABLED, ID_PADSAVE, ID_PADRESET, ID_PADCLOSE };
+       ID_PADOPEN, ID_PADENABLED, ID_PADSAVE, ID_PADRESET, ID_PADCLOSE,
+       ID_EXPOPEN, ID_EXPAUTOSAVE, ID_EXPLEVEL, ID_EXPVSYNC, ID_EXPLOG, ID_EXPSAVE, ID_EXPRESET, ID_EXPCLOSE };
 
 // [ConsoleKeys] Key=command entries (keys that run a developer console command). Shown as list rows after the
 // hotkeys; Change key / Clear work on them, and "Bind key..." adds one for the command typed in the box.
@@ -125,7 +126,7 @@ static const FixOption k_fixes[] = {
 
 static char g_ini[MAX_PATH];
 static Bindings g_b; // physical key/button -> game key/button
-static HWND g_wnd, g_list, g_status, g_fixWnd, g_padWnd;
+static HWND g_wnd, g_list, g_status, g_fixWnd, g_padWnd, g_expWnd;
 static HHOOK g_hook, g_mouseHook;
 static int g_capturing = -1; // action row waiting for a key
 
@@ -733,7 +734,7 @@ static LRESULT CALLBACK PadWndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
     switch (msg) {
     case WM_CREATE: {
         Label(w, "An XInput (Xbox-style) controller drives the mouse and keys. OpenGL renderer only; read when the game", 10, 10, PAD_WND_W - 20);
-        Label(w, "starts. Keys are the game's own (key bindings do not change them). Not yet tested with a real controller.", 10, 26, PAD_WND_W - 20);
+        Label(w, "starts. Keys are the game's own (key bindings do not change them). Xbox-style pads work; a PS5 DualSense does not.", 10, 26, PAD_WND_W - 20);
         HWND cb = CreateWindowA("BUTTON", "Use a controller", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 10, 48, 200, 20, w,
                                 (HMENU)(INT_PTR)ID_PADENABLED, NULL, NULL);
         SendMessageA(cb, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
@@ -789,6 +790,123 @@ static void OpenPadWindow(void)
     g_padWnd = CreateWindowExA(WS_EX_TOPMOST, "SummonerFixPad", "SummonerFix - Controller", style, m.left + 40, m.top + 40,
                                r.right - r.left, r.bottom - r.top, g_wnd, NULL, GetModuleHandleA(NULL), NULL);
     ShowWindow(g_padWnd, SW_SHOW);
+}
+
+// The "Experimental build" window: the switches only Sum-exp.exe reads ([Experimental] Autosave..., FrameRateCap,
+// VSync; [Debug] ExperimentalLog; docs/experimental-build.md). Saved with its own Save button.
+typedef struct { const char *section, *iniKey, *label; int def, lo, hi; } ExpNumber;
+static const ExpNumber k_expNumbers[] = {
+    {"Experimental", "AutosaveMinutes", "Minutes of play between autosaves (0 = level changes only):", 5, 0, 600},
+    {"Experimental", "AutosaveSlots", "Rotating autosave files (1-10):", 3, 1, 10},
+    {"Experimental", "FrameRateCap", "Frame-rate cap (30-240; 0 = the game's 120):", 0, 0, 240},
+};
+#define EXP_NUMBER_COUNT (int)(sizeof k_expNumbers / sizeof k_expNumbers[0])
+typedef struct { const char *section, *iniKey, *label; int def, id; } ExpCheck;
+static const ExpCheck k_expChecks[] = {
+    {"Experimental", "Autosave", "Autosave (autosave1.sav ..., never your own saves)", 0, ID_EXPAUTOSAVE},
+    {"Experimental", "AutosaveOnLevelChange", "Also autosave after entering a new level", 1, ID_EXPLEVEL},
+    {"Experimental", "VSync", "VSync (OpenGL renderer)", 0, ID_EXPVSYNC},
+    {"Debug", "ExperimentalLog", "Write experimental.log (for testing)", 0, ID_EXPLOG},
+};
+#define EXP_CHECK_COUNT (int)(sizeof k_expChecks / sizeof k_expChecks[0])
+#define ID_EXPNUM0 460
+#define EXP_WND_W 520
+#define EXP_WND_H (66 + EXP_CHECK_COUNT * 24 + EXP_NUMBER_COUNT * 28 + 50)
+
+static void ExpFill(HWND w, BOOL defaults)
+{
+    for (int i = 0; i < EXP_CHECK_COUNT; i++) {
+        int on = defaults ? k_expChecks[i].def
+                          : (int)GetPrivateProfileIntA(k_expChecks[i].section, k_expChecks[i].iniKey, k_expChecks[i].def, g_ini);
+        CheckDlgButton(w, k_expChecks[i].id, on ? BST_CHECKED : BST_UNCHECKED);
+    }
+    for (int i = 0; i < EXP_NUMBER_COUNT; i++) {
+        char v[16];
+        snprintf(v, sizeof v, "%d", defaults ? k_expNumbers[i].def
+                                             : (int)GetPrivateProfileIntA(k_expNumbers[i].section, k_expNumbers[i].iniKey, k_expNumbers[i].def, g_ini));
+        SetDlgItemTextA(w, ID_EXPNUM0 + i, v);
+    }
+}
+
+static BOOL ExpSave(HWND w)
+{
+    char v[16];
+    for (int i = 0; i < EXP_NUMBER_COUNT; i++) {
+        GetDlgItemTextA(w, ID_EXPNUM0 + i, v, sizeof v);
+        int n = atoi(v);
+        // the frame-rate cap is 0, or 30-240
+        if (!v[0] || n < k_expNumbers[i].lo || n > k_expNumbers[i].hi || (!strcmp(k_expNumbers[i].iniKey, "FrameRateCap") && n && n < 30)) {
+            MessageBoxA(w, "A number is out of range; nothing was saved.", k_expNumbers[i].label, MB_OK | MB_ICONWARNING);
+            return FALSE;
+        }
+    }
+    for (int i = 0; i < EXP_CHECK_COUNT; i++)
+        WritePrivateProfileStringA(k_expChecks[i].section, k_expChecks[i].iniKey, IsDlgButtonChecked(w, k_expChecks[i].id) ? "1" : "0", g_ini);
+    for (int i = 0; i < EXP_NUMBER_COUNT; i++) {
+        GetDlgItemTextA(w, ID_EXPNUM0 + i, v, sizeof v);
+        snprintf(v, sizeof v, "%d", atoi(v));
+        WritePrivateProfileStringA(k_expNumbers[i].section, k_expNumbers[i].iniKey, v, g_ini);
+    }
+    return TRUE;
+}
+
+static LRESULT CALLBACK ExpWndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
+{
+    switch (msg) {
+    case WM_CREATE: {
+        Label(w, "These switches are read only by the experimental build (Sum-exp.exe), when the game starts.", 10, 10, EXP_WND_W - 20);
+        Label(w, "The original Sum.exe with SummonerFix ignores them. Every feature is off by default.", 10, 26, EXP_WND_W - 20);
+        int y = 52;
+        for (int i = 0; i < EXP_CHECK_COUNT; i++, y += 24) {
+            HWND cb = CreateWindowA("BUTTON", k_expChecks[i].label, WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 10, y, EXP_WND_W - 20, 20,
+                                    w, (HMENU)(INT_PTR)k_expChecks[i].id, NULL, NULL);
+            SendMessageA(cb, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
+        }
+        y += 6;
+        for (int i = 0; i < EXP_NUMBER_COUNT; i++, y += 28) {
+            Label(w, k_expNumbers[i].label, 10, y + 3, 400);
+            PadEdit(w, ID_EXPNUM0 + i, 420, y, 60);
+        }
+        y += 8;
+        Button(w, ID_EXPSAVE, "&Save", 10, y, 100);
+        Button(w, ID_EXPRESET, "&Defaults", 120, y, 100);
+        Button(w, ID_EXPCLOSE, "Close", 230, y, 100);
+        ExpFill(w, FALSE);
+        return 0;
+    }
+    case WM_COMMAND:
+        if (LOWORD(wp) == ID_EXPSAVE) {
+            if (ExpSave(w)) {
+                SetStatus("Experimental build settings saved. They apply the next time Sum-exp.exe starts.");
+                DestroyWindow(w);
+            }
+        } else if (LOWORD(wp) == ID_EXPRESET) {
+            ExpFill(w, TRUE); // shown only; Save writes them
+        } else if (LOWORD(wp) == ID_EXPCLOSE) {
+            DestroyWindow(w);
+        }
+        return 0;
+    case WM_DESTROY:
+        g_expWnd = NULL;
+        return 0;
+    }
+    return DefWindowProcA(w, msg, wp, lp);
+}
+
+static void OpenExpWindow(void)
+{
+    if (g_expWnd) {
+        SetForegroundWindow(g_expWnd);
+        return;
+    }
+    RECT r = {0, 0, EXP_WND_W, EXP_WND_H};
+    DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU;
+    AdjustWindowRect(&r, style, FALSE);
+    RECT m;
+    GetWindowRect(g_wnd, &m);
+    g_expWnd = CreateWindowExA(WS_EX_TOPMOST, "SummonerFixExp", "SummonerFix - Experimental build", style, m.left + 60, m.top + 60,
+                               r.right - r.left, r.bottom - r.top, g_wnd, NULL, GetModuleHandleA(NULL), NULL);
+    ShowWindow(g_expWnd, SW_SHOW);
 }
 
 static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
@@ -864,6 +982,8 @@ static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         Button(w, ID_CONSOLE_BIND, "&Bind key...", 540, 418, 120);
         Label(w, "Controller (next game start):", 770, 372, 230);
         Button(w, ID_PADOPEN, "Co&ntroller...", 770, 390, 120);
+        Label(w, "Experimental build (Sum-exp.exe):", 770, 424, 230);
+        Button(w, ID_EXPOPEN, "E&xperimental...", 770, 442, 120);
         Button(w, ID_CLOSE, "Close", 540, 472, 120);
         g_status = CreateWindowA("STATIC", "", WS_CHILD | WS_VISIBLE, 10, 510, 990, 20, w, (HMENU)ID_STATUS, NULL, NULL);
         SendMessageA(g_status, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
@@ -890,6 +1010,7 @@ static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         case ID_APPLY: ApplyOptions(); break;
         case ID_FIXLIST: OpenFixWindow(); break;
         case ID_PADOPEN: OpenPadWindow(); break;
+        case ID_EXPOPEN: OpenExpWindow(); break;
         case ID_CONSOLE_BIND: StartConsoleBind(); break;
         case ID_CLOSE: DestroyWindow(w); break;
         }
@@ -948,6 +1069,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show)
     wc.lpfnWndProc = PadWndProc;
     wc.lpszClassName = "SummonerFixPad";
     RegisterClassA(&wc);
+    wc.lpfnWndProc = ExpWndProc;
+    wc.lpszClassName = "SummonerFixExp";
+    RegisterClassA(&wc);
     wc.lpszClassName = "SummonerFixConfig"; // the main window below is created by this name
     RECT r = {0, 0, 1010, 540};
     DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
@@ -958,7 +1082,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show)
     MSG m;
     while (GetMessageA(&m, NULL, 0, 0) > 0) {
         if (!IsDialogMessageA(g_wnd, &m) && !(g_fixWnd && IsDialogMessageA(g_fixWnd, &m)) &&
-            !(g_padWnd && IsDialogMessageA(g_padWnd, &m))) {
+            !(g_padWnd && IsDialogMessageA(g_padWnd, &m)) && !(g_expWnd && IsDialogMessageA(g_expWnd, &m))) {
             TranslateMessage(&m);
             DispatchMessageA(&m);
         }

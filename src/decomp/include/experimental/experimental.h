@@ -38,6 +38,7 @@ void exp_controller_frame();
 void exp_autosave_init();
 void exp_autosave_frame();
 void exp_autosave_level_loaded(bool ok);
+bool exp_autosave_enabled();      // [Experimental] Autosave is on (read at the first frame, before any screen opens)
 // display.cpp: [Experimental] display options (frame-rate cap, vsync, field of view)
 void exp_display_init();
 void exp_display_frame();

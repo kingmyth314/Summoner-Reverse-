@@ -47,6 +47,13 @@ static PadGamepad g_synth;
 static DWORD g_synthStart, g_synthMs;
 static volatile LONG g_synthActive; // 1 while the synthetic state applies
 static volatile LONG g_synthDone = 1; // 1 once a frame after the synthetic state has released its inputs
+// The experimental exe reads the controller itself (src/decomp/experimental/controller.cpp, [Controller] key in
+// Sum-exp.fixes): SummonerFix then does nothing per frame and forwards agent mode's pad to the exe's exports.
+typedef void(__cdecl *PFN_ExpSetSynth)(int, int, int, int, unsigned, unsigned long);
+typedef int(__cdecl *PFN_ExpSynthDone)(void);
+static PFN_ExpSetSynth g_expSetSynth;
+static PFN_ExpSynthDone g_expSynthDone;
+static int g_inSource;
 
 static int ParseTarget(const char *iniKey, const char *def)
 {
@@ -171,6 +178,8 @@ static BOOL AxisHeld(int v, int sign, BOOL wasDown)
 
 void ControllerFrame(void)
 {
+    if (g_inSource)
+        return;
     LARGE_INTEGER now;
     QueryPerformanceCounter(&now);
     double dt = g_lastFrame.QuadPart && g_freq.QuadPart ? (double)(now.QuadPart - g_lastFrame.QuadPart) / (double)g_freq.QuadPart : 0.0;
@@ -239,6 +248,11 @@ void ControllerFrame(void)
 
 void ControllerSetSynthetic(int lx, int ly, int rx, int ry, unsigned buttons, DWORD ms)
 {
+    if (g_inSource) {
+        if (g_expSetSynth)
+            g_expSetSynth(lx, ly, rx, ry, buttons, ms);
+        return;
+    }
     PadGamepad p;
     ZeroMemory(&p, sizeof p);
     p.sThumbLX = (SHORT)ClampInt(lx, -32768, 32767);
@@ -260,6 +274,8 @@ void ControllerSetSynthetic(int lx, int ly, int rx, int ry, unsigned buttons, DW
 
 BOOL ControllerSyntheticDone(void)
 {
+    if (g_inSource)
+        return g_expSynthDone ? g_expSynthDone() != 0 : TRUE;
     return g_synthDone != 0;
 }
 
@@ -268,14 +284,20 @@ void ControllerInstall(void)
     InitializeCriticalSection(&g_synthLock);
     QueryPerformanceFrequency(&g_freq);
     LoadConfig();
-    if (!g_enabled) {
-        Log("controller: off ([Controller] Enabled=0)");
+    if (RebuiltFixInSource("Controller")) {
+        // The experimental build reads the controller itself (src/decomp/experimental/controller.cpp); agent mode's
+        // pad is forwarded to the exe's exports, so it tests that code (it works with Enabled=0 too).
+        HMODULE exe = GetModuleHandleA(NULL);
+        g_expSetSynth = (PFN_ExpSetSynth)GetProcAddress(exe, "ExpControllerSetSynthetic");
+        g_expSynthDone = (PFN_ExpSynthDone)GetProcAddress(exe, "ExpControllerSyntheticDone");
+        g_inSource = 1;
+        g_enabled = 0;
+        Log("controller: in this exe's source (EXPERIMENTAL_BUILD), not driven by SummonerFix; agent pad %s",
+            g_expSetSynth && g_expSynthDone ? "forwarded to the exe" : "not available (exports missing)");
         return;
     }
-    if (RebuiltFixInSource("Controller")) {
-        // The experimental build reads the controller itself (src/decomp/experimental/controller.cpp).
-        Log("controller: in this exe's source (EXPERIMENTAL_BUILD), not driven by SummonerFix");
-        g_enabled = 0;
+    if (!g_enabled) {
+        Log("controller: off ([Controller] Enabled=0)");
         return;
     }
     if (g_cfg.renderer != RENDERER_OPENGL) {

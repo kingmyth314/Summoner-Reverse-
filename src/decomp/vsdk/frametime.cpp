@@ -39,6 +39,13 @@ static bool Frametime_initialized;            // 0x257f0a0  (dword slot)
 static int Frametime_paused;                  // 0x257f0a4
 static int Animation_timer_paused;            // 0x257f0a8
 
+#ifdef EXPERIMENTAL_BUILD
+// experimental/display.cpp: nonzero while [Experimental] FrameRateCap is set (declared here until
+// include/experimental/experimental.h has it).
+extern int exp_display_exact_ms;
+static float frametime_ms_carry;              // the millisecond fraction not yet given to the tickers, 0 <= x < 1
+#endif
+
 // 0x501470 init_frametime_saved_min (jmp 0x501480, the store) /
 // 0x501490 init_frametime_saved_max (jmp 0x5014a0, the store): the compiler-generated
 // dynamic initialisers for the two definitions above (a jmp thunk into the store, VC6 $E pair).
@@ -144,7 +151,21 @@ void FrameDone()
         reported_frametime /= frametime_divisor;
         frames_rendered++;
 
+#ifdef EXPERIMENTAL_BUILD
+        // Experimental FrameRateCap (experimental/display.cpp). The game truncates each frame to whole milliseconds
+        // for the tickers, so they run slower than the frame time by up to a millisecond per frame (at 144 frames a
+        // second, 6.94 ms count as 6). With a cap set, the fraction is carried to the next frame.
+        int ms;
+        if (exp_display_exact_ms) {
+            float exact_ms = reported_frametime * 1000.0f + frametime_ms_carry;
+            ms = (int)exact_ms;
+            frametime_ms_carry = exact_ms - (float)ms;
+        } else {
+            ms = (int)(reported_frametime * 1000.0f);
+        }
+#else
         int ms = (int)(reported_frametime * 1000.0f);
+#endif
         UpdateTicker(ms);
         if (!Animation_timer_paused)
             milliseconds_unpaused += ms;
