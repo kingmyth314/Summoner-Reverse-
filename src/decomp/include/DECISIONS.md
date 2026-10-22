@@ -14838,3 +14838,12 @@ registers (num in EBX against EBP, skels, the first loop's base / index); the bi
 before the three float zeros. Tried: the float initialisations moved after `trigger_anim = -1` in two orders
 (218 / 210) and one zero after get_active_anims (218). Not kept (210 is not the binary's form for a gain of 2).
 Large; not attempted further.
+
+**D25200 (tools/vc6-localhash.mjs). The /Od name hash has an upper fold: bucket = (h ^ (h >> 16)) & 15, with
+h = h * 4 + (h >> 4) + c (32-bit), the rule D6101 measured on 8168, also under 8966.** D23500's `h & 15` is the same
+rule for names short enough that h stays below 2^16 (up to about 5 characters), which is why it stopped fitting at 6.
+Checked on the SP5 compiler (2026-10-22): 40 /Od test functions, each with 10 int locals of 6 to 15 random
+characters, compared with VC6's frame order: `(h ^ (h >> 16)) & 15` predicts all 40, `h & 15` none. Ordering as in
+D6101 / D23500: bucket 0 highest, within a bucket the later declaration higher. `tools/vc6-localhash.mjs` prints the
+predicted order of a list of names, and with `--probe` compiles them and prints VC6's. D6101's open question (whether
+8966 lays out /Od locals differently) is answered for the name order: it does not.

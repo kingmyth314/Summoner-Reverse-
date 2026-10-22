@@ -39,7 +39,7 @@ const includeDir = process.env.DECOMP_INCLUDE || join(repoRoot, "src", "decomp",
 // ---- arguments -----------------------------------------------------------------------------------------
 const args = process.argv.slice(2);
 const files = [];
-let flags = null, json = false, keep = false, verbose = false, score = false, strict = !!process.env.VC6_STRICT;
+let flags = null, json = false, keep = false, verbose = false, score = false, align = null, strict = !!process.env.VC6_STRICT;
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--flags") flags = args[++i];
   else if (args[i] === "--strict") strict = true;
@@ -47,6 +47,7 @@ for (let i = 0; i < args.length; i++) {
   else if (args[i] === "--keep") keep = true;
   else if (args[i] === "-v") verbose = true;
   else if (args[i] === "--score") score = true;
+  else if (args[i] === "--align") { align = parseInt(args[++i], 16); score = true; }
   else files.push(args[i]);
 }
 if (!files.length) {
@@ -131,13 +132,17 @@ function compile(cpp, dir, fl) {
   return { obj: join(dir, stem + ".obj"), cod: join(dir, stem + ".cod"), out };
 }
 
+// --align ADDR (implies --score): the function at ADDR as an aligned side-by-side of ours and the original, by the
+// same masked instruction keys as the distance: '=' same bytes, '~' same instruction but different bytes (a register,
+// an offset, an immediate), '-' only ours, '+' only the original. vc6-side compares mnemonics only and hides '~'.
+//
 // The --score distance. An instruction is its bytes (relocations already masked) with a branch displacement also
 // masked; the distance is |a| + |b| - 2 * LCS(a, b).
 function insKeys(buf, offs) {
   const keys = [];
   for (let i = 0; i < offs.length; i++) {
     const a = offs[i], b = i + 1 < offs.length ? offs[i + 1] : buf.length;
-    if (a >= buf.length || b <= a) continue;
+    if (a >= buf.length || b <= a) { keys.push(`none${i}`); continue; } // one key per instruction, for --align
     const x = Buffer.from(buf.subarray(a, b));
     // A dword operand that is an address in Sum.exe's image is masked too: the original's relocated fields are
     // masked only at our relocation offsets, which no longer line up once the function sizes differ.
@@ -152,6 +157,36 @@ function insKeys(buf, offs) {
   }
   return keys;
 }
+function lcsAlign(a, b) {
+  const n = a.length, m = b.length, w = m + 1, L = new Uint16Array((n + 1) * w);
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
+    L[i * w + j] = a[i] === b[j] ? L[(i + 1) * w + j + 1] + 1 : Math.max(L[(i + 1) * w + j], L[i * w + j + 1]);
+  const out = [];
+  let i = 0, j = 0;
+  while (i < n || j < m) {
+    if (i < n && j < m && a[i] === b[j]) out.push([i++, j++]);
+    else if (j >= m || (i < n && L[(i + 1) * w + j] >= L[i * w + j + 1])) out.push([i++, -1]);
+    else out.push([-1, j++]);
+  }
+  return out;
+}
+const mnem = (t) => (t || "").trim().split(/s+/)[0].toLowerCase();
+function printAlign(name, ours, theirs, ka, kb) {
+  const rows = lcsAlign(ka, kb), pad = (x, n) => (x.length > n ? x.slice(0, n - 1) + "~" : x.padEnd(n));
+  console.log(`--align ${name}: ${ka.length} / ${kb.length} instructions`);
+  // a deleted ours next to an inserted original with the same mnemonic is shown as one '~' row
+  for (let r = 0; r < rows.length; r++) {
+    const [i, j] = rows[r];
+    if (i >= 0 && j >= 0) { console.log(`=  ${pad(ours[i].text, 60)} | ${theirs[j].text}`); continue; }
+    const nx = rows[r + 1];
+    if (i >= 0 && nx && nx[0] < 0 && nx[1] >= 0 && mnem(ours[i].text) === mnem(theirs[nx[1]].text)) {
+      console.log(`~  ${pad(ours[i].text, 60)} | ${theirs[nx[1]].text}`); r++; continue;
+    }
+    if (i >= 0) console.log(`-  ${pad(ours[i].text, 60)} |`);
+    else console.log(`+  ${pad("", 60)} | ${theirs[j].text}`);
+  }
+}
+
 function lcsDistance(a, b) {
   if (a.length * b.length > 25e6) return null;
   let prev = new Uint16Array(b.length + 1), cur = new Uint16Array(b.length + 1);
@@ -316,7 +351,17 @@ function compareFile(cpp) {
           const a = at(ours, (e) => e.off), b = theirs ? at(theirs, (e) => e.va - s.addr) : null;
           r.ours = a ? a.text : null; r.orig = b ? b.text : null;
         }
-        if (score && theirs) r.distance = lcsDistance(insKeys(mine, ours.map((e) => e.off)), insKeys(Buffer.from(orig0).subarray(0, origSize), theirs.map((e) => e.va - s.addr)));
+        if (score && theirs) {
+          // A function with an EH frame: the listing puts its unwind funclets and the `jmp __CxxFrameHandler` stub in
+          // a separate text$x segment whose offsets start again at 0, and the linker places that code elsewhere in
+          // Sum.exe. Our side is therefore scored only up to the first offset that goes backwards.
+          let co = ours.length;
+          for (let i = 1; i < ours.length; i++) if (ours[i].off < ours[i - 1].off) { co = i; break; }
+          const oursOffs = ours.slice(0, co).map((e) => e.off);
+          const ka = insKeys(mine, oursOffs), kb = insKeys(Buffer.from(orig0).subarray(0, origSize), theirs.map((e) => e.va - s.addr));
+          r.distance = lcsDistance(ka, kb);
+          if (align === s.addr) printAlign(s.name, ours.slice(0, co), theirs, ka, kb);
+        }
       }
       if (wrongTargets.length) r.targetWarnings = wrongTargets;
       result.functions.push(r);

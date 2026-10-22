@@ -195,6 +195,8 @@ node tools/vc6-compare.mjs src/decomp/game/objects.cpp --flags "/Od /Ob1 /GX /MT
 | `--json` | one JSON record per file and function instead of the table |
 | `--keep` | keep the temporary folder (printed) with the `.obj` and `.cod` |
 | `-v` | also list relocation targets that differ from the expected address, and other notes |
+| `--score` | for each function that differs, its distance from a match: the instructions outside the longest common subsequence of ours and the original's, relocations and branch displacements masked (what `vc6-nearmiss.mjs` ranks by) |
+| `--align ADDR` | (implies `--score`) the function at ADDR (hex) as an aligned listing of ours and the original's, one row per instruction: `=` same bytes, `~` a pair with the same mnemonic and different bytes, `-` only ours, `+` only the original's. Shows where the differences sit, which `vc6-side.mjs` (row by row, no alignment) does not once one side has an extra instruction |
 
 Per function it prints `match`, `differs` (the first differing offset, both sizes and instruction counts, and the
 two instructions at that offset) or `not found` (no compiled function of that name: inlined, or the comment is not
@@ -212,9 +214,20 @@ thunks are accepted. The summary counts checked and unchecked targets (`-v` list
 2026-10-17: `src/decomp/vc6-matches.txt` holds strict results. The original's instruction counts come from `build/sum.asm`
 (`tools/asm.mjs`'s cache; run that once first).
 
+With `--score`, a function with an exception frame (`/GX` and a local with a destructor) is scored only up to its
+own end: VC6 puts the unwind funclets in `text$x`, after all the functions, and the listing gives them offsets that
+start again from the function's own. Our side is cut at the first instruction whose offset goes backwards
+(2026-10-22; before that the funclets counted as extra instructions: `cutscene_script_load` 32, now 25,
+`editor_dialog_show` 137, now 71). The ranking of round 5 and earlier overrated such functions.
+
+Two pitfalls: a helper function placed between a `// 0xADDR` comment and the function it names takes the marker,
+so the named function is reported `not found` (keep the comment directly above its definition); and the k-th
+definition of a name pairs with the k-th compiled function of that name, so overloads have to stay in source order.
+
 ## Byte-matching workflow tools
 
-Added 2026-10-17 (they were scratch scripts during the 2026-10-16 rounds). All need `VC6_DIR` set to the Service
+Added 2026-10-17 (they were scratch scripts during the 2026-10-16 rounds). The source-side techniques the rounds found
+are on [Matching devices](matching-devices.md). All need `VC6_DIR` set to the Service
 Pack 5 `VC98` folder ([Setup](setup.md)) and run from PowerShell or cmd.
 
 | Tool | What it does |
@@ -225,8 +238,9 @@ Pack 5 `VC98` folder ([Setup](setup.md)) and run from PowerShell or cmd.
 | `tools/decomp-uncompared.mjs <list> [--list]` | Written functions (a sum.symbols address in a `// 0xADDR` comment) that the sweep never compared, by reason: inside another marker's comment block (mostly compiler-generated initialisers and destructors of globals), a note, or not a definition. |
 | `tools/vc6-targets.mjs <sweep list>` | For a strict sweep list, every function marked `target` and which reference is wrong (symbol, the address or bytes ours expects, what Sum.exe has). |
 | `tools/vc6-side.mjs <listing.cod> <name> <address>` | One function's VC6 output next to Sum.exe's disassembly, differing mnemonics marked `*`. The listing comes from `vc6-compare.mjs --keep` (or `--json`'s `tmp`). |
-| `tools/vc6-try.mjs [--root DIR] <file> <address> <variants.json> [--side NAME]` | Tries source variants (`[{"name", "from", "to"}]`, exact text replacements) one at a time and reports whether the function then matches and the file's match count; the file is always restored. `--side` prints each failing variant's first differing lines. |
+| `tools/vc6-try.mjs [--root DIR] <file> <address> <variants.json> [--side NAME]` | Tries source variants (`[{"name", "from", "to"}]`, exact text replacements) one at a time and reports whether the function then matches and the file's match count; the file is always restored. `--side` prints each failing variant's first differing lines; NAME is a substring of the mangled name and the first `PROC` containing it wins, so for a member or an overloaded name pass the mangled form (`?draw@dialogue_box@@`), or a bare `draw` may show another class's function. |
 | `tools/vc6-nearmiss.mjs [--root DIR] [--only REGEX] [--jobs N] [--top N] [--max D] [--out FILE]` | Ranks every function that still differs by its distance from a match (`vc6-compare.mjs --score`: the instructions outside the longest common subsequence of ours and the original's, relocations and branch displacements masked; 0 means only branch distances differ). The closest ones are where a byte-match round starts. The whole tree takes under a minute with `--jobs 8`. |
+| `tools/vc6-localhash.mjs [--probe] name...` | The frame order VC6 gives the locals of an unoptimised (`/Od`, `#pragma optimize` off) function: by a hash of their names, not their declaration order (DECISIONS.md D6101, D23500, D25200). Prints the predicted order, highest address first, with each name's bucket; `--probe` also compiles the names as int locals and prints VC6's order. A wrong slot order in such a function is fixed by renaming locals. |
 | `tools/vc6-flagsweep.mjs <root> <out.json> [dir]` | Compiles every unit of `dir` (default `vsdk`) with its flags, with `/O2` -> `/Ox /Ow` and with `/Ow` added, and records each match set. A unit switches only when the new set contains every old match (DECISIONS.md D7502). |
 | `tools/decomp-merge.mjs <worker> <base> <stage>` | Three-way merge of a worker's copy of `src/decomp` into a stage: takes, merges (`git merge-file`) or adds each changed file; DECISIONS.md conflicts keep both appended blocks; other conflicts are listed (exit 1). |
 | `tools/decomp-sigcheck.mjs [src/decomp]` | Free functions whose header declaration and definition differ in parameters (a silent overload). One known, accepted: `charinfo_load_move_anim`. |

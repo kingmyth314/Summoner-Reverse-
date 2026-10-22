@@ -684,7 +684,9 @@ batches of whole files; at most twenty workers ran at once (the app's subagent l
 - **Unoptimised code places locals by a hash of their names** (worker 14, D23500): in functions compiled without
   optimisation (`#pragma optimize` off or `/Od`), VC6's frame order is not the declaration order but 16 buckets of
   `h & 15`, `h = h * 4 + (h >> 4) + c` over the name's characters (bucket 0 highest; within a bucket the later
-  declaration higher). Renaming a local moves it; the old "declared in frame order" comments held by coincidence.
+  declaration higher). Corrected 2026-10-22 (D25200): the bucket is `(h ^ (h >> 16)) & 15`, D6101's rule; `h & 15`
+  is the same for names of up to about 5 characters, where h stays below 2^16, and fails for longer ones (40 of 40
+  probes with 6- to 15-character names). `tools/vc6-localhash.mjs` predicts the order. Renaming a local moves it; the old "declared in frame order" comments held by coincidence.
   This applies to `objects.cpp` and the other unoptimised functions.
 - A local that caches a pointer field (`c = list[i].character`, `g = target->ai.group`) steers the loop pointer, the
   callee-saved registers and the frame size; writing the field out at each use matched two "register choice" cases
@@ -699,7 +701,7 @@ threshold is `0.025f * 0.025f`, `item_obj_spawn`'s start height -999999.0f), bot
 merged: an unused pointer local in `state_game_frame` (a non-match, D25002). Kept: three unused vector3 locals in
 `camera_blend` (D23900), because they make VC6 emit the binary's out-of-line calls, which decide the x87 rounding of
 D9807. Every closer change (about 60 functions) was read for behaviour by four review agents against the previous
-version before the commit: all equivalent. One header change: `living_combat::send_net(bool, bool)` (D22505; the 23
+version before the commit: all equivalent. The devices of all rounds are gathered on [Matching devices](matching-devices.md). One header change: `living_combat::send_net(bool, bool)` (D22505; the 23
 units that include it lose nothing).
 
 The
