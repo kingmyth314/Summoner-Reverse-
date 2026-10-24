@@ -29,6 +29,7 @@
 #include "levelscripts/level_scripts.h"
 #include "levelscripts/savegame.h"
 #include "summoner/interface/new_tutorial.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 #define TUTORIAL_NUM_ENTRIES 5
 #define TUTORIAL_MAX_LINES   16      // gr_split_str max_lines; the line arrays have 20 slots (0x50 bytes)

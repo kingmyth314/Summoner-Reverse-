@@ -22,6 +22,7 @@
 #include "summoner/multi/multi.h"
 #include "summoner/player/player.h"
 #include "summoner/interface/new_pickup.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 // ---------------------------------------------------------------- .rdata (0x580220-0x580477)
 // Nine buttons in hilite/press pairs (see new_assess.cpp); action id = hilite index + 1.

@@ -66,6 +66,7 @@
 #include "levelscripts/savegame.h"
 #include "engine/ai/pathfinding.h"
 #include "vsdk/os/profile.h"
+#include "experimental/experimental.h"   // EXPERIMENTAL_BUILD only (widescreen)
 
 // ---- .data (0x5a08a8) ----------------------------------------------------------------------------------
 const char *script_editor_mode_names[SE_NUM_MODES] = {          // 0x5a08a8
@@ -884,7 +885,12 @@ void script_editor_frame()
     }
     if (!script_editor_ui_created)
         script_editor_create_ui();
+#ifdef EXPERIMENTAL_BUILD
+    // experimental build: widescreen. The ray into the world from the raw cursor.
+    gr_screen_to_world_ray(&script_editor_mouse_ray, (float)exp_mouse_raw_x, (float)exp_mouse_raw_y);
+#else
     gr_screen_to_world_ray(&script_editor_mouse_ray, (float)game_mouse_x, (float)game_mouse_y);
+#endif
     script_editor_pick_hover();
     script_editor_update_buttons();
     script_editor_handle_input();

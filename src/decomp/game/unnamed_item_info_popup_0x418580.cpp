@@ -34,6 +34,7 @@
 #include "engine/objects/items.h"
 #include "engine/objects/item_paging.h"
 #include "summoner/interface/unnamed_item_info_popup_0x418580.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 #define POPUP_NUM_BUTTONS 7
 #define POPUP_SOURCE_TYPE 1                 // item_create'd: freed on close

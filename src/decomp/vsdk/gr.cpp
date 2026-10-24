@@ -39,6 +39,7 @@
 #include "vsdk/gr/glide/gr_glide.h"
 #define GL_MIN_NO_DLLIMPORT                           // glFinish through the linker thunk (D2004)
 #include "vsdk/gr/opengl/gr_opengl.h"
+#include "experimental/experimental.h"   // EXPERIMENTAL_BUILD only (widescreen)
 
 // Original __FILE__ of this unit (0x5a62d8 and 0x5a6364; string pooling is off).
 #define GR_CPP "D:\\projects\\Summoner\\pccode\\vsdk\\gr\\gr.cpp"
@@ -624,6 +625,9 @@ void Color::set(int r, int g, int b, int a)
 // edge is tested with >= and the bottom edge with >, as the binary does.
 void gr::set_clip(int x, int y, int w, int h)
 {
+#ifdef EXPERIMENTAL_BUILD
+    exp_ws_clip_shifted = 0;   // experimental build: widescreen; interface code's gr::ui_set_clip sets it again
+#endif
     gr_screen.offset_x = x;
     gr_screen.offset_y = y;
     gr_screen.clip_left = 0;

@@ -22,6 +22,7 @@
 #include "vsdk/os/mouse.h"
 #include "vsdk/os/plainstring.h"
 #include "vsdk/bmpman/bmpman.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 // ---- .bss (0x2cbf554-0x2cbf55f) -------------------------------------------------------------------
 ui_gadget *ui_nav_best_gadget;      // 0x2cbf554 read and written by ui_gadget__find_nearest_* too

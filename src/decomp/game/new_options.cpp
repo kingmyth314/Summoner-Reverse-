@@ -20,6 +20,7 @@
 #include "engine/rendering/levelrender.h"
 #include "summoner/multi/multi.h"
 #include "summoner/interface/new_options.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 #define OPTIONS_NUM_BUTTONS 75
 

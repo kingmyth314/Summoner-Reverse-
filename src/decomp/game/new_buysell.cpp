@@ -28,6 +28,7 @@
 #include "levelscripts/level_scripts.h"
 #include "summoner/multi/multi.h"
 #include "summoner/interface/new_buysell.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 #define BUYSELL_NUM_BUTTONS 40
 #define BUYSELL_PAGE_SLOT   0x12      // item paging slot of the shop's 3D view (ITEM_PAGE_SLOT_POPUP)

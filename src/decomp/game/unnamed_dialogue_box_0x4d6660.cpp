@@ -26,6 +26,7 @@
 #include "vsdk/localize/localize.h"
 #include "summoner/interface/interface.h"
 #include "levelscripts/conversation.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 #define DIALOGUE_RING      64            // records per box (the % 64 of every index)
 #define DIALOGUE_LABELS    32

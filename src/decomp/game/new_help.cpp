@@ -20,6 +20,7 @@
 #include "engine/gamesound/gamesound.h"
 #include "vsdk/os/frametime.h"
 #include "summoner/interface/new_help.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 // ---------------------------------------------------------------- .rdata (0x57edd0-0x57edff)
 // Per resolution_index: the help panel rectangle.

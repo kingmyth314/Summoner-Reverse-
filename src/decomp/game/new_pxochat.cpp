@@ -30,6 +30,7 @@
 #include "summoner/interface/new_pxo_banner.h"
 #include "summoner/interface/new_int_multi_update.h"
 #include "summoner/interface/new_pxochat.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 #define PXOCHAT_NUM_BUTTONS  34
 #define PXOCHAT_MAX_LINES    64

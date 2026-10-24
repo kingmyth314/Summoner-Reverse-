@@ -31,6 +31,7 @@
 #include "engine/characterinfo/characterinfo.h"
 #include "summoner/multi/multi.h"
 #include "summoner/interface/new_charselect.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 #define CHARSELECT_NUM_BUTTONS 34
 #define CHARSELECT_MAX_CHARS   64

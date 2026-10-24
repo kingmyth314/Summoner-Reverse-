@@ -158,6 +158,8 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID reserved)
         TestSavesInstall();
         KeyBindInstall();
         ControllerInstall();
+        if (g_cfg.renderer == RENDERER_OPENGL)
+            WidescreenInstall(); // rebuilt mode: only the handshake with an exe that centres its interface itself
         // Fixes whose patch site is byte-identical in the rebuilt code apply (PatchBytes checks the original bytes);
         // the unconditional no-sound crash guard is one. [Fixes] Enabled=0 keeps the gameplay fixes off.
         BugFixesInstall();

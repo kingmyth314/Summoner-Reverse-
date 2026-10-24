@@ -15,6 +15,7 @@
 
 #include "vsdk/ui/window.h"
 #include "vsdk/gr/gr.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 // 0x52bfe0  Confidence: exact (the store order parent, *link, next_sibling is read from the code; a
 // plain `*link = next_sibling;` first would give the same instructions only if VC6 reordered the stores).

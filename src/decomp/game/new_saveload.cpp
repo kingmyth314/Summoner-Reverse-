@@ -31,6 +31,7 @@
 #include "levelscripts/conversation.h"
 #include "summoner/interface/new_saveload.h"
 #include "experimental/experimental.h"   // EXPERIMENTAL_BUILD only (autosave rows)
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 #define SAVELOAD_NUM_BUTTONS 23
 #define SAVELOAD_MAX_SAVES   32

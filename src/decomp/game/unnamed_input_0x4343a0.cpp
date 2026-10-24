@@ -28,6 +28,14 @@
 #include "summoner/interface/interface.h"
 #include "engine/camera/camera.h"
 #include "levelscripts/level_scripts.h"
+#include "experimental/experimental.h"   // EXPERIMENTAL_BUILD only (widescreen)
+
+#ifdef EXPERIMENTAL_BUILD
+// experimental build: widescreen. This unit's reads of the cursor (the mouse record for world clicks, the camera's
+// edge turn) are world code: the raw position, not the interface's shifted one.
+#define game_mouse_x exp_mouse_raw_x
+#define game_mouse_y exp_mouse_raw_y
+#endif
 
 // DirectInput scan codes this unit reads (vsdk/os/key.h has no names for them).
 #define DIK_LCONTROL 0x1d

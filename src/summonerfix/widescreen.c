@@ -232,6 +232,18 @@ void WidescreenInstall(void)
 {
     if (!g_cfg.centerHud || g_cfg.width <= LAYOUT_WIDTH)
         return;
+    if (g_rebuilt) {
+        // The experimental build centres its interface in its own source (experimental/widescreen.cpp, the
+        // "CenterHud" key in its .fixes file); only the full-screen panels are shifted here, by display.c through
+        // WidescreenFullPanel, which needs g_shift. No call is patched. Other rebuilt exes: nothing.
+        if (RebuiltFixInSource("CenterHud")) {
+            g_shift = (g_cfg.width - LAYOUT_WIDTH) / 2;
+            Log("widescreen UI: in this exe's source (EXPERIMENTAL_BUILD); full-screen panels shifted here (%d px)", g_shift);
+        } else {
+            Log("widescreen UI: not in this rebuilt exe; the interface stays at the left");
+        }
+        return;
+    }
     g_shift = (g_cfg.width - LAYOUT_WIDTH) / 2;
     o_bitmap = (F10)(UINT_PTR)SumVa(VA_GR_BITMAP);
     o_bitmapEx = (F10)(UINT_PTR)SumVa(VA_GR_BITMAP_EX);

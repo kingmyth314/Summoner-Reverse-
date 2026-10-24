@@ -15,6 +15,7 @@
 #include "vsdk/ui/ui_gadgets.h"
 #include "vsdk/gr/gr.h"
 #include "vsdk/os/mouse.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 // 0x55e040  Confidence: exact (VC6 keeps each of x1, x1 + 1, y1, y1 + 1, x2, y2, y2 - 1 as its own
 // induction variable). width rings of lines, the dark (bottom, right) ones first. The corners are

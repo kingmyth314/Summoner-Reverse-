@@ -19,6 +19,7 @@
 #include "vsdk/parse/parse.h"
 #include "vsdk/os/movie.h"
 #include "summoner/interface/new_credits.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 // ---------------------------------------------------------------- .rdata (0x57eb34-0x57eb7b)
 // Per resolution_index (0 = 640, 1 = 800, 2 = 1024) layout of the credits column.

@@ -15,6 +15,7 @@
 #include "vsdk/gr/gr.h"
 #include "vsdk/gr/gr_font.h"
 #include "vsdk/os/key.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 #define KEY_HOME 0xc7
 

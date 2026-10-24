@@ -16,6 +16,7 @@
 #include "vsdk/gr/gr_font.h"
 #include "vsdk/os/key.h"
 #include "vsdk/os/mouse.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 // 0x553ba0  vtable slot 5. Confidence: exact. state is recomputed each frame (the previous one decides
 // the release click). A hidden box only plays sound 3 on a click or its hotkey. The hotkey, or Enter

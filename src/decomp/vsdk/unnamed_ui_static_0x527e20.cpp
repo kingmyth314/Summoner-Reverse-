@@ -18,6 +18,7 @@
 #include "vsdk/ui/ui_gadgets.h"
 #include "vsdk/gr/gr.h"
 #include "vsdk/gr/gr_font.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 // 0x527e20  vtable slot 0. Confidence: exact.
 void ui_static::dtor()

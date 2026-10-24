@@ -33,6 +33,7 @@
 #include "summoner/multi/multi.h"
 #include "summoner/interface/new_buysell.h"
 #include "summoner/interface/new_status.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 #define STATUS_NUM_BUTTONS 21
 #define STATUS_MAX_SKILLS  35

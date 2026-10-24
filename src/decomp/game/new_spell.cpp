@@ -25,6 +25,7 @@
 #include "levelscripts/level_scripts.h"
 #include "summoner/interface/new_hud.h"
 #include "summoner/interface/new_spell.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 #define SPELLS_NUM_BUTTONS 49
 #define SPELLS_NUM_ICONS   38      // the player spells (spells 0..37)

@@ -20,6 +20,7 @@
 #include "summoner/interface/interface.h"
 #include "summoner/multi/multichat.h"
 #include "summoner/interface/new_multichat.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 // ---- .rdata (0x5800f8-0x580133) ---------------------------------------------------------------------
 const int chat_width[3] = { 310, 388, 496 };                                  // 0x5800f8

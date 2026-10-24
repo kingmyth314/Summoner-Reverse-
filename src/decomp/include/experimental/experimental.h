@@ -50,6 +50,14 @@ bool exp_bm_nominal_size(int index, int *w, int *h);     // bm_get_dimensions: t
 // A pixel reader of bitmap bm that indexes its data with the nominal width: scales (x, y) to the real image and
 // returns the real width (the row stride); unchanged without an override.
 int  exp_bm_real_point(int bm, int *x, int *y, int nominal_w);
+// widescreen.cpp: the interface centred on a wide screen ([Display] CenterHud); the wrappers are in ui_shift.h
+extern int exp_ws_clip_shifted;                          // gr::set_clip clears it (gr.cpp)
+extern int exp_mouse_raw_x, exp_mouse_raw_y;             // the unshifted cursor, for world code
+int  exp_ws_mouse_tick(int *x, int *y, int *z);          // GameTick's mouse_get_pos
+int  exp_ws_side_panel_begin(bool frame);                // around interface_draw / interface_frame's switch
+void exp_ws_side_panel_end(int undo);
+int  exp_ws_view_width();                                // interface_set_view_clip's gr_screen_width
+int  exp_ws_panel_width(int width);                      // interface_set_view_clip's side-panel widths
 // The Tentacle Beast grab is written inside game/unnamed_tentacle_beast_0x4c6480.cpp under EXPERIMENTAL_BUILD
 // ([Experimental] TentacleGrab); it needs no hook here.
 

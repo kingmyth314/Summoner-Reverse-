@@ -25,6 +25,7 @@
 #include "levelscripts/savegame.h"
 #include "summoner/interface/new_buysell.h"
 #include "summoner/interface/new_journal.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 #define JOURNAL_NUM_BUTTONS 19
 

@@ -26,6 +26,7 @@
 #include "levelscripts/level_scripts.h"
 #include "summoner/multi/multi.h"
 #include "summoner/interface/new_levelselect.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 #define LEVELSELECT_NUM_BUTTONS 15
 #define LEVELSELECT_CHAT_LINES  64

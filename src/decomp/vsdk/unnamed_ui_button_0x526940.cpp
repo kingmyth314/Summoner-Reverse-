@@ -20,6 +20,7 @@
 #include "vsdk/gr/gr_font.h"
 #include "vsdk/os/mouse.h"
 #include "vsdk/math/vector.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 // 0x526940  Confidence: exact. Called from process in states 6 and 7 (each frame of a held repeat too).
 void ui_button::fire_click(int right)

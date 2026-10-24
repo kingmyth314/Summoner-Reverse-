@@ -22,6 +22,7 @@
 #include "engine/gamesound/gamesound.h"
 #include "engine/objects/living_entity.h"
 #include "summoner/interface/new_assess.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 // ---------------------------------------------------------------- .rdata (0x57e4c0-0x57e6af)
 // Seven buttons in hilite/press pairs; assess_update_buttons draws and fires the "Press" record

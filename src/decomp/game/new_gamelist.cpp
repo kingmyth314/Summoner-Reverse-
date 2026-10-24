@@ -23,6 +23,7 @@
 #include "summoner/multi/multi.h"
 #include "summoner/interface/new_charselect.h"
 #include "summoner/interface/new_gamelist.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 #define GAMELIST_NUM_BUTTONS 18
 

@@ -48,6 +48,7 @@
 #include "summoner/interface/new_spell.h"
 #include "summoner/interface/new_tutorial.h"
 #include "summoner/interface/new_hud.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 #define HUD_NUM_BUTTONS   62
 #define HUD_NUM_PORTRAITS 5

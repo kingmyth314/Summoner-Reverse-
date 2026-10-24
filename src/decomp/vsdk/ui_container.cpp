@@ -14,6 +14,7 @@
 #include "vsdk/bmpman/bmpman.h"
 #include "vsdk/ui/ui_container.h"
 #include "experimental/experimental.h"   // EXPERIMENTAL_BUILD only (HiResInterface)
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 // Original __FILE__ of this unit (pushed by load_mask_bitmap, 0x5ad9f8).
 #define UI_CONTAINER_CPP "D:\\projects\\Summoner\\pccode\\vsdk\\ui\\ui_container.cpp"

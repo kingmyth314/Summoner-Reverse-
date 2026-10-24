@@ -28,6 +28,7 @@
 #include "engine/objects/living_entity.h"
 #include "summoner/multi/multi.h"
 #include "summoner/interface/new_itemtrade.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 #define ITEMTRADE_NUM_BUTTONS 28
 #define ITEMTRADE_MAX_GOLD    9999999

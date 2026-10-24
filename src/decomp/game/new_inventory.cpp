@@ -43,6 +43,7 @@
 #include "summoner/interface/new_buysell.h"
 #include "summoner/interface/new_skill.h"
 #include "summoner/interface/new_inventory.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 #define INVENTORY_NUM_BUTTONS 45
 #define INVENTORY_PAGE_SLOT   0x12    // item paging slot of the drag preview (ITEM_PAGE_SLOT_POPUP)

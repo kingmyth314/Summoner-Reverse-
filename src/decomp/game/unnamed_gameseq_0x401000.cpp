@@ -112,7 +112,11 @@ int GameTick()
     else
         FrameDone();
     mouse_update();
+#ifdef EXPERIMENTAL_BUILD
+    exp_ws_mouse_tick(&game_mouse_x, &game_mouse_y, &game_mouse_z);   // experimental build: widescreen (raw + UI x)
+#else
     mouse_get_pos(&game_mouse_x, &game_mouse_y, &game_mouse_z);
+#endif
 #ifdef EXPERIMENTAL_BUILD
     exp_frame_begin();                 // experimental build: input for this frame (controller)
 #endif

@@ -36,6 +36,7 @@
 #include "summoner/interface/new_hud.h"
 #include "summoner/interface/new_spell.h"
 #include "summoner/interface/new_skill.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 #define SKILLS_NUM_BUTTONS 49
 #define SKILLS_NUM_ICONS   56      // skill ids 0..0x37

@@ -22,6 +22,7 @@
 #include "vsdk/gr/gr_font.h"
 #include "vsdk/os/key.h"
 #include "vsdk/os/plainstring.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 // ---- .bss (0x2cbf584-0x2cbf623) -------------------------------------------------------------------
 char *ui_listbox_line_starts[20];   // 0x2cbf584

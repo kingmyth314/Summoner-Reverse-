@@ -27,6 +27,7 @@
 #include "vsdk/gr/gr_font.h"
 #include "vsdk/os/mouse.h"
 #include "vsdk/snd/snd.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 // ---- objects with constructors, in initialiser order ------------------------------------------------
 // 0x52f570 / 0x52f580  init_ui_tooltip_timer: the dynamic initialiser (a jmp to its body, which tail-calls

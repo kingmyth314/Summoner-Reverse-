@@ -41,6 +41,7 @@
 #include "levelscripts/savegame.h"
 #include "summoner/automap.h"
 #include "summoner/unnamed_worldmap_automap_0x42f1e0.h"
+#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 // ---- .rdata (0x580d98; names ours) ------------------------------------------------------------------
 // The screen border the off-screen markers sit on, per resolution_index: {left, right} and {top, bottom}.
