@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include "../summonerfix/keynames.h"
 #include "../summonerfix/padmap.h"
+#include "../summonerfix/screensize.h"
 
 // The game's hard-coded key map (docs/sum-exe/controls.md). gameKey is the code the game reacts to.
 typedef struct { unsigned short gameKey; const char *action; } Action;
@@ -48,7 +49,9 @@ static const Hotkey k_hotkeys[] = {
 enum { ID_LIST = 100, ID_CHANGE, ID_CLEAR, ID_RESET, ID_CLOSE, ID_STATUS, ID_SKIPMOVIES, ID_ZOOM, ID_INTERACT, ID_CONTAINER, ID_APPLY, ID_SPEEDTOGGLE,
        ID_CONSOLE_CMD, ID_CONSOLE_BIND, ID_FIXALL, ID_FIXLIST, ID_FIXSAVE, ID_FIXCLOSE, ID_TENTACLE, ID_TENTCHANCE,
        ID_PADOPEN, ID_PADENABLED, ID_PADSAVE, ID_PADRESET, ID_PADCLOSE,
-       ID_EXPOPEN, ID_EXPAUTOSAVE, ID_EXPLEVEL, ID_EXPVSYNC, ID_EXPHIRES, ID_EXPLOG, ID_EXPSAVE, ID_EXPRESET, ID_EXPCLOSE };
+       ID_EXPOPEN, ID_EXPAUTOSAVE, ID_EXPLEVEL, ID_EXPVSYNC, ID_EXPHIRES, ID_EXPLOG, ID_EXPSAVE, ID_EXPRESET, ID_EXPCLOSE,
+       ID_DISPOPEN, ID_DISPRENDER, ID_DISPOUTPUT, ID_DISPSIZE, ID_DISPWIN, ID_DISPMENUS, ID_DISPHUD, ID_DISPPANELS,
+       ID_DISPSAVE, ID_DISPRESET, ID_DISPCLOSE };
 
 // [ConsoleKeys] Key=command entries (keys that run a developer console command). Shown as list rows after the
 // hotkeys; Change key / Clear work on them, and "Bind key..." adds one for the command typed in the box.
@@ -910,6 +913,244 @@ static void OpenExpWindow(void)
     ShowWindow(g_expWnd, SW_SHOW);
 }
 
+// The "Display" window: [Display] Renderer, Mode, GameWidth / GameHeight, WindowWidth / WindowHeight and the three
+// wide-screen switches, so a player never edits summonerfix.ini for them. The game size list: "Match my screen"
+// (GameWidth=Auto, screensize.h) and the 768-high size of each common screen shape; the interface is laid out for
+// 768 lines, and the 3D world is drawn at the screen's own resolution in any case. The window sizes are the modes the
+// primary display reports (EnumDisplaySettings), up to the desktop's size.
+static HWND g_dispWnd;
+#define DISP_WND_W 560
+#define DISP_WND_H 330
+typedef struct { int w, h; const char *shape; } DispSize;
+static const DispSize k_dispSizes[] = {
+    {1024, 768, "4:3, the original layout"}, {1228, 768, "16:10"}, {1366, 768, "16:9"}, {1792, 768, "21:9"}, {2732, 768, "32:9"},
+};
+#define DISP_SIZE_COUNT (int)(sizeof k_dispSizes / sizeof k_dispSizes[0])
+static const char *const k_renderers[] = {"OpenGL", "Direct3D", "Glide"};
+static int g_dispSizeW[DISP_SIZE_COUNT + 2], g_dispSizeH[DISP_SIZE_COUNT + 2]; // per list row; 0 x 0 = Auto
+static int g_dispWinW[64], g_dispWinH[64], g_dispWinCount;
+
+static HWND DispCombo(HWND parent, int id, int x, int y, int w)
+{
+    HWND c = CreateWindowA("COMBOBOX", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_VSCROLL | CBS_DROPDOWNLIST, x, y, w, 240, parent,
+                           (HMENU)(INT_PTR)id, NULL, NULL);
+    SendMessageA(c, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
+    return c;
+}
+
+static HWND DispCheck(HWND parent, int id, const char *text, int y)
+{
+    HWND cb = CreateWindowA("BUTTON", text, WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 10, y, DISP_WND_W - 20, 20, parent,
+                            (HMENU)(INT_PTR)id, NULL, NULL);
+    SendMessageA(cb, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
+    return cb;
+}
+
+// The window sizes: the display's modes, unique, no larger than the desktop, largest first.
+static void DispListWindowSizes(void)
+{
+    int dw, dh;
+    DisplayDesktopSize(&dw, &dh);
+    g_dispWinCount = 0;
+    DEVMODEA dm;
+    for (DWORD i = 0;; i++) {
+        ZeroMemory(&dm, sizeof dm);
+        dm.dmSize = sizeof dm;
+        if (!EnumDisplaySettingsA(NULL, i, &dm))
+            break;
+        int w = (int)dm.dmPelsWidth, h = (int)dm.dmPelsHeight, seen = 0;
+        if (w < 640 || h < 480 || w > dw || h > dh)
+            continue;
+        for (int k = 0; k < g_dispWinCount; k++)
+            if (g_dispWinW[k] == w && g_dispWinH[k] == h)
+                seen = 1;
+        if (seen || g_dispWinCount >= 64)
+            continue;
+        int k = g_dispWinCount++;
+        while (k > 0 && (g_dispWinW[k - 1] < w || (g_dispWinW[k - 1] == w && g_dispWinH[k - 1] < h))) {
+            g_dispWinW[k] = g_dispWinW[k - 1];
+            g_dispWinH[k] = g_dispWinH[k - 1];
+            k--;
+        }
+        g_dispWinW[k] = w;
+        g_dispWinH[k] = h;
+    }
+}
+
+// Fills the controls from the ini (or with the defaults: OpenGL, fullscreen, Auto, 1600x1200, all three on).
+static void DispFill(HWND w, BOOL defaults)
+{
+    char buf[32];
+    int sw, sh, aw, ah;
+    DisplayDesktopSize(&sw, &sh);
+    DisplaySizeForAspect(sw, sh, &aw, &ah);
+
+    HWND r = GetDlgItem(w, ID_DISPRENDER);
+    GetPrivateProfileStringA("Display", "Renderer", "OpenGL", buf, sizeof buf, g_ini);
+    int ri = 0;
+    for (int i = 0; i < 3; i++)
+        if (!defaults && !lstrcmpiA(buf, k_renderers[i]))
+            ri = i;
+    SendMessageA(r, CB_SETCURSEL, ri, 0);
+
+    GetPrivateProfileStringA("Display", "Mode", "Fullscreen", buf, sizeof buf, g_ini);
+    SendMessageA(GetDlgItem(w, ID_DISPOUTPUT), CB_SETCURSEL, (!defaults && !lstrcmpiA(buf, "Window")) ? 1 : 0, 0);
+
+    // Game size: row 0 is Auto; then the fixed list; then the ini's own size if it is none of them.
+    HWND s = GetDlgItem(w, ID_DISPSIZE);
+    SendMessageA(s, CB_RESETCONTENT, 0, 0);
+    char row[96];
+    snprintf(row, sizeof row, "Match my screen: %d x %d (recommended)", aw, ah);
+    SendMessageA(s, CB_ADDSTRING, 0, (LPARAM)row);
+    g_dispSizeW[0] = g_dispSizeH[0] = 0;
+    int rows = 1;
+    for (int i = 0; i < DISP_SIZE_COUNT; i++, rows++) {
+        snprintf(row, sizeof row, "%d x %d (%s)", k_dispSizes[i].w, k_dispSizes[i].h, k_dispSizes[i].shape);
+        SendMessageA(s, CB_ADDSTRING, 0, (LPARAM)row);
+        g_dispSizeW[rows] = k_dispSizes[i].w;
+        g_dispSizeH[rows] = k_dispSizes[i].h;
+    }
+    int sel = 0;
+    GetPrivateProfileStringA("Display", "GameWidth", "Auto", buf, sizeof buf, g_ini);
+    if (!defaults && lstrcmpiA(buf, "Auto")) {
+        int gw = atoi(buf), gh = (int)GetPrivateProfileIntA("Display", "GameHeight", 768, g_ini);
+        for (int i = 1; i < rows; i++)
+            if (g_dispSizeW[i] == gw && g_dispSizeH[i] == gh)
+                sel = i;
+        if (!sel && gw > 0 && gh > 0) {
+            snprintf(row, sizeof row, "%d x %d (as set in summonerfix.ini)", gw, gh);
+            SendMessageA(s, CB_ADDSTRING, 0, (LPARAM)row);
+            g_dispSizeW[rows] = gw;
+            g_dispSizeH[rows] = gh;
+            sel = rows++;
+        }
+    }
+    SendMessageA(s, CB_SETCURSEL, sel, 0);
+
+    // Window size: the display's modes, plus the ini's own size if the display does not list it.
+    HWND ws = GetDlgItem(w, ID_DISPWIN);
+    SendMessageA(ws, CB_RESETCONTENT, 0, 0);
+    DispListWindowSizes();
+    int ww = defaults ? 1600 : (int)GetPrivateProfileIntA("Display", "WindowWidth", 1600, g_ini);
+    int wh = defaults ? 1200 : (int)GetPrivateProfileIntA("Display", "WindowHeight", 1200, g_ini);
+    int found = -1;
+    for (int i = 0; i < g_dispWinCount; i++)
+        if (g_dispWinW[i] == ww && g_dispWinH[i] == wh)
+            found = i;
+    if (found < 0 && g_dispWinCount < 64) {
+        g_dispWinW[g_dispWinCount] = ww;
+        g_dispWinH[g_dispWinCount] = wh;
+        found = g_dispWinCount++;
+    }
+    for (int i = 0; i < g_dispWinCount; i++) {
+        snprintf(row, sizeof row, "%d x %d", g_dispWinW[i], g_dispWinH[i]);
+        SendMessageA(ws, CB_ADDSTRING, 0, (LPARAM)row);
+    }
+    SendMessageA(ws, CB_SETCURSEL, found, 0);
+
+    CheckDlgButton(w, ID_DISPMENUS, (defaults || GetPrivateProfileIntA("Display", "CenterMenus", 1, g_ini)) ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(w, ID_DISPHUD, (defaults || GetPrivateProfileIntA("Display", "CenterHud", 1, g_ini)) ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(w, ID_DISPPANELS,
+                   (defaults || GetPrivateProfileIntA("Display", "SidePanelsOverWorld", 1, g_ini)) ? BST_CHECKED : BST_UNCHECKED);
+}
+
+static void DispSave(HWND w)
+{
+    char buf[16];
+    int ri = (int)SendMessageA(GetDlgItem(w, ID_DISPRENDER), CB_GETCURSEL, 0, 0);
+    WritePrivateProfileStringA("Display", "Renderer", k_renderers[ri < 0 ? 0 : ri], g_ini);
+    int oi = (int)SendMessageA(GetDlgItem(w, ID_DISPOUTPUT), CB_GETCURSEL, 0, 0);
+    WritePrivateProfileStringA("Display", "Mode", oi == 1 ? "Window" : "Fullscreen", g_ini);
+    int si = (int)SendMessageA(GetDlgItem(w, ID_DISPSIZE), CB_GETCURSEL, 0, 0);
+    if (si <= 0 || !g_dispSizeW[si]) {
+        WritePrivateProfileStringA("Display", "GameWidth", "Auto", g_ini);
+        WritePrivateProfileStringA("Display", "GameHeight", "768", g_ini);
+    } else {
+        snprintf(buf, sizeof buf, "%d", g_dispSizeW[si]);
+        WritePrivateProfileStringA("Display", "GameWidth", buf, g_ini);
+        snprintf(buf, sizeof buf, "%d", g_dispSizeH[si]);
+        WritePrivateProfileStringA("Display", "GameHeight", buf, g_ini);
+    }
+    int wi = (int)SendMessageA(GetDlgItem(w, ID_DISPWIN), CB_GETCURSEL, 0, 0);
+    if (wi >= 0 && wi < g_dispWinCount) {
+        snprintf(buf, sizeof buf, "%d", g_dispWinW[wi]);
+        WritePrivateProfileStringA("Display", "WindowWidth", buf, g_ini);
+        snprintf(buf, sizeof buf, "%d", g_dispWinH[wi]);
+        WritePrivateProfileStringA("Display", "WindowHeight", buf, g_ini);
+    }
+    WritePrivateProfileStringA("Display", "CenterMenus", IsDlgButtonChecked(w, ID_DISPMENUS) ? "1" : "0", g_ini);
+    WritePrivateProfileStringA("Display", "CenterHud", IsDlgButtonChecked(w, ID_DISPHUD) ? "1" : "0", g_ini);
+    WritePrivateProfileStringA("Display", "SidePanelsOverWorld", IsDlgButtonChecked(w, ID_DISPPANELS) ? "1" : "0", g_ini);
+}
+
+static LRESULT CALLBACK DispWndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
+{
+    switch (msg) {
+    case WM_CREATE: {
+        int sw, sh;
+        DisplayDesktopSize(&sw, &sh);
+        char line[160];
+        snprintf(line, sizeof line, "Your screen: %d x %d. Changes apply the next time the game starts (Sum.exe and Sum-exp.exe).", sw, sh);
+        Label(w, line, 10, 10, DISP_WND_W - 20);
+        Label(w, "Renderer:", 10, 40, 130);
+        HWND r = DispCombo(w, ID_DISPRENDER, 150, 37, 200);
+        SendMessageA(r, CB_ADDSTRING, 0, (LPARAM) "OpenGL (recommended)");
+        SendMessageA(r, CB_ADDSTRING, 0, (LPARAM) "Direct3D (needs dgVoodoo 2)");
+        SendMessageA(r, CB_ADDSTRING, 0, (LPARAM) "Glide (needs dgVoodoo 2)");
+        Label(w, "Show the game:", 10, 72, 130);
+        HWND o = DispCombo(w, ID_DISPOUTPUT, 150, 69, 280);
+        SendMessageA(o, CB_ADDSTRING, 0, (LPARAM) "Fullscreen (borderless, your screen's resolution)");
+        SendMessageA(o, CB_ADDSTRING, 0, (LPARAM) "In a window");
+        Label(w, "Game resolution:", 10, 104, 130);
+        DispCombo(w, ID_DISPSIZE, 150, 101, 390);
+        Label(w, "The 3D world is always drawn at full resolution. This sets the", 150, 128, 400);
+        Label(w, "interface's layout, which is made for 768 lines: all sizes are 768 high.", 150, 144, 400);
+        Label(w, "Window size:", 10, 172, 130);
+        DispCombo(w, ID_DISPWIN, 150, 169, 160);
+        Label(w, "(when shown in a window)", 320, 172, 200);
+        DispCheck(w, ID_DISPMENUS, "Centre the menus on wide screens", 202);
+        DispCheck(w, ID_DISPHUD, "Centre the HUD and in-game screens on wide screens", 224);
+        DispCheck(w, ID_DISPPANELS, "Keep the world full width behind the map, spells and skills panels", 246);
+        Button(w, ID_DISPSAVE, "&Save", 10, 284, 100);
+        Button(w, ID_DISPRESET, "&Defaults", 120, 284, 100);
+        Button(w, ID_DISPCLOSE, "Close", 230, 284, 100);
+        DispFill(w, FALSE);
+        return 0;
+    }
+    case WM_COMMAND:
+        if (LOWORD(wp) == ID_DISPSAVE) {
+            DispSave(w);
+            SetStatus("Display settings saved. They apply the next time the game starts.");
+            DestroyWindow(w);
+        } else if (LOWORD(wp) == ID_DISPRESET) {
+            DispFill(w, TRUE); // shown only; Save writes them
+        } else if (LOWORD(wp) == ID_DISPCLOSE) {
+            DestroyWindow(w);
+        }
+        return 0;
+    case WM_DESTROY:
+        g_dispWnd = NULL;
+        return 0;
+    }
+    return DefWindowProcA(w, msg, wp, lp);
+}
+
+static void OpenDispWindow(void)
+{
+    if (g_dispWnd) {
+        SetForegroundWindow(g_dispWnd);
+        return;
+    }
+    RECT r = {0, 0, DISP_WND_W, DISP_WND_H};
+    DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU;
+    AdjustWindowRect(&r, style, FALSE);
+    RECT m;
+    GetWindowRect(g_wnd, &m);
+    g_dispWnd = CreateWindowExA(WS_EX_TOPMOST, "SummonerFixDisplay", "SummonerFix - Display", style, m.left + 50, m.top + 50,
+                                r.right - r.left, r.bottom - r.top, g_wnd, NULL, GetModuleHandleA(NULL), NULL);
+    ShowWindow(g_dispWnd, SW_SHOW);
+}
+
 static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
 {
     switch (msg) {
@@ -986,6 +1227,7 @@ static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         Label(w, "Experimental build (Sum-exp.exe):", 770, 424, 230);
         Button(w, ID_EXPOPEN, "E&xperimental...", 770, 442, 120);
         Button(w, ID_CLOSE, "Close", 540, 472, 120);
+        Button(w, ID_DISPOPEN, "&Display / resolution...", 770, 472, 170);
         g_status = CreateWindowA("STATIC", "", WS_CHILD | WS_VISIBLE, 10, 510, 990, 20, w, (HMENU)ID_STATUS, NULL, NULL);
         SendMessageA(g_status, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
         Load();
@@ -1012,6 +1254,7 @@ static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         case ID_FIXLIST: OpenFixWindow(); break;
         case ID_PADOPEN: OpenPadWindow(); break;
         case ID_EXPOPEN: OpenExpWindow(); break;
+        case ID_DISPOPEN: OpenDispWindow(); break;
         case ID_CONSOLE_BIND: StartConsoleBind(); break;
         case ID_CLOSE: DestroyWindow(w); break;
         }
@@ -1072,6 +1315,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show)
     RegisterClassA(&wc);
     wc.lpfnWndProc = ExpWndProc;
     wc.lpszClassName = "SummonerFixExp";
+    RegisterClassA(&wc);
+    wc.lpfnWndProc = DispWndProc;
+    wc.lpszClassName = "SummonerFixDisplay";
     RegisterClassA(&wc);
     wc.lpszClassName = "SummonerFixConfig"; // the main window below is created by this name
     RECT r = {0, 0, 1010, 540};

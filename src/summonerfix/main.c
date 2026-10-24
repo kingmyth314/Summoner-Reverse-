@@ -4,7 +4,9 @@
 // before the game's own code runs. DllMain applies the fixes; DirectInputCreateA forwards to the
 // real system dinput.dll.
 #include "summonerfix.h"
+#include "screensize.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 Config g_cfg;
@@ -24,8 +26,19 @@ static void LoadConfig(void)
     _snprintf(g_cfg.iniPath, MAX_PATH, "%s\\summonerfix.ini", dir);
     lstrcpynA(g_cfg.installPath, dir, MAX_PATH);
 
-    g_cfg.width = GetPrivateProfileIntA("Display", "GameWidth", 1024, g_cfg.iniPath);
-    g_cfg.height = GetPrivateProfileIntA("Display", "GameHeight", 768, g_cfg.iniPath);
+    // GameWidth=Auto (the default): the interface's 1024x768 layout at the screen's shape, 768 high and as wide as
+    // the desktop's aspect gives (1366x768 at 16:9, 1228x768 at 16:10, 1792x768 at 21:9; never narrower than 1024).
+    // The 3D world is drawn at the screen's own resolution whatever this is; the size only sets how the interface
+    // is laid out, so a 768 height keeps it full size (docs/summonerfix/index.md).
+    char gw[16];
+    GetPrivateProfileStringA("Display", "GameWidth", "Auto", gw, sizeof gw, g_cfg.iniPath);
+    if (!lstrcmpiA(gw, "Auto")) {
+        DisplaySizeForScreen(&g_cfg.width, &g_cfg.height);
+        g_cfg.autoSize = 1;
+    } else {
+        g_cfg.width = atoi(gw) > 0 ? atoi(gw) : 1024;
+        g_cfg.height = GetPrivateProfileIntA("Display", "GameHeight", 768, g_cfg.iniPath);
+    }
     g_cfg.windowed = GetPrivateProfileIntA("Display", "Windowed", 0, g_cfg.iniPath);
     char mode[32];
     GetPrivateProfileStringA("Display", "Mode", "Fullscreen", mode, sizeof mode, g_cfg.iniPath);
@@ -61,6 +74,11 @@ static void LoadConfig(void)
         g_cfg.renderer == RENDERER_DIRECT3D ? "Direct3D" : g_cfg.renderer == RENDERER_GLIDE ? "Glide" : "OpenGL",
         g_cfg.borderless ? "borderless fullscreen" : "window", g_cfg.windowWidth, g_cfg.windowHeight, g_cfg.maxFps,
         g_cfg.soundcard);
+    if (g_cfg.autoSize) {
+        int sw, sh;
+        DisplayDesktopSize(&sw, &sh);
+        Log("config: GameWidth=Auto -> %dx%d for a %dx%d screen", g_cfg.width, g_cfg.height, sw, sh);
+    }
 }
 
 static BOOL IsSupportedBuild(void)

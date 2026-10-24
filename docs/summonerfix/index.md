@@ -271,6 +271,24 @@ The game clock (`FrameClockRead`) was checked against QPC: 5001.2 ms vs 5001.2 m
 
 ## Key binding app (`SummonerFixConfig.exe`)
 
+**Display / resolution...** (added 2026-10-24) sets the `[Display]` keys, so a player does not edit the ini: the
+renderer, fullscreen or window, the game resolution, the window size and the three wide-screen switches. The game
+resolution list is **Match my screen** (`GameWidth=Auto`, recommended) and the 768-high size of each common screen
+shape (4:3, 16:10, 16:9, 21:9, 32:9); a size already in the ini that is none of these is listed too. All are 768
+high: the 3D world is drawn at the screen's full resolution whatever the size, and the interface is laid out for
+768 lines, so a taller size only makes it smaller. The window sizes are the modes the primary display reports
+(`EnumDisplaySettings`), up to the desktop's size. The same calculation is in `src/summonerfix/screensize.h` for both
+programs. It applies to the original game and to the rebuilt exes (the fixed and experimental builds take the size
+from SummonerFix through the registry; `CustomResolution` in their source).
+
+The original launcher (`Summoner.exe`) cannot be made to list modern sizes in a useful way: it detects cards with
+DirectDraw calls that modern drivers do not answer as it expects ([Video settings](../sum-exe/video-settings.md)),
+and all it does is write the registry values that SummonerFix answers from its ini anyway. The game's own options
+screen has no resolution setting.
+Tested 2026-10-24 (2560x1440 screen): the window lists the six sizes with **Match my screen: 1366 x 768**, shows the
+ini's size selected, and Save writes `GameWidth=Auto`; with it the original game and `Sum-exp.exe` both start at
+1366x768 with the widescreen HUD.
+
 `SummonerFixConfig.exe` (source: `src/summonerfix-config/config.c`) is installed next to `Sum.exe`. It lists the game's keyboard actions, including the four chain-attack slots (held modifier keys) and SummonerFix's own speed-up and open-this-window hotkeys, with their default keys and any extra keys bound to them:
 
 1. Select an action and click **Change key...** (or double-click it).
@@ -385,7 +403,7 @@ Examples: `pad 32767 0 0 0 0 500` (cursor right for half a second), `pad 0 0 0 0
 | `[Display] Renderer` | `OpenGL` | `OpenGL`, `Direct3D` or `Glide` |
 | `[Display] Mode` | `Fullscreen` | OpenGL output: `Fullscreen` (borderless, monitor size) or `Window` |
 | `[Display] WindowWidth`, `WindowHeight` | 1600, 1200 | Client size for `Mode=Window` (resizable) |
-| `[Display] GameWidth`, `GameHeight` | 1024, 768 | The game's internal layout resolution; e.g. 1366x768 for 16:9 |
+| `[Display] GameWidth`, `GameHeight` | `Auto`, 768 | The game's internal layout resolution. `Auto` (since 2026-10-24): 768 high and as wide as the primary screen's aspect (1366x768 at 16:9, 1228x768 at 16:10, 1792x768 at 21:9, 1024x768 at 4:3); or two numbers, e.g. 1366 and 768. Set in the config app with **Display / resolution...** |
 | `[Display] CenterMenus` | 1 | With a wider `GameWidth`, centre the 1024-wide menus |
 | `[Display] SidePanelsOverWorld` | 1 | Wide screens: the 3D view stays full width behind the map/spells/skills panels |
 | `[Display] CenterHud` | 1 | With a wider `GameWidth`, centre the HUD and in-game screens (OpenGL) |

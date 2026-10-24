@@ -21,6 +21,7 @@ typedef struct {
     int centerMenus;         // GameWidth > 1024: centre the 1024-wide menu layout outside gameplay
     int centerHud;           // GameWidth > 1024: centre the 1024-wide HUD and in-game screens during gameplay
     int sidePanelsOverWorld; // wide screens: keep the 3D view full width behind side panels (map, spells, skills)
+    int autoSize;            // GameWidth=Auto: width and height were worked out from the screen (screensize.h)
     char soundcard[64];
     char installPath[MAX_PATH];
     char iniPath[MAX_PATH];
