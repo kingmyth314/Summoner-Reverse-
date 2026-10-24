@@ -65,7 +65,11 @@ void console_sound_stop();            // 0x43d710 (defined after its first calle
 // ---- .rdata ------------------------------------------------------------------------------------------
 // 0x580e38 {w, h} per resolution_index. Unsigned: LoadSettings halves the entries with SHR for
 // mouse_move_to (0x43db6f, D606).
+#ifdef FIXED_BUILD
+uint resolution_table[3][2] = {     // part of FIXED_BUILD CustomResolution: LoadSettings writes slot 2
+#else
 const uint resolution_table[3][2] = {
+#endif
     { 640, 480 },
     { 800, 600 },
     { 1024, 768 },
@@ -364,6 +368,17 @@ void LoadSettings()
             break;
         }
     }
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: launcher CustomResolution (not a numbered bug: SummonerFix's resolution table patch). A size the
+    // table does not hold (SummonerFix answers the registry with [Display] GameWidth / GameHeight, e.g. 1366x768)
+    // left resolution_index at 0 and the game ran at 640x480. It goes into the 1024x768 slot instead, which keeps
+    // the 1024 layout of the interface (resolution_index 2), as SummonerFix does for the original exe.
+    if (i == 3 && width >= 640 && height >= 480) {
+        resolution_table[2][0] = width;
+        resolution_table[2][1] = height;
+        resolution_index = 2;
+    }
+#endif
 
     timer_init();
     file_init(NULL, true);

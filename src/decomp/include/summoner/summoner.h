@@ -266,7 +266,11 @@ void summoner_cfg_load();             // 0x43e250
 void launch_updater();                // 0x43e4a0 Summoner.exe -straight_to_update
 
 // The screen resolutions, {w, h} per resolution_index (.rdata 0x580e38).
+#ifdef FIXED_BUILD
+extern uint resolution_table[3][2];            // writable: LoadSettings puts a custom size in slot 2 (CustomResolution)
+#else
 extern const uint resolution_table[3][2];      // unsigned (SHR at 0x43db6f; D606)
+#endif
 extern int resolution_index;          // 0x60ad68 0 = 640, 1 = 800, 2 = 1024
 
 // Fonts loaded by GameInit.
