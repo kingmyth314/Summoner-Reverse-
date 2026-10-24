@@ -35,7 +35,7 @@ decided (2026-10-21) on one tree with three configurations, so the features are 
 ## Features
 
 All are written, compile, and keep the shipped build unchanged.
-Switches are in the config app: **Experimental...** (autosave, frame-rate cap, vsync, the log), **Controller...**,
+Switches are in the config app: **Experimental...** (autosave, frame-rate cap, vsync, upscaled interface, the log), **Controller...**,
 and the Tentacle Beast box on the main window.
 
 | Feature | Switches | Spec / where | Status |
@@ -44,6 +44,7 @@ and the Tentacle Beast box on the main window.
 | Tentacle Beast grab and throw (G250, G251) | `[Experimental] TentacleGrab`, `TentacleGrabChance`; `[Debug] TraceTentacle` | SummonerFix `tentacle.c`, [Tentacle grab](future/tentacle-grab.md); in `game/unnamed_tentacle_beast_0x4c6480.cpp` | switch tested; the grab itself not yet seen |
 | Autosave | `[Experimental] Autosave`, `AutosaveMinutes` (5), `AutosaveOnLevelChange` (1), `AutosaveSlots` (3) | new; `experimental/autosave.cpp`, two small changes in `game/new_saveload.cpp` | tested |
 | Frame-rate cap and vsync | `[Experimental] FrameRateCap` (0 = the game's 120; 30-240), `VSync` (OpenGL) | new; `experimental/display.cpp`, one block in `vsdk/frametime.cpp` | cap tested; vsync not yet |
+| Upscaled interface images | `[Experimental] HiResInterface` (OpenGL) | new; `experimental/hires.cpp`, hooks in `vsdk/bmpman.cpp`, `vsdk/ui_container.cpp`, `vsdk/unnamed_lights_0x51e070.cpp`; [Texture upscaling](future/texture-upscale.md#the-interface-code-change) | tested 2026-10-23: a 2x main-menu background drawn whole, menu clicks work |
 | Field of view | none yet | the draw lists hold 500 entries with no bounds check; a wider view could overflow them | proposal only |
 | dgVoodoo 2 | `[Display] Renderer` (SummonerFix's), `[Display] Windowed` | `game/summoner.cpp` (Direct3D and Glide fullscreen, 201, instead of the rebuilt exe's fixed window mode 200) and `vsdk/gr_direct3d.cpp` (dgVoodoo's adapter passes the Voodoo-card test); [dgVoodoo 2](future/dgvoodoo.md) | tested: Glide and Direct3D load a save and play |
 

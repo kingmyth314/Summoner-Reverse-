@@ -13,6 +13,7 @@
 #include "vsdk/os/debug.h"
 #include "vsdk/bmpman/bmpman.h"
 #include "vsdk/ui/ui_container.h"
+#include "experimental/experimental.h"   // EXPERIMENTAL_BUILD only (HiResInterface)
 
 // Original __FILE__ of this unit (pushed by load_mask_bitmap, 0x5ad9f8).
 #define UI_CONTAINER_CPP "D:\\projects\\Summoner\\pccode\\vsdk\\ui\\ui_container.cpp"
@@ -129,8 +130,15 @@ int ui_container::get_mask_pixel(int x, int y)
     if (mask_data != 0) {
         x -= get_screen_x(0);
         y -= get_screen_y(0);
-        if (x >= 0 && y >= 0 && x < w && y < h)
+        if (x >= 0 && y >= 0 && x < w && y < h) {
+#ifdef EXPERIMENTAL_BUILD
+            // experimental build: HiResInterface. An upscaled mask is read at the matching point of the real image.
+            int stride = exp_bm_real_point(mask_bm, &x, &y, w);
+            return mask_data[y * stride + x];
+#else
             return mask_data[y * w + x];
+#endif
+        }
     }
     return -1;
 }

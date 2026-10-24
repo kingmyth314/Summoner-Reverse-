@@ -19,6 +19,7 @@
 #include <string.h>
 #include "vsdk/gr/gr.h"
 #include "vsdk/bmpman/bmpman.h"
+#include "experimental/experimental.h"   // EXPERIMENTAL_BUILD only (HiResInterface)
 
 // ---- .data -----------------------------------------------------------------------------------------
 int lights_max_per_object = 2;                    // 0x5a8900
@@ -564,7 +565,16 @@ vector3 light_sample_projected_bitmap(float u, float v, int bm)
     ubyte *p;
     ushort px;
 
+#ifdef EXPERIMENTAL_BUILD
+    // experimental build: HiResInterface. The pixels are read here, so the real size (bm_get_dimensions may report
+    // an upscaled file's original size).
+    {
+        int num_pixels, num_levels;
+        bm_get_mipmap_info(bm, &w, &h, &num_pixels, &num_levels);
+    }
+#else
     bm_get_dimensions(bm, &w, &h);
+#endif
     format = bm_get_data(bm, (void **)&data, (void **)&palette);
     if (data == NULL)
         format = bm_lock(bm, &data, &palette);

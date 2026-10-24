@@ -48,7 +48,7 @@ static const Hotkey k_hotkeys[] = {
 enum { ID_LIST = 100, ID_CHANGE, ID_CLEAR, ID_RESET, ID_CLOSE, ID_STATUS, ID_SKIPMOVIES, ID_ZOOM, ID_INTERACT, ID_CONTAINER, ID_APPLY, ID_SPEEDTOGGLE,
        ID_CONSOLE_CMD, ID_CONSOLE_BIND, ID_FIXALL, ID_FIXLIST, ID_FIXSAVE, ID_FIXCLOSE, ID_TENTACLE, ID_TENTCHANCE,
        ID_PADOPEN, ID_PADENABLED, ID_PADSAVE, ID_PADRESET, ID_PADCLOSE,
-       ID_EXPOPEN, ID_EXPAUTOSAVE, ID_EXPLEVEL, ID_EXPVSYNC, ID_EXPLOG, ID_EXPSAVE, ID_EXPRESET, ID_EXPCLOSE };
+       ID_EXPOPEN, ID_EXPAUTOSAVE, ID_EXPLEVEL, ID_EXPVSYNC, ID_EXPHIRES, ID_EXPLOG, ID_EXPSAVE, ID_EXPRESET, ID_EXPCLOSE };
 
 // [ConsoleKeys] Key=command entries (keys that run a developer console command). Shown as list rows after the
 // hotkeys; Change key / Clear work on them, and "Bind key..." adds one for the command typed in the box.
@@ -792,7 +792,7 @@ static void OpenPadWindow(void)
     ShowWindow(g_padWnd, SW_SHOW);
 }
 
-// The "Experimental build" window: the switches only Sum-exp.exe reads ([Experimental] Autosave..., FrameRateCap,
+// The "Experimental build" window: the switches only Sum-exp.exe reads ([Experimental] Autosave..., FrameRateCap, HiResInterface,
 // VSync; [Debug] ExperimentalLog; docs/experimental-build.md). Saved with its own Save button.
 typedef struct { const char *section, *iniKey, *label; int def, lo, hi; } ExpNumber;
 static const ExpNumber k_expNumbers[] = {
@@ -806,6 +806,7 @@ static const ExpCheck k_expChecks[] = {
     {"Experimental", "Autosave", "Autosave (autosave1.sav ..., never your own saves)", 0, ID_EXPAUTOSAVE},
     {"Experimental", "AutosaveOnLevelChange", "Also autosave after entering a new level", 1, ID_EXPLEVEL},
     {"Experimental", "VSync", "VSync (OpenGL renderer)", 0, ID_EXPVSYNC},
+    {"Experimental", "HiResInterface", "Upscaled interface images at their original size (OpenGL)", 0, ID_EXPHIRES},
     {"Debug", "ExperimentalLog", "Write experimental.log (for testing)", 0, ID_EXPLOG},
 };
 #define EXP_CHECK_COUNT (int)(sizeof k_expChecks / sizeof k_expChecks[0])

@@ -42,6 +42,14 @@ bool exp_autosave_enabled();      // [Experimental] Autosave is on (read at the 
 // display.cpp: [Experimental] display options (frame-rate cap, vsync, field of view)
 void exp_display_init();
 void exp_display_frame();
+// hires.cpp: [Experimental] HiResInterface (upscaled interface images and fonts on OpenGL)
+void exp_bm_entries_allocated(int index, int count);     // bm_alloc_entry / bm_alloc_entries: forget the old entry
+// bm_load_internal: count entries from index (an animation's header and frames) loaded from filename at w x h.
+void exp_bm_loaded(int index, int count, const char *filename, int w, int h, bool reduced);
+bool exp_bm_nominal_size(int index, int *w, int *h);     // bm_get_dimensions: the size the game was made for
+// A pixel reader of bitmap bm that indexes its data with the nominal width: scales (x, y) to the real image and
+// returns the real width (the row stride); unchanged without an override.
+int  exp_bm_real_point(int bm, int *x, int *y, int nominal_w);
 // The Tentacle Beast grab is written inside game/unnamed_tentacle_beast_0x4c6480.cpp under EXPERIMENTAL_BUILD
 // ([Experimental] TentacleGrab); it needs no hook here.
 

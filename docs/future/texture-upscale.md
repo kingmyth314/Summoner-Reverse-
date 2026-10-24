@@ -94,6 +94,11 @@ level per doubling.
 
 ## The interface (code change)
 
+**Done 2026-10-23** in the experimental build, `[Experimental] HiResInterface=1` (`experimental/hires.cpp`). Tested
+in game (**Observed**): with a 2x `MainMenu-bkgrnd1024.tga` the whole image is drawn at its proper size and the menu
+buttons and clicks work; `experimental.log` reports "MainMenu-bkgrnd1024.tga 2048x1536 drawn as 1024x768". A 4x
+character texture was drawn correctly in the same run.
+
 Interface images and fonts are drawn with `gr_bitmap` / `gr_bitmap_ex`: a rectangle of the bitmap given in **pixels**
 (`sx`, `sy`, `w`, `h`). Font glyphs too (`gr_string` -> `gr_bitmap_ex`, `gr_font.cpp`). The OpenGL renderer turns
 those pixels into texture coordinates by dividing by the bitmap's width and height (`gr_opengl.cpp` about line 1258:
@@ -108,6 +113,20 @@ The design, for the experimental build behind its own ini switch:
    (callers pass it), the source rectangle maps to the right place, and the extra pixels give the sharpness.
 
 3D drawing (world, characters, effects) uses texture coordinates from 0 to 1 and needs nothing.
+
+As built:
+- `bm_load_internal` notes, for a loose file whose packfile copy is smaller by the same factor in both directions,
+  the copy's size (read from its header with `packfile_fopen` / `packfile_fread`).
+- `bm_get_dimensions` returns that size while the OpenGL renderer is active; `bm_get_mipmap_info`, which the texture
+  upload reads, keeps the real one. Direct3D and Glide cut textures into sections by the real size
+  (`gr_poly_get_section`, the D3D texture cache), so there the switch changes nothing.
+- The two places that read pixels themselves take the real size: the interface click masks
+  (`ui_container::get_mask_pixel`) and the projected-light sample (`light_sample_projected_bitmap`).
+- Entries are forgotten when `bm_alloc_entry` / `bm_alloc_entries` hand them out again.
+
+**Fonts are separate.** A font's pixels are inside its `.vf` file and become a bitmap through `bm_create`
+(`gr_font.cpp`), not a TGA lookup, so upscaled fonts need a `.vf` writer and a nominal size for that bitmap. Not done
+yet.
 
 ## Making the textures
 
@@ -128,6 +147,6 @@ user's permission (file, source, size).
 
 ## Decisions for the user
 
-1. Which look: a plain filter, or an AI model (and which, after a comparison on a few textures)?
-2. World only first (no code), or world plus the interface feature?
-3. Whether to try the large-address flag in the fixed and experimental builds.
+1. Which model (the user chose AI upscaling, 2026-10-23; Real-ESRGAN's ncnn-vulkan build is the first candidate,
+   pending a download approval).
+2. Whether to try the large-address flag in the fixed and experimental builds.
