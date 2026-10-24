@@ -1,0 +1,120 @@
+---
+title: Modern C++ port (research)
+---
+
+# Rewriting the code to modern standards (research, 2026-10-23)
+
+**Summary:**
+- The decompiled source is much closer to modern C++ than its age suggests. Checked with a current compiler (clang,
+  C++17, 32-bit Windows target), **257 of the 259 units already parse**, with 11 errors in all (**Observed**).
+- The work is not in the syntax. It is in four things:
+  - the matching devices that exist only for VC6;
+  - the platform APIs of 2000 (DirectDraw / Direct3D 7, Glide, DirectSound with EAX, Bink, DirectPlay-era networking);
+  - x87 floating-point behaviour;
+  - for 64-bit, the 32-bit struct layouts.
+- The byte-match proof and the modern source **cannot be the same text**. So the `shipped` configuration stays as the
+  reference, and a modern build is checked by behaviour, as the fixed build is.
+
+## The measurements
+
+Every `game/` and `vsdk/` unit (176,000 lines) was checked with clang 23.1 (llvm-mingw), syntax only, with
+`-std=c++17 -fms-extensions -fpermissive` (**Observed**, 2026-10-23).
+
+**32-bit (`i686-w64-mingw32`):** 257 of 259 units clean.
+- 9 errors in `game/unnamed_decals_0x4bbe80.cpp`: taking the address of a temporary. This is the `&(a+b)` matching
+  device, D15902.
+- 2 errors in `vsdk/gr_font.cpp`: a case value of -16 narrowed to an unsigned type.
+
+**Warnings with `-Wall -Wextra`** (the noisy unused-variable classes switched off):
+
+| Warning | Count | Meaning |
+|---|---|---|
+| `-Wwritable-strings` | 570 | string literals passed as `char *` (C++98 allowed it) |
+| `-Wformat-security` | 55 | `printf(buf)` without a format |
+| `-Wnontrivial-memcall` | 14 | `memset` / `memcpy` on classes |
+| `-Wdelete-non-abstract-non-virtual-dtor` | 11 | deleting through a base without a virtual destructor |
+| `-Wformat` | 9 | format and argument types differ |
+| `-Wsometimes-uninitialized` | 4 | a local read before it is set on some path: candidates for original-game bugs |
+| `-Warray-bounds` | 4 | constant indexes past an array |
+| `-Wreturn-type` | 2 | functions that fall off their end: D15400 and D21001, the documented matching aids |
+| others | about 30 | parentheses, self-assignment (`gain = gain;`, a matching aid), bit-field constants |
+
+**64-bit (`x86_64-w64-mingw32`):** 244 units fail. All but about 25 of the 14,600 errors are the source's own
+`LAYOUT_CHECK` tests (`include/vsdk/vsdk.h`), which check every struct's size and field offsets against the binary.
+209 different checks fail, because pointers become 8 bytes. That is the map of what 64-bit has to touch.
+
+**Platform code:** `__asm` blocks in 4 units (`timer.cpp`, the exception handler, `floatmath`, the os unit), and calls
+to DirectDraw (28), Direct3D (about 170), DirectSound (16), EAX (92), Bink (4) and Glide.
+
+## Why the reference stays
+
+Each device on [Matching devices](../matching-devices.md) exists because VC6 build 8966 needs it to produce the
+original bytes. Examples: unused locals, `volatile` reads, names chosen for a hash, a function without a `return`.
+A modern compiler gives different code whatever the source looks like. So the byte-match proof only ever applies to
+the `shipped` configuration with VC6.
+
+A modern build is checked the way the fixed build is ([Fixed and experimental builds](../builds.md#testing)):
+- the save, memory and screen comparisons against the original;
+- the scenario runs.
+
+That keeps one tree: a `MODERN_BUILD` define selects plain C++ where a device stands. Every later decompilation fix
+then reaches all builds at once. A separate fork would have to be merged by hand forever.
+
+## The ladder
+
+Each rung is usable on its own, and each has its own test.
+
+**L1: builds and runs with clang, 32-bit, same tree.**
+- Fix the 11 errors.
+- Add the two missing returns.
+- Replace the 4 `__asm` blocks with intrinsics or C.
+- Link the DirectX / Glide / EAX / Bink imports (import libraries, or loading at run time as the game already does for
+  Glide).
+- Produce the address table that agent mode and the checks use (`link-build.mjs` writes it for VC6's linker; lld needs
+  an equivalent).
+- Keep x87 maths on this rung, so that floating-point differences do not hide real ones.
+- **Test:** the fixed build's save, memory and screen checks.
+- **Bonus:** sanitizers (AddressSanitizer, UndefinedBehaviorSanitizer) become available. They find out-of-bounds and
+  uninitialised reads that the byte match cannot see, which means original-game bugs for the bug list.
+
+**L2: warning-clean, no undefined behaviour.**
+- The 570 writable strings become `const char *`.
+- The `printf(buf)` calls get a format.
+- Every entry in the "matching aids" table of [Matching devices](../matching-devices.md) gets its plain form under
+  `MODERN_BUILD`: that table is the work list.
+- Argument evaluation order is a known risk: VC6 evaluates arguments right to left, and code that calls two
+  side-effecting functions in one argument list may rely on it. The warnings do not show these; reviews must look for
+  them.
+- **Test:** as L1.
+
+**L3: 64-bit.**
+- The 209 failing layout checks are sorted into two kinds:
+  - **In memory only:** the layout is free, and the check is switched off for 64-bit.
+  - **Written to disk or the network:** save files, packfile directories, image headers, tables, net packets, and the
+    structures DirectX, Bink and EAX expect. These get explicit readers and writers instead of whole-struct copies.
+- **Hard rule:** the save format stays the 32-bit one, so existing saves keep loading.
+- The 120 still-unknown (`_unk`) fields in 47 headers block this wherever they sit in a saved structure.
+- x87 gives way to SSE here, so last-bit float differences appear. The checks already classify those (D9203, D9807
+  were this kind), so they are visible, not silent.
+- **Test:** as L1, plus loading every test save.
+
+**L4: idiomatic rewrite.**
+- Real types instead of `int` handles.
+- Ownership through RAII instead of the game's own pools.
+- Fewer globals.
+- A current graphics API in place of DirectDraw / Glide / Direct3D 7, and current networking.
+- Done module by module, each with its own behavioural tests.
+- This is a new engine port. It is open-ended, and it slowly gives up the equivalence anchor. The `_unk` fields cannot
+  be redesigned until they are understood.
+
+## Recommendation
+
+L1 and L2 together as "the modern build", in the same tree, behind `MODERN_BUILD`, tested against the fixed build.
+L3 as the next milestone. L4 per module, later, only where it buys something (the renderer first, as it also helps
+the [texture upscaling](texture-upscale.md) and display work).
+
+## Decisions for the user
+
+1. How far "modern" goes: L1+L2, up to L3 (64-bit), or the full L4 rewrite?
+2. Same tree with `MODERN_BUILD` (recommended) or a separate fork?
+3. Whether to start L1 now or after the in-game work already planned.

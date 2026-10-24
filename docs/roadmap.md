@@ -204,6 +204,8 @@ the plan for a fixed build and an experimental build that take them up is in
   renderer; dgVoodoo 2 would make the original Glide and Direct3D renderers usable too (with their own gamma,
   K90 does not apply there). To find out: which dgVoodoo DLLs Summoner loads, and whether the launcher-free start
   and the widescreen output can work with it. Done 2026-10-21: both renderers run through dgVoodoo 2 ([dgVoodoo 2](future/dgvoodoo.md)).
+- **Higher-resolution textures.** Researched 2026-10-23 ([Texture upscaling](future/texture-upscale.md)): loose files override the packfiles, so world, character and effect textures need no code (a 4x texture was seen working in the original game); interface images and fonts need a renderer change, and every upscaled texture needs new mip files.
+- **Modern C++.** Researched 2026-10-23 ([Modern C++ port](future/modern-port.md)): 257 of 259 units already parse with clang as C++17; a ladder from a clang 32-bit build to 64-bit and an idiomatic rewrite, checked by behaviour while the VC6 configuration stays the byte-match reference.
 - **Auto-saving.** The game already has `quicksave` (`quicksave.sav`) and the rules for when saving is allowed
   (`savegame_location_allowed`, [Savegame](sum-exe/savegame.md#saving-and-loading)). An autosave could write a
   rotating slot on level change and every few minutes when saving is allowed.
