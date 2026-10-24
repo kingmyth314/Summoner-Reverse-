@@ -205,6 +205,85 @@ The run with every fix above (**Observed**):
 Not covered yet: the fonts (`.vf`) and the 104 VBM textures, which need writers of their own, and the
 interface-free variant a player of the original game would need.
 
+## Fonts and VBM textures (research, 2026-10-24)
+
+Neither is covered by the TGA pack. Both can be upscaled, each in its own way.
+
+### VBM textures
+
+**What they are (Observed, read from the packfiles and `bm_read_vbm_header` / `bm_lock_vbm`):**
+- **Count:** 104 files, 39 MB: 54 in `effects.vpp`, 29 in `summoner.vpp` (cursors, quest icons), 20 in
+  `levelt.vpp` (water and other animated surfaces), 1 in `chars.vpp`.
+- **Header (32 bytes):** `.vbm`, version 1, width, height, pixel format (0 = 1555, 1 = 4444, other = 565), frames
+  per second, frame count, mip count. This is Red Faction's VBM layout: the same engine family. Red Faction's
+  MakeVBM builds VBMs from TGA sequences in the same three colour modes
+  ([Red Faction Wiki](https://redfactionwiki.com/wiki/MakeVBM)).
+- **Pixels:** raw 16-bit, every frame with all its mip levels, one after another, read in one piece
+  (`bm_lock_vbm`).
+- **Formats:** 66 are 4444, 33 are 565, 5 are 1555.
+- **Animations:** 85 are animated, up to 98 frames.
+- **Sizes:** all are 256 pixels or smaller on a side; 7 have mip levels.
+
+**How:** a VBM reader and writer in `tools/texture-upscale.mjs`:
+1. Decode each frame's base level to RGBA.
+2. Upscale it the same way as a TGA (colour and alpha separately, tone correction, the broken-output check).
+3. Re-encode it in the file's own 16-bit format, with new mip levels when the original had any.
+4. Write a loose `.vbm` of the same name.
+
+The game already prefers a `.vbm` over a `.tga` of the same name (`bm_prefer_vbm`), and HiResInterface already
+reads a VBM's original size from its packfile copy (`experimental/hires.cpp`). So no new game code is needed for
+VBMs.
+
+**The catch, memory (Inferred):** the game keeps every frame in memory (`bm_lock_vbm` reads them all). At 4x the 104
+files would need about 627 MB; the two 30-frame water animations (`LWater01`, `LWaterWinter01`, 256x256) about
+60 MB each. Proposed:
+- 4x for still images and animations up to 64 pixels;
+- 2x for the larger animations;
+- and a cap per file (for example 16 MB).
+
+That keeps the total near 150 MB.
+
+**Animation flicker (Inferred):** Real-ESRGAN upscales each frame on its own, which can make detail shimmer from frame
+to frame; this is a known weakness of single-image upscalers on video ([survey, 2025](https://arxiv.org/pdf/2505.10589)).
+The tone correction already ties each frame's colours to its original. The candidates to compare on a water and a
+fire animation: the general model, the anime-video model in the downloaded package (`realesr-animevideov3`, made for
+frame sequences), and a plain bilinear enlargement.
+
+### Fonts
+
+**What they are (Observed, `gr_font_read_file` and the font loader in `gr_font.cpp`):**
+- **Count:** 7 `.vf` files in `summoner.vpp` (`SumBones640`, `SumBones800`, `SumBones1024`, three small variants,
+  and `font-small`).
+- **Storage:** each character is stored separately, as 16-bit 4444 pixels (5 fonts), 8-bit palette indices (1) or
+  4-bit alpha (`font-small`).
+- **At load:** the game packs the characters left to right, row by row, into a 64, 128 or 256-pixel square, and makes
+  a 4444 bitmap of it with `bm_create`.
+- **Drawing:** a character is drawn with `gr_bitmap_ex`, a pixel rectangle of that bitmap (`gr_string`). That is the
+  same path the HiResInterface fix handles.
+
+**How:**
+1. **A tool** reads a `.vf` and builds the same atlas the game builds (the packing is deterministic: the same order,
+   widths and row height).
+2. It upscales **each character on its own**, padded with transparency. Upscaling the atlas as one image would bleed
+   neighbouring characters into each other.
+3. It places each character at the scaled position and writes `<font>-hires.tga` (32-bit) for `data\fonts`.
+4. **New experimental-build code**, a few lines in the font loader: if that file exists and is exactly 2x or 4x the
+   atlas the game just built, load it instead. Register the atlas's original size as the nominal size, as
+   `exp_bm_loaded` does for a loose file (one new setter in `experimental/hires.cpp`, since `bm_create` bitmaps have
+   no packfile copy to read it from).
+5. The game's character positions, widths, kerning and line height are unchanged, so text layout does not move.
+
+32-bit output also gives the characters a full 8-bit alpha edge instead of 4444's 16 levels.
+
+**Model:** the characters are small, flat line art. The anime model (`realesrgan-x4plus-anime`, in the same package)
+suits that better than the general one; compare both on `SumBones1024`.
+
+### Order of work
+
+1. The VBM reader / writer and a comparison on a water, a fire and a cursor animation.
+2. The font tool and the font loader hook (experimental build, behind HiResInterface).
+3. A run of both, a check, and an in-game test in the test folder, as for the TGA pack.
+
 ## Decisions for the user
 
 1. Which model (the user chose AI upscaling, 2026-10-23; Real-ESRGAN's ncnn-vulkan build is the first candidate,
