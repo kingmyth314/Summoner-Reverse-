@@ -188,6 +188,23 @@ The first full run (5,311 textures, about 3 hours, 5.1 GB with mips) showed thre
    `[Experimental] HiResInterface=1` the menus, the Load screen clicks and the game work; the 3D world and the HUD
    looked right. A pack for the original game would have to leave the interface images out.
 
+## The final pack (2026-10-24)
+
+The run with every fix above (**Observed**):
+- **Contents:** 5,261 textures with their mip chains, 10,585 files, in both data folders as hard links.
+- **Re-runs and fallbacks:** 2,551 model outputs were run again, and 21 textures got the bilinear enlargement.
+- **Checks:**
+  - Shrunk back to the original size, 5,255 match the original within a mean difference of 12 (out of 255). The
+    other 6 are thin-line textures such as bars and gratings, whose sharper lines raise the difference.
+  - No texture shifted in brightness, except a fully transparent 16x16 one.
+  - Every texture is exactly 2x or 4x the copy the game uses.
+- **In game:** the experimental build with `[Experimental] HiResInterface=1`, in the test folder (the pack linked in,
+  the real game folder untouched). The main menu, the Load screen and its clicks, loading a save, the 3D world, the
+  HUD and the inventory (icons and the character view) all drew correctly.
+
+Not covered yet: the fonts (`.vf`) and the 104 VBM textures, which need writers of their own, and the
+interface-free variant a player of the original game would need.
+
 ## Decisions for the user
 
 1. Which model (the user chose AI upscaling, 2026-10-23; Real-ESRGAN's ncnn-vulkan build is the first candidate,
