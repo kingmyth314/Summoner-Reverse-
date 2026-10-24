@@ -12,6 +12,7 @@
 #include "vsdk/vfile/file.h"
 #include "vsdk/bmpman/bmpman.h"
 #include "vsdk/localize/localize.h"
+#include "experimental/experimental.h"   // EXPERIMENTAL_BUILD only (HiResInterface fonts)
 
 // One kern pair in Font.kern_data (3 bytes). The bytes are read with movsx, so they are plain
 // (signed) char; types.h types the pointer as uint8_t*.
@@ -332,6 +333,9 @@ int gr_font_create(const char *name)
     }
 
     f->bm_handle = bm_create(4, f->bm_width, f->bm_height, f->bm_bits, NULL, -1);
+#ifdef EXPERIMENTAL_BUILD
+    exp_font_hires(f);   // experimental build: HiResInterface, an upscaled <font>-hires.tga in its place
+#endif
     return i;
 }
 

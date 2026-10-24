@@ -202,8 +202,8 @@ The run with every fix above (**Observed**):
   the real game folder untouched). The main menu, the Load screen and its clicks, loading a save, the 3D world, the
   HUD and the inventory (icons and the character view) all drew correctly.
 
-Not covered yet: the fonts (`.vf`) and the 104 VBM textures, which need writers of their own, and the
-interface-free variant a player of the original game would need.
+Fonts and VBMs: added 2026-10-24 (below). Still open: the interface-free variant a player of the original game would
+need.
 
 ## Fonts and VBM textures (research, 2026-10-24)
 
@@ -277,6 +277,26 @@ frame sequences), and a plain bilinear enlargement.
 
 **Model:** the characters are small, flat line art. The anime model (`realesrgan-x4plus-anime`, in the same package)
 suits that better than the general one; compare both on `SumBones1024`.
+
+### Built (2026-10-24)
+
+Both are in `tools/texture-upscale.mjs` (on by default; `--no-vbm`, `--no-fonts`):
+- **VBMs:** one model job per frame; the file is written when its last frame is done, in its own 16-bit format, with
+  new mip levels when it had any.
+  - Factors: 4x for still images up to 256 pixels and animations up to 64, 2x for larger ones, halved while a file
+    would pass 16 MB.
+  - Result: 100 files (4 needed no upscale), 2,270 frames, 291 MB, about 37 minutes. 2 frames fell back to the plain
+    enlargement.
+  - Check (**Observed**): every file has the right size and header, the same format, speed and frame count, and every
+    frame's mean colour and alpha within 6 levels of the original's.
+- **Fonts:** the characters go through the model spaced apart on one sheet, with transparent gutters and the colour
+  spread into them. The finish packs them as the game does and writes `<font>-hires.tga`: 7 fonts, each 1024x1024
+  (4x the game's 256 atlas).
+  - In the experimental build, `exp_font_hires` (`experimental/hires.cpp`), called from `gr_font_create`, loads that
+    file in place of the game's atlas and gives it the atlas's size as its nominal size (OpenGL, HiResInterface).
+- **In game** (**Observed**, test folder, the experimental build at 1366x768): the log shows the three fonts in use
+  and the cursors drawn from their upscaled VBMs. The menus, the Load screen text and the game drew correctly.
+- Both are part of the pack in the user's game folder.
 
 ### Order of work
 

@@ -24,6 +24,8 @@
 #include "vsdk/bmpman/bmpman.h"
 #include "vsdk/gr/gr.h"
 #include "vsdk/vfile/packfile/file_packfile.h"
+#include "vsdk/vfile/file.h"
+#include "vsdk/gr/gr_font.h"
 
 // Per bm_bitmaps index: the nominal size, 0 when the entry uses its real size.
 static unsigned short hires_nominal_w[MAX_BITMAPS];
@@ -105,6 +107,42 @@ bool exp_bm_nominal_size(int index, int *w, int *h)
     *w = hires_nominal_w[index];
     *h = hires_nominal_h[index];
     return true;
+}
+
+// Fonts: gr_font_create packs a font's characters into a 64, 128 or 256-pixel square bitmap of its own
+// (bm_create, so there is no packfile copy to compare with). tools/texture-upscale.mjs writes <font>-hires.tga with
+// the same layout at 2x or 4x. Loaded in its place, with the atlas's size as the nominal size, gr_string's pixel
+// rectangles (char_x_coords / char_y_coords, widths, height) draw from it unchanged. The game's own atlas bitmap is
+// kept (gr_close_fonts frees its pixels with the font); the font just points at the other one. OpenGL only.
+void exp_font_hires(struct Font *f)
+{
+    char name[64];
+    File file;
+    int bm, index, w, h, num_pixels, num_levels;
+
+    if (!hires_on() || gr_screen.mode != GR_OPENGL)
+        return;
+    strncpy(name, f->filename, sizeof name - 16);
+    name[sizeof name - 16] = 0;
+    char *dot = strrchr(name, '.');
+    if (dot)
+        *dot = 0;
+    strcat(name, "-hires.tga");
+    if (!file.find(name, PATH_ANY))
+        return;
+    bm = bm_load(name, -1, -1);
+    index = bm_get_current_frame(bm);
+    if (bm < 0 || index < 0)
+        return;
+    bm_get_mipmap_info(bm, &w, &h, &num_pixels, &num_levels);
+    if (!((w == f->bm_width * 2 && h == f->bm_height * 2) || (w == f->bm_width * 4 && h == f->bm_height * 4))) {
+        exp_log("hires: %s is %dx%d, not 2x or 4x the font's %dx%d atlas; not used", name, w, h, f->bm_width, f->bm_height);
+        return;
+    }
+    hires_nominal_w[index] = (unsigned short)f->bm_width;
+    hires_nominal_h[index] = (unsigned short)f->bm_height;
+    f->bm_handle = bm;
+    exp_log("hires: font %s draws from %s (%dx%d as %dx%d)", f->filename, name, w, h, f->bm_width, f->bm_height);
 }
 
 int exp_bm_real_point(int bm, int *x, int *y, int nominal_w)

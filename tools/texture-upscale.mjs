@@ -205,6 +205,129 @@ function place(name, write) {
   for (const p of paths.slice(1)) linkSync(paths[0], p);
 }
 
+// ---- VBM (bm_read_vbm_header, bm_lock_vbm) ----
+// A 32-byte header (".vbm", version 1, width, height, format, fps, frames, mip count), then every frame with all its
+// mip levels, raw 16-bit, frame after frame. Formats: 0 = 1555 (a set top bit is TRANSPARENT, as the OpenGL
+// renderer reads it: gl_convert_1555_to_rgba8888), 1 = 4444 (alpha in the top nibble), anything else = 565.
+function decode16(px, fmt) {
+  if (fmt === 0) return [Math.round(((px >> 10) & 31) * 255 / 31), Math.round(((px >> 5) & 31) * 255 / 31), Math.round((px & 31) * 255 / 31), px & 0x8000 ? 0 : 255];
+  if (fmt === 1) return [((px >> 8) & 15) * 17, ((px >> 4) & 15) * 17, (px & 15) * 17, (px >> 12) * 17];
+  return [Math.round(((px >> 11) & 31) * 255 / 31), Math.round(((px >> 5) & 63) * 255 / 63), Math.round((px & 31) * 255 / 31), 255];
+}
+function encode16(r, g, b, a, fmt) {
+  const q = (v, bits) => Math.round(v * ((1 << bits) - 1) / 255);
+  if (fmt === 0) return (a >= 128 ? 0 : 0x8000) | (q(r, 5) << 10) | (q(g, 5) << 5) | q(b, 5);
+  if (fmt === 1) return (q(a, 4) << 12) | (q(r, 4) << 8) | (q(g, 4) << 4) | q(b, 4);
+  return (q(r, 5) << 11) | (q(g, 6) << 5) | q(b, 5);
+}
+function levelPixels(w, h, levels) { let n = 0; for (let l = 0; l < levels; l++) n += Math.max(1, w >> l) * Math.max(1, h >> l); return n; }
+function readVbm(b) {
+  if (b.toString("latin1", 0, 4) !== ".vbm") return null;
+  const v = { ver: b.readInt32LE(4), w: b.readInt32LE(8), h: b.readInt32LE(12), fmt: b.readInt32LE(16), fps: b.readInt32LE(20),
+    frames: b.readInt32LE(24), mips: b.readInt32LE(28) };
+  const per = levelPixels(v.w, v.h, v.mips + 1);
+  if (b.length < 32 + v.frames * per * 2) return null;
+  v.frameRgba = [];
+  for (let f = 0; f < v.frames; f++) {
+    const base = 32 + f * per * 2, rgba = Buffer.alloc(v.w * v.h * 4);
+    for (let i = 0; i < v.w * v.h; i++) { const c = decode16(b.readUInt16LE(base + i * 2), v.fmt); rgba.set(c, i * 4); }
+    v.frameRgba.push(rgba);
+  }
+  return v;
+}
+function writeVbm(path, v, w, h, mips, frames) {
+  const per = levelPixels(w, h, mips + 1), out = Buffer.alloc(32 + frames.length * per * 2);
+  out.write(".vbm", 0, "latin1");
+  [v.ver, w, h, v.fmt, v.fps, frames.length, mips].forEach((x, i) => out.writeInt32LE(x, 4 + i * 4));
+  let o = 32;
+  for (const f of frames) {
+    let m = { w, h, rgba: f };
+    for (let l = 0; l <= mips; l++) {
+      if (l) m = halve(m.rgba, m.w, m.h, false);
+      for (let i = 0; i < m.w * m.h; i++) { out.writeUInt16LE(encode16(m.rgba[i * 4], m.rgba[i * 4 + 1], m.rgba[i * 4 + 2], m.rgba[i * 4 + 3], v.fmt), o); o += 2; }
+    }
+  }
+  writeFileSync(path, out);
+}
+// Factor for a VBM: as a TGA for a still image; for an animation 4x up to 64 pixels, else 2x; then halved while the
+// file would hold more than VBM_MAX_BYTES (the game keeps every frame in memory, bm_lock_vbm).
+const VBM_MAX_BYTES = 16 * 2 ** 20;
+function vbmFactor(v) {
+  const m = Math.max(v.w, v.h);
+  let f = v.frames === 1 ? (m <= max4 ? 4 : m <= max2 ? 2 : 1) : (m <= 64 ? 4 : m <= max2 ? 2 : 1);
+  const mipsAt = (k) => (v.mips ? v.mips + Math.log2(k) : 0);
+  while (f > 1 && levelPixels(v.w * f, v.h * f, mipsAt(f) + 1) * 2 * v.frames > VBM_MAX_BYTES) f /= 2;
+  return f;
+}
+
+// ---- fonts (gr_font_read_file, gr_font_create) ----
+// A .vf file: signature, version, [format], character count, first ASCII, default spacing, height, kern pair count,
+// (version 0: two more ints), pixel data size; the kern pairs (3 bytes each); per character spacing, width, pixel
+// offset (ints), kerning entry, user data (shorts); the pixel data; for the palette format 256 palette ints.
+// gr_font_create packs the characters left to right, row by row, into a 64, 128 or 256-pixel square of 4444 pixels
+// (alpha in the top nibble). The pack here is the same, so <font>-hires.tga lines up with the game's own atlas at
+// 2x or 4x, and the experimental build draws from it at the original size (HiResInterface; experimental/hires.cpp).
+const FONT_RGB16 = 0x0f0f0f0f, FONT_ALPHA4 = 0xf, FONT_PAL8 = -0x10;
+function readVf(b) {
+  let p = 0; const i32 = () => { const v = b.readInt32LE(p); p += 4; return v; };
+  const f = { sig: i32(), ver: i32() };
+  f.format = f.ver < 1 ? FONT_ALPHA4 : i32();
+  f.numChars = i32(); f.firstAscii = i32(); f.spacing = i32(); f.height = i32(); f.numKern = i32();
+  if (f.ver < 1) { i32(); i32(); }
+  f.pixelSize = i32();
+  p += f.numKern * 3;
+  f.chars = [];
+  for (let c = 0; c < f.numChars; c++) { const spacing = i32(), width = i32(), off = i32(); p += 4; f.chars.push({ spacing, width, off }); }
+  f.pixels = b.subarray(p, p + f.pixelSize); p += f.pixelSize;
+  if (f.format === FONT_PAL8) { f.palette = []; for (let k = 0; k < 256; k++) f.palette.push(b.readUInt32LE(p + k * 4)); }
+  return f;
+}
+// The game's atlas size and character positions (gr_font_create), and each character's RGBA pixels.
+function fontAtlas(f) {
+  const n = f.format === FONT_RGB16 ? f.pixelSize >>> 1 : f.pixelSize;
+  const size = n * 2 < 0x1000 ? 64 : n * 2 < 0x4000 ? 128 : 256;
+  const glyphs = []; let x = 0, y = 0;
+  for (const c of f.chars) {
+    if (c.width + x >= size) { y += f.height; x = 0; }
+    const rgba = Buffer.alloc(c.width * f.height * 4);
+    for (let row = 0; row < f.height; row++) for (let col = 0; col < c.width; col++) {
+      const k = row * c.width + col; let px;
+      if (f.format === FONT_RGB16) px = f.pixels.readUInt16LE(c.off + k * 2);
+      else if (f.format === FONT_PAL8) { const v = f.palette[f.pixels[c.off + k]]; px = ((v >>> 24) & 15) << 12 | (v & 15) << 8 | ((v >>> 8) & 15) << 4 | ((v >>> 16) & 15); }
+      else { const a = Math.min(14, f.pixels[c.off + k]); px = (Math.round(a * 255 / 14) >> 4) << 12 | 0xfff; }
+      rgba.set([((px >> 8) & 15) * 17, ((px >> 4) & 15) * 17, (px & 15) * 17, (px >> 12) * 17], k * 4);
+    }
+    glyphs.push({ x, y, w: c.width, rgba });
+    x += c.width;
+  }
+  return { size, glyphs };
+}
+// Characters spaced apart for the model (transparent gutters, colour spread into them so edges do not darken).
+const FONT_GUTTER = 6;
+function fontSheet(f, atlas) {
+  const cols = 16, cellW = Math.max(...atlas.glyphs.map((g) => g.w)) + 2 * FONT_GUTTER, cellH = f.height + 2 * FONT_GUTTER;
+  const rows = Math.ceil(atlas.glyphs.length / cols), w = cols * cellW, h = rows * cellH, rgba = Buffer.alloc(w * h * 4);
+  atlas.glyphs.forEach((g, i) => {
+    const ox = (i % cols) * cellW + FONT_GUTTER, oy = Math.floor(i / cols) * cellH + FONT_GUTTER;
+    g.sheetX = ox; g.sheetY = oy;
+    for (let y = 0; y < f.height; y++) g.rgba.copy(rgba, ((oy + y) * w + ox) * 4, y * g.w * 4, (y + 1) * g.w * 4);
+  });
+  // spread colour into transparent pixels (a few passes), alpha stays 0
+  for (let pass = 0; pass < FONT_GUTTER; pass++) {
+    const src = Buffer.from(rgba);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4; if (src[i + 3]) continue;
+      let n = 0, s = [0, 0, 0];
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+        const j = (yy * w + xx) * 4; if (src[j + 3] || src[j] || src[j + 1] || src[j + 2]) { n++; for (let k = 0; k < 3; k++) s[k] += src[j + k]; }
+      }
+      if (n) for (let k = 0; k < 3; k++) rgba[i + k] = Math.round(s[k] / n);
+    }
+  }
+  return { w, h, bpp: 32, desc: 0x28, rgba };
+}
+
 // ---- collect the images ----
 const jobs = [], seen = new Set();
 for (const v of vpps) {
@@ -229,7 +352,55 @@ for (const v of vpps) {
   closeSync(fd);
   if (limit && jobs.length >= limit) break;
 }
-console.log(`${jobs.length} images to upscale with ${model}`);
+// VBM animations and stills: one job per frame; the file is written when its last frame is done.
+// Fonts: one job per font (its characters spaced apart); the finish packs them into <font>-hires.tga.
+const wanted = (n) => (!onlyNames || onlyNames.has(n.toLowerCase())) &&
+  (!only || (only.includes("*") ? new RegExp("^" + only.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*") + "$", "i").test(n) : n.toLowerCase().includes(only.toLowerCase())));
+let vbmCount = 0, fontCount = 0;
+for (const v of vpps) {
+  if (args.includes("--no-vbm") && args.includes("--no-fonts")) break;
+  const path = join(game, v + ".vpp"); if (!existsSync(path)) continue;
+  const dir = readDirectory(path), fd = openSync(path, "r");
+  for (const f of dir.files) {
+    const n = f.name, lower = n.toLowerCase();
+    const isVbm = /\.vbm$/i.test(n) && !args.includes("--no-vbm"), isVf = /\.vf$/i.test(n) && !args.includes("--no-fonts");
+    if ((!isVbm && !isVf) || seen.has(lower)) continue;
+    seen.add(lower);
+    if (!wanted(n)) continue;
+    const b = Buffer.alloc(f.size); readSync(fd, b, 0, f.size, f.offset);
+    if (isVbm) {
+      const vb = readVbm(b); if (!vb) continue;
+      const fac = vbmFactor(vb); if (fac === 1) continue;
+      const parent = { got: 0, frames: new Array(vb.frames) };
+      vb.frameRgba.forEach((rgba, i) => jobs.push({
+        vpp: v, name: `${n} frame ${i + 1}`, factor: fac,
+        t: { w: vb.w, h: vb.h, bpp: vb.fmt === 0 || vb.fmt === 1 ? 32 : 24, desc: 0x20, rgba, noKey: true },
+        finish: (out) => {
+          parent.frames[i] = out;
+          if (++parent.got < vb.frames) return;
+          const mips = vb.mips ? vb.mips + Math.log2(fac) : 0;
+          place(n, (p) => writeVbm(p, vb, vb.w * fac, vb.h * fac, mips, parent.frames));
+        },
+      }));
+      vbmCount++;
+    } else {
+      const font = readVf(b), atlas = fontAtlas(font), sheet = fontSheet(font, atlas);
+      const fac = atlas.size * 4 <= 2048 ? 4 : 2;
+      jobs.push({
+        vpp: v, name: n, factor: fac, t: { ...sheet, noKey: true },
+        finish: (out, W) => {
+          const S = atlas.size * fac, img = Buffer.alloc(S * S * 4), gh = font.height * fac;
+          for (const g of atlas.glyphs) for (let y = 0; y < gh; y++)
+            out.copy(img, ((g.y * fac + y) * S + g.x * fac) * 4, ((g.sheetY * fac + y) * W + g.sheetX * fac) * 4, ((g.sheetY * fac + y) * W + (g.sheetX + g.w) * fac) * 4);
+          place(n.replace(/\.vf$/i, "-hires.tga"), (p) => writeTga(p, S, S, 32, 0x28, img));
+        },
+      });
+      fontCount++;
+    }
+  }
+  closeSync(fd);
+}
+console.log(`${jobs.length} images to upscale with ${model} (${vbmCount} VBM files as frames, ${fontCount} fonts)`);
 
 // ---- the model, in batches (one folder in, one out) ----
 const work = join(out, ".work"), win = join(work, "in"), wout = join(work, "out");
@@ -327,7 +498,7 @@ let done = 0;
 for (let b0 = 0; b0 < jobs.length; b0 += BATCH) {
   const batch = jobs.slice(b0, b0 + BATCH);
   batch.forEach((j, i) => {
-    const t = j.t, key = t.bpp === 24 && (() => { for (let p = 0; p < t.w * t.h; p++) if (isKey(t.rgba, p)) return true; return false; })();
+    const t = j.t, key = !t.noKey && t.bpp === 24 && (() => { for (let p = 0; p < t.w * t.h; p++) if (isKey(t.rgba, p)) return true; return false; })();
     j.key = key; j.id = `j${b0 + i}`; idName.set(j.id, j.name);
     const col = key ? fillKeyed(t) : t.rgba;
     let p = padded(t.w, t.h, (s, b, d) => { b[d] = col[s * 4]; b[d + 1] = col[s * 4 + 1]; b[d + 2] = col[s * 4 + 2]; });
@@ -359,6 +530,7 @@ for (let b0 = 0; b0 < jobs.length; b0 += BATCH) {
         else if (rgba[i * 4] === 0 && rgba[i * 4 + 1] === 255 && rgba[i * 4 + 2] === 0) rgba[i * 4 + 1] = 254;
       }
     }
+    if (j.finish) { j.finish(rgba, W, H); done++; continue; }
     place(j.name, (p) => writeTga(p, W, H, t.bpp, t.desc, rgba));
     if (j.mips) {
       const levels = j.mips + Math.log2(f);

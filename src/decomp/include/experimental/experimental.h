@@ -50,6 +50,9 @@ bool exp_bm_nominal_size(int index, int *w, int *h);     // bm_get_dimensions: t
 // A pixel reader of bitmap bm that indexes its data with the nominal width: scales (x, y) to the real image and
 // returns the real width (the row stride); unchanged without an override.
 int  exp_bm_real_point(int bm, int *x, int *y, int nominal_w);
+// gr_font_create, after the game built a font's atlas: with <font>-hires.tga (tools/texture-upscale.mjs; 2x or 4x
+// the atlas, the same layout) the font draws from it at the atlas's size. f is a Font * (vsdk/gr/gr_font.h).
+void exp_font_hires(struct Font *f);
 // gameopts.cpp: SummonerFix's [Game] CameraZoomMax, SkipIntroMovies, InteractRange, ContainerRange
 void exp_game_options_init();                            // GameInit, before the main menu
 extern float exp_interact_range;                         // hud_interact_nearest (5.0)
