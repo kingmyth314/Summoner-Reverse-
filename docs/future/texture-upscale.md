@@ -177,6 +177,12 @@ The first full run (5,311 textures, about 3 hours, 5.1 GB with mips) showed thre
    every model output against its input (shrunk back, mean difference; good results score under 10, broken ones
    40-200), runs a failed one again alone up to three times, and uses a plain bilinear enlargement if it still fails.
    On a 200-texture test: 57 run again, 56 fixed, 1 bilinear, none broken.
+4. **Darker textures** (**Observed**): about 450 dark, speckled textures came out much darker, the same every time
+   (a floor from mean brightness 46 to 19): the model smooths fine speckle it takes for noise. The script now puts
+   the original's tone back (the difference between the input and the output shrunk to the input's size, enlarged
+   smoothly and added), which keeps the model's detail. The broken-output test is now structural (the shrunk output
+   must correlate with the input), since a correct result can differ in tone. On a 200-texture test after the
+   change: no brightness shift, 198 within the difference threshold, 2 bilinear.
 3. **The original game cannot use upscaled interface images** (**Observed**): its menus draw, but the click masks
    are read at the wrong place, so "Load Saved Game" started a new game. With the experimental build and
    `[Experimental] HiResInterface=1` the menus, the Load screen clicks and the game work; the 3D world and the HUD

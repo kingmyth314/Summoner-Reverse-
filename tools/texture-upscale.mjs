@@ -41,6 +41,8 @@ const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const game = opt("--game"), out = opt("--out"), esrgan = opt("--esrgan");
 const model = opt("--model", "realesrgan-x4plus"), only = opt("--only"), limit = +opt("--limit", "0");
+const namesFile = opt("--names");   // a file with one texture name per line: only those
+const onlyNames = namesFile ? new Set(readFileSync(namesFile, "utf8").split(String.fromCharCode(10)).map((s) => s.trim().toLowerCase()).filter(Boolean)) : null;
 const max4 = +opt("--max4", "256"), max2 = +opt("--max2", "512"), keepWork = args.includes("--keep-work");
 const threads = opt("--threads");   // the model's -j load:proc:save
 const tile = opt("--tile");   // the model's -t (default automatic; 128 did not help against the broken images below)
@@ -214,6 +216,7 @@ for (const v of vpps) {
     if (!/\.tga$/i.test(n) || /-mip\d+\.tga$/i.test(n)) continue;
     if (seen.has(n.toLowerCase())) continue;   // the game uses the first packfile's copy
     seen.add(n.toLowerCase());
+    if (onlyNames && !onlyNames.has(n.toLowerCase())) continue;
     if (only && !(only.includes("*") ? new RegExp("^" + only.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*") + "$", "i").test(n) : n.toLowerCase().includes(only.toLowerCase()))) continue;
     const b = Buffer.alloc(f.size); readSync(fd, b, 0, f.size, f.offset);
     const t = readTga(b); if (!t) continue;
@@ -235,24 +238,60 @@ for (const d of [win, wout, w1in, w1out]) mkdirSync(d, { recursive: true });
 const runModel = (i, o) => execFileSync(esrgan, ["-i", i, "-o", o, "-n", model, "-s", "4", "-f", "png",
   ...(threads ? ["-j", threads] : []), ...(tile ? ["-t", tile] : [])], { cwd: dirname(esrgan), stdio: ["ignore", "ignore", "pipe"] });
 
-// The model's output shrunk back to the input's size against the input (mean absolute difference, 0-255). On an
-// Intel Arc (2026-10-24) large batches gave about one image in five black or noise (scores 40-200; a good result
-// scores under 10), while the same image alone came out right. So every output is checked; one above RETRY_SCORE
-// is run again alone (up to 3 times, the best kept), and one still above FALLBACK_SCORE is replaced by a plain
-// bilinear enlargement, so a broken image never reaches the pack.
-const RETRY_SCORE = 12, FALLBACK_SCORE = 25;
+// Is the model's output broken? On an Intel Arc (2026-10-24) large batches gave about one image in five black or
+// noise, while the same image alone came out right. A correct result can still differ in tone: the model smooths
+// fine speckle it takes for noise, and a dark, speckled texture comes out much darker (a floor from mean 46 to 19,
+// the same every time), which correctTone below puts right. So the test is structure, not tone: the output shrunk
+// back to the input's size must follow the input (correlation, averaged over the channels that vary). A flat input
+// is compared by its mean instead. Scores: 0 = follows the input, 1 = no relation. One above RETRY_SCORE is run
+// again alone (up to 3 times, the best kept); one still above FALLBACK_SCORE becomes a plain bilinear enlargement.
+const RETRY_SCORE = 0.3, FALLBACK_SCORE = 0.5;
 function modelScore(inPath, outPath) {
   if (!existsSync(outPath)) return Infinity;
   const a = readPng(inPath), b = readPng(outPath);
   if (b.w !== a.w * 4 || b.h !== a.h * 4) return Infinity;
-  let sum = 0;
+  const n = a.w * a.h, small = new Float64Array(n * 3);
   for (let y = 0; y < a.h; y++) for (let x = 0; x < a.w; x++) for (let k = 0; k < 3; k++) {
     let s = 0;
     for (let dy = 0; dy < 4; dy++) for (let dx = 0; dx < 4; dx++) s += b.rgb[((y * 4 + dy) * b.w + x * 4 + dx) * 3 + k];
-    sum += Math.abs(s / 16 - a.rgb[(y * a.w + x) * 3 + k]);
+    small[(y * a.w + x) * 3 + k] = s / 16;
   }
-  return sum / (a.w * a.h * 3);
+  let total = 0, used = 0, flatDiff = 0;
+  for (let k = 0; k < 3; k++) {
+    let mi = 0, mo = 0;
+    for (let i = 0; i < n; i++) { mi += a.rgb[i * 3 + k]; mo += small[i * 3 + k]; }
+    mi /= n; mo /= n;
+    let cov = 0, vi = 0, vo = 0;
+    for (let i = 0; i < n; i++) { const di = a.rgb[i * 3 + k] - mi, dout = small[i * 3 + k] - mo; cov += di * dout; vi += di * di; vo += dout * dout; }
+    if (vi / n < 4) { flatDiff = Math.max(flatDiff, Math.abs(mo - mi)); continue; }   // a flat channel
+    used++;
+    total += vo > 0 ? 1 - Math.max(0, cov / Math.sqrt(vi * vo)) : 1;
+  }
+  const corr = used ? total / used : 0;
+  return Math.max(corr, flatDiff > 20 ? 1 : 0);
 }
+// Puts the input's tone back: the difference between the input and the output shrunk back to the input's size,
+// enlarged smoothly (bilinear) and added. The model's detail stays; the output shrunk back then equals the input.
+function correctTone(inPath, img) {
+  const a = readPng(inPath), W = img.w, H = img.h, d = new Float64Array(a.w * a.h * 3);
+  for (let y = 0; y < a.h; y++) for (let x = 0; x < a.w; x++) for (let k = 0; k < 3; k++) {
+    let s = 0;
+    for (let dy = 0; dy < 4; dy++) for (let dx = 0; dx < 4; dx++) s += img.rgb[((y * 4 + dy) * W + x * 4 + dx) * 3 + k];
+    d[(y * a.w + x) * 3 + k] = a.rgb[(y * a.w + x) * 3 + k] - s / 16;
+  }
+  const rgb = Buffer.alloc(W * H * 3);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const fx = Math.min(a.w - 1, Math.max(0, (x + 0.5) / 4 - 0.5)), fy = Math.min(a.h - 1, Math.max(0, (y + 0.5) / 4 - 0.5));
+    const x0 = Math.floor(fx), y0 = Math.floor(fy), x1 = Math.min(a.w - 1, x0 + 1), y1 = Math.min(a.h - 1, y0 + 1), tx = fx - x0, ty = fy - y0;
+    for (let k = 0; k < 3; k++) {
+      const p = (xx, yy) => d[(yy * a.w + xx) * 3 + k];
+      const v = img.rgb[(y * W + x) * 3 + k] + (p(x0, y0) * (1 - tx) + p(x1, y0) * tx) * (1 - ty) + (p(x0, y1) * (1 - tx) + p(x1, y1) * tx) * ty;
+      rgb[(y * W + x) * 3 + k] = v < 0 ? 0 : v > 255 ? 255 : Math.round(v);
+    }
+  }
+  return { w: W, h: H, rgb };
+}
+const modelOut = (id, suffix) => correctTone(join(win, id + suffix), readPng(join(wout, id + suffix)));
 function bilinear4(inPath, outPath) {
   const a = readPng(inPath), W = a.w * 4, H = a.h * 4, r = Buffer.alloc(W * H * 3);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -306,10 +345,10 @@ for (let b0 = 0; b0 < jobs.length; b0 += BATCH) {
   checkBatch();
   for (const j of batch) {
     const { t, factor: f } = j, W = t.w * f, H = t.h * f;
-    const col = unpad(readPng(join(wout, j.id + "_c.png")), t.w, t.h, f), rgba = Buffer.alloc(W * H * 4);
+    const col = unpad(modelOut(j.id, "_c.png"), t.w, t.h, f), rgba = Buffer.alloc(W * H * 4);
     for (let i = 0; i < W * H; i++) { rgba[i * 4] = col[i * 3]; rgba[i * 4 + 1] = col[i * 3 + 1]; rgba[i * 4 + 2] = col[i * 3 + 2]; rgba[i * 4 + 3] = 255; }
     if (t.bpp === 32) {
-      const a = unpad(readPng(join(wout, j.id + "_a.png")), t.w, t.h, f);
+      const a = unpad(modelOut(j.id, "_a.png"), t.w, t.h, f);
       let binary = true; for (let i = 0; i < t.w * t.h; i++) { const v = t.rgba[i * 4 + 3]; if (v !== 0 && v !== 255) { binary = false; break; } }
       for (let i = 0; i < W * H; i++) rgba[i * 4 + 3] = binary ? (a[i * 3] >= 128 ? 255 : 0) : a[i * 3];
     }
