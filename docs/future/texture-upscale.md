@@ -160,6 +160,28 @@ It runs on the GPU through Vulkan (tested on an Intel Arc 140V).
 - **Speed and size (Observed, 40 level textures):** about 2 s per texture and 2.3 MB of output each, with mips. The
   whole set is a few hours and several GB.
 
+## The full run (2026-10-24)
+
+The first full run (5,311 textures, about 3 hours, 5.1 GB with mips) showed three problems, all fixed in the script:
+
+1. **A crash in the original game** (**Observed**): an access violation in the TGA reader (`Sum-orig.exe+0x555430`,
+   from `bm_lock_tga`) right after the main menu. 50 texture names exist in two packfiles, 7 with different sizes
+   (`chicken1.tga` is 3 KB in `chars.vpp`, 127 KB in `levelt.vpp`). The game uses only the first packfile's copy,
+   but the script had upscaled both into different folders. The header then came from one file and the pixels from
+   the other, and the larger one overflowed the buffer. Now the script takes each name from the packfile the game
+   finds first, and every file is in both folders (hard links, no extra space). A check of the repaired pack: all
+   10,585 files are in both folders, and every texture is exactly 2x or 4x the copy the game uses.
+2. **Broken images from the GPU** (**Observed**): about a fifth of the textures came out black or as noise in the
+   200-image batches on the Intel Arc 140V, although the same image alone came out right (the failure the upscaler's
+   documentation describes for non-Nvidia GPUs). A fixed tile size (`-t 128`) did not help. The script now checks
+   every model output against its input (shrunk back, mean difference; good results score under 10, broken ones
+   40-200), runs a failed one again alone up to three times, and uses a plain bilinear enlargement if it still fails.
+   On a 200-texture test: 57 run again, 56 fixed, 1 bilinear, none broken.
+3. **The original game cannot use upscaled interface images** (**Observed**): its menus draw, but the click masks
+   are read at the wrong place, so "Load Saved Game" started a new game. With the experimental build and
+   `[Experimental] HiResInterface=1` the menus, the Load screen clicks and the game work; the 3D world and the HUD
+   looked right. A pack for the original game would have to leave the interface images out.
+
 ## Decisions for the user
 
 1. Which model (the user chose AI upscaling, 2026-10-23; Real-ESRGAN's ncnn-vulkan build is the first candidate,

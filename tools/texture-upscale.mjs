@@ -18,13 +18,16 @@
 //     no other pixel is;
 //   - when the packfile has <name>-mip1.tga etc., a new chain is written at the new sizes (one more level per
 //     doubling), as the game reads mip levels only while each is half the one before.
-// Where the files go: the game reads a bitmap's header from any data folder but its pixels from the folder the load
-// asked for, so levelt.vpp's textures go to data\maps\levels (s3d loads them with path_maps_levels) and everything
-// else to data\interface\pc (path_interface; the other loads search every folder).
+// Where the files go: the game reads a bitmap's header from any data folder (bm_read_header, PATH_ANY) but its
+// pixels from the folder the load asked for (bm_lock, the entry's path_id: path_interface, path_maps_levels, or every
+// folder). The header and the pixels must come from the same file, or a larger image overflows the buffer (seen
+// 2026-10-24), so every file is written to data\interface\pc and hard-linked into data\maps\levels.
+// A name in two packfiles (58 are, 7 with different contents) is taken from the packfile the game finds first
+// (packfile_init's order, then the level packfiles), as packfile_find does; the later copies are never used.
 //
 // The output is derived from the game's art: never commit or publish it. The work folder (PNG files for the model)
 // is <out>\.work and is emptied file by file afterwards unless --keep-work.
-import { readFileSync, writeFileSync, mkdirSync, readdirSync, unlinkSync, existsSync, openSync, readSync, closeSync, rmdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, unlinkSync, existsSync, openSync, readSync, closeSync, rmdirSync, linkSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -39,7 +42,10 @@ const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] :
 const game = opt("--game"), out = opt("--out"), esrgan = opt("--esrgan");
 const model = opt("--model", "realesrgan-x4plus"), only = opt("--only"), limit = +opt("--limit", "0");
 const max4 = +opt("--max4", "256"), max2 = +opt("--max2", "512"), keepWork = args.includes("--keep-work");
-const vpps = opt("--vpp", "chars,levelt,items,effects,summoner,cutscene").split(",");
+const threads = opt("--threads");   // the model's -j load:proc:save
+const tile = opt("--tile");   // the model's -t (default automatic; 128 did not help against the broken images below)
+const vpps = opt("--vpp", "summoner,chars,items,effects,cutscene,levelt").split(",");   // the game's packfile order
+const FOLDERS = ["data/interface/pc", "data/maps/levels"];   // written to the first, hard-linked into the second
 if (!game || !out || !esrgan) {
   console.error("usage: node tools/texture-upscale.mjs --game <install dir> --out <pack dir> --esrgan <exe> [options]");
   process.exit(2);
@@ -189,8 +195,16 @@ function halve(rgba, w, h, keyMode) {
   return { w: W, h: H, rgba: r };
 }
 
+// One output file: written in the first folder, the same file (a hard link) in the others.
+function place(name, write) {
+  const paths = FOLDERS.map((f) => { mkdirSync(join(out, f), { recursive: true }); return join(out, f, name); });
+  for (const p of paths) if (existsSync(p)) unlinkSync(p);
+  write(paths[0]);
+  for (const p of paths.slice(1)) linkSync(paths[0], p);
+}
+
 // ---- collect the images ----
-const jobs = [];
+const jobs = [], seen = new Set();
 for (const v of vpps) {
   const path = join(game, v + ".vpp"); if (!existsSync(path)) continue;
   const dir = readDirectory(path), names = new Set(dir.files.map((f) => f.name.toLowerCase()));
@@ -198,13 +212,15 @@ for (const v of vpps) {
   for (const f of dir.files) {
     const n = f.name;
     if (!/\.tga$/i.test(n) || /-mip\d+\.tga$/i.test(n)) continue;
+    if (seen.has(n.toLowerCase())) continue;   // the game uses the first packfile's copy
+    seen.add(n.toLowerCase());
     if (only && !(only.includes("*") ? new RegExp("^" + only.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*") + "$", "i").test(n) : n.toLowerCase().includes(only.toLowerCase()))) continue;
     const b = Buffer.alloc(f.size); readSync(fd, b, 0, f.size, f.offset);
     const t = readTga(b); if (!t) continue;
     const m = Math.max(t.w, t.h), factor = m <= max4 ? 4 : m <= max2 ? 2 : 1;
     if (factor === 1) continue;
     let mips = 0; while (names.has(n.replace(/\.tga$/i, `-mip${mips + 1}.tga`).toLowerCase())) mips++;
-    jobs.push({ vpp: v, name: n, t, factor, mips, folder: v === "levelt" ? "data/maps/levels" : "data/interface/pc" });
+    jobs.push({ vpp: v, name: n, t, factor, mips });
     if (limit && jobs.length >= limit) break;
   }
   closeSync(fd);
@@ -214,14 +230,66 @@ console.log(`${jobs.length} images to upscale with ${model}`);
 
 // ---- the model, in batches (one folder in, one out) ----
 const work = join(out, ".work"), win = join(work, "in"), wout = join(work, "out");
-for (const d of [win, wout]) mkdirSync(d, { recursive: true });
+const w1in = join(work, "one-in"), w1out = join(work, "one-out");
+for (const d of [win, wout, w1in, w1out]) mkdirSync(d, { recursive: true });
+const runModel = (i, o) => execFileSync(esrgan, ["-i", i, "-o", o, "-n", model, "-s", "4", "-f", "png",
+  ...(threads ? ["-j", threads] : []), ...(tile ? ["-t", tile] : [])], { cwd: dirname(esrgan), stdio: ["ignore", "ignore", "pipe"] });
+
+// The model's output shrunk back to the input's size against the input (mean absolute difference, 0-255). On an
+// Intel Arc (2026-10-24) large batches gave about one image in five black or noise (scores 40-200; a good result
+// scores under 10), while the same image alone came out right. So every output is checked; one above RETRY_SCORE
+// is run again alone (up to 3 times, the best kept), and one still above FALLBACK_SCORE is replaced by a plain
+// bilinear enlargement, so a broken image never reaches the pack.
+const RETRY_SCORE = 12, FALLBACK_SCORE = 25;
+function modelScore(inPath, outPath) {
+  if (!existsSync(outPath)) return Infinity;
+  const a = readPng(inPath), b = readPng(outPath);
+  if (b.w !== a.w * 4 || b.h !== a.h * 4) return Infinity;
+  let sum = 0;
+  for (let y = 0; y < a.h; y++) for (let x = 0; x < a.w; x++) for (let k = 0; k < 3; k++) {
+    let s = 0;
+    for (let dy = 0; dy < 4; dy++) for (let dx = 0; dx < 4; dx++) s += b.rgb[((y * 4 + dy) * b.w + x * 4 + dx) * 3 + k];
+    sum += Math.abs(s / 16 - a.rgb[(y * a.w + x) * 3 + k]);
+  }
+  return sum / (a.w * a.h * 3);
+}
+function bilinear4(inPath, outPath) {
+  const a = readPng(inPath), W = a.w * 4, H = a.h * 4, r = Buffer.alloc(W * H * 3);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const fx = Math.min(a.w - 1, Math.max(0, (x + 0.5) / 4 - 0.5)), fy = Math.min(a.h - 1, Math.max(0, (y + 0.5) / 4 - 0.5));
+    const x0 = Math.floor(fx), y0 = Math.floor(fy), x1 = Math.min(a.w - 1, x0 + 1), y1 = Math.min(a.h - 1, y0 + 1), tx = fx - x0, ty = fy - y0;
+    for (let k = 0; k < 3; k++) {
+      const p = (xx, yy) => a.rgb[(yy * a.w + xx) * 3 + k];
+      r[(y * W + x) * 3 + k] = Math.round((p(x0, y0) * (1 - tx) + p(x1, y0) * tx) * (1 - ty) + (p(x0, y1) * (1 - tx) + p(x1, y1) * tx) * ty);
+    }
+  }
+  writePngRgb(outPath, W, H, r);
+}
+const stats = { retried: 0, fixed: 0, fallback: [] }, idName = new Map();
+function checkBatch() {
+  for (const f of readdirSync(win)) {
+    const inP = join(win, f), outP = join(wout, f);
+    let best = modelScore(inP, outP);
+    if (best <= RETRY_SCORE) continue;
+    stats.retried++;
+    for (let tries = 0; tries < 3 && best > RETRY_SCORE; tries++) {
+      for (const d of [w1in, w1out]) for (const x of readdirSync(d)) unlinkSync(join(d, x));   // single files only
+      writeFileSync(join(w1in, f), readFileSync(inP));
+      runModel(w1in, w1out);
+      const s = modelScore(inP, join(w1out, f));
+      if (s < best) { best = s; writeFileSync(outP, readFileSync(join(w1out, f))); }
+    }
+    if (best <= FALLBACK_SCORE) stats.fixed++;
+    else { bilinear4(inP, outP); stats.fallback.push(`${idName.get(f.replace(/_[cak].png$/, ""))} (${f.slice(-5, -4)})`); }
+  }
+}
 const BATCH = 200;
 let done = 0;
 for (let b0 = 0; b0 < jobs.length; b0 += BATCH) {
   const batch = jobs.slice(b0, b0 + BATCH);
   batch.forEach((j, i) => {
     const t = j.t, key = t.bpp === 24 && (() => { for (let p = 0; p < t.w * t.h; p++) if (isKey(t.rgba, p)) return true; return false; })();
-    j.key = key; j.id = `j${b0 + i}`;
+    j.key = key; j.id = `j${b0 + i}`; idName.set(j.id, j.name);
     const col = key ? fillKeyed(t) : t.rgba;
     let p = padded(t.w, t.h, (s, b, d) => { b[d] = col[s * 4]; b[d + 1] = col[s * 4 + 1]; b[d + 2] = col[s * 4 + 2]; });
     writePngRgb(join(win, j.id + "_c.png"), p.W, p.H, p.b);
@@ -234,8 +302,8 @@ for (let b0 = 0; b0 < jobs.length; b0 += BATCH) {
       writePngRgb(join(win, j.id + "_k.png"), p.W, p.H, p.b);
     }
   });
-  execFileSync(esrgan, ["-i", win, "-o", wout, "-n", model, "-s", "4", "-f", "png"],
-    { cwd: dirname(esrgan), stdio: ["ignore", "ignore", "pipe"] });
+  runModel(win, wout);
+  checkBatch();
   for (const j of batch) {
     const { t, factor: f } = j, W = t.w * f, H = t.h * f;
     const col = unpad(readPng(join(wout, j.id + "_c.png")), t.w, t.h, f), rgba = Buffer.alloc(W * H * 4);
@@ -252,20 +320,23 @@ for (let b0 = 0; b0 < jobs.length; b0 += BATCH) {
         else if (rgba[i * 4] === 0 && rgba[i * 4 + 1] === 255 && rgba[i * 4 + 2] === 0) rgba[i * 4 + 1] = 254;
       }
     }
-    const dir = join(out, j.folder); mkdirSync(dir, { recursive: true });
-    writeTga(join(dir, j.name), W, H, t.bpp, t.desc, rgba);
+    place(j.name, (p) => writeTga(p, W, H, t.bpp, t.desc, rgba));
     if (j.mips) {
       const levels = j.mips + Math.log2(f);
       let m = { w: W, h: H, rgba };
       for (let l = 1; l <= levels && (m.w > 1 || m.h > 1); l++) {
         m = halve(m.rgba, m.w, m.h, j.key);
-        writeTga(join(dir, j.name.replace(/\.tga$/i, `-mip${l}.tga`)), m.w, m.h, t.bpp, t.desc, m.rgba);
+        const mm = m;
+        place(j.name.replace(/\.tga$/i, `-mip${l}.tga`), (p) => writeTga(p, mm.w, mm.h, t.bpp, t.desc, mm.rgba));
       }
     }
     done++;
   }
-  for (const d of [win, wout]) for (const f of readdirSync(d)) unlinkSync(join(d, f));   // single files only
+  if (!keepWork) for (const d of [win, wout]) for (const f of readdirSync(d)) unlinkSync(join(d, f));   // single files only
   console.log(`${done} / ${jobs.length}`);
 }
-if (!keepWork) { rmdirSync(win); rmdirSync(wout); rmdirSync(work); }   // empty folders only
+for (const d of [w1in, w1out]) for (const x of readdirSync(d)) unlinkSync(join(d, x));   // single files only
+if (!keepWork) { for (const d of [win, wout, w1in, w1out]) rmdirSync(d); rmdirSync(work); }   // empty folders only
+console.log(`checked: ${stats.retried} model outputs run again (${stats.fixed} fixed), ${stats.fallback.length} bilinear instead`);
+if (stats.fallback.length) console.log("bilinear: " + stats.fallback.join(", "));
 console.log(`done: ${out}`);
