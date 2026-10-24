@@ -145,6 +145,21 @@ user's permission (file, source, size).
 
 **Never in the repository:** extracted or upscaled images (`extracted/` is git-ignored). Only the script.
 
+**As built (2026-10-23): `tools/texture-upscale.mjs`** with Real-ESRGAN's ncnn-vulkan build
+(`realesrgan-ncnn-vulkan-20220424-windows.zip`, GitHub xinntao/Real-ESRGAN release v0.2.5.0, 45,474,481 bytes,
+SHA-256 abc02804e17982a3be33675e4d471e91ea374e65b70167abc09e31acb412802d; BSD-3-Clause; kept outside the repository).
+It runs on the GPU through Vulkan (tested on an Intel Arc 140V).
+- **What it handles:** the size factors above; the wrap padding; alpha upscaled separately and re-thresholded when it
+  was only 0 / 255; the green key filled before upscaling and restored afterwards; new mip chains.
+- **Where the files go:** the game reads a bitmap's header from any data folder but its pixels only from the folder
+  the load named (`bm_read_header` with `PATH_ANY`, `bm_lock` with the entry's `path_id`). So `levelt.vpp`'s textures
+  go to `datamapslevels` (`s3d` loads them with `path_maps_levels`) and the rest to `datainterfacepc`.
+- **Samples (Observed):** five textures (a tunic, a stone relief, iron bars, an arrow streak, a sword icon) with the
+  general model (`realesrgan-x4plus`) and the anime model. The general one keeps stone grain; the anime one paints
+  it smooth. Both keep the bars' and the streak's transparency clean.
+- **Speed and size (Observed, 40 level textures):** about 2 s per texture and 2.3 MB of output each, with mips. The
+  whole set is a few hours and several GB.
+
 ## Decisions for the user
 
 1. Which model (the user chose AI upscaling, 2026-10-23; Real-ESRGAN's ncnn-vulkan build is the first candidate,
