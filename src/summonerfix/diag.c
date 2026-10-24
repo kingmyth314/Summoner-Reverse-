@@ -41,7 +41,9 @@ static void LogStackTrace(const void *sp)
                       (c[-3] == 0xFF && (c[-2] & 0xF8) == 0x50) || (c[-6] == 0xFF && (c[-5] & 0xF8) == 0x90);
         if (!isCall)
             continue;
-        n += _snprintf(line + n, sizeof line - n, " 0x%06lX", v - SumVa(SUM_IMAGE_BASE) + SUM_IMAGE_BASE);
+        // Relative to the exe's own load address (SumVa(SUM_IMAGE_BASE) has no table entry in a rebuilt exe).
+        n += _snprintf(line + n, sizeof line - n, " 0x%06lX",
+                       v - (DWORD)(UINT_PTR)GetModuleHandleA(NULL) + SUM_IMAGE_BASE);
         found++;
     }
     Log("%s", line);

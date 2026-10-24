@@ -45,6 +45,8 @@ and the Tentacle Beast box on the main window.
 | Autosave | `[Experimental] Autosave`, `AutosaveMinutes` (5), `AutosaveOnLevelChange` (1), `AutosaveSlots` (3) | new; `experimental/autosave.cpp`, two small changes in `game/new_saveload.cpp` | tested |
 | Frame-rate cap and vsync | `[Experimental] FrameRateCap` (0 = the game's 120; 30-240), `VSync` (OpenGL) | new; `experimental/display.cpp`, one block in `vsdk/frametime.cpp` | cap tested; vsync not yet |
 | Upscaled interface images | `[Experimental] HiResInterface` (OpenGL) | new; `experimental/hires.cpp`, hooks in `vsdk/bmpman.cpp`, `vsdk/ui_container.cpp`, `vsdk/unnamed_lights_0x51e070.cpp`; [Texture upscaling](future/texture-upscale.md#the-interface-code-change) | tested 2026-10-23: a 2x main-menu background drawn whole, menu clicks work |
+| Widescreen interface | `[Display] CenterHud` (1), `SidePanelsOverWorld` (1), SummonerFix's | SummonerFix `widescreen.c` in the source: `experimental/widescreen.cpp`; the 37 interface units include `experimental/ui_shift.h` last, which points their 2D drawing, clip, screen width and mouse calls at wrappers; hooks in GameTick, `interface_draw` / `interface_frame` (side panels), `interface_set_view_clip`, `gr::set_clip` and the world's cursor reads. SummonerFix shifts the full-screen panels (the `CenterHud` key in `Sum-exp.fixes`) | tested 2026-10-24 at 1366x768: HUD, inventory, map |
+| Game options | `[Game] CameraZoomMax`, `SkipIntroMovies`, `InteractRange`, `ContainerRange` | SummonerFix `gameopts.c` in the source: `experimental/gameopts.cpp`, read at `GameInit`; Print Screen as Targa above 1024 lines (C290) | logged at start |
 | Field of view | none yet | the draw lists hold 500 entries with no bounds check; a wider view could overflow them | proposal only |
 | dgVoodoo 2 | `[Display] Renderer` (SummonerFix's), `[Display] Windowed` | `game/summoner.cpp` (Direct3D and Glide fullscreen, 201, instead of the rebuilt exe's fixed window mode 200) and `vsdk/gr_direct3d.cpp` (dgVoodoo's adapter passes the Voodoo-card test); [dgVoodoo 2](future/dgvoodoo.md) | tested: Glide and Direct3D load a save and play |
 
@@ -63,6 +65,25 @@ original exe, from the code, not tested). While a cap is set, `FrameDone` carrie
 next frame, so the game's millisecond timers do not run slow at caps that do not divide 1000 (4% at 120, 13.5% at
 144 in the original's truncation). Two frame-rate dependent truncations stay as in the original: the level fade
 (slower above 120) and the animation ticks (about 1% slow at 144).
+
+## Parity with the original game and SummonerFix (2026-10-24)
+
+The experimental build runs with SummonerFix as the original game does; SummonerFix's rebuilt mode applies what works
+through the address table and stands down for what the source does itself (`Sum-exp.fixes`). To find what was
+missing, the original exe and `Sum-exp.exe` were started with the same `summonerfix.ini` (1366x768) and SummonerFix's
+logs compared. Missing in the experimental build, and now done:
+
+| Gap | Now |
+|---|---|
+| The resolution-table patch: at 1366x768 the game ran at 640x480, in a corner, clicks off | `CustomResolution` in the source (fixed and experimental builds) |
+| Widescreen interface (about 470 call sites by address range) | native, above |
+| `CameraZoomMax`, `InteractRange`, `ContainerRange`, `SkipIntroMovies`, Print Screen as Targa | native, above |
+| G252, G253, G31 (added to SummonerFix after the fixed-build port) | `FIXED_BUILD` fixes ([Fixed build changes](fixed-build.md)) |
+| `key_to_ascii` (typing ignores key bindings): the patch's byte check had the original's address of `key_inited` | SummonerFix builds the expected bytes from the translated address; applies to both exes |
+| A stack line at exit asked the address table for the image base | SummonerFix's diagnostics use the exe's own load address |
+
+After the changes the same comparison shows no SummonerFix feature that the original game gets and the experimental
+build lacks.
 
 ## In-game tests (2026-10-21)
 

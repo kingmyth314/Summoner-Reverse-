@@ -48,6 +48,7 @@
 #include "summoner/interface/new_spell.h"
 #include "summoner/interface/new_tutorial.h"
 #include "summoner/interface/new_hud.h"
+#include "experimental/experimental.h"   // EXPERIMENTAL_BUILD only (InteractRange)
 #include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
 
 #define HUD_NUM_BUTTONS   62
@@ -1196,7 +1197,11 @@ void hud_interact_nearest()
                 float dz = l->pos.z - cur_character->pos.z;
                 float dist = (float)sqrt(dx * dx + dy * dy + dz * dz);
 
+#ifdef EXPERIMENTAL_BUILD
+                if (dist <= exp_interact_range && dist <= best_door_dist) {   // experimental build: InteractRange
+#else
                 if (dist <= 5.0f && dist <= best_door_dist) {
+#endif
                     best_door_dist = dist;
                     best_door = l;
                 }

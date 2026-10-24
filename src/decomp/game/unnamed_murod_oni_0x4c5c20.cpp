@@ -139,6 +139,11 @@ int ai_state::murod_oni_ai_select_action()
             murod_oni_saved_target_handle = murod_oni_target_handle;
             murod_oni_target_handle = handle;
             murod_oni_current_move = murod_oni_move_2;
+#ifdef FIXED_BUILD
+            // FIXED_BUILD: G252 MurodBackBiteTimer. timer_b was never armed again after murod_oni_init_timers, so once
+            // elapsed it allowed the backward bite every 2 s. It waits 5 s between switches, as the crowd timer above.
+            murod_oni_timer_b.SetTimeout(5000);
+#endif
             return 3;
         }
     }

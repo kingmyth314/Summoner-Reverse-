@@ -50,6 +50,10 @@ bool exp_bm_nominal_size(int index, int *w, int *h);     // bm_get_dimensions: t
 // A pixel reader of bitmap bm that indexes its data with the nominal width: scales (x, y) to the real image and
 // returns the real width (the row stride); unchanged without an override.
 int  exp_bm_real_point(int bm, int *x, int *y, int nominal_w);
+// gameopts.cpp: SummonerFix's [Game] CameraZoomMax, SkipIntroMovies, InteractRange, ContainerRange
+void exp_game_options_init();                            // GameInit, before the main menu
+extern float exp_interact_range;                         // hud_interact_nearest (5.0)
+extern float exp_container_range_sq;                     // world_mouse_frame (25.0)
 // widescreen.cpp: the interface centred on a wide screen ([Display] CenterHud); the wrappers are in ui_shift.h
 extern int exp_ws_clip_shifted;                          // gr::set_clip clears it (gr.cpp)
 extern int exp_mouse_raw_x, exp_mouse_raw_y;             // the unshifted cursor, for world code

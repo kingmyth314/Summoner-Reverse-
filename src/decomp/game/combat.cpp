@@ -1903,7 +1903,15 @@ bool living_combat::resolve_hit()
     if (opponent->owner->loco_blend > 0.5f && (game_flags & 1))
         opponent->owner->status_effect_add(STATUS_SLOW, 5000, -1, 0, -1, 0);
     character_break_paralysis_on_hit(opponent->owner);
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: G31 BossSpellInRange. The boss's move (its +Plus Spell: the Serpent's poison, the Ghost's fear) was
+    // dispatched before the range test just below that drops the hit, so the spell landed from out of reach. A boss
+    // (type 9) whose move is out of range casts nothing, as SummonerFix's patch of this call does.
+    if (!(owner->type == 9 && !boss_move_in_range_dispatch(owner, opponent->owner)))
+        boss_counter_hit_dispatch(owner, opponent->owner);
+#else
     boss_counter_hit_dispatch(owner, opponent->owner);
+#endif
     if (boss) {
         if (!boss_move_in_range_dispatch(owner, opponent->owner))
             return false;

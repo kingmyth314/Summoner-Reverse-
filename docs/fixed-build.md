@@ -40,6 +40,7 @@ Where each one stands in the fixed build:
 | QPC frequency above 4 GHz | **in the source** (G2): `timer_init` scales the counter and frequency down by the same power of two |
 | Cutscenes skip after about 24.9 days of uptime | **in the source** (G3): the elapsed time is an unsigned difference in all three readers; SummonerFix's `timeGetTime` rebase stands down (`CutsceneTimer`) |
 | Crash on Start New Game without sound | **in the source** (C1): the stream is only touched once `ds_init` finished; the guard patch stands down (`NoSoundGuard`) |
+| Game resolution outside the three the game knows (e.g. 1366x768) | **in the source** (CustomResolution, 2026-10-24): `LoadSettings` puts the size into the 1024x768 slot of `resolution_table`, as SummonerFix patches the original. Before, the rebuilt exes fell back to 640x480 at such a size |
 | No launcher needed | the game starts without the launcher's registry values (renderer and install path have defaults); **in the source**: 1024x768 by default instead of 640x480 |
 | OpenGL renderer, windowed mode, texture-size cap | `REBUILT_OPENGL`, part of the `fixed` configuration |
 | No CD | `SHIPPED_NOCD`, part of the `fixed` configuration |
@@ -82,6 +83,9 @@ centres the 1024x768 picture itself) would replace most of the open rows at once
 | C250 | No Luminar beam crash | `LuminarBeamTarget` | `ai_state::luminar_beam_hit (0x4ca3a0)` | `game/unnamed_luminar_0x4c8d10.cpp` |
 | C272 | No crash in the Masad tutorial step | `EffectSearchGuard` | `fx_disable_by_effect_name (0x48d660)` | `game/unnamed_fx_0x489c40.cpp` |
 | C310 | Game folder with a long path starts | `LongInstallPath` | `file_init (0x512d60)` | `vsdk/unnamed_vfile_0x5128b0.cpp` |
+| G31 | A boss's move casts its spell only when the hit is in range (the Serpent's poison, the Ghost's fear) | `BossSpellInRange` | `living_combat::resolve_hit (0x467df0)` | `game/combat.cpp` |
+| G252 | Murod Oni's backward bite waits 5 s between switches | `MurodBackBiteTimer` | `murod_oni_ai_select_action` | `game/unnamed_murod_oni_0x4c5c20.cpp` |
+| G253 | Murod's leap and the Luminar's teleport skip dead or dying heroes | `BossAnchorsAlive` | `murod_start_leap`, `luminar_teleport_out` | `game/unnamed_murod_0x4c5140.cpp`, `game/unnamed_luminar_0x4c8d10.cpp` |
 | C317 | No Mist Elemental crash at cutscenes | `SummonStashNoMove` | `summon_stash_for_cutscene (0x448000)` | `game/characterinfo.cpp` |
 | G1 | The game runs at its real speed (no 2x) | `FrameLimiter` | `FrameDone (0x501510)` | `vsdk/frametime.cpp` |
 | G2 | Normal speed with a 4+ GHz timer | `QpcFrequency` | `timer_init (0x532840)` | `vsdk/timer.cpp` |

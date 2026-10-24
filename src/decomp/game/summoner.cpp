@@ -533,6 +533,9 @@ void GameInit()
     int start;
     char *font_name;
 
+#ifdef EXPERIMENTAL_BUILD
+    exp_game_options_init();   // experimental build: SummonerFix's [Game] options (before the main menu)
+#endif
     os_seed_random(-1);
     switch (resolution_index) {
     case 2:

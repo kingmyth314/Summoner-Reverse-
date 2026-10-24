@@ -51,6 +51,7 @@
 #include "summoner/interface/new_spell.h"
 #include "summoner/player/player.h"
 #include "summoner/multi/multi.h"
+#include "experimental/experimental.h"   // EXPERIMENTAL_BUILD only (ContainerRange)
 
 #define INPUT_RCLICK     0x1
 #define INPUT_CLICK      0x4
@@ -385,7 +386,11 @@ void world_mouse_frame(unsigned int *input, vector3 *eye)
                 if ((lc_entries[i].flags & 1) && lc_entries[i].gold < 1)
                     continue;
                 vector3 d = o->pos - cur_character->pos;
+#ifdef EXPERIMENTAL_BUILD
+                if (d.len_sq() <= exp_container_range_sq && o == l) {   // experimental build: ContainerRange
+#else
                 if (d.len_sq() <= 25.0f && o == l) {
+#endif
                     door = l;
                     world_hover_tint_character(l, world_hover_tint[0], world_hover_tint[1],
                                                world_hover_tint[2]);

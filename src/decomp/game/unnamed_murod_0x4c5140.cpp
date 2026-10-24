@@ -83,8 +83,15 @@ bool ai_state::murod_start_leap()
 
     for (p = party_list.next; p != &party_list; p = p->next) {
         c = living_from_handle(p->handle);
+#ifdef FIXED_BUILD
+        // FIXED_BUILD: G253 BossAnchorsAlive. The leap could land beside a dead hero: the party records are only
+        // tested for NULL. A dead or dying one (CF_DEAD, CF_HIDDEN) is left out.
+        if (c && !(c->flags & (CF_DEAD | CF_HIDDEN)))
+            members[count++] = c;
+#else
         if (c)
             members[count++] = c;
+#endif
     }
     bool ok = false;
     if (count != 0) {

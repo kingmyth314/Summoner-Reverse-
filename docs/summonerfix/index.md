@@ -432,6 +432,11 @@ The game uses its defaults for these.
 
 ## In the standalone rebuilt exe
 
+{: .important }
+Added 2026-10-24: in rebuilt mode `WidescreenInstall` patches nothing; for an exe whose `.fixes` lists `CenterHud` (the
+experimental build, which centres its interface itself) it only enables the full-screen-panel shift of the display
+layer. The `key_to_ascii` patch checks for `key_inited`'s translated address, so it applies to rebuilt exes too.
+
 Added 2026-10-19. When `<exe name>.addr` sits next to the running exe (the address table `tools/link-build.mjs`
 writes for `Sum-rebuilt.exe`, the exe built from the decompiled source), SummonerFix runs in that exe
 (`rebuilt.c`): every Sum.exe address it uses is translated through the table (`SumVa`, and `OrigVa` for return

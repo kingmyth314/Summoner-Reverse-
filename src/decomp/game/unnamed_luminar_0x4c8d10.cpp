@@ -544,7 +544,12 @@ bool ai_state::luminar_teleport_out()
     int i;
 
     for (c = living_list.live_next; c != &living_list; c = c->live_next) {
+#ifdef FIXED_BUILD
+        // part of FIXED_BUILD G253: a dying hero (still in the living list) is not a teleport anchor.
+        if ((c->type == 7 || (game_flags & 0x8)) && !(c->flags & (CF_DEAD | CF_HIDDEN))) {
+#else
         if (c->type == 7 || (game_flags & 0x8)) {
+#endif
             list[count++] = c;
             if (count >= 8)
                 break;

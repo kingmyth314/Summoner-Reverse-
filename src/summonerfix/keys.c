@@ -466,7 +466,10 @@ void KeyBindInstall(void)
     // key_to_ascii: replace its first instruction (MOV AL, [key_inited], 5 bytes) with JMP KeyToAscii.
     for (int i = 0; i < 256; i++)
         g_physical[i] = (unsigned char)i;
-    static const BYTE kOrig[5] = {0xA0, 0x74, 0xAA, 0x5D, 0x02};
+    // The operand is key_inited's address, translated for a rebuilt exe (where key_inited lies elsewhere).
+    BYTE kOrig[5] = {0xA0};
+    DWORD inited = SumVa(VA_KEY_INITED);
+    memcpy(kOrig + 1, &inited, 4);
     BYTE jmp[5] = {0xE9};
     rel = (DWORD)(UINT_PTR)KeyToAscii - (SumVa(VA_KEY_TO_ASCII) + 5);
     memcpy(jmp + 1, &rel, 4);
