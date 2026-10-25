@@ -202,8 +202,33 @@ The run with every fix above (**Observed**):
   the real game folder untouched). The main menu, the Load screen and its clicks, loading a save, the 3D world, the
   HUD and the inventory (icons and the character view) all drew correctly.
 
-Fonts and VBMs: added 2026-10-24 (below). Still open: the interface-free variant a player of the original game would
-need.
+Fonts and VBMs: added 2026-10-24 (below). The pack for the original game: 2026-10-25 (below).
+
+## The pack for the original game (2026-10-25)
+
+The original Sum.exe cannot use upscaled images it draws by pixel rectangle or reads as click masks (above).
+`tools/texture-pack-original.mjs` makes a pack for it from the full one, as hard links (no extra space), without:
+- every image of `summoner.vpp`: all the interface art (menus, HUD, skill and spell icons, the automap images,
+  cursors, loading screens, popups). The tables' `$Icon` and `$Automap...` fields name only images in it;
+- the 11 `cutscene.vpp` images no 3D asset names (the cutscene stills the 3D cutscene files do name stay);
+- the `-hires.tga` fonts, which only the experimental build reads.
+
+What stays is what the game draws as textures in 3D: levels, characters, equipment, items and effects. Of the full
+pack's 10,692 files, 9,429 stay and 1,263 are left out.
+
+**Test** (**Observed**, test folder, original exe with SummonerFix at 1366x768): the same five screens with no pack
+and with this one, compared pixel by pixel:
+
+| Screen | Pixels that differ | In the HUD strip |
+|---|---|---|
+| Main menu | 0% | 0% |
+| Load screen | 0% | 0% |
+| Game | 6.4% (the 3D world) | 0.6% (the portraits' 3D heads) |
+| Inventory | 1.3% (the 3D character) | 0.2% |
+| Map panel | 4.0% (the world beside it) | 1.1% |
+
+The menus, the Load screen, the HUD clicks into the inventory and the map all worked. One folder serves one exe: the
+full pack for `Sum-exp.exe`, this one for `Sum.exe`.
 
 ## Fonts and VBM textures (research, 2026-10-24)
 
