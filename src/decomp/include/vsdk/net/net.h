@@ -105,7 +105,7 @@ struct reliable_socket {
     int mean_ping;                        // +0xd29 (net_get_reliable_socket_ping)
 };
 #pragma pack(pop)
-LAYOUT_CHECK(reliable_socket, sizeof(reliable_socket) == 0xd2d);
+LAYOUT_CHECK_32(reliable_socket, sizeof(reliable_socket) == 0xd2d);
 extern reliable_socket nw_reliable_sockets[NW_MAX_RELIABLE_SOCKETS];   // 0x2708ad0
 
 extern int nw_server_socket;                                        // 0x5a7dcc -1, the client's link

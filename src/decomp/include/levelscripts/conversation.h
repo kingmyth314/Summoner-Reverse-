@@ -71,7 +71,7 @@ public:
                                   //       the text copied into a label), 2 a topic name (grey)
     union {
         int _unk14;               // +0x14 conversation_select_topic's view: 0 = a spacer line
-        const char *text;
+        const char *PTR32 text;
     };
     conversation_slot *talker;    // +0x18 who speaks it (conversation_update_talk_anims)
 };
@@ -218,7 +218,7 @@ struct conversation_speaker {
     conversation_topic *topics_tail;     // +0x14
     conversation_topic *greeting;        // +0x18 hail topic, said when the conversation starts
 };
-LAYOUT_CHECK(conversation_speaker, sizeof(conversation_speaker) == 0x1c);
+LAYOUT_CHECK_32(conversation_speaker, sizeof(conversation_speaker) == 0x1c);
 
 // One action of a line (0x18 bytes, dialogue_rec__init4 0x500990); run by conversation_execute_action.
 // decomp27: the fields as conversation_execute_action reads them (names ours; the _unk names stay as
@@ -229,11 +229,11 @@ struct dialogue_action {
 
     union {
         int _unk00;                      // +0x00
-        const char *name;                //   kind 6 flag name; kinds 7-12 the topic made (un)available
+        const char *PTR32 name;                //   kind 6 flag name; kinds 7-12 the topic made (un)available
     };
     union {
         int _unk04;                      // +0x04
-        const char *flag;                //   kinds 8, 10 the flag name
+        const char *PTR32 flag;                //   kinds 8, 10 the flag name
     };
     int kind;                            // +0x08 0..12 (conversation_execute_action's switch)
     union {
@@ -246,7 +246,7 @@ struct dialogue_action {
     };
     dialogue_action *next;               // +0x14
 };
-LAYOUT_CHECK(dialogue_action, sizeof(dialogue_action) == 0x18);
+LAYOUT_CHECK_32(dialogue_action, sizeof(dialogue_action) == 0x18);
 
 // One +PCText: .. +JekharText: line of a topic (0x14 bytes, dialogue_rec__init3 0x5009c0).
 #define CLINE_PC       0
@@ -265,7 +265,7 @@ struct conversation_line {
     const char *who;                     // +0x0c speaker name (or a species / party name)
     dialogue_action *actions;            // +0x10
 };
-LAYOUT_CHECK(conversation_line, sizeof(conversation_line) == 0x14);
+LAYOUT_CHECK_32(conversation_line, sizeof(conversation_line) == 0x14);
 
 // One +Topic: (0x44 bytes, conversation_alloc_topic). The flag word is read as bitfields (shr / test) and
 // written with or / and masks by the parser, so both views are given.
@@ -321,7 +321,7 @@ struct conversation_topic {
     conversation_speaker_ref *clear_important;       // +0x3c +Clear important
     conversation_topic_ref *set_hail_topics;         // +0x40 +Set hail topic:
 };
-LAYOUT_CHECK(conversation_topic, sizeof(conversation_topic) == 0x44);
+LAYOUT_CHECK_32(conversation_topic, sizeof(conversation_topic) == 0x44);
 
 // An entry of the offered-topic list (0xc bytes; 16 of them in conversation).
 struct conversation_topic_entry {
@@ -424,7 +424,7 @@ public:
     bool talking;                        // +0x10 one of its lines is on screen
     int  kind;                           // +0x14 0 the player's topic, 1 a line
 };
-LAYOUT_CHECK(conversation_slot, sizeof(conversation_slot) == 0x18);
+LAYOUT_CHECK_32(conversation_slot, sizeof(conversation_slot) == 0x18);
 
 // sum.symbols names the constructor conversation_controller__ctor (0x4d8ce0); class `conversation`
 // before decomp20 (DECISIONS.md C1). The destructor is implicit (0x4d8810).
@@ -482,7 +482,7 @@ public:
     conversation_slot free_slots;        // +0xe4
     conversation_slot slots[16];         // +0xfc
 };
-LAYOUT_CHECK(conversation_controller, sizeof(conversation_controller) == 0x27c);
+LAYOUT_CHECK_32(conversation_controller, sizeof(conversation_controller) == 0x27c);
 extern conversation_controller conversation_active;  // 0x25464b0
 
 int  conversation_begin(const char *name, Character *speaker);   // 0x4daf50 (player_talk_to, script_object_talk)
@@ -491,13 +491,13 @@ void cmd_dialogue_make_topic_available();            // 0x4db010
 void cmd_dialogue_make_topic_unavailable();          // 0x4db100
 void cmd_dcamera();                                  // 0x4db1f0
 
-LAYOUT_CHECK(dialogue_box_base, sizeof(dialogue_box_base) == 0x2c);
-LAYOUT_CHECK(dialogue_line, sizeof(dialogue_line) == 0x1c);
+LAYOUT_CHECK_32(dialogue_box_base, sizeof(dialogue_box_base) == 0x2c);
+LAYOUT_CHECK_32(dialogue_line, sizeof(dialogue_line) == 0x1c);
 LAYOUT_CHECK(dialogue_label, sizeof(dialogue_label) == 0x81);
-LAYOUT_CHECK(dialogue_topic_entry, sizeof(dialogue_topic_entry) == 0x18);
-LAYOUT_CHECK(dialogue_box, sizeof(dialogue_box) == 0x1750);
-LAYOUT_CHECK(dialogue_topic_list, sizeof(dialogue_topic_list) == 0x62c);
-LAYOUT_CHECK(conversation, sizeof(conversation) == 0x310);
+LAYOUT_CHECK_32(dialogue_topic_entry, sizeof(dialogue_topic_entry) == 0x18);
+LAYOUT_CHECK_32(dialogue_box, sizeof(dialogue_box) == 0x1750);
+LAYOUT_CHECK_32(dialogue_topic_list, sizeof(dialogue_topic_list) == 0x62c);
+LAYOUT_CHECK_32(conversation, sizeof(conversation) == 0x310);
 
 // The conversation save slots (0x10-byte records {name, speakers, topics, ?}; index (level * 7 + slot) * 4
 // is the slot name, which the main menu and the load screen pass to game_change_level).

@@ -103,7 +103,7 @@ public:
     bool backstab_full;          // +0x50 the backstab target was not in combat mode (update_special)
     ubyte _pad51[3];
 };
-LAYOUT_CHECK(living_combat, sizeof(living_combat) == 0x54);
+LAYOUT_CHECK_32(living_combat, sizeof(living_combat) == 0x54);
 
 class console_command;
 extern console_command ccmd_Super_power;            // 0x941720 (initialiser 0x464010 / 0x464020)

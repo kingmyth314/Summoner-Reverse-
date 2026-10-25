@@ -37,7 +37,7 @@ public:
     int z;                            // +0x4
     snow_flake *flakes;               // +0x8 block of snow_cell_pool, NULL when none
 };
-LAYOUT_CHECK(snow_cell, sizeof(snow_cell) == 0xc);
+LAYOUT_CHECK_32(snow_cell, sizeof(snow_cell) == 0xc);
 
 extern int snow_grid_x;                               // 0x2444598 camera cell (name ours)
 extern int snow_grid_z;                               // 0x244459c (name ours)

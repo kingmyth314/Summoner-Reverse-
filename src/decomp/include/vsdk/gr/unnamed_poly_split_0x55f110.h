@@ -16,7 +16,7 @@ struct gr_poly_split_rec {
     gr_poly_split_rec *next;                      // +0x84
     gr_poly_split_rec *prev;                      // +0x88
 };
-LAYOUT_CHECK(gr_poly_split_rec, sizeof(gr_poly_split_rec) == 0x8c);
+LAYOUT_CHECK_32(gr_poly_split_rec, sizeof(gr_poly_split_rec) == 0x8c);
 
 // .bss 0x2f8f750-0x2f91a5b (0x2f8f754 has no reference).
 extern gr_poly_split_rec *gr_poly_split_free_list;   // 0x2f8f750

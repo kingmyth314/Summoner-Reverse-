@@ -270,7 +270,7 @@ public:
     ubyte _pad1b;
     const char *model_prefix;         // +0x1c character_hero_model_prefix
 };
-LAYOUT_CHECK(gr_light_desc, sizeof(gr_light_desc) == 0x20);
+LAYOUT_CHECK_32(gr_light_desc, sizeof(gr_light_desc) == 0x20);
 
 #include "vsdk/gr/gr_font.h"
 

@@ -88,7 +88,7 @@ public:
     short num_fades;                              // +0x0FC
     cutscene_fade *fades[MAX_CUTSCENE_FADES];     // +0x100
 };
-LAYOUT_CHECK(cutscene_entry, sizeof(cutscene_entry) == 0x140);
+LAYOUT_CHECK_32(cutscene_entry, sizeof(cutscene_entry) == 0x140);
 
 // The cutscene player (one static object, 0x1648 bytes at 0x601e68; class and member names ours, the
 // sum.symbols names of the fields are the macros below). The thiscall members are its methods; the free
@@ -123,7 +123,7 @@ public:
     int minitrack_sounds[MAX_CUTSCENE_MINITRACKS];     // +0x1634 only ever set to -1 (load_sounds)
     int vis_index;                    // +0x1644 last applied $VisSet, -1
 };
-LAYOUT_CHECK(cutscene, sizeof(cutscene) == 0x1648);
+LAYOUT_CHECK_32(cutscene, sizeof(cutscene) == 0x1648);
 
 // One saved actor (8 bytes): the name hash and four flags, restored by cutscene_cleanup (names ours).
 struct cutscene_saved_actor {

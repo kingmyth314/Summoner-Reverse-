@@ -84,7 +84,7 @@ void BitArray::set(int bit, int on)
 void BitArray::free()
 {
     if (data != NULL && owned) {
-        delete data;
+        delete (char *)data;                  // (an ordinary pointer from a PTR32 field, vsdk.h)
         data = NULL;
     }
 }

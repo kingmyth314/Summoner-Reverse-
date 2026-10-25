@@ -66,7 +66,7 @@ public:
     unsigned int control_socket;                  // +0x6bc
     FILE *file;                                   // +0x6c0
 };
-LAYOUT_CHECK(ftp_get, sizeof(ftp_get) == 0x6c4);
+LAYOUT_CHECK_32(ftp_get, sizeof(ftp_get) == 0x6c4);
 
 void ftp_worker_thread_entry(void *p);            // 0x559ea0 the _beginthread entry
 

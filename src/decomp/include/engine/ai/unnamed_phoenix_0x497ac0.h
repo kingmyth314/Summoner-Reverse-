@@ -66,7 +66,7 @@ struct phoenix_boss {
     move_info *flinch_area[PHOENIX_STAGES];           // +0x5c8 0x24529e8
     int _unk5d4;                                      // +0x5d4
 };
-LAYOUT_CHECK(phoenix_boss, sizeof(phoenix_boss) == 0x5d8);
+LAYOUT_CHECK_32(phoenix_boss, sizeof(phoenix_boss) == 0x5d8);
 extern phoenix_boss phoenix;                          // 0x2452420 (name ours)
 
 #define phoenix_stage                   (phoenix.stage)

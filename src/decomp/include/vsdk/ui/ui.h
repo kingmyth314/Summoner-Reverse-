@@ -43,7 +43,7 @@ struct ui_tooltip {
     // decomp62 (ui_draw): text at the owner's screen position plus (x, y) in a box.
     void draw();                       // 0x55ef60 ui_tooltip__draw
 };
-LAYOUT_CHECK(ui_tooltip, sizeof(ui_tooltip) == 0x120);
+LAYOUT_CHECK_32(ui_tooltip, sizeof(ui_tooltip) == 0x120);
 
 class ui_element {                     // vtable 0x581ea0 (5 slots)
 public:
@@ -81,7 +81,7 @@ public:
     ui_tooltip tooltips;               // +0x124
     bool (*callback)(int event, int value);   // +0x244 cdecl (ui_window::send_event returns its result)
 };
-LAYOUT_CHECK(ui_element, sizeof(ui_element) == 0x248);
+LAYOUT_CHECK_32(ui_element, sizeof(ui_element) == 0x248);
 
 class ui_gadget : public ui_element {  // vtable 0x581e08 (9 slots)
 public:
@@ -146,7 +146,7 @@ public:
     ui_gadget *first_child;            // +0x26C
     ui_gadget *next_sibling;           // +0x270
 };
-LAYOUT_CHECK(ui_gadget, sizeof(ui_gadget) == 0x274);
+LAYOUT_CHECK_32(ui_gadget, sizeof(ui_gadget) == 0x274);
 
 // ui_gadget::gadget_type
 #define UI_TYPE_CONTAINER 1

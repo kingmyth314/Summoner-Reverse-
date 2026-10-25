@@ -38,7 +38,7 @@ struct blob_shadow {
     matrix local_orient;              // +0x50
     shadow_record proj;               // +0x74
 };
-LAYOUT_CHECK(blob_shadow, sizeof(blob_shadow) == 0x1f8);
+LAYOUT_CHECK_32(blob_shadow, sizeof(blob_shadow) == 0x1f8);
 #define MAX_BLOB_SHADOWS 16
 
 // ---- the unit -------------------------------------------------------------------------------------------

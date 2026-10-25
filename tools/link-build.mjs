@@ -193,9 +193,20 @@ if (x64) {
     "dxguid", "opengl32", "glu32", "comdlg32", "version", "rasapi32", "wininet", "msacm32"].map((l) => `-l${l}`);
   writeFileSync(join(out, "objs-x64.rsp"), objs.map((o) => `"${o.replace(/\\/g, "/")}"`).join("\n") + "\n");
   const r = spawnSync(join(CLANG, "clang++.exe"), ["--target=x86_64-w64-mingw32", "-mwindows", "-static", "-o", `${exeName}.exe`,
-    "@objs-x64.rsp", ...mingwLibs, `-Wl,-Map=${exeName}.map`, ...(flag("--force") ? ["-Wl,--unresolved-symbols=ignore-all"] : [])],
+    "@objs-x64.rsp", ...mingwLibs, `-Wl,-Map=${exeName}.map`, "-Wl,--image-base,0x400000",
+    ...(flag("--force") ? ["-Wl,--unresolved-symbols=ignore-all"] : [])],
     { cwd: out, encoding: "latin1", maxBuffer: 1 << 28 });
   text = (r.stdout || "") + (r.stderr || "") + (r.status ? `\n(exit ${r.status})` : "");
+  // Not large-address aware (and no high-entropy ASLR): Windows then keeps the exe, its heap, stacks and every later
+  // allocation below 2 GB, so the 4-byte PTR32 fields of the relocated file formats (vsdk.h) hold any address the
+  // game makes. lld's MinGW driver has no switch for it, so the PE header's flags are cleared here.
+  const exePath = join(out, `${exeName}.exe`);
+  if (!r.status && existsSync(exePath)) {
+    const pe = readFileSync(exePath), at = pe.readUInt32LE(0x3c);
+    pe.writeUInt16LE(pe.readUInt16LE(at + 0x16) & ~0x20, at + 0x16);   // IMAGE_FILE_LARGE_ADDRESS_AWARE
+    pe.writeUInt16LE(pe.readUInt16LE(at + 24 + 70) & ~0x20, at + 24 + 70);   // IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA
+    writeFileSync(exePath, pe);
+  }
 } else if (useClang) {
   // lld in MSVC mode, VC6's libraries; /SAFESEH:NO because VC6's objects carry no SafeSEH tables.
   try { text = execFileSync(join(CLANG, "ld.lld.exe"), ["-flavor", "link", ...linkArgs, `/LIBPATH:${join(VC, "LIB")}`, "/SAFESEH:NO", "/ENTRY:WinMainCRTStartup",

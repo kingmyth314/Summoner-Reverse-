@@ -39,6 +39,6 @@ public:
     int    font;              // +0x380 -1 = default font
     Color *colors;            // +0x384 ui_container_colors: [0] dark, [1] light, [2] label, [3] label shadow
 };
-LAYOUT_CHECK(ui_container, sizeof(ui_container) == 0x388);
+LAYOUT_CHECK_32(ui_container, sizeof(ui_container) == 0x388);
 
 #endif

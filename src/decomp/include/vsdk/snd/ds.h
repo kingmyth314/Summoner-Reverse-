@@ -97,7 +97,7 @@ struct DSBUFFERDESC {                 // 0x24 (DirectX 7, with guid3DAlgorithm)
     WAVEFORMATEX *lpwfxFormat;
     GUID guid3DAlgorithm;
 };
-LAYOUT_CHECK(DSBUFFERDESC, sizeof(DSBUFFERDESC) == 0x24);
+LAYOUT_CHECK_32(DSBUFFERDESC, sizeof(DSBUFFERDESC) == 0x24);
 struct DSBCAPS {                      // 0x14
     DWORD dwSize;
     DWORD dwFlags;
@@ -201,7 +201,7 @@ struct ds_buffer {
     MMCKINFO riff_ck;                 // +0x238 "RIFF" / "WAVE"
     int ref_count;                    // +0x24c
 };
-LAYOUT_CHECK(ds_buffer, sizeof(ds_buffer) == 0x250);
+LAYOUT_CHECK_32(ds_buffer, sizeof(ds_buffer) == 0x250);
 #define DS_MAX_BUFFERS 256
 
 // ds_channel::flags
@@ -224,7 +224,7 @@ struct ds_channel {
     RealtimeTimer fade_timer;         // +0x24
     unsigned int flags;               // +0x28 DS_CHANNEL_*
 };
-LAYOUT_CHECK(ds_channel, sizeof(ds_channel) == 0x2c);
+LAYOUT_CHECK_32(ds_channel, sizeof(ds_channel) == 0x2c);
 #define DS_MAX_CHANNELS 32
 
 // ---- the ds unit's .bss (0x2f54720-0x2f8f743) ----------------------------------------------------------

@@ -14,7 +14,7 @@ struct sound_ref {
     ubyte params[3];                  // +0x8 volume (0..255), two more table values
     ubyte _pad0b;
 };
-LAYOUT_CHECK(sound_ref, sizeof(sound_ref) == 0xc);
+LAYOUT_CHECK_32(sound_ref, sizeof(sound_ref) == 0xc);
 
 #define MAX_SURFACES 17                 // surface_sound_table is 17 x 17
 #define MAX_SURFACE_TYPES 64            // surface_types (0x200 bytes)

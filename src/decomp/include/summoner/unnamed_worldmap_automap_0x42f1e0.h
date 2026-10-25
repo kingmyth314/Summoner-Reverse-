@@ -39,7 +39,7 @@ struct worldmap_location {
     int label_w, label_h;             // +0x20 label box size (text size plus margins)
     const char *name;                 // +0x28 the location's display name
 };
-LAYOUT_CHECK(worldmap_location, sizeof(worldmap_location) == 0x2c);
+LAYOUT_CHECK_32(worldmap_location, sizeof(worldmap_location) == 0x2c);
 #define WORLDMAP_NUM_LOCATIONS 8
 extern worldmap_location worldmap_locations[WORLDMAP_NUM_LOCATIONS];   // 0x5f96c8
 extern float worldmap_center_x;                       // 0x5f9828 the party leader's screen position

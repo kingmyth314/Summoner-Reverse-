@@ -141,7 +141,7 @@ public:
     vector3 view_pos;        // +0x278 rendered view = camera_view_pos (0x60a290)
     matrix3 view_orient;     // +0x284 camera_view_orient (0x60a29c)
 };
-LAYOUT_CHECK(camera, sizeof(camera) == 0x2a8);
+LAYOUT_CHECK_32(camera, sizeof(camera) == 0x2a8);
 extern camera game_camera;            // 0x60a018
 
 // Parts of game_camera the pilots read under their own symbols (sum.symbols names them). Macros now that

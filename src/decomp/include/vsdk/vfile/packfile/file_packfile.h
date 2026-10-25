@@ -27,7 +27,7 @@ struct PackfileEntry {
     FILE *hdd_file;                   // +0x14 open stream when the packfile is on the hard drive
     FILE *cd_file;                    // +0x18 open stream when it is on the CD
 };
-LAYOUT_CHECK(PackfileEntry, sizeof(PackfileEntry) == 0x1c);
+LAYOUT_CHECK_32(PackfileEntry, sizeof(PackfileEntry) == 0x1c);
 
 // One loaded .vpp (0x34 bytes, Packfiles 0x2d68440). symbols/types.h has a byte flags + 7 pad bytes and calls
 // +0x30 directory_size; packfile_add stores +0x20 and +0x24 as dwords, and +0x30 is the header's total file
@@ -40,14 +40,14 @@ struct Packfile {
     PackfileEntry *entries;           // +0x2c run of packfile_entries (packfile_alloc_directory)
     int file_size;                    // +0x30 header dword 3: size of the whole .vpp
 };
-LAYOUT_CHECK(Packfile, sizeof(Packfile) == 0x34);
+LAYOUT_CHECK_32(Packfile, sizeof(Packfile) == 0x34);
 
 // {hash, entry}; hash -1 = empty slot (Packfile_lookup 0x2d68780).
 struct PackfileLookup {
     int hash;
     PackfileEntry *entry;
 };
-LAYOUT_CHECK(PackfileLookup, sizeof(PackfileLookup) == 8);
+LAYOUT_CHECK_32(PackfileLookup, sizeof(PackfileLookup) == 8);
 
 // The first 16 bytes of sector 0 of a .vpp (the rest of the sector is padding). Type and field names ours.
 struct packfile_header {

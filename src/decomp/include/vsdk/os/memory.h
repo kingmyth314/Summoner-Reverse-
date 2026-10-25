@@ -35,7 +35,7 @@ public:
     unsigned int offset;                   // +0x08 (credits saves and restores it)
     char name[0x10];                       // +0x0c ("Going into pool %s")
 };
-LAYOUT_CHECK(Mempool, sizeof(Mempool) == 0x1c);
+LAYOUT_CHECK_32(Mempool, sizeof(Mempool) == 0x1c);
 
 void set_current_mempool(Mempool *pool);   // 0x5127f0
 Mempool *get_current_mempool();            // 0x512800

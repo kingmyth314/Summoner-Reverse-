@@ -58,7 +58,7 @@ public:
     int skill_cap;                    // +0x180
     int default_chain;                // +0x184
 };
-LAYOUT_CHECK(Player, sizeof(Player) == 0x188);
+LAYOUT_CHECK_32(Player, sizeof(Player) == 0x188);
 
 // The list macros (list_init / list_insert / list_append / list_remove) are in vsdk/vsdk.h.
 

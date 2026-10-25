@@ -26,7 +26,7 @@ struct mp_trade_item {
     int count;                        // +0x4
     int charges;                      // +0x8
 };
-LAYOUT_CHECK(mp_trade_item, sizeof(mp_trade_item) == 0xc);
+LAYOUT_CHECK_32(mp_trade_item, sizeof(mp_trade_item) == 0xc);
 // The trade partner is the partner's Player record (+0xc handle, +0x14 mp_owner): mp_handle_it_rqst stores
 // player_from_handle's result. new_itemtrade.cpp's mp_trade_peer / ->player spelling (D401).
 typedef Player mp_trade_peer;

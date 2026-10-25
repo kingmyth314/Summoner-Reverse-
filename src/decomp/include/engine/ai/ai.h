@@ -52,7 +52,7 @@ struct ai_goal {
     float arg;                        // +0x2C goal_add's last argument (30.0f at boss_release_mount)
     ai_path *path;                    // +0x30 freed by ai_goal_remove (not saved)
 };
-LAYOUT_CHECK(ai_goal, sizeof(ai_goal) == 0x34);
+LAYOUT_CHECK_32(ai_goal, sizeof(ai_goal) == 0x34);
 #define AI_NO_SPELL 0x6c              // the spell argument of the non-cast goals (name ours)
 
 // Goal types (ai_state::goal_add's first argument; names from the goal-name table 0x59ae98, decomp39).
@@ -525,7 +525,7 @@ public:
     ubyte path_flags;        // +0x230
     ubyte _pad231[3];
 };
-LAYOUT_CHECK(ai_state, sizeof(ai_state) == 0x234);
+LAYOUT_CHECK_32(ai_state, sizeof(ai_state) == 0x234);
 
 #define AI_FLAG_PLAYER_CONTROL 0x1    // ai_state::flags bit 0: player controlled, AI off
 
@@ -693,7 +693,7 @@ struct ai_target_query {
     float best;                       // +0x10 starts at the char_info fov range (+0x220)
     float rating;                     // +0x14 combat_attack_rating of `result`
 };
-LAYOUT_CHECK(ai_target_query, sizeof(ai_target_query) == 0x18);
+LAYOUT_CHECK_32(ai_target_query, sizeof(ai_target_query) == 0x18);
 // (query, boss list): a boss scoring its own list skips the boss test of a type-9 self.
 void ai_score_target(ai_target_query *q, bool boss_list);   // 0x4b53c0 (boss_target_list_build passes 1; return unused)
 

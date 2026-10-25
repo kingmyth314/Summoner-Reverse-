@@ -53,7 +53,7 @@ struct ca_mesh {
     ca_vim *vim;                      // +0x28
     ca_vim *shadow;                   // +0x2c name_shadow.vim, NULL if none
 };
-LAYOUT_CHECK(ca_mesh, sizeof(ca_mesh) == 0x30);
+LAYOUT_CHECK_32(ca_mesh, sizeof(ca_mesh) == 0x30);
 
 // The base character (0x1f8 bytes, ca_characters[200]); the instance points at it (+0x3c). The
 // constructor and destructor are empty and out of line in character.cpp (the static array is built with
@@ -91,7 +91,7 @@ struct ca_character {
     int _unk1f0;                      // +0x1F0 cleared by character_clear only (a third LOD slot? D1001)
     Mempool *pool;                    // +0x1F4 model pool (reload_mesh resets it)
 };
-LAYOUT_CHECK(ca_character, sizeof(ca_character) == 0x1f8);
+LAYOUT_CHECK_32(ca_character, sizeof(ca_character) == 0x1f8);
 
 // The preload index (ca_load_preload_index): the whole file is read into ca_preload_data; its header is
 // two ints, the entry count and the data size, then 0x48-byte entries (names ours, D1003).

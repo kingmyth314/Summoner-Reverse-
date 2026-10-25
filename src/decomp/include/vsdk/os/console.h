@@ -17,7 +17,7 @@ public:
     const char *description;             // +0x4
     void (*callback)();                  // +0x8
 };
-LAYOUT_CHECK(console_command, sizeof(console_command) == 0xc);
+LAYOUT_CHECK_32(console_command, sizeof(console_command) == 0xc);
 typedef console_command console_command_t;   // the pilots' wrapper names (D40)
 typedef console_command console_command_M;
 

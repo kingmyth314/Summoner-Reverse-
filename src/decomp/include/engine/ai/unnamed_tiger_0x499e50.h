@@ -77,7 +77,7 @@ struct tiger_boss {
     int anim_walk;                                    // +0x200
     int anim_run;                                     // +0x204
 };
-LAYOUT_CHECK(tiger_boss, sizeof(tiger_boss) == 0x208);
+LAYOUT_CHECK_32(tiger_boss, sizeof(tiger_boss) == 0x208);
 extern tiger_boss tiger;                              // 0x2452a90 (name ours)
 
 #define tiger_stage                    (tiger.stage)

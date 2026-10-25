@@ -71,14 +71,14 @@ struct file_slot {
     File *owner;                       // +0x8030
     lfsr_cipher cipher;                // +0x8034
 };
-LAYOUT_CHECK(file_slot, sizeof(file_slot) == 0x8040);
+LAYOUT_CHECK_32(file_slot, sizeof(file_slot) == 0x8040);
 
 // One search path (file_path_table 0x2693068). Entry 0 is the install root ("" directory).
 struct file_path_entry {
     char *dir;                         // +0x0 lower case, backslashes ("data\ca"), in file_string_pool
     char *exts;                        // +0x4 ".tga .vbm " style list (one blank after each)
 };
-LAYOUT_CHECK(file_path_entry, sizeof(file_path_entry) == 8);
+LAYOUT_CHECK_32(file_path_entry, sizeof(file_path_entry) == 8);
 
 // File (0x114 bytes; Dash Faction rf::File has the same size). __thiscall members. File has a destructor,
 // so a stack File gets an EH frame (gr_font_read_file, effects_load_bases).
@@ -207,7 +207,7 @@ public:
     ubyte _unk10c;                    // +0x10c byte, cleared by find and never read
     int slot;                         // +0x110 open-file slot index, -1 closed (File__is_open)
 };
-LAYOUT_CHECK(File, sizeof(File) == 0x114);
+LAYOUT_CHECK_32(File, sizeof(File) == 0x114);
 
 // FileReader (0x14 bytes, vsdk\vfile 0x513a20-0x513e5f; unit file not known): reads from an open File
 // or from a memory block with the same calls (skeleton_read reads preloaded .mvf data this way). No
@@ -237,7 +237,7 @@ public:
     int pos;                           // +0x0c
     int size;                          // +0x10
 };
-LAYOUT_CHECK(FileReader, sizeof(FileReader) == 0x14);
+LAYOUT_CHECK_32(FileReader, sizeof(FileReader) == 0x14);
 
 
 void file_change_ext(char *out, const char *name, const char *ext);   // 0x5130a0

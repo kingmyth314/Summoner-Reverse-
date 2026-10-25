@@ -34,7 +34,7 @@ struct gr_poly_vertex_rec {
     gr_vertex *v;                     // +0x00
     gr_pass_vertex_data pass[GR_POLY_MAX_PASSES];   // +0x04
 };
-LAYOUT_CHECK(gr_poly_vertex_rec, sizeof(gr_poly_vertex_rec) == 0x34);
+LAYOUT_CHECK_32(gr_poly_vertex_rec, sizeof(gr_poly_vertex_rec) == 0x34);
 
 // ---- data (.data 0x5aca38-0x5aca47, .bss 0x2ee45d8-0x2f076eb) -------------------------------------------
 extern ubyte *gr_poly_buffer_limit;                   // 0x5aca38 &gr_poly_buffer[size - 0x200]: flush beyond

@@ -200,7 +200,7 @@ struct sound_emitter {
     vector3 seg_a;                    // +0x5c
     vector3 seg_b;                    // +0x68
 };
-LAYOUT_CHECK(sound_emitter, sizeof(sound_emitter) == 0x74);
+LAYOUT_CHECK_32(sound_emitter, sizeof(sound_emitter) == 0x74);
 
 extern sound_emitter sound_emitter_list_head;         // 0x2f076f0
 extern sound_emitter sound_emitters[SOUND_MAX_EMITTERS];   // 0x2f07768

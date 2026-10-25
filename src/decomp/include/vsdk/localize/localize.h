@@ -27,7 +27,7 @@ struct localize_node {                    // 12 bytes from the current pool (loc
     char *text;                           // +0x4 translation (localize_strdup)
     localize_node *next;                  // +0x8
 };
-LAYOUT_CHECK(localize_node, sizeof(localize_node) == 0xc);
+LAYOUT_CHECK_32(localize_node, sizeof(localize_node) == 0xc);
 
 // One localize_language_names entry (0x42 bytes; struct and field names ours): the section name, then a
 // code ("" English, "gr" German, "fr" French; localize_get_language_code_buf).

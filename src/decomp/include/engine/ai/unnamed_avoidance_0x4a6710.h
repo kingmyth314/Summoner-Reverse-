@@ -90,13 +90,13 @@ struct avoid_seg_ref {                // 0x14, segment list +0x18
     int side;                         // +0x08 1: the second end lies on `wall`
     vector2 normal;                   // +0x0c set by the corner offset code
 };
-LAYOUT_CHECK(avoid_seg_ref, sizeof(avoid_seg_ref) == 0x14);
+LAYOUT_CHECK_32(avoid_seg_ref, sizeof(avoid_seg_ref) == 0x14);
 // A block of 20 visibility links (0x54, 500 at 0x246c7a8; sum.symbols avoid_link_block_alloc / _free).
 struct avoid_link_block {
     pf_vis_node *links[20];           // +0x00
     uint flags;                       // +0x50 bit 0 used
 };
-LAYOUT_CHECK(avoid_link_block, sizeof(avoid_link_block) == 0x54);
+LAYOUT_CHECK_32(avoid_link_block, sizeof(avoid_link_block) == 0x54);
 #define AVOID_NUM_LINK_BLOCKS 500
 // A corner (0x44, segment list +0x270): starts with its point; the pf_vis_node at +0x18 points at `pos`
 // (prohibit lists) or at `pushed` (pos moved 0.03 along the miter offset) (D3703).
@@ -107,7 +107,7 @@ struct avoid_corner {
     pf_vis_node node;                 // +0x18 links = an avoid_link_block
     int offset_state;                 // +0x40 -1 computed for one segment, then 1 = done (0 = not yet)
 };
-LAYOUT_CHECK(avoid_corner, sizeof(avoid_corner) == 0x44);
+LAYOUT_CHECK_32(avoid_corner, sizeof(avoid_corner) == 0x44);
 #define AVOID_SEGLIST_USED 0x1
 #define AVOID_SEGLIST_DOOR 0x2        // a prohibit list: blocks instead of adding search nodes
                                       // (pf_add_avoidance_nodes; avoid_clip_segments sets it unless the
@@ -128,7 +128,7 @@ struct avoid_seglist {
     avoid_corner corners[AVOID_SEGLIST_MAX];   // +0x270 (static initialiser 0x4a67a0)
     rect2d bounds;                    // +0xa68
 };
-LAYOUT_CHECK(avoid_seglist, sizeof(avoid_seglist) == 0xa78);
+LAYOUT_CHECK_32(avoid_seglist, sizeof(avoid_seglist) == 0xa78);
 #define AVOID_NUM_SEGLISTS 14
 extern avoid_seglist avoid_seglists[AVOID_NUM_SEGLISTS];   // 0x2460db0
 // The nav walls whose avoidance reference count (pf_edge::_pad0b) was raised (0x246b74c, count 0x246b748).
@@ -179,7 +179,7 @@ struct avoid_spline_point {
     vector2 p0;                       // +0x14
     vector2 p1;                       // +0x1c
 };
-LAYOUT_CHECK(avoid_spline_point, sizeof(avoid_spline_point) == 0x24);
+LAYOUT_CHECK_32(avoid_spline_point, sizeof(avoid_spline_point) == 0x24);
 #define AVOID_NUM_SPLINE_POINTS 100
 extern avoid_spline avoid_splines[AVOID_NUM_SPLINES];                 // 0x2460cc0
 extern avoid_spline_point avoid_spline_points[AVOID_NUM_SPLINE_POINTS];   // 0x246b998 (name ours)

@@ -33,7 +33,7 @@
 // One entry of a base's node table (data +0, 8 bytes): name hash and node pointer.
 struct vfx_node_entry {
     int hash;                         // +0 effects_hash_name of the effect name
-    vfx_base *base;                   // +4 relocated by ptr_relocate
+    vfx_base *PTR32 base;                   // +4 relocated by ptr_relocate
     void relocate(char *base_addr, char *end);   // 0x51ca30 vfx_relocate_entry
 };
 
@@ -53,8 +53,8 @@ struct effect_base {
     unsigned int category : 3;        //       bits 27-29 EFFECT_CAT_*
     unsigned int streamed : 1;        //       bit 30
     unsigned int resident : 1;        //       bit 31
-    char *data;                       // +0x0c
-    const char *name;                 // +0x10 string pool
+    char *PTR32 data;                       // +0x0c
+    const char *PTR32 name;                 // +0x10 string pool
     void relocate(char *base_addr, char *end);   // 0x51c9f0 vfx_relocate
 };
 LAYOUT_CHECK(effect_base, sizeof(effect_base) == 0x14);
@@ -86,7 +86,7 @@ struct fx_rec98 {
     float width;                      // +0x0c decomp70 (was char _unk0c[8])
     float height;                     // +0x10
     float alpha;                      // +0x14 the instance's alpha byte (vfx_instance::render; decomp67)
-    character_instance *ci;           // +0x18 bound model (bind_node; decomp67)
+    character_instance *PTR32 ci;           // +0x18 bound model (bind_node; decomp67)
     unsigned int tag : 28;            // +0x1c the model's mesh tag (decomp67; was _bits1c)
     unsigned int level : 1;           //       bit 28: vfx_instance_create's flag argument
     unsigned int bound : 1;           //       bit 29 (decomp67)
@@ -98,8 +98,8 @@ struct fx_rec98 {
     matrix m5c;                       // +0x5c
     vector3 v80;                      // +0x80
     int glow;                         // +0x8c lamp_glow_add index (fx_create_instance; decomp64)
-    fx_rec98 *next;                   // +0x90
-    fx_rec98 *prev;                   // +0x94
+    fx_rec98 *PTR32 next;                   // +0x90
+    fx_rec98 *PTR32 prev;                   // +0x94
 };
 // decomp67: the dummy state of an instance (vfx_dummy_state__*; the base's dummies at +0x30).
 // decomp66: written in src/decomp/vsdk/unnamed_vfx_dummy_0x55fc70.cpp. The quaternion's empty constructor
@@ -108,15 +108,15 @@ struct fx_rec2c {
     void reset();                     // 0x55fc70 vfx_dummy_state__reset (the three flag bits, v08 0, q14 identity)
     // (dummy, t): position / rotation at frame t unless placed; through the model's bone when bound (ret 8).
     void update(vfx_dummy_desc *desc, float t);   // 0x55fc90 vfx_dummy_state__update
-    character_instance *ci;           // +0x00 bound model (decomp67)
+    character_instance *PTR32 ci;           // +0x00 bound model (decomp67)
     unsigned int tag : 29;            // +0x04 (decomp67) the bone (compute_bone_matrix; decomp66)
     unsigned int bound : 1;           //       bit 29
     unsigned int placed : 1;          //       bit 30 (decomp66: not sampled)
     unsigned int hidden : 1;          //       bit 31
     vector3 v08;                      // +0x08 position
     quaternion q14;                   // +0x14 orientation (decomp67; was vector3 v14 and _unk20)
-    fx_rec2c *next;                   // +0x24
-    fx_rec2c *prev;                   // +0x28
+    fx_rec2c *PTR32 next;                   // +0x24
+    fx_rec2c *PTR32 prev;                   // +0x28
 };
 // A particle of an emitter (0x28; 6000 at 0x2c42690 on fx_rec28_list).
 // decomp66 (the emitter unit): the age and lifetime are seconds in 8.8, the angle 4.12 radians; +0x08 is
@@ -139,8 +139,8 @@ struct fx_rec28 {
     short _pad06;
     vector3 vel;                      // +0x08 (was v08)
     vector3 pos;                      // +0x14 (was v14)
-    fx_rec28 *next;                   // +0x20
-    fx_rec28 *prev;                   // +0x24
+    fx_rec28 *PTR32 next;                   // +0x20
+    fx_rec28 *PTR32 prev;                   // +0x24
 };
 // decomp66: the state of one force of an instance (the record vfx_force_state__update /
 // vfx_force__get_transform run on; the vfx channel unit). The two rotations are quaternions (their
@@ -155,7 +155,7 @@ struct fx_rec4c {
     // fraction, the force channels blended between frames (ret 0xc; sum.symbols names it
     // vfx_force__get_transform, but this is the state record).
     void get_transform(vfx_force_desc *f, vfx_force_params *out, float t);   // 0x55b730
-    character_instance *owner;        // +0x00
+    character_instance *PTR32 owner;        // +0x00
     unsigned int bone : 29;           // +0x04
     unsigned int fixed : 1;           //       bit 29: not sampled
     unsigned int on_bone : 1;         //       bit 30: through the owner's bone matrix
@@ -165,8 +165,8 @@ struct fx_rec4c {
     quaternion rot;                   // +0x18
     vector3 prev_pos;                 // +0x28
     quaternion prev_rot;              // +0x34
-    fx_rec4c *next;                   // +0x44
-    fx_rec4c *prev;                   // +0x48
+    fx_rec4c *PTR32 next;                   // +0x44
+    fx_rec4c *PTR32 prev;                   // +0x48
 };
 // An emitter of an instance (0xb0; 128 at 0x27229d8 on fx_recb0_list).
 // decomp67: vfx_emitter_instance__* in sum.symbols; +0x0c..+0x18 and +0x70 / +0x7c from the vfx object.
@@ -200,7 +200,7 @@ struct fx_recb0 {
     void get_fade(vfx_emitter_desc *desc, float age, float life, float *size, float *fade, float *alpha);   // 0x5626b0
     void get_billboard_axes(vfx_emitter_desc *desc, fx_rec28 *p, vector3 *a, vector3 *b, vector3 *c,
                             float size, float fade);   // 0x562840 vfx_particle_get_billboard_axes
-    fx_rec4c *links[3];               // +0x00 the instance's fx_rec4c records the emitter's links name
+    fx_rec4c *PTR32 links[3];               // +0x00 the instance's fx_rec4c records the emitter's links name
     union {
         unsigned int flags;           // +0x0c bit 0: stopped (vfx_instance::stop; decomp67)
         struct {
@@ -214,7 +214,7 @@ struct fx_recb0 {
     unsigned int placed : 1;          //       bit 29
     unsigned int hidden : 1;          //       bit 30
     unsigned int _bit31 : 1;
-    character_instance *ci;           // +0x14
+    character_instance *PTR32 ci;           // +0x14
     float time;                       // +0x18 decomp66: seconds since the first update (was _unk18)
     vector3 v1c;                      // +0x1c decomp66: the instance position (update's pos)
     matrix m28;                       // +0x28 decomp66: the instance orientation
@@ -230,11 +230,11 @@ struct fx_recb0 {
     short speed_var;                  // +0x94 ch_d0
     ushort num_live;                  // +0x96 live particles (fx_missile_hit waits for none; decomp64)
     char _unk98[0x9c - 0x98];
-    fx_rec28 *particles;              // +0x9c
+    fx_rec28 *PTR32 particles;              // +0x9c
     float last_t;                     // +0xa0 decomp66: the frame of the last update
     float spawn_accum;                // +0xa4 particles owed * 320
-    fx_recb0 *next;                   // +0xa8
-    fx_recb0 *prev;                   // +0xac
+    fx_recb0 *PTR32 next;                   // +0xa8
+    fx_recb0 *PTR32 prev;                   // +0xac
 };
 LAYOUT_CHECK(fx_rec48, sizeof(fx_rec48) == 0x48);
 LAYOUT_CHECK(fx_rec98, sizeof(fx_rec98) == 0x98);

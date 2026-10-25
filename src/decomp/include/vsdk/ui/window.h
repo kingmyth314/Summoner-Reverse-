@@ -82,7 +82,7 @@ public:
     ui_window *next;              // +0x4E4
     ui_window *prev;              // +0x4E8
 };
-LAYOUT_CHECK(ui_window, sizeof(ui_window) == 0x4ec);
+LAYOUT_CHECK_32(ui_window, sizeof(ui_window) == 0x4ec);
 
 extern ui_gadget *ui_nav_best_gadget;   // 0x2cbf554
 extern int ui_nav_best_distance;        // 0x2cbf558

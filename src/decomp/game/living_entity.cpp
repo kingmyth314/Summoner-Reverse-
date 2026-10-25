@@ -5660,7 +5660,7 @@ void Character::set_armour_alt_texture(bool on, bool force)
     else if (!force)
         return;
     if (equipment[3] != NULL) {
-        char **t = equipment[3]->type->armour_textures[0][info->species];
+        char *PTR32 *t = equipment[3]->type->armour_textures[0][info->species];
 
         if (flags & 0x2000000)
             set_underwear_textures(5, t[1]);

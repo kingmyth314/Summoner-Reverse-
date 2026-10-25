@@ -51,7 +51,7 @@ struct lobj {
     ubyte *vertex_rgb;                // +0x68 three bytes per geometry vertex (byte pool)
     signed char layers[4];            // +0x6c two layer bytes and two more (lobj() sets all four to -1)
 };
-LAYOUT_CHECK(lobj, sizeof(lobj) == 0x70);
+LAYOUT_CHECK_32(lobj, sizeof(lobj) == 0x70);
 // num_lobjs / lobjs are fields of level_s3d now (macros in engine/s3d/s3d.h, D800).
 
 // A ray for lobj_raycast (0x4c bytes; layout from item_obj_spawn and lobj_raycast 0x4ae890; type and
@@ -73,7 +73,7 @@ struct lobj_ray {
     };
     union {                           // +0x2C
         int _unk2c;
-        s3d_face *face;               //       decomp71: the one face tested with flag 2 (living_entity.cpp stores
+        s3d_face *PTR32 face;               //       decomp71: the one face tested with flag 2 (living_entity.cpp stores
                                       //       &mesh->faces[i] cast to int)
     };
     union {                           // +0x30
@@ -84,7 +84,7 @@ struct lobj_ray {
     vector3 local_start;              // +0x34 written by lobj_raycast (ray in the object frame)
     vector3 local_dir;                // +0x40
 };
-LAYOUT_CHECK(lobj_ray, sizeof(lobj_ray) == 0x4c);
+LAYOUT_CHECK_32(lobj_ray, sizeof(lobj_ray) == 0x4c);
 
 // The hit record (0x2c bytes; names ours). lobj_raycast clears +0x00, +0x20, +0x28 when its flag is 1.
 struct lobj_hit {
@@ -98,10 +98,10 @@ struct lobj_hit {
                                       //        as a word); copied to item_obj +0xa8
     union {
         int _unk28;                   // +0x28 the s3d_face hit (world_pick_lobj: minus mesh->faces = face index)
-        s3d_face *face_ptr;           //       the same as a pointer (geometry face record, 0x14 bytes; decomp37)
+        s3d_face *PTR32 face_ptr;           //       the same as a pointer (geometry face record, 0x14 bytes; decomp37)
     };
 };
-LAYOUT_CHECK(lobj_hit, sizeof(lobj_hit) == 0x2c);
+LAYOUT_CHECK_32(lobj_hit, sizeof(lobj_hit) == 0x2c);
 
 // Level object ray tests (unit 0x4ae890-0x4af335, file not known; game/unnamed_lobj_raycast_0x4ae890.cpp,
 // decomp71).
@@ -146,7 +146,7 @@ struct levelrender_entry {
     float dist;                       // +0x08 sort key: depth minus the object's radius
     obj *object;                      // +0x0c types 0, 4, 5 (decomp63)
 };
-LAYOUT_CHECK(levelrender_entry, sizeof(levelrender_entry) == 0x10);
+LAYOUT_CHECK_32(levelrender_entry, sizeof(levelrender_entry) == 0x10);
 // A prop drawn at a bone (0x4c bytes; levelrender_push_attachment; names ours).
 struct levelrender_attach_entry : levelrender_entry {
     Character *character;             // +0x10
@@ -155,13 +155,13 @@ struct levelrender_attach_entry : levelrender_entry {
     vector3 pos;                      // +0x1c bone position
     matrix orient;                    // +0x28 bone orientation
 };
-LAYOUT_CHECK(levelrender_attach_entry, sizeof(levelrender_attach_entry) == 0x4c);
+LAYOUT_CHECK_32(levelrender_attach_entry, sizeof(levelrender_attach_entry) == 0x4c);
 // An effect node, emitter or line trail (0x1c bytes; levelrender_add_effect_entry; names ours).
 struct levelrender_effect_entry : levelrender_entry {
     effect_object *fx;                // +0x10
     vfx_node_ref ref;                 // +0x14 what vfx_instance::render_node draws
 };
-LAYOUT_CHECK(levelrender_effect_entry, sizeof(levelrender_effect_entry) == 0x1c);
+LAYOUT_CHECK_32(levelrender_effect_entry, sizeof(levelrender_effect_entry) == 0x1c);
 extern levelrender_entry *levelrender_attach_list[];   // 0x22ea584
 extern levelrender_entry *levelrender_sort_list[];     // 0x22f8d84
 extern levelrender_entry *levelrender_opaque_list[];   // 0x22fa6a8
@@ -207,7 +207,7 @@ struct door_info {
     float lock;                       // +0x58 lock value, 0 unlocked (character_use_skill pick lock; D100)
     union {                           // +0x5c the key item type, NULL none (object_try_unlock_or_open;
         int _unk5c;                   //        decomp35, D1505). s3d_read_door clears _unk5c.
-        ItemType *key;
+        ItemType *PTR32 key;
     };
     // +0x60 / +0x6c: the "+Open sound:" / "+Close sound:" sound_refs of level_script_parse_table (name
     // from the level script string pool, handle -1, three parameter bytes; decomp41, D2103). s3d.cpp
@@ -228,7 +228,7 @@ struct door_info {
     };
     ubyte _unk78[0x14];               // +0x78
 };
-LAYOUT_CHECK(door_info, sizeof(door_info) == 0x8c);
+LAYOUT_CHECK_32(door_info, sizeof(door_info) == 0x8c);
 door_info *door_from_lobj(lobj *l);   // 0x4768c0 0 unless the lobj has flag 0x100
 // (door, fraction): open, or moving with the eased progress past fraction (pf_door_index_is_open passes
 // 0.4f; decomp32). Returns AL.
@@ -314,12 +314,12 @@ void place_ground_decal(int bm, vector3 *pos, float yaw, float w, float h);   //
 struct lobj_render_state {
     union {
         int _unk00;
-        s3d_vis_set *seethru;         // +0x00 NULL none
+        s3d_vis_set *PTR32 seethru;         // +0x00 NULL none
     };
     unsigned int flags;               // +0x04 LRS_*
     GameTimer timer;                  // +0x08 (was int _unk08)
 };
-LAYOUT_CHECK(lobj_render_state, sizeof(lobj_render_state) == 0xc);
+LAYOUT_CHECK_32(lobj_render_state, sizeof(lobj_render_state) == 0xc);
 extern lobj_render_state *levelrender_lobj_states;   // 0x22f9d7c
 extern bool levelrender_draw_chain_marker;   // 0x22fb6d4 set by chain_attack_select
 

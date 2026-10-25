@@ -33,7 +33,7 @@ struct pathvis_edge : public seg2d {
     pathvis_edge *prev;               // +0x20
     pathvis_edge *next;               // +0x24
 };
-LAYOUT_CHECK(pathvis_edge, sizeof(pathvis_edge) == 0x28);
+LAYOUT_CHECK_32(pathvis_edge, sizeof(pathvis_edge) == 0x28);
 
 // .bss (address order; names ours except pathvis_segment_cycles)
 extern pathvis_edge pathvis_edge_lists[PF_MAX_LAYERS];  // 0x247e968 one sorted edge list per layer

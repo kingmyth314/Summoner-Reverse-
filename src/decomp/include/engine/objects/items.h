@@ -75,7 +75,7 @@ struct weapon_info {
     int elemental_damage;             // +0x28 +Elemental Damage: (-1 none)
     item_triggered_effect *triggered_effect; // +0x2C
 };
-LAYOUT_CHECK(weapon_info, sizeof(weapon_info) == 0x30);
+LAYOUT_CHECK_32(weapon_info, sizeof(weapon_info) == 0x30);
 
 // An item type, shared by every item of that kind (items.tbl). item_types (0x8cbec0), stride 0x100.
 struct ItemType {
@@ -118,7 +118,7 @@ struct ItemType {
         weapon_info weapon;          // +0x68 the same fields as one block
         // Armour: [heavy][hero 0 Joseph, 1 Jekhar, 2 Flece, 3 Rosalind][part: 0 body, 1 cape / one
         // hand, 2 head, 3 leg] "Texture:" names (items_parse_table; names ours).
-        char *armour_textures[2][4][4];  // +0x68..+0xE7
+        char *PTR32 armour_textures[2][4][4];  // +0x68..+0xE7
     };
     // armour fields
     float armour_speed;      // +0xE8 $Speed:
@@ -128,7 +128,7 @@ struct ItemType {
     item_triggered_effect *armour_triggered_effect; // +0xF8
     const char *description; // +0xFC +Description:
 };
-LAYOUT_CHECK(ItemType, sizeof(ItemType) == 0x100);
+LAYOUT_CHECK_32(ItemType, sizeof(ItemType) == 0x100);
 
 extern ItemType item_types[MAX_ITEM_TYPES];   // 0x8cbec0
 extern int num_item_types;            // 0x8ec7c0
@@ -142,7 +142,7 @@ struct item_info {
     int charges;                      // +0x08 (read by buysell_buy_item and mp_send_it_addi)
     int _unk0c;                       // +0x0C -1 from item_alloc
 };
-LAYOUT_CHECK(item_info, sizeof(item_info) == 0x10);
+LAYOUT_CHECK_32(item_info, sizeof(item_info) == 0x10);
 typedef item_info inv_item;
 
 // materials.tbl (materials_parse_table): 0x14 bytes. Type name ours.

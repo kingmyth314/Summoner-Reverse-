@@ -47,7 +47,7 @@ struct d3d_device_record {
     GUID *d3d_guid_ptr;               // +0x024 &d3d_guid
     char name[0x400];                 // +0x028 description ("Direct 3D - " + driver for a 3D device)
 };
-LAYOUT_CHECK(d3d_device_record, sizeof(d3d_device_record) == 0x428);
+LAYOUT_CHECK_32(d3d_device_record, sizeof(d3d_device_record) == 0x428);
 #define D3D_MAX_DDRAW_DEVICES 8       // 0x2dc07c8..0x2dc2908
 #define D3D_MAX_3D_DEVICES    16      // 0x2dc2990..0x2dc6c10
 
@@ -215,7 +215,7 @@ struct d3d_tcache_section {
     int x, y;                         // +0x10 position of the tile in the bitmap
     int w, h;                         // +0x18 tile size
 };
-LAYOUT_CHECK(d3d_tcache_section, sizeof(d3d_tcache_section) == 0x20);
+LAYOUT_CHECK_32(d3d_tcache_section, sizeof(d3d_tcache_section) == 0x20);
 // One entry per bitmap frame (MAX_BITMAPS of them, indexed by bm_get_current_frame; 0x10 bytes, names ours).
 struct d3d_tcache_entry {
     int bitmap;                       // +0x00 the handle loaded (as passed to gr_d3d_tcache_set), -1 none
@@ -224,7 +224,7 @@ struct d3d_tcache_entry {
     ubyte _pad09[3];
     d3d_tcache_section *sections;     // +0x0c operator new'd array
 };
-LAYOUT_CHECK(d3d_tcache_entry, sizeof(d3d_tcache_entry) == 0x10);
+LAYOUT_CHECK_32(d3d_tcache_entry, sizeof(d3d_tcache_entry) == 0x10);
 
 extern d3d_tcache_entry *d3d_tcache_entries;          // 0x2f13308
 extern int d3d_texture_mem_used;                      // 0x2f13314

@@ -82,7 +82,7 @@ typedef struct {
     GrTextureFormat_t format;            // +0x0c
     void *data;                          // +0x10
 } GrTexInfo;
-LAYOUT_CHECK(GrTexInfo, sizeof(GrTexInfo) == 0x14);
+LAYOUT_CHECK_32(GrTexInfo, sizeof(GrTexInfo) == 0x14);
 
 // ---- linear frame buffer ------------------------------------------------------------------------------
 typedef struct {
@@ -92,7 +92,7 @@ typedef struct {
     GrLfbWriteMode_t writeMode;          // +0x0c
     GrOriginLocation_t origin;           // +0x10
 } GrLfbInfo_t;
-LAYOUT_CHECK(GrLfbInfo_t, sizeof(GrLfbInfo_t) == 0x14);
+LAYOUT_CHECK_32(GrLfbInfo_t, sizeof(GrLfbInfo_t) == 0x14);
 
 // ---- hardware query (grSstQueryHardware) --------------------------------------------------------------
 #define MAX_NUM_SST 4

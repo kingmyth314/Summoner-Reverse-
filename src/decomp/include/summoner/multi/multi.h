@@ -55,7 +55,7 @@ struct mp_player {
     int swi_samples[16];              // +0x78 decomp76: the last update intervals in ms, newest first
     int swi_num_samples;              // +0xb8 decomp76: how many are valid (0 after SWI2DIR, at most 16)
 };
-LAYOUT_CHECK(mp_player, sizeof(mp_player) == 0xbc);
+LAYOUT_CHECK_32(mp_player, sizeof(mp_player) == 0xbc);
 #define MP_MAX_PLAYERS 4              // mp_players[] and the send buffers (decomp53)
 // mp_player::flags bits that ai_frame keeps for the party member's player (decomp39; names ours).
 #define MP_PF_TRAVELING      0x8      // traveling sub-mode 1 this frame
@@ -152,7 +152,7 @@ struct mp_packet_info {
     char name[8];                                     // +0x10 "GM_QURY" ...
     ubyte rate_flags[4];                              // +0x18
 };
-LAYOUT_CHECK(mp_packet_info, sizeof(mp_packet_info) == 0x1c);
+LAYOUT_CHECK_32(mp_packet_info, sizeof(mp_packet_info) == 0x1c);
 // mp_packet_table (0x5951b8) and the send / forward functions are in unnamed_netpackets_0x441820.h.
 
 #define MP_BUILD_HEADER(t) (data[0] = (ubyte)(t), packet_size = MP_HEADER_SIZE, mp_packet_table[t].sent++)
@@ -307,7 +307,7 @@ struct mp_gamelist_entry {
     int  status;                      // +0x48 1 = open (joinable), else drawn red
     int  connection;                  // +0x4c 1 below 56k, 2 56k, 3 ISDN or faster
 };
-LAYOUT_CHECK(mp_gamelist_entry, sizeof(mp_gamelist_entry) == 0x50);
+LAYOUT_CHECK_32(mp_gamelist_entry, sizeof(mp_gamelist_entry) == 0x50);
 extern mp_gamelist_entry mp_gamelist_used;              // 0x22e4570 head of the received games
 extern int mp_gamelist_count;                           // 0x22e4618
 void mp_gamelist_request_refresh();                     // 0x470bb0

@@ -119,7 +119,7 @@ public:
     bool culled;                      // +0xC8 setup_matrices_b does nothing when set
     ubyte tint_r, tint_g, tint_b;     // +0xC9 r, g, b (character_instance__render); three members, not an array: the implicit operator= copies them as three byte moves (D8604)
 };
-LAYOUT_CHECK(character_instance, sizeof(character_instance) == 0xcc);
+LAYOUT_CHECK_32(character_instance, sizeof(character_instance) == 0xcc);
 
 float skeleton_get_bone_blend_weight(skeleton *s, int bone, int time);   // 0x51a130
 void ca_system_init_stub();           // 0x51ae70

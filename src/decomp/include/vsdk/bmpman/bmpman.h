@@ -62,7 +62,7 @@ struct bitmap_entry {
     ubyte _pad41[3];
     int  mark_count;         // +0x44 bm_set_mark nesting: > 0 survives bm_release_from_mark
 };
-LAYOUT_CHECK(bitmap_entry, sizeof(bitmap_entry) == 0x48);
+LAYOUT_CHECK_32(bitmap_entry, sizeof(bitmap_entry) == 0x48);
 
 // ---- data (bmpman.cpp) ------------------------------------------------------------------------------
 extern bool Load_mipmaps;                             // 0x5a5760 (.data, true) console "load_mipmaps"

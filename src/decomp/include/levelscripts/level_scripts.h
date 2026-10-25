@@ -35,7 +35,7 @@ struct level_script_info {
     int num_floats;                      // +0x38
     unsigned int *float_hashes;          // +0x3C
 };
-LAYOUT_CHECK(level_script_info, sizeof(level_script_info) == 0x40);
+LAYOUT_CHECK_32(level_script_info, sizeof(level_script_info) == 0x40);
 #define NUM_LEVEL_SCRIPTS 51
 extern level_script_info level_script_table[NUM_LEVEL_SCRIPTS];   // 0x59f128
 int name_hash_nocase(const char *name);               // 0x4d5f50 (savegame name hashes; Crc32 of the lower case)
@@ -62,7 +62,7 @@ struct script_action {
     };
     union {
         int _unk08;                      // +0x08
-        const char *text;                //       level_script_stringpool / cutscene_script_stringpool string
+        const char *PTR32 text;                //       level_script_stringpool / cutscene_script_stringpool string
     };
     int arg0c;                           // +0x0C (the goto label; the "go" flag of type 0xb; the int argument;
                                          //        0xcdcdcd when the action is allocated)
@@ -70,7 +70,7 @@ struct script_action {
     ubyte flag14;                        // +0x14 wander: walk (1) unless "run" follows
     ubyte _pad15[3];
 };
-LAYOUT_CHECK(script_action, sizeof(script_action) == 0x18);
+LAYOUT_CHECK_32(script_action, sizeof(script_action) == 0x18);
 struct script_object {
     int end_mode;                        // +0x000 -1 = free (level_script_entries_frame)
     script_action actions[54];           // +0x004
@@ -85,7 +85,7 @@ struct script_object {
     int trigger_level;                   // +0x52C
     char trigger[0x20];                  // +0x530
 };
-LAYOUT_CHECK(script_object, sizeof(script_object) == 0x550);
+LAYOUT_CHECK_32(script_object, sizeof(script_object) == 0x550);
 #define MAX_SCRIPT_OBJECTS 200
 extern script_object script_objects[MAX_SCRIPT_OBJECTS];   // 0x24f6230
 extern int script_object_count;                      // 0x25443a0
@@ -165,7 +165,7 @@ struct quest_info {                  // 0x6c bytes at 0x253ef40
     signed char invalidate_step;     // +0x69 -1 none
     ubyte _pad6a[2];
 };
-LAYOUT_CHECK(quest_info, sizeof(quest_info) == 0x6c);
+LAYOUT_CHECK_32(quest_info, sizeof(quest_info) == 0x6c);
 #define MAX_QUESTS 200
 extern quest_info quest_table[MAX_QUESTS];           // 0x253ef40
 extern int quest_count;                              // 0x25443a4
@@ -184,7 +184,7 @@ struct lc_entry {
     ubyte _pad105[3];
     int gold;                        // +0x108 +Give:
 };
-LAYOUT_CHECK(lc_entry, sizeof(lc_entry) == 0x10c);
+LAYOUT_CHECK_32(lc_entry, sizeof(lc_entry) == 0x10c);
 extern lc_entry lc_entries[50];                      // 0x248ce40
 extern int lc_entry_count;                           // 0x2491a68
 int  lc_find_by_hash(unsigned int hash);             // 0x4cd570 (level_script_name + name), -1 = none
@@ -257,7 +257,7 @@ struct level_trigger {
     };
     float radius;                    // +0x60 +Radius:
 };
-LAYOUT_CHECK(level_trigger, sizeof(level_trigger) == 0x64);
+LAYOUT_CHECK_32(level_trigger, sizeof(level_trigger) == 0x64);
 #define MAX_LEVEL_TRIGGERS 32
 extern level_trigger level_triggers[MAX_LEVEL_TRIGGERS];   // 0x2490dd0
 extern int level_trigger_count;                      // 0x2490c74
@@ -374,7 +374,7 @@ struct level_item_rec {
     int flag_level;                  // +0x4C +Event: level, -1 none
     char flag[0x20];                 // +0x50 +Event: flag name
 };
-LAYOUT_CHECK(level_item_rec, sizeof(level_item_rec) == 0x70);
+LAYOUT_CHECK_32(level_item_rec, sizeof(level_item_rec) == 0x70);
 #define MAX_LEVEL_ITEMS 32
 extern level_item_rec level_items[MAX_LEVEL_ITEMS];  // 0x24e3b50 (sum.symbols: items.cpp, D705)
 extern int level_item_count;                         // 0x2539f10

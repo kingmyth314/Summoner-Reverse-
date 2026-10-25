@@ -46,7 +46,7 @@ public:
     int buffer_size;                              // +0x14
     unsigned int flags;                           // +0x18 LINEFILE_*
 };
-LAYOUT_CHECK(LineFile, sizeof(LineFile) == 0x1c);
+LAYOUT_CHECK_32(LineFile, sizeof(LineFile) == 0x1c);
 
 extern const char *LineFile_eol;                        // 0x5adbe8 "\r\n" (name ours)
 LineFile *LineFile_open(const char *name, int buffer_size);   // 0x558910 NULL when it cannot be opened

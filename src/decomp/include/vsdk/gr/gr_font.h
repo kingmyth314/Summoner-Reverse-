@@ -40,7 +40,7 @@ struct Font {
     int *char_y_coords;      // +0x64
     ushort *bm_bits;         // +0x68
 };
-LAYOUT_CHECK(Font, sizeof(Font) == 0x6c);
+LAYOUT_CHECK_32(Font, sizeof(Font) == 0x6c);
 
 #define MAX_FONTS 6
 #define GR_CENTER_X 0x8000          // gr_string x value that centres each line in the clip width

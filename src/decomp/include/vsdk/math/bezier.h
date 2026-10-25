@@ -22,7 +22,7 @@ public:
     vector3 p0, p1, p2, p3;                       // +0x00 four members (four constructor calls, no array loop)
     vector3 *pts[4];                              // +0x30 &p0 .. &p3
 };
-LAYOUT_CHECK(bezier4, sizeof(bezier4) == 0x40);
+LAYOUT_CHECK_32(bezier4, sizeof(bezier4) == 0x40);
 
 // Up to 20 control points (0xf4 bytes).
 #define BEZIER_MAX_POINTS 20

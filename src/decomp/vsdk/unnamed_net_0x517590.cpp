@@ -38,7 +38,7 @@ struct nw_rasconn {
     char szDeviceType[17];
     char szDeviceName[129];
 };
-LAYOUT_CHECK(nw_rasconn, sizeof(nw_rasconn) == 0x19c);
+LAYOUT_CHECK_32(nw_rasconn, sizeof(nw_rasconn) == 0x19c);
 struct nw_rasconnstatus {
     DWORD dwSize;
     int rasconnstate;

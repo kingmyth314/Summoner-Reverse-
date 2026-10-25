@@ -26,7 +26,7 @@ struct jpeg_error_mgr {
     void *error_exit;                     // +0x00 method pointers, then the message state
     ubyte _unk04[0x80];
 };
-LAYOUT_CHECK(jpeg_error_mgr, sizeof(jpeg_error_mgr) == 0x84);
+LAYOUT_CHECK_32(jpeg_error_mgr, sizeof(jpeg_error_mgr) == 0x84);
 
 // The compression object (0x178 bytes, jpeg_CreateCompress's third argument).
 struct jpeg_compress_struct {
@@ -62,7 +62,7 @@ struct jpeg_compress_struct {
     J_DCT_METHOD dct_method;              // +0xc4
     ubyte _unkc8[0xb0];                   // +0xc8 the rest of the object
 };
-LAYOUT_CHECK(jpeg_compress_struct, sizeof(jpeg_compress_struct) == 0x178);
+LAYOUT_CHECK_32(jpeg_compress_struct, sizeof(jpeg_compress_struct) == 0x178);
 
 // libjpeg entry points (IJG names; addresses in Sum.exe). The library is C, so the C++ caller wrapped
 // the IJG header in extern "C" (the calls go to the plain names).

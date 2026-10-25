@@ -77,7 +77,7 @@ struct serpent_boss {
     move_info *flinch_status[SERPENT_STAGES];         // +0x628 0x24523c0 "stageN_flinch_status"
     move_info *flinch_area[SERPENT_STAGES];           // +0x634 0x24523cc "stageN_flinch_area"
 };
-LAYOUT_CHECK(serpent_boss, sizeof(serpent_boss) == 0x640);
+LAYOUT_CHECK_32(serpent_boss, sizeof(serpent_boss) == 0x640);
 extern serpent_boss serpent;                          // 0x2451d98 (name ours)
 
 #define serpent_stage                   (serpent.stage)

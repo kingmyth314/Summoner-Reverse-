@@ -68,7 +68,7 @@ public:
     ubyte _unkfc[0x24];                       // +0xfc
     shadow_frame frame;                       // +0x120
 };
-LAYOUT_CHECK(shadow_record, sizeof(shadow_record) == 0x184);
+LAYOUT_CHECK_32(shadow_record, sizeof(shadow_record) == 0x184);
 
 // One node of a level geometry's BSP (12 bytes; s3d_geom_block +0x04, the root is the first). The normal
 // is packed into three 10-bit fields (n = v * 2 / 1023 - 1); the front child (dist >= 0) is child, the back

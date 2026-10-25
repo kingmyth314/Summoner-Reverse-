@@ -50,7 +50,7 @@ struct pf_wall : public seg2d {
     int layer_b;                      // +0x0c
     pf_wall *next;                    // +0x10 next record of the array, NULL for the last
 };
-LAYOUT_CHECK(pf_wall, sizeof(pf_wall) == 0x14);
+LAYOUT_CHECK_32(pf_wall, sizeof(pf_wall) == 0x14);
 
 // A visibility-graph node (0x28; boss_ai.cpp's pf_point_ref, D1200). The first 0x18 bytes come from the
 // .pfg file, +0x18..+0x27 are pf_graph_search's A* state. The avoidance corners (avoid_corner, ai.h)
@@ -78,7 +78,7 @@ struct pf_vis_node {
     float g;                          // +0x20 cost from the start
     float f;                          // +0x24 g + straight distance to the goal
 };
-LAYOUT_CHECK(pf_vis_node, sizeof(pf_vis_node) == 0x28);
+LAYOUT_CHECK_32(pf_vis_node, sizeof(pf_vis_node) == 0x28);
 typedef pf_vis_node pf_point_ref;     // decomp29's name (boss_mount_pick_flee_point)
 
 // A convex nav cell (0x20): its edges and bounds; the cells of a graph form a list.
@@ -89,7 +89,7 @@ struct pf_cell {
     rect2d bounds;                    // +0x0c
     pf_cell *next;                    // +0x1c
 };
-LAYOUT_CHECK(pf_cell, sizeof(pf_cell) == 0x20);
+LAYOUT_CHECK_32(pf_cell, sizeof(pf_cell) == 0x20);
 
 // A navigation BSP node (0x10, pf_read_typed_refs). Type 1 splits at the x of a pf_nodes point (data;
 // front: x below it), 2 splits by the line of a pf_edge (data; front: the side with the cross product <= 0),
@@ -101,7 +101,7 @@ struct pf_bsp {
     pf_bsp *front;                    // +0x08
     pf_bsp *back;                     // +0x0c
 };
-LAYOUT_CHECK(pf_bsp, sizeof(pf_bsp) == 0x10);
+LAYOUT_CHECK_32(pf_bsp, sizeof(pf_bsp) == 0x10);
 
 // The wall hash grid of a graph (graph +0x24, pf_read_region).
 struct pf_grid_cell {                 // 0x0c (pf_read_edge_list)
@@ -110,13 +110,13 @@ struct pf_grid_cell {                 // 0x0c (pf_read_edge_list)
     ushort _pad06;
     pf_edge **walls;                  // +0x08
 };
-LAYOUT_CHECK(pf_grid_cell, sizeof(pf_grid_cell) == 0xc);
+LAYOUT_CHECK_32(pf_grid_cell, sizeof(pf_grid_cell) == 0xc);
 struct pf_grid_row {                  // 0x08
     ushort num_cells;                 // +0x00
     ushort _pad02;                    // +0x02 0
     pf_grid_cell *cells;              // +0x04
 };
-LAYOUT_CHECK(pf_grid_row, sizeof(pf_grid_row) == 0x8);
+LAYOUT_CHECK_32(pf_grid_row, sizeof(pf_grid_row) == 0x8);
 // decomp57: bounds[0] / bounds[2] the grid origin x / z, bounds[4] / bounds[5] the cell sizes, _unk18 /
 // _unk1c the width / height in cells, num_rows the bucket count of the hash (pf_grid_hash_find).
 struct pf_grid {                      // 0x2c
@@ -127,7 +127,7 @@ struct pf_grid {                      // 0x2c
     pf_grid_row *rows;                // +0x24
     int _unk28;                       // +0x28
 };
-LAYOUT_CHECK(pf_grid, sizeof(pf_grid) == 0x2c);
+LAYOUT_CHECK_32(pf_grid, sizeof(pf_grid) == 0x2c);
 
 // One graph per size class and layer (0x60, pf_graphs[3][20] at 0x245f460; decomp29's pf_point_list,
 // whose field names count / points are kept, D1200).
@@ -144,7 +144,7 @@ struct pf_graph {
     pf_grid grid;                     // +0x24
     ubyte _unk50[0x10];
 };
-LAYOUT_CHECK(pf_graph, sizeof(pf_graph) == 0x60);
+LAYOUT_CHECK_32(pf_graph, sizeof(pf_graph) == 0x60);
 typedef pf_graph pf_point_list;       // decomp29's name
 struct pf_layer_list {                // 0x245f3b8, one per layer
     int count;
@@ -166,7 +166,7 @@ struct pf_sweep {
     vector2 *hit_corner;              // +0x40 end point of the last corner hit
     vector2 *last_corner;             // +0x44 corner of the nearest hit, skipped by the next test
 };
-LAYOUT_CHECK(pf_sweep, sizeof(pf_sweep) == 0x48);
+LAYOUT_CHECK_32(pf_sweep, sizeof(pf_sweep) == 0x48);
 
 // One edge of the A* search (pf_graph_search's stack, 0x14), filled by pf_add_avoidance_nodes.
 struct pf_search_seg {
@@ -176,7 +176,7 @@ struct pf_search_seg {
     int size;                         // +0x0c
     float cost;                       // +0x10 extra cost round the obstacles
 };
-LAYOUT_CHECK(pf_search_seg, sizeof(pf_search_seg) == 0x14);
+LAYOUT_CHECK_32(pf_search_seg, sizeof(pf_search_seg) == 0x14);
 
 // An AI path node (0x28, pool ai_path_nodes). A path is the list from the first step to the goal.
 struct ai_path {
@@ -187,7 +187,7 @@ struct ai_path {
     int flags;                        // +0x20 bit 1: keep (ai_path_smooth does not drop past it)
     ai_path *next;                    // +0x24 (also the free-list link)
 };
-LAYOUT_CHECK(ai_path, sizeof(ai_path) == 0x28);
+LAYOUT_CHECK_32(ai_path, sizeof(ai_path) == 0x28);
 
 // ---- pathfinding.cpp (0x49c840-0x4a04af) ---------------------------------------------------------------
 int  pathfinding_load_graph(const char *level_name);                       // 0x49cdd0 File::close result

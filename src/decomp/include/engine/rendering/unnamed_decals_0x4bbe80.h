@@ -46,7 +46,7 @@ public:
     float u_scale;                    // +0x120 0.5 / |v|
     float v_scale;                    // +0x124 0.5 / |u|
 };
-LAYOUT_CHECK(decal_record, sizeof(decal_record) == 0x128);
+LAYOUT_CHECK_32(decal_record, sizeof(decal_record) == 0x128);
 
 // The age ring: one node per decal record (same index), sorted by the time left.
 struct decal_node {

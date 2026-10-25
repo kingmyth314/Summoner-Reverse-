@@ -21,14 +21,14 @@ struct irc_command {
     char  data[0x66];                 // +0x02
     irc_command *next;                // +0x68
 };
-LAYOUT_CHECK(irc_command, sizeof(irc_command) == 0x6c);
+LAYOUT_CHECK_32(irc_command, sizeof(irc_command) == 0x6c);
 
 // A user of the joined channel (0x28 bytes; list irc_user_list). Type and field names ours.
 struct irc_user {
     char nick[0x24];                  // +0x00
     irc_user *next;                   // +0x24
 };
-LAYOUT_CHECK(irc_user, sizeof(irc_user) == 0x28);
+LAYOUT_CHECK_32(irc_user, sizeof(irc_user) == 0x28);
 
 // One RPL_LIST (322) entry (0x8c bytes; list irc_channel_list, rebuilt per LIST). Type and field names ours.
 struct irc_channel {
@@ -37,7 +37,7 @@ struct irc_channel {
     char  topic[0x64];                // +0x24
     irc_channel *next;                // +0x88
 };
-LAYOUT_CHECK(irc_channel, sizeof(irc_channel) == 0x8c);
+LAYOUT_CHECK_32(irc_channel, sizeof(irc_channel) == 0x8c);
 
 int   irc_send_raw(char *text, int len);                 // 0x4abb80 send() result
 void  irc_chat_reset();                                  // 0x4abba0 (state_mp_lobby_enter)

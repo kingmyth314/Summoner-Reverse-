@@ -557,7 +557,7 @@ void character_equip_item(item_info **out_old1, item_info **out_old2, Character 
                 break;
             }
         } else if (item->type->kind == 1) {
-            char **tex = NULL;
+            char *PTR32 *tex = NULL;
             switch (item->type->slot) {   // the heavy pieces first (D24101)
             case ITEM_SLOT_TORSO:
             case ITEM_SLOT_LEGS:

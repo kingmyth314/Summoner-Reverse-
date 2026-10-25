@@ -58,7 +58,7 @@ public:
     int max_len;                                // +0x0
     char *buf;                                  // +0x4
 };
-LAYOUT_CHECK(String, sizeof(String) == 8);
+LAYOUT_CHECK_32(String, sizeof(String) == 8);
 
 // decomp22 (parse.cpp): cdecl (hidden result, left, right); the operands are passed by address.
 String operator+(const String &a, const String &b);   // 0x556f70 String__concat
@@ -109,7 +109,7 @@ public:
     int max_lines;                              // +0x10
     int num_lines;                              // +0x14 1 after clear
 };
-LAYOUT_CHECK(TextBuffer, sizeof(TextBuffer) == 0x18);
+LAYOUT_CHECK_32(TextBuffer, sizeof(TextBuffer) == 0x18);
 void TextBuffer_printf(TextBuffer *tb, const char *fmt, ...);   // 0x558300 (1 KB vsprintf buffer)
 
 #endif

@@ -55,7 +55,7 @@ struct script_editor_pick {
     matrix orient;            // +0x1c
     void *object;             // +0x40
 };
-LAYOUT_CHECK(script_editor_pick, sizeof(script_editor_pick) == 0x44);
+LAYOUT_CHECK_32(script_editor_pick, sizeof(script_editor_pick) == 0x44);
 
 // Per action type defaults (12 bytes; script_action_names order, 33 records at 0x2556ab0). The type name
 // is from sum.symbols' script_action_defaults__init (0x4de410), the out-of-line copy of the inline

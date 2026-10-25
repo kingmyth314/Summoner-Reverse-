@@ -35,6 +35,6 @@ public:
     unsigned int owns_blocks : 1; // +0x18 bit 0 (set by InitBlocks, Release frees only then)
     unsigned int can_grow : 1;    //   bit 1 (Alloc adds a block when short)
 };
-LAYOUT_CHECK(NoRlsAllocPool, sizeof(NoRlsAllocPool) == 0x1c);
+LAYOUT_CHECK_32(NoRlsAllocPool, sizeof(NoRlsAllocPool) == 0x1c);
 
 #endif

@@ -61,13 +61,13 @@ struct status_effect {
     int source;                       // +0x0C the inflicting character's handle
     union {
         int spell;                    // +0x10 the spell (kinds 0 / 2)
-        item_info *item;              //       the item (kind 1; character_refresh_item_status_effects)
+        item_info *PTR32 item;              //       the item (kind 1; character_refresh_item_status_effects)
     };
     GameTimer tick_timer;             // +0x14 periodic effect (regen, poison, firewall, ...)
     int tick_ms;                      // +0x18 status_effect_duration
     float value;                      // +0x1C amount (character_status_value / _set_1c)
 };
-LAYOUT_CHECK(status_effect, sizeof(status_effect) == 0x20);
+LAYOUT_CHECK_32(status_effect, sizeof(status_effect) == 0x20);
 
 // The skill block copied whole from char_info +0x94 (character_scale_stats_to_level: rep movsd 0x15).
 struct skill_levels {
@@ -335,7 +335,7 @@ public:
     float light_level;                // +0x780
     GameTimer net_update_timer;       // +0x784
 };
-LAYOUT_CHECK(Character, sizeof(Character) == 0x788);
+LAYOUT_CHECK_32(Character, sizeof(Character) == 0x788);
 
 // The pilots wrote the thiscall calls through these shims while Character was a C struct (types.h).
 // They are now plain member accesses (DECISIONS.md D1); the macros stay until the code drops them.

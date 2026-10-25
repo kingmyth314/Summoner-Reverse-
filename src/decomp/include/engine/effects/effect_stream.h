@@ -25,7 +25,7 @@ struct effect_stream_entry {
     void *target;                     // +0x2c .mvf: the skeleton to read into; .vim: where the vim * goes
     Mempool *pool;                    // +0x30 current mempool while the entry is read
 };
-LAYOUT_CHECK(effect_stream_entry, sizeof(effect_stream_entry) == 0x34);
+LAYOUT_CHECK_32(effect_stream_entry, sizeof(effect_stream_entry) == 0x34);
 
 // .data
 extern int effect_stream_base;                                          // 0x59513c -1, the .rfx base being read

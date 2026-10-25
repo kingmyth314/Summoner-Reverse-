@@ -49,13 +49,26 @@ typedef intptr_t find_handle;
 typedef long find_handle;
 #endif
 
-// Compile-time layout check. VC6 has no static_assert; a negative array size fails the build.
+// A pointer member of a structure that is also the layout of file data (the effect, animation and skeleton files,
+// loaded as one block and relocated in place): 4 bytes in every build (L3). The 64-bit exe is linked without
+// large-address awareness, so every address the game uses lies below 2 GB and fits; clang's __ptr32 converts to and
+// from an ordinary pointer. MinGW's _mingw.h (included by stddef.h above) defines __ptr32 away; it is restored here.
+// Where an ordinary pointer is required (delete), a cast to the field's own type gives one.
 #ifdef _WIN64
-// 64-bit (docs/future/modern-port.md, L3): pointers are 8 bytes, so these 32-bit layouts do not hold. Off until L3c
-// sorts them into memory-only layouts (free) and file / network formats (read and written field by field).
-#define LAYOUT_CHECK(name, cond) typedef char layout_check_##name[1]
+#undef __ptr32
+#define PTR32 __ptr32 __uptr
 #else
+#define PTR32
+#endif
+
+// Compile-time layout check. VC6 has no static_assert; a negative array size fails the build. LAYOUT_CHECK holds in
+// every build: the structure is a file or network format, or its fields are PTR32. LAYOUT_CHECK_32 holds in the
+// 32-bit builds only: a layout that lives in memory only, which a 64-bit build may lay out with 8-byte pointers (L3).
 #define LAYOUT_CHECK(name, cond) typedef char layout_check_##name[(cond) ? 1 : -1]
+#ifdef _WIN64
+#define LAYOUT_CHECK_32(name, cond) typedef char layout_check_##name[1]
+#else
+#define LAYOUT_CHECK_32(name, cond) LAYOUT_CHECK(name, cond)
 #endif
 
 // windef.h style min / max: the game's code has the setle / dec / and pattern of `a > b ? a : b`.

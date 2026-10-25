@@ -370,7 +370,7 @@ void items_parse_table()
             for (;;) {
                 int hero, heavy, part;
                 bool ok;
-                char **tex;
+                char *PTR32 *tex;
 
                 if (tf.Accept("+Joseph")) {
                     hero = 0;

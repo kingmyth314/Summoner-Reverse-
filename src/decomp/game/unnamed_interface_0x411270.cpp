@@ -258,7 +258,7 @@ struct ui_choice_popup_state {
     bool *enabled;                                      // 0x5bd774
     int   hover;                                        // 0x5bd778
 };
-LAYOUT_CHECK(ui_choice_popup_state, sizeof(ui_choice_popup_state) == 0x264);
+LAYOUT_CHECK_32(ui_choice_popup_state, sizeof(ui_choice_popup_state) == 0x264);
 ui_choice_popup_state ui_choice_popup;                  // 0x5bd518
 #define ui_choice_popup_title   ui_choice_popup.title
 #define ui_choice_popup_x       ui_choice_popup.x

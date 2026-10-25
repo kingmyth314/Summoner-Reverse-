@@ -66,7 +66,7 @@ public:
     GameTimer timer2;                 // +0x104
     void *spell_effect;               // +0x108 spell_effect_add record (struct spell_effect, spells.h)
 };
-LAYOUT_CHECK(effect_object, sizeof(effect_object) == 0x10c);
+LAYOUT_CHECK_32(effect_object, sizeof(effect_object) == 0x10c);
 
 // A link between an effect and a character (0x14 bytes; 20 at fx_char_link_nodes). The two list heads
 // are whole records (0x2308e00 and 0x2308e18; the second ends at 0x2308e2c where the blob shadow pixels
@@ -78,7 +78,7 @@ struct fx_char_link {
     int _unk0c;                       // +0x0C 0 when linked, never read
     Character *character;             // +0x10 gets Character::flags 0x200000 while linked
 };
-LAYOUT_CHECK(fx_char_link, sizeof(fx_char_link) == 0x14);
+LAYOUT_CHECK_32(fx_char_link, sizeof(fx_char_link) == 0x14);
 
 #define MAX_FX_OBJECTS    48
 #define MAX_FX_CHAR_LINKS 20

@@ -35,7 +35,7 @@ public:
     ubyte _unk08[0x14 - 0x08];        // never read or written by the gadget base unit
     ui_state_bitmap *next;            // +0x14 ring (the constructor points it at itself)
 };
-LAYOUT_CHECK(ui_state_bitmap, sizeof(ui_state_bitmap) == 0x18);
+LAYOUT_CHECK_32(ui_state_bitmap, sizeof(ui_state_bitmap) == 0x18);
 
 // ui_button::flags (+0x274; names ours, from ui_button::process / draw).
 #define UI_BUTTON_FLAT        0x001   // filled face, no bevel
@@ -105,7 +105,7 @@ public:
     int _unk420;                      // +0x420 0xff from create, not read here
     ui_button *drag_data;             // +0x424 this, from create (not read here)
 };
-LAYOUT_CHECK(ui_button, sizeof(ui_button) == 0x428);
+LAYOUT_CHECK_32(ui_button, sizeof(ui_button) == 0x428);
 
 // decomp61: the button being dragged (ui_button::process sets it; ui_process ends the drag).
 extern ui_button *ui_drag_gadget;     // 0x2cbfcb8
@@ -139,7 +139,7 @@ public:
     int text_x;                       // +0x3C4 -1 = by h_justify
     int text_y;                       // +0x3C8 -1 = by v_justify
 };
-LAYOUT_CHECK(ui_static, sizeof(ui_static) == 0x3cc);
+LAYOUT_CHECK_32(ui_static, sizeof(ui_static) == 0x3cc);
 
 class ui_checkbox : public ui_gadget {  // 0x3a4, vtable 0x581f68
 public:
@@ -173,7 +173,7 @@ public:
     int bm_pressed;                   // +0x39C
     int bm_disabled;                  // +0x3A0
 };
-LAYOUT_CHECK(ui_checkbox, sizeof(ui_checkbox) == 0x3a4);
+LAYOUT_CHECK_32(ui_checkbox, sizeof(ui_checkbox) == 0x3a4);
 
 // No user constructor: the implicit one (checkbox constructor, then vtable 0x581c7c) is the COMDAT
 // 0x4deeb0 that the linker kept from another unit.
@@ -233,7 +233,7 @@ public:
     // stores script_editor_decimal_filter_cb here (D3504). Field name ours.
     bool (*char_filter)(const char *text, char c);
 };
-LAYOUT_CHECK(ui_inputbox, sizeof(ui_inputbox) == 0x5b0);
+LAYOUT_CHECK_32(ui_inputbox, sizeof(ui_inputbox) == 0x5b0);
 
 // One list box line (0x3c bytes, vtable 0x581e30 with one slot; the text entry 0x13c bytes, vtable
 // 0x581e2c, is a subclass that ui_listbox::add_entry allocates unless the box has flag 0x400). The list
@@ -274,7 +274,7 @@ public:
     int data;                         // +0x34
     Color *colors;                    // +0x38 ui_listbox_entry_colors
 };
-LAYOUT_CHECK(ui_listbox_entry, sizeof(ui_listbox_entry) == 0x3c);
+LAYOUT_CHECK_32(ui_listbox_entry, sizeof(ui_listbox_entry) == 0x3c);
 
 // decomp62: the entry that owns its text (0x13c bytes, vtable 0x581e2c). No destructor of its own: the
 // implicit one (0x52f440, jmp ~ui_listbox_entry) and both scalar deleting destructors (0x52f400,
@@ -286,7 +286,7 @@ public:
                                                // "text too long for pc version"
     char buffer[0x100];               // +0x3C
 };
-LAYOUT_CHECK(ui_listbox_text_entry, sizeof(ui_listbox_text_entry) == 0x13c);
+LAYOUT_CHECK_32(ui_listbox_text_entry, sizeof(ui_listbox_text_entry) == 0x13c);
 
 // The wrapped lines of the last entry laid out (ui_listbox_entry::wrap_text), read by ui_listbox::draw.
 // sum.symbols types the first int[20]; it holds char pointers. No bounds check (F6202).
@@ -397,7 +397,7 @@ public:
     Color *colors;                    // +0x318 ui_listbox_colors: [0..2] face, [3..5] hidden face, [6] hidden text
     int (*wrap_width_cb)(int y, int line_h);   // +0x31C passed to wrap_text (0 from the constructor)
 };
-LAYOUT_CHECK(ui_listbox, sizeof(ui_listbox) == 0x320);
+LAYOUT_CHECK_32(ui_listbox, sizeof(ui_listbox) == 0x320);
 
 // The slider (0x2a8, vtable 0x582308; constructor 0x55e780 ui_slider__ui_slider_base). sum.symbols names
 // the methods ui_slider__*; they are members of this base class.
@@ -441,7 +441,7 @@ public:
     ui_button *inc_button;            // +0x2A0 right / down
     ui_button *dec_button;            // +0x2A4 left / up
 };
-LAYOUT_CHECK(ui_slider_base, sizeof(ui_slider_base) == 0x2a8);
+LAYOUT_CHECK_32(ui_slider_base, sizeof(ui_slider_base) == 0x2a8);
 
 // The scroll bar / table slider (0x2ac, vtable 0x581dd0 with the same nine entries as 0x582308). No user
 // constructor: the implicit one is the COMDAT 0x52bfa0 that window.cpp emits (ui_slider__ui_slider).
@@ -457,6 +457,6 @@ public:
     void update_marker();             // 0x55eed0 the marker the visible share of the length, 7 pixels or more
     int visible;                      // +0x2A8 the list box's view size (was _unk2a8, never written by window.cpp)
 };
-LAYOUT_CHECK(ui_slider, sizeof(ui_slider) == 0x2ac);
+LAYOUT_CHECK_32(ui_slider, sizeof(ui_slider) == 0x2ac);
 
 #endif

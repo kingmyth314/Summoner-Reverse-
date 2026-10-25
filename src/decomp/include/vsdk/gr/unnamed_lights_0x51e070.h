@@ -41,7 +41,7 @@ public:
     matrix orient;                    // +0x6c projection orientation (quaternion::to_matrix_b)
     float sort_key;                   // +0x90 brightness at the selection point (light_compare_brightness)
 };
-LAYOUT_CHECK(light, sizeof(light) == 0x94);
+LAYOUT_CHECK_32(light, sizeof(light) == 0x94);
 
 // .data 0x5a8900-0x5a890f
 extern int lights_max_per_object;                     // 0x5a8900 init 2

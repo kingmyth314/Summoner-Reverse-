@@ -101,19 +101,19 @@ public:
     ushort num_rot_keys;              // +0x02
     ushort num_scale_keys;            // +0x04 (decomp70; was int _unk04)
     ushort _unk06;
-    anim_pos_key *pos_keys;           // +0x08
-    anim_rot_key *rot_keys;           // +0x0c
+    anim_pos_key *PTR32 pos_keys;           // +0x08
+    anim_rot_key *PTR32 rot_keys;           // +0x0c
     // decomp54 (cutscene_camera_read_track hands these out from its pools, one entry per key; D3402):
     // two 0xc-byte arrays per position key and two 8-byte arrays per rotation key (was _unk10[0x1c]).
     // Names ours. decomp70: pos_aux_a / _b are the Bezier control points a (before the key) and b
     // (after it), rot_aux_a / _b the squad inner quaternions.
-    anim_pos_key *scale_keys;         // +0x10 (decomp70; was int _unk10) same 0x28-byte layout
-    vector3 *pos_aux_a;               // +0x14
-    vector3 *pos_aux_b;               // +0x18
-    cquat *rot_aux_a;                 // +0x1c
-    cquat *rot_aux_b;                 // +0x20
-    vector3 *scale_aux_a;             // +0x24 (decomp70; was ubyte _unk24[8])
-    vector3 *scale_aux_b;             // +0x28
+    anim_pos_key *PTR32 scale_keys;         // +0x10 (decomp70; was int _unk10) same 0x28-byte layout
+    vector3 *PTR32 pos_aux_a;               // +0x14
+    vector3 *PTR32 pos_aux_b;               // +0x18
+    cquat *PTR32 rot_aux_a;                 // +0x1c
+    cquat *PTR32 rot_aux_b;                 // +0x20
+    vector3 *PTR32 scale_aux_a;             // +0x24 (decomp70; was ubyte _unk24[8])
+    vector3 *PTR32 scale_aux_b;             // +0x28
 };
 LAYOUT_CHECK(anim_track, sizeof(anim_track) == 0x2c);
 // (t, ease_from, ease_to): the 3D Studio style ease of a key interval (cdecl; decomp54, the camera blend).
@@ -123,14 +123,14 @@ float tcb_ease(float t, float ease_from, float ease_to);   // 0x551610
 struct skeleton_morph {
     short num_keys;                   // +0x0
     short _unk02;
-    anim_vec_key *keys;               // +0x4
+    anim_vec_key *PTR32 keys;               // +0x4
     short _unk08;                     // +0x8 set to 1 by skeleton_read
     short _unk0a;
 };
 LAYOUT_CHECK(skeleton_morph, sizeof(skeleton_morph) == 0xc);
 
 struct ca_trigger {                   // 8 bytes, skeleton +0xa8: "left-foot", "right-foot", ...
-    const char *name;                 // +0x0 NULL = unused slot
+    const char *PTR32 name;                 // +0x0 NULL = unused slot
     int time;                         // +0x4 anim time (ticks)
 };
 
@@ -146,14 +146,14 @@ public:
     quaternion get_root_rotation(float t);            // 0x544010 (no direct call)
     bool read(FileReader *r, const char *name, int path_id);   // 0x544090 skeleton_read (path id unused)
 
-    anim_rot_key *rot_keys;           // +0x00 every track's rotation keys
-    anim_pos_key *pos_keys;           // +0x04 every track's position keys
+    anim_rot_key *PTR32 rot_keys;           // +0x00 every track's rotation keys
+    anim_pos_key *PTR32 pos_keys;           // +0x04 every track's position keys
     char filename[0x40];              // +0x08
     int num_rot_keys;                 // +0x48
     int num_pos_keys;                 // +0x4c
-    skeleton *next;                   // +0x50 list (unlinked by ~skeleton)
-    skeleton *prev;                   // +0x54
-    const char *name;                 // +0x58 in ca_string_pool
+    skeleton *PTR32 next;                   // +0x50 list (unlinked by ~skeleton)
+    skeleton *PTR32 prev;                   // +0x54
+    const char *PTR32 name;                 // +0x58 in ca_string_pool
     bool is_state;                    // +0x5C state (looping, locomotion) anim; 0 = action
     bool root_rotation;               // +0x5D the anim turns the character (yaw taken from the root bone)
     ubyte _pad5e[2];
@@ -162,12 +162,12 @@ public:
     vector3 root_disp;                // +0x68 root displacement over the anim
     quaternion root_rot;              // +0x74 root rotation over the anim
     int num_bones;                    // +0x84
-    ubyte *bone_weights;              // +0x88 per bone, 0..10
-    anim_track *tracks;               // +0x8C per bone
+    ubyte *PTR32 bone_weights;              // +0x88 per bone, 0..10
+    anim_track *PTR32 tracks;               // +0x8C per bone
     int num_morph_frames;             // +0x90
     int num_morphs;                   // +0x94
-    int *morph_ids;                   // +0x98
-    skeleton_morph *morphs;           // +0x9c
+    int *PTR32 morph_ids;                   // +0x98
+    skeleton_morph *PTR32 morphs;           // +0x9c
     int fade_in;                      // +0xA0 ticks
     int fade_out;                     // +0xA4 ticks
     ca_trigger triggers[5];           // +0xA8
@@ -198,7 +198,7 @@ struct ca_bone {                      // 0xa0 bytes (ca_skin +0x4)
 LAYOUT_CHECK(ca_bone, sizeof(ca_bone) == 0xa0);
 
 struct ca_bone_ext {                  // 0x38 bytes: extra bones (tags) after the real bones
-    const char *name;                 // +0x00 in ca_string_pool (vim_read; written by vim_write_header)
+    const char *PTR32 name;                 // +0x00 in ca_string_pool (vim_read; written by vim_write_header)
     matrix43 m;                       // +0x04
     int parent;                       // +0x34
 };
@@ -206,24 +206,24 @@ LAYOUT_CHECK(ca_bone_ext, sizeof(ca_bone_ext) == 0x38);
 
 struct ca_skin {                      // mesh +0x4 = vim +0x38
     int num_bones;                    // +0x00
-    ca_bone *bones;                   // +0x04
+    ca_bone *PTR32 bones;                   // +0x04
     int _unk08;
     int num_ext;                      // +0x0C
-    ca_bone_ext *ext;                 // +0x10
+    ca_bone_ext *PTR32 ext;                 // +0x10
     int root_bone;                    // +0x14
 };
 
 // One sub-mesh (0x30 bytes, the first part of the data block). Its arrays follow in the block, each
 // 16-byte aligned, sized in bytes by the counts at +0x24..+0x2c; names ours.
 struct vim_submesh {
-    void *block0;                     // +0x00 size2 bytes
-    void *block1;                     // +0x04 size2 bytes
-    void *block2;                     // +0x08 size4 bytes
-    void *block3;                     // +0x0c size3 bytes
-    void *block4;                     // +0x10 size6 bytes
-    void *block5;                     // +0x14 size5 bytes (only when size5 > 0)
+    void *PTR32 block0;                     // +0x00 size2 bytes
+    void *PTR32 block1;                     // +0x04 size2 bytes
+    void *PTR32 block2;                     // +0x08 size4 bytes
+    void *PTR32 block3;                     // +0x0c size3 bytes
+    void *PTR32 block4;                     // +0x10 size6 bytes
+    void *PTR32 block5;                     // +0x14 size5 bytes (only when size5 > 0)
     int _unk18;
-    void *vertex_extra;               // +0x1c 2 bytes per mesh vertex, with VIM_HAS_VERTEX_EXTRA
+    void *PTR32 vertex_extra;               // +0x1c 2 bytes per mesh vertex, with VIM_HAS_VERTEX_EXTRA
     ushort size0;                     // +0x20 (read and written, not used for the layout)
     ushort size1;                     // +0x22
     ushort size2;                     // +0x24
@@ -265,8 +265,8 @@ LAYOUT_CHECK(vim_header, sizeof(vim_header) == 0x24);
 struct vim {
     vim();                            // 0x543d00 vim__vim
     int data_size;                    // +0x00
-    ubyte *data;                      // +0x04 one block: sub-meshes, their arrays, bones, tags
-    vim_submesh *submeshes;           // +0x08 = data
+    ubyte *PTR32 data;                      // +0x04 one block: sub-meshes, their arrays, bones, tags
+    vim_submesh *PTR32 submeshes;           // +0x08 = data
     ushort num_submeshes;             // +0x0c
     ushort _pad0e;
     int textures[6];                  // +0x10 bitmap handles
@@ -277,7 +277,7 @@ struct vim {
     ca_skin skin;                     // +0x38 bones (0xa0 each) and named extra bones (0x38 each)
     vector3 center;                   // +0x50 bounding sphere
     float radius;                     // +0x5C
-    vim_tag *tags;                    // +0x60
+    vim_tag *PTR32 tags;                    // +0x60
     int num_tags;                     // +0x64
 };
 LAYOUT_CHECK(vim, sizeof(vim) == 0x68);

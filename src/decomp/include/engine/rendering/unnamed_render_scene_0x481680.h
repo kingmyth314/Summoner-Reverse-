@@ -41,7 +41,7 @@ struct level_layer_vis_rec {
     s3d_vis_set **sets;               // +0x04 into level_vis_set_lists
     s3d_vis_set **sets_high;          // +0x08 into level_vis_set_records
 };
-LAYOUT_CHECK(level_layer_vis_rec, sizeof(level_layer_vis_rec) == 0xc);
+LAYOUT_CHECK_32(level_layer_vis_rec, sizeof(level_layer_vis_rec) == 0xc);
 
 // One detail_levels.tbl record (0x28 bytes; names ours): a level name, its fog multiplier and the flags
 // detail_apply_level_settings applies.

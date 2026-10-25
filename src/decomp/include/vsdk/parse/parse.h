@@ -75,7 +75,7 @@ public:
     int line;                         // +0x48 current line number (Rewind sets 1)
     int size;                         // +0x4c buffer length
 };
-LAYOUT_CHECK(TextFile, sizeof(TextFile) == 0x50);
+LAYOUT_CHECK_32(TextFile, sizeof(TextFile) == 0x50);
 
 // To-text helpers at the end of parse.cpp (the String versions return by value).
 String bool_to_String(bool b);                                           // 0x516ca0

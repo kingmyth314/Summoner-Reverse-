@@ -58,7 +58,7 @@ public:
     int _unk90;                       // +0x090
     int _unk94;                       // +0x094
 };
-LAYOUT_CHECK(obj, sizeof(obj) == 0x98);
+LAYOUT_CHECK_32(obj, sizeof(obj) == 0x98);
 
 // One handle slot (12 bytes): circular lists through next / prev whose head is a pointer (NULL when
 // empty; vsdk.h plist_* macros). The slot index plus obj_handle_base_next() is the object handle.
@@ -67,7 +67,7 @@ struct obj_slot {
     obj_slot *prev;                   // +0x4
     obj *object;                      // +0x8
 };
-LAYOUT_CHECK(obj_slot, sizeof(obj_slot) == 0xc);
+LAYOUT_CHECK_32(obj_slot, sizeof(obj_slot) == 0xc);
 
 extern obj obj_active_list;           // 0x970770 head (next 0x970774, prev 0x970778)
 extern int obj_handle_next;           // 0x59a5a0 = 1, saved by savegame_write_living
@@ -112,7 +112,7 @@ public:
     container *in_container;          // +0xa4 the container holding it (container_add_item)
     int ground_face;                  // +0xa8 hit record +0x24 of the floor probe, -1 none (meaning unsure)
 };
-LAYOUT_CHECK(item_obj, sizeof(item_obj) == 0xac);
+LAYOUT_CHECK_32(item_obj, sizeof(item_obj) == 0xac);
 extern item_obj item_obj_pool[MAX_ITEM_OBJS];        // 0x946790
 
 item_obj *item_obj_spawn(item_info *item, const vector3 *pos, const matrix *orient, int count,
@@ -138,7 +138,7 @@ public:
     int mesh_item_type;               // +0xE0 item type index of the container mesh, -1 none
     float lock;                       // +0xE4 lock value, 0 unlocked
 };
-LAYOUT_CHECK(container, sizeof(container) == 0xe8);
+LAYOUT_CHECK_32(container, sizeof(container) == 0xe8);
 
 // The second argument is the lock value (monster_drop_loot pushes a float; decomp37, D1709).
 container *container_obj_create(const vector3 *pos, float lock);   // 0x4897f0
@@ -151,7 +151,7 @@ struct party_inventory_entry {
     int count;                        // +0x0
     item_info *item;                  // +0x4
 };
-LAYOUT_CHECK(party_inventory_entry, sizeof(party_inventory_entry) == 8);
+LAYOUT_CHECK_32(party_inventory_entry, sizeof(party_inventory_entry) == 8);
 extern party_inventory_entry party_inventory[521];   // 0x970820
 extern int party_gold;                               // 0x971868
 extern int party_inventory_count;                    // 0x97186c

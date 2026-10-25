@@ -590,6 +590,18 @@ float vif_curve__evaluate(const vif_curve *c, float t, bool reciprocal)
 // 0x533d90  Confidence: exact. NULL stays, -1 becomes the base, anything else is an offset from it.
 void reloc_ptr(void *p, char *base)
 {
+#ifdef _WIN64
+    // The slot is a 4-byte PTR32 field (vsdk.h; L3): the same rules on the 32-bit value.
+    unsigned int *slot = (unsigned int *)p;
+
+    if (*slot == 0)
+        return;
+    if (*slot == 0xffffffffu)
+        *slot = (unsigned int)(size_t)base;
+    else
+        *slot += (unsigned int)(size_t)base;
+    return;
+#endif
     char **pp = (char **)p;
 
     if (*pp == NULL)

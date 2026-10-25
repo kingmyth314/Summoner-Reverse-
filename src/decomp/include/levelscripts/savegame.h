@@ -40,7 +40,7 @@ struct savegame_level_data {
     int num_floats;                  // +0x10
     int size;                        // +0x14 (num_flags + num_bits + 7) / 8 + 4 * (num_ints + num_floats)
 };
-LAYOUT_CHECK(savegame_level_data, sizeof(savegame_level_data) == 0x18);
+LAYOUT_CHECK_32(savegame_level_data, sizeof(savegame_level_data) == 0x18);
 
 // The LENT party state (0x24 bytes; savegame_write_party_state / savegame_read_party_state). Field
 // names ours, bit positions from the masks in both functions.
@@ -216,7 +216,7 @@ public:
     char pending_load[0x80];         // +0x1064 savegame_set_pending_load
     int pending_slot;                // +0x10E4
 };
-LAYOUT_CHECK(savegame, sizeof(savegame) == 0x10e8);
+LAYOUT_CHECK_32(savegame, sizeof(savegame) == 0x10e8);
 extern savegame savegame_state;                                      // 0x2493a38
 extern ubyte savegame_buffer[SAVEGAME_BUFFER_SIZE];                  // 0x2494b2c
 // The pilots' wrapper spellings (new_automap.cpp, new_hud.cpp), now the object itself (D46).

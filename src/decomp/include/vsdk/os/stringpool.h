@@ -36,6 +36,6 @@ public:
     int length;                       // +0x0C
     int count;                        // +0x10
 };
-LAYOUT_CHECK(StringPool, sizeof(StringPool) == 0x14);
+LAYOUT_CHECK_32(StringPool, sizeof(StringPool) == 0x14);
 
 #endif

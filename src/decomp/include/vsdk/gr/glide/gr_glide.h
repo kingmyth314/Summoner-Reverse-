@@ -27,7 +27,7 @@ struct glide_section {
     float v_scale;                       // +0x2c
     ushort x, y, w, h;                   // +0x30 the section's rectangle in the bitmap
 };
-LAYOUT_CHECK(glide_section, sizeof(glide_section) == 0x38);
+LAYOUT_CHECK_32(glide_section, sizeof(glide_section) == 0x38);
 
 // One entry per bitmap frame (MAX_BITMAPS of them in glide_tcache_entries, indexed by
 // bm_get_current_frame). 0x10 bytes; names ours.
@@ -38,7 +38,7 @@ struct glide_tcache_entry {
     ubyte _pad0a[2];
     glide_section *sections;             // +0x0c
 };
-LAYOUT_CHECK(glide_tcache_entry, sizeof(glide_tcache_entry) == 0x10);
+LAYOUT_CHECK_32(glide_tcache_entry, sizeof(glide_tcache_entry) == 0x10);
 
 // A block of TMU texture memory (0x14 bytes; glide_record's blocks, MAX_BITMAPS per TMU). The used
 // blocks form a list in address order (used_head .. used_tail), the rest the free list. Names ours.
@@ -82,7 +82,7 @@ public:
     FxU32 next_addr;                                  // +0x40 = min_addr, no reader
     int mem_used;                                     // +0x44 bytes in blocks
 };
-LAYOUT_CHECK(glide_record, sizeof(glide_record) == 0x48);
+LAYOUT_CHECK_32(glide_record, sizeof(glide_record) == 0x48);
 
 // ---- .bss --------------------------------------------------------------------------------------------
 // The entry points (glide_load_dll; sum.symbols names, address order).

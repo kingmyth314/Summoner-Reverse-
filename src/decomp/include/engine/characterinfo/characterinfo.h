@@ -236,7 +236,7 @@ struct char_info {
     float mp_drop_chances[0x11]; // +0x348
     int mp_drop_levels[0x11];    // +0x38C
 };
-LAYOUT_CHECK(char_info, sizeof(char_info) == 0x3d0);
+LAYOUT_CHECK_32(char_info, sizeof(char_info) == 0x3d0);
 extern char_info char_infos[256];                     // 0x6d7e50
 extern int num_char_infos;                            // 0x714e54 record count (characterinfo_parse_table; decomp29)
 
@@ -269,7 +269,7 @@ struct skill_info {
     char **description;               // +0x2c localize_strings slot (tooltip)
     char **use_description;           // +0x30 localize_strings slot, preferred for active skills when not empty
 };
-LAYOUT_CHECK(skill_info, sizeof(skill_info) == 0x34);
+LAYOUT_CHECK_32(skill_info, sizeof(skill_info) == 0x34);
 extern skill_info skill_table[MAX_SKILLS];            // 0x8b3f88
 bool skill_is_summon(int skill);                      // 0x446e70
 bool skill_has_flag8(int skill);                      // 0x4473d0 skill_table +0x20 bit 3 (the aimed attack parts)
@@ -303,7 +303,7 @@ struct move_info {
     const char *hit_tag;              // +0x44 $Contact tag: weapon tag name of the hit
     const char *effect;               // +0x48 $Effect: (vfx_preload for some bosses)
 };
-LAYOUT_CHECK(move_info, sizeof(move_info) == 0x4c);
+LAYOUT_CHECK_32(move_info, sizeof(move_info) == 0x4c);
 
 // Flag: for the heroes, skip a move whose anim is loaded for none of the record's weapon classes.
 move_info *charinfo_find_move(char_info *info, int category, int id, bool loaded_only);   // 0x446cb0
@@ -389,7 +389,7 @@ struct species_info {
     ubyte load;                       // +0x8 parsed at startup (characterinfo_load_party)
     ubyte _pad09[3];
 };
-LAYOUT_CHECK(species_info, sizeof(species_info) == 0xc);
+LAYOUT_CHECK_32(species_info, sizeof(species_info) == 0xc);
 #define NUM_SPECIES_TABLE 223
 extern const species_info species_table[NUM_SPECIES_TABLE];  // 0x580e60
 
@@ -404,7 +404,7 @@ struct chain_skill {
     ubyte points;                     // +0x10 points needed (character_learn_chain_skill)
     ubyte _pad11[3];
 };
-LAYOUT_CHECK(chain_skill, sizeof(chain_skill) == 0x14);
+LAYOUT_CHECK_32(chain_skill, sizeof(chain_skill) == 0x14);
 #define NUM_CHAIN_SKILLS 40
 extern chain_skill chain_skill_table[NUM_CHAIN_SKILLS];   // 0x8b3c68
 
@@ -414,7 +414,7 @@ struct multi_charinfo_slot_t {
     char_info info;                   // +0x004
     int textures[6];                  // +0x3D4 bm_reload of the mesh textures (charinfo_get_multi_appearance)
 };
-LAYOUT_CHECK(multi_charinfo_slot_t, sizeof(multi_charinfo_slot_t) == 0x3ec);
+LAYOUT_CHECK_32(multi_charinfo_slot_t, sizeof(multi_charinfo_slot_t) == 0x3ec);
 extern multi_charinfo_slot_t multi_charinfo_slots[4]; // 0x7def08
 
 extern const char *summon_creature_names[16];         // 0x595b24 skills 0x24..0x33 (label ours)

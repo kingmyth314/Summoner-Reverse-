@@ -62,7 +62,7 @@ public:
     FILE *file;                                   // +0x408
     char recv_buffer[1000];                       // +0x40c
 };
-LAYOUT_CHECK(http_get, sizeof(http_get) == 0x7f4);
+LAYOUT_CHECK_32(http_get, sizeof(http_get) == 0x7f4);
 
 // The host name lookup thread (records of 12 bytes, malloc / free).
 struct http_dns_lookup {
@@ -72,7 +72,7 @@ struct http_dns_lookup {
     bool error;                                   // +0x9
     bool abort;                                   // +0xa
 };
-LAYOUT_CHECK(http_dns_lookup, sizeof(http_dns_lookup) == 0xc);
+LAYOUT_CHECK_32(http_dns_lookup, sizeof(http_dns_lookup) == 0xc);
 #define HTTP_DNS_CANCEL 1
 #define HTTP_DNS_START  2
 #define HTTP_DNS_POLL   3

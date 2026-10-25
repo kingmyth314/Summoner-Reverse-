@@ -31,7 +31,7 @@ public:
 
     int state;                        // +0x04
 };
-LAYOUT_CHECK(camera_sequence, sizeof(camera_sequence) == 8);
+LAYOUT_CHECK_32(camera_sequence, sizeof(camera_sequence) == 8);
 
 // One cutscene camera shot (vtable 0x581af0; cutscene_camera_sequence__ctor builds it on
 // camera_sequence(0)). Read from a .csc file by read_track; start / end are seconds from the start of
@@ -53,7 +53,7 @@ public:
     vector3 pos;                      // +0x40 sampled position
     matrix3 orient;                   // +0x4C sampled orientation
 };
-LAYOUT_CHECK(cutscene_camera_sequence, sizeof(cutscene_camera_sequence) == 0x70);
+LAYOUT_CHECK_32(cutscene_camera_sequence, sizeof(cutscene_camera_sequence) == 0x70);
 
 // A blend from the camera's own view to a fixed view (state 1; name and field names ours, D3401). No
 // constructor, vtable or creation is in Sum.exe, only the two methods camera_frame and
@@ -74,7 +74,7 @@ public:
     vector3 target_pos;               // +0x4C
     matrix3 target_orient;            // +0x58
 };
-LAYOUT_CHECK(camera_blend_sequence, sizeof(camera_blend_sequence) == 0x7c);
+LAYOUT_CHECK_32(camera_blend_sequence, sizeof(camera_blend_sequence) == 0x7c);
 
 void cutscene_camera_tracks_clear();  // 0x494680 zeroes the camera key pool counts (cutscene::load_files)
 

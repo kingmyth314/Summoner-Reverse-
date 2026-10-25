@@ -71,7 +71,7 @@ vim *vim_alloc()
 void vim_free(vim *mesh)
 {
     if (mesh && mesh->data && !(mesh->flags & VIM_IN_MEMPOOL)) {
-        delete mesh->data;
+        delete (ubyte *)mesh->data;          // (casts: an ordinary pointer from a PTR32 field, vsdk.h)
         delete mesh;
     }
 }
@@ -440,32 +440,32 @@ skeleton::~skeleton()
     skeleton_mem_used -= sizeof(skeleton);
     list_remove(this);
     if (bone_weights) {
-        delete[] bone_weights;
+        delete[] (ubyte *)bone_weights;
         skeleton_mem_used -= num_bones;
     }
     if (tracks) {
-        delete[] tracks;
+        delete[] (anim_track *)tracks;
         skeleton_mem_used -= num_bones * sizeof(anim_track);
     }
     if (rot_keys) {
-        delete[] rot_keys;
+        delete[] (anim_rot_key *)rot_keys;
         skeleton_mem_used -= num_rot_keys * sizeof(anim_rot_key);
     }
     if (pos_keys) {
-        delete[] pos_keys;
+        delete[] (anim_pos_key *)pos_keys;
         skeleton_mem_used -= num_pos_keys * sizeof(anim_pos_key);
     }
     if (morph_ids) {
-        delete[] morph_ids;
+        delete[] (int *)morph_ids;
         morph_ids = NULL;
         skeleton_mem_used -= num_morphs * sizeof(int);
     }
     if (morphs) {
         for (int i = 0; i < num_morphs; i++) {
-            delete[] morphs[i].keys;
+            delete[] (anim_vec_key *)morphs[i].keys;
             skeleton_mem_used -= morphs[i].num_keys * sizeof(anim_vec_key);
         }
-        delete[] morphs;
+        delete[] (skeleton_morph *)morphs;
         morphs = NULL;
         skeleton_mem_used -= num_morphs * sizeof(skeleton_morph);
     }

@@ -42,7 +42,7 @@ public:
     unsigned int _unk0c;              // +0x0c
     unsigned int _unk10;              // +0x10
 };
-LAYOUT_CHECK(s3d_geom_block, sizeof(s3d_geom_block) == 0x14);
+LAYOUT_CHECK_32(s3d_geom_block, sizeof(s3d_geom_block) == 0x14);
 
 // A geometry (mesh shape) record, 0x54 bytes, shared by the level objects (lobj +0x04). The vertex,
 // normal, uv and int16 arrays and the faces are slices of the level pools (s3d_read_geometry). The
@@ -82,7 +82,7 @@ struct s3d_geometry {
         int num_groups;               //       decomp76
     };
 };
-LAYOUT_CHECK(s3d_geometry, sizeof(s3d_geometry) == 0x54);
+LAYOUT_CHECK_32(s3d_geometry, sizeof(s3d_geometry) == 0x54);
 
 // Level +0x30 records (0x10 bytes; s3d_read_vertex_set).
 struct s3d_vertex_set {
@@ -99,7 +99,7 @@ struct s3d_navpoint {
     matrix orient;                    // +0x04 stored in the file as a quaternion
     vector3 pos;                      // +0x28
 };
-LAYOUT_CHECK(s3d_navpoint, sizeof(s3d_navpoint) == 0x34);
+LAYOUT_CHECK_32(s3d_navpoint, sizeof(s3d_navpoint) == 0x34);
 
 // Level +0x40 records (0x10 bytes; s3d_read_named_path). Doors name themselves after one (+0x04 of
 // the door record).
@@ -159,7 +159,7 @@ struct s3d_textured_record {
     unsigned int num_weights;         // +0x18
     float *weights;                   // +0x1c one per vertex
 };
-LAYOUT_CHECK(s3d_textured_record, sizeof(s3d_textured_record) == 0x20);
+LAYOUT_CHECK_32(s3d_textured_record, sizeof(s3d_textured_record) == 0x20);
 
 // The level (0xe0 bytes at 0xa5a2a0, level_s3d). sum.symbols names several fields as globals
 // (num_lobjs 0xa5a2c8, lobjs 0xa5a2cc, level_num_textures 0xa5a318, ...); they are the macros below
@@ -218,7 +218,7 @@ struct s3d_level {
     int _unkd0;                       // +0xd0
     vector3 ambient;                  // +0xd4 (level_lights_setup)
 };
-LAYOUT_CHECK(s3d_level, sizeof(s3d_level) == 0xe0);
+LAYOUT_CHECK_32(s3d_level, sizeof(s3d_level) == 0xe0);
 
 extern s3d_level level_s3d;           // 0xa5a2a0
 #define num_lobjs (level_s3d.num_meshes)                // 0xa5a2c8

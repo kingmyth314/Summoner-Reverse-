@@ -74,7 +74,7 @@ struct boss_target {
     float score;                      // +0x08 cumulative weight (boss_target_list_pick)
     unsigned int flags;               // +0x0C set by the per-boss filters (boss_target_filter_dispatch)
 };
-LAYOUT_CHECK(boss_target, sizeof(boss_target) == 0x10);
+LAYOUT_CHECK_32(boss_target, sizeof(boss_target) == 0x10);
 
 // One "$OffenseNN" mesh tag of a rider boss (0x1c bytes; serpent_boss_load / serpent_choose_attack and the
 // phoenix's copies; decomp54). Names ours.
@@ -237,7 +237,7 @@ struct tentacle_info {
     float up_time;                                     // +0x108 seconds above water
     float hp_mark;                                     // +0x10c HP fraction - 0.3 (tentacle_beast_tentacle_resurface)
 };
-LAYOUT_CHECK(tentacle_info, sizeof(tentacle_info) == 0x110);
+LAYOUT_CHECK_32(tentacle_info, sizeof(tentacle_info) == 0x110);
 #define NUM_TENTACLES 4
 extern tentacle_info tentacle_beast_tentacles[NUM_TENTACLES];   // 0x248c328
 void  tentacle_begin_sink(tentacle_info *t, int ms);   // 0x4c6c50
@@ -455,7 +455,7 @@ struct pyrul_boss {
     int num_hits;                                     // +0x590 0x24802b8
     int hits[5];                                      // +0x594 0x24802bc handles the area attack hits
 };
-LAYOUT_CHECK(pyrul_boss, sizeof(pyrul_boss) == 0x5a8);
+LAYOUT_CHECK_32(pyrul_boss, sizeof(pyrul_boss) == 0x5a8);
 extern pyrul_boss pyrul;                              // 0x247fd28 (name ours)
 #define pyrul_stage              (pyrul.stage)
 #define pyrul_target_stage       (pyrul.target_stage)
@@ -540,7 +540,7 @@ struct ghost_boss {
     int num_hits;                                     // +0x5cc 0x24808dc
     int hits[12];                                     // +0x5d0 0x24808e0
 };
-LAYOUT_CHECK(ghost_boss, sizeof(ghost_boss) == 0x600);
+LAYOUT_CHECK_32(ghost_boss, sizeof(ghost_boss) == 0x600);
 extern ghost_boss ghost;                              // 0x2480310 (name ours)
 #define ghost_stage                 (ghost.stage)
 #define ghost_rider_threat_table    (ghost.threat)
@@ -640,7 +640,7 @@ struct machival_boss {
     navpoint *teleport_navpoint;                      // +0x338 0x248b368 (mp_send_swi_boss)
     vector3 teleport_pos;                             // +0x33c 0x248b36c the facing after the teleport (mp_handle_swi_boss)
 };
-LAYOUT_CHECK(machival_boss, sizeof(machival_boss) == 0x348);
+LAYOUT_CHECK_32(machival_boss, sizeof(machival_boss) == 0x348);
 extern machival_boss machival;                        // 0x248b030 (name ours)
 #define machival_248b030            (machival._unk030)
 #define machival_combat_enabled     (machival.combat_enabled)
@@ -724,7 +724,7 @@ struct titus_boss {
     int _unk950;                                      // +0x5a8 0x248b950 never accessed
     int rock_erupt_fx_handle;                         // +0x5ac 0x248b954
 };
-LAYOUT_CHECK(titus_boss, sizeof(titus_boss) == 0x5b0);
+LAYOUT_CHECK_32(titus_boss, sizeof(titus_boss) == 0x5b0);
 extern titus_boss titus;                              // 0x248b3a8 (name ours)
 #define titus_stage                (titus.stage)
 #define titus_forced_stage         (titus.forced_stage)
@@ -804,7 +804,7 @@ struct evil_joseph_boss {
     int _unk338;                                      // +0x338 0x248bcec -1, never read
     int _unk33c;                                      // +0x33c 0x248bcf0 -1, never read
 };
-LAYOUT_CHECK(evil_joseph_boss, sizeof(evil_joseph_boss) == 0x340);
+LAYOUT_CHECK_32(evil_joseph_boss, sizeof(evil_joseph_boss) == 0x340);
 extern evil_joseph_boss evil_joseph;                  // 0x248b9b4 (name ours)
 #define evil_joseph_combat_enabled   (evil_joseph.combat_enabled)
 #define evil_joseph_threat_table     (evil_joseph.threat)
@@ -909,7 +909,7 @@ struct murod_oni_boss {
     int area_hit_count;                               // +0x2f4 0x248c2f8
     int area_hits[5];                                 // +0x2f8 0x248c2fc
 };
-LAYOUT_CHECK(murod_oni_boss, sizeof(murod_oni_boss) == 0x30c);
+LAYOUT_CHECK_32(murod_oni_boss, sizeof(murod_oni_boss) == 0x30c);
 extern murod_oni_boss murod_oni;                      // 0x248c004 (name ours)
 #define murod_oni_engaged               (murod_oni.engaged)
 #define murod_oni_threat_table          (murod_oni.threat)

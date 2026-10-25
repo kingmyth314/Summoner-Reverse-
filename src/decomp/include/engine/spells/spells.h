@@ -85,7 +85,7 @@ struct spell_info {
     int damage_type;                 // +0x78 +Damage type: (default -1)
     float target_radius;             // +0x7C +Target radius:
 };
-LAYOUT_CHECK(spell_info, sizeof(spell_info) == 0x80);
+LAYOUT_CHECK_32(spell_info, sizeof(spell_info) == 0x80);
 #define MAX_SPELLS 108
 
 // (count, first record) per spell class, built while parsing: one class's records are consecutive.
@@ -175,7 +175,7 @@ struct spell_hit {
         };
     };
 };
-LAYOUT_CHECK(spell_hit, sizeof(spell_hit) == 0x50);
+LAYOUT_CHECK_32(spell_hit, sizeof(spell_hit) == 0x50);
 
 struct spell_cast_request {
     spell_cast_request() { target = -1; target_pos = 0; layer = -1; _unk14 = 0; source_type = 0; }
@@ -195,7 +195,7 @@ struct spell_cast_request {
     int layer;                       // +0x10
     union {                          // +0x14 the item that casts: mp_spell_cast_sync sends its item_types
         int _unk14;                  //       index (-1 none; decomp35, D1500). combat.cpp clears _unk14.
-        ItemType *item;
+        ItemType *PTR32 item;
     };
     int source_type;                 // +0x18 6 for a combat skill
     int _unk1c[3];                   // +0x1C sent for spells 0x1d and 0x1f only (mp_write_spell_target_point)

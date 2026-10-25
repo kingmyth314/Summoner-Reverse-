@@ -43,6 +43,6 @@ public:
     int  _unk10;                      // +0x10
     int  error;                       // +0x14 INET_ERROR_*, set by the constructor
 };
-LAYOUT_CHECK(InetGetFile, sizeof(InetGetFile) == 0x18);
+LAYOUT_CHECK_32(InetGetFile, sizeof(InetGetFile) == 0x18);
 
 #endif

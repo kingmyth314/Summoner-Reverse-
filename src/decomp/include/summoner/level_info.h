@@ -23,7 +23,7 @@ struct level_info_block {
     int layer_maps[10];                // +0x7c 0x60a344 automap bitmap of each layer
     int layer_automap_index[40];       // +0xa4 0x60a36c
 };
-LAYOUT_CHECK(level_info_block, sizeof(level_info_block) == 0x144);
+LAYOUT_CHECK_32(level_info_block, sizeof(level_info_block) == 0x144);
 
 extern level_info_block level_info;    // 0x60a2c8
 

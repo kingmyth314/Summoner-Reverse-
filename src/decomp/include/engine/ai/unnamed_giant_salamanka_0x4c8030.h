@@ -53,7 +53,7 @@ struct giant_salamanka_boss {
     bool stage2_attacks[8];                           // +0x5d0 0x248cda0
     bool stage3_attacks[8];                           // +0x5d8 0x248cda8
 };
-LAYOUT_CHECK(giant_salamanka_boss, sizeof(giant_salamanka_boss) == 0x5e0);
+LAYOUT_CHECK_32(giant_salamanka_boss, sizeof(giant_salamanka_boss) == 0x5e0);
 extern giant_salamanka_boss gsal;                     // 0x248c7d0 (name ours)
 
 #define giant_salamanka_combat_enabled      (gsal.combat_enabled)
