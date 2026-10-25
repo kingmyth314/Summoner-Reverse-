@@ -10,7 +10,7 @@
 // a /D to every game unit (for example SHIPPED_NOCD, the no-CD edit the shipped Sum.exe carries, D2600). Prints the
 // unresolved and multiply defined symbols. Needs VC6_DIR (the VC98 folder of Visual C++ 6.0 SP5).
 import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync, readdirSync, rmSync } from "node:fs";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { join, resolve, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -37,6 +37,9 @@ const defines = [...(configName ? config.defines : []), ...args.flatMap((a, i) =
 // against VC6's libraries, so the exe keeps the MSVC name mangling the address table needs. CLANG_DIR is the folder
 // with clang++.exe and ld.lld.exe. Output: build/<config dir>-clang, <exe name>-clang.exe.
 const useClang = opt("--compiler", "vc6") === "clang";
+// MODERN_BUILD (rung L2): the plain C++ form where the matching source keeps a VC6-only device or the original's
+// undefined behaviour (docs/future/modern-port.md). Only the clang build defines it.
+if (useClang && !defines.includes("MODERN_BUILD")) defines.push("MODERN_BUILD");
 const CLANG = process.env.CLANG_DIR;
 if (useClang && (!CLANG || !existsSync(join(CLANG, "clang++.exe")))) {
   console.error("--compiler clang needs CLANG_DIR: the folder with clang++.exe and ld.lld.exe (LLVM 16 or later).");
@@ -63,17 +66,22 @@ const run = (exe, argv, cwd = out) => {
 // VC6 extensions the matching source relies on are accepted: the address of a temporary (D15902), a narrowing case
 // value (gr_font.cpp). A function that falls off its end is an error: the two the matching source has (D15400,
 // D21001) return their VC6 value under __clang__.
+// Warnings: -Wall -Wextra without the classes that only report the decompiled style (unused names, signed/unsigned
+// compares, the VC6 headers' upper-case file names). Each unit's warnings go to <obj>.warn and the build prints the
+// total; rung L2 is done when it is 0.
 const clangFlags = ["--target=i686-pc-windows-msvc", "-fms-extensions", "-fms-compatibility", "-fms-compatibility-version=12.0",
-  "-march=pentiumpro", "-mfpmath=387", "-fno-strict-aliasing", "-fno-exceptions", "-fno-cxx-exceptions", "-fno-sized-deallocation", "-O2", "-w",
+  "-march=pentiumpro", "-mfpmath=387", "-fno-strict-aliasing", "-fno-exceptions", "-fno-cxx-exceptions", "-fno-sized-deallocation", "-O2",
+  "-Wall", "-Wextra", "-Wno-unused-variable", "-Wno-unused-parameter", "-Wno-unused-but-set-variable", "-Wno-unused-function",
+  "-Wno-unknown-pragmas", "-Wno-missing-field-initializers", "-Wno-sign-compare", "-Wno-nonportable-include-path",
   "-Wno-error=address-of-temporary", "-Wno-c++11-narrowing", "-Werror=return-type", "-D_MT", "-D_WIN32", "-DWIN32",
   "-isystem", join(VC, "INCLUDE")];
 const runClang = (cpp, obj, extraDefs, includes) => {
-  try {
-    execFileSync(join(CLANG, cpp.endsWith(".c") ? "clang.exe" : "clang++.exe"),
-      [...clangFlags, ...(cpp.endsWith(".c") ? [] : ["-std=c++14"]), ...extraDefs.map((d) => `-D${d}`), ...includes.flatMap((i) => ["-I", i]), "-c", cpp, "-o", obj],
-      { cwd: out, encoding: "latin1", maxBuffer: 1 << 28, stdio: ["ignore", "pipe", "pipe"] });
-    return "";
-  } catch (e) { return (e.stdout || "") + (e.stderr || "") + `\n(exit ${e.status})`; }
+  const r = spawnSync(join(CLANG, cpp.endsWith(".c") ? "clang.exe" : "clang++.exe"),
+    [...clangFlags, ...(cpp.endsWith(".c") ? [] : ["-std=c++14"]), ...extraDefs.map((d) => `-D${d}`), ...includes.flatMap((i) => ["-I", i]), "-c", cpp, "-o", obj],
+    { cwd: out, encoding: "latin1", maxBuffer: 1 << 28 });
+  const text = (r.stdout || "") + (r.stderr || "");
+  writeFileSync(obj + ".warn", text.split(/\r?\n/).filter((l) => /warning:/.test(l)).join("\n"));
+  return r.status === 0 ? "" : text + `\n(exit ${r.status})`;
 };
 const decompIncludes = () => [process.env.DECOMP_INCLUDE || join(src, "include"), join(process.env.DECOMP_INCLUDE || join(src, "include"), "vsdk")];
 const flags = new Map();
@@ -186,6 +194,12 @@ const names = (re) => [...new Set([...text.matchAll(re)].map((m) => m[1]))].sort
 const unres = useClang ? names(/undefined symbol: ([^\r\n]+)/g) : names(/unresolved external symbol (?:"[^"]*" \()?([^\s)"]+)/g);
 const multi = useClang ? names(/duplicate symbol: ([^\r\n]+)/g) : names(/LNK(?:2005|4006): "?(?:[^"]*" \()?([^\s)"]+)/g);
 console.log(`${units.length} units (${compiled} compiled, ${failed} failed); unresolved ${unres.length}; multiply defined ${multi.length}`);
+if (useClang) {
+  // Every object's warnings (a header's warning once), into warnings.txt.
+  const warns = [...new Set(objs.filter((o) => existsSync(o + ".warn")).flatMap((o) => readFileSync(o + ".warn", "latin1").split("\n").filter(Boolean)))].sort();
+  writeFileSync(join(out, "warnings.txt"), warns.join("\n") + "\n");
+  console.log(`clang warnings: ${warns.length} (warnings.txt)`);
+}
 for (const n of unres) console.log(`  unresolved ${n}`);
 for (const n of multi) console.log(`  multiple ${n}`);
 const exe = join(out, `${exeName}.exe`);

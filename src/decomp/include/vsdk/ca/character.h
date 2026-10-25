@@ -137,9 +137,9 @@ ca_character *ca_find_character(const char *name);   // 0x541400 NULL if none
 // (names, num_names, keep_loaded, unused, model pool, char pool): finds or creates the base character
 // named names[0]; names[1..] are the other LOD meshes. GameInit passes (&hero_model_names[2k], 2
 // (Rosalind 1), 1, 0, pools). keep_loaded is compared as a byte (D1004).
-ca_character *character_load(char **names, int num_names, bool keep_loaded, int unused,
+ca_character *character_load(const char *const *names, int num_names, bool keep_loaded, int unused,
                              Mempool *model_pool, Mempool *char_pool);   // 0x541450
-ca_character *character_create_base(char **names, int num_names, Mempool *model_pool,
+ca_character *character_create_base(const char *const *names, int num_names, Mempool *model_pool,
                                     Mempool *char_pool);                 // 0x541500
 ca_mesh *ca_preload_alloc_slot();     // 0x541700 NULL when full
 void character_release(ca_character *c);  // 0x541740

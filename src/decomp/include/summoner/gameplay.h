@@ -22,13 +22,13 @@ extern int loading_screen_bm;                  // 0x593c64 -1 while no loading s
 extern int gameplay_data_593c68[4];            // 0x593c68 {1, 1, 1, 1}, never read (name ours)
 // world_mouse_target_handle (0x593f50) is defined in gameplay.cpp; declared in summoner/gametarget.h.
 // The help screen's text tables: {key, action} string pairs, each with its count of strings. Names ours.
-extern char *help_mouse_controls[8];           // 0x5940ac
+extern const char *help_mouse_controls[8];           // 0x5940ac
 extern int   help_num_mouse_controls;          // 0x5940cc 8
-extern char *help_keyboard_controls[6];        // 0x5940d0
+extern const char *help_keyboard_controls[6];        // 0x5940d0
 extern int   help_num_keyboard_controls;       // 0x5940e8 6
-extern char *help_debug_controls[12];          // 0x5940ec never drawn
+extern const char *help_debug_controls[12];          // 0x5940ec never drawn
 extern int   help_num_debug_controls;          // 0x59411c 12
-extern char *help_camera_controls[2];          // 0x594120
+extern const char *help_camera_controls[2];          // 0x594120
 extern int   help_num_camera_controls;         // 0x594128 2
 extern void (*help_page_draw_funcs[1])(int y); // 0x59412c (help_controls_window_draw)
 #define NUM_HELP_PAGES 1                       // help_draw_page and state_help_key_handler (ours)

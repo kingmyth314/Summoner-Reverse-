@@ -27,7 +27,7 @@
 #include "vsdk/vfile/linefile.h"
 
 // ---- .data (0x5a6f20-0x5a6f2b) ------------------------------------------------------------------------
-static char *command_line_cursor = "";       // 0x5a6f20 -> the "" literal 0x25db924
+static const char *command_line_cursor = "";       // 0x5a6f20 -> the "" literal 0x25db924
 static char token[128];                      // 0x25db894 (defined here so the initialiser below can use it)
 static char *token_write_ptr = token;        // 0x5a6f24
 int console_font = -1;                       // 0x5a6f28 (name ours) console_set_font; never read in v1.40
@@ -48,7 +48,7 @@ int command_argument_int;                    // 0x25db2dc
 int doing_help_for_comand;                   // 0x25db2e0
 char original_arg[256];                      // 0x25db2e4
 console_command *Console_commands[MAX_CONSOLE_COMMANDS];   // 0x25db3e4
-char *rest_of_command_line;                  // 0x25db914
+const char *rest_of_command_line;                  // 0x25db914
 int current_command_count;                   // 0x25db918
 static bool char_types_initialized;          // 0x25db91c (name ours) tested by init_char_types, never set
 int debug_command_prefixed;                  // 0x25db920

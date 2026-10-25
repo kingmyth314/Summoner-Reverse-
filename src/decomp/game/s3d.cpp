@@ -377,7 +377,7 @@ int level_load_s3d(const char *filename, s3d_level *level, int names_size)
     if (level_vis_base_built && level_vis_base.indices)
         delete level_vis_base.indices;
     else
-        level_vis_base.name = "$vis_base";
+        level_vis_base.name = (char *)"$vis_base";   // only read (compared, never written or freed)
     level_vis_base.count = 0;
     for (i = 0; i < level->num_meshes; i++) {
         if (!(level->meshes[i].flags & 0x4000))
@@ -486,7 +486,7 @@ void s3d_read_meshes(s3d_level *level, lobj *mesh, File *f)
         s3d_byte_cursor += mesh->mesh->num_vertices * 3;
     } else {
         f->sync_string_buf(mesh->name, -1, 0, 0);
-        f->sync_string_buf("", -1, 0, 0);
+        f->sync_string_buf((char *)"", -1, 0, 0);    // write branch: the buffer is only read
         f->write_int(mesh->mesh - level->geometry);
     }
     num_faces = mesh->mesh->num_faces;

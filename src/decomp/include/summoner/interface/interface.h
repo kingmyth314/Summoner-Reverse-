@@ -124,8 +124,8 @@ extern party_inventory_entry *ui_using_list_item_entry;             // 0x5bd514 
 
 // ---- scaling and drawing helpers ----------------------------------------------------------------------
 extern int   ui_hires;                                              // 0x5bd318, 0 = 640 layout, 1 = 1024
-extern char *ui_bitmap_suffix_tga[2];                               // 0x58bda4 {"640.tga", "1024.tga"}
-extern char *ui_bitmap_suffix[2];                                   // 0x58bdac {"640", "1024"} (skills / spells '#' names)
+extern const char *ui_bitmap_suffix_tga[2];                               // 0x58bda4 {"640.tga", "1024.tga"}
+extern const char *ui_bitmap_suffix[2];                                   // 0x58bdac {"640", "1024"} (skills / spells '#' names)
 bool  point_in_rect(int px, int py, int x, int y, int w, int h);    // 0x413460
 float ui_get_scale();                                               // 0x4134a0
 // The mode goes on to gr_bitmap_stretched unchanged, so it is a gr::Mode (D2802; the callers pass

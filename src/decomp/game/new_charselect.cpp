@@ -95,7 +95,7 @@ ui_button_def mp_charselect_button_defs[CHARSELECT_NUM_BUTTONS] = {
     { "Icon-ArrwDNPress",        { { 441, 322 }, { 551, 403 }, { 706, 509 } }, 8 },
 };
 // 0x58a0a8. The strings are pooled copies at 0x588b8c / 0x588b74 (see new_journal.cpp).
-char *mp_charselect_scrollbar_names[2] = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };
+const char *mp_charselect_scrollbar_names[2] = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };
 // 0x58a0b0 x, y of the name box per resolution (sum.symbols: mp_charselect_name_box_pos, y at mp_charselect_name_box_y). Not const,
 // so it is in .data, unlike its size table.
 int mp_charselect_name_box_pos[3][2] = { { 352, 89 }, { 440, 111 }, { 563, 142 } };

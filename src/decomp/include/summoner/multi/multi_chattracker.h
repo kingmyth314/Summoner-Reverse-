@@ -51,13 +51,13 @@ char *irc_get_chat_text();                               // 0x4ac0e0 a line for 
 char *irc_read_line();                                   // 0x4ac100
 // (line, mode): mode 0 a line from the server, 1 a line we sent (no prefix). The formatted text or NULL.
 char *chat_process_irc_message(char *line, int mode);    // 0x4ac240
-char *irc_get_word(int n, char *text);                   // 0x4ad8b0 word n, or the rest of the line after a ':'
+char *irc_get_word(int n, const char *text);                   // 0x4ad8b0 word n, or the rest of the line after a ':'
 void  irc_flush_channel_list();                          // 0x4ad9a0
 void  irc_add_channel(char *name, unsigned short users, char *topic);    // 0x4ad9e0
 int   irc_add_user(char *nick);                          // 0x4adb40 0 when already listed
 int   irc_remove_user(char *nick);                       // 0x4adc40 0 when not listed
 // (typed line, quiet): a slash command or a channel message. quiet passes unknown commands to the server.
-char *irc_process_input(char *line, int quiet);          // 0x4adcd0
+char *irc_process_input(const char *line, int quiet);          // 0x4adcd0
 irc_command *irc_get_chat_command();                     // 0x4adfb0
 irc_command *irc_pop_command();                          // 0x4adfd0
 // -1 not connected / join failed, 0 joining, 1 joined.

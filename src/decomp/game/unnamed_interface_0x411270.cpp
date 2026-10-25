@@ -100,8 +100,8 @@ const int hud_chain_message_pos[3][2]      = { { 143, 163 }, { 179, 204 }, { 229
 // ---- .data (0x58bda4) ----------------------------------------------------------------------------------
 // The literal pool after the data (0x58bea8-0x58c06f) holds the bitmap names in reverse order of the
 // tables, then the function literals.
-char *ui_bitmap_suffix_tga[2]        = { "640.tga", "1024.tga" };                    // 0x58bda4
-char *ui_bitmap_suffix[2]            = { "640", "1024" };                            // 0x58bdac
+const char *ui_bitmap_suffix_tga[2]        = { "640.tga", "1024.tga" };                    // 0x58bda4
+const char *ui_bitmap_suffix[2]            = { "640", "1024" };                            // 0x58bdac
 int   cursoricon_chain_bm            = -1;                                           // 0x58bdb4
 int   hud_target_mode                = -1;                                           // 0x58bdb8
 float ui_pick_override_x             = 1.0f;                                         // 0x58bdbc
@@ -113,7 +113,7 @@ void (*screen_refresh_table[NUM_SCREENS])() = {                                 
 };
 float ui_scale                       = 1.0f;                                         // 0x58be24
 float ui_scale_640                   = 1.0f;                                         // 0x58be28
-char *message_popup_bkgrnd_names[2]  = { "MessagePopupBkgrnd2640.tga",
+const char *message_popup_bkgrnd_names[2]  = { "MessagePopupBkgrnd2640.tga",
                                          "MessagePopupBckgrnd21024.tga" };           // 0x58be2c (sic, the file exists)
 int   cursorspot_focus_bm            = -1;                                           // 0x58be34
 int   cursorspot_focus_large_bm      = -1;                                           // 0x58be38
@@ -122,7 +122,7 @@ int   ui_tooltip_pad_left            = 1;                                       
 int   ui_tooltip_pad_right           = 0;                                            // 0x58be4c
 int   ui_tooltip_pad_top             = 1;                                            // 0x58be50
 int   ui_tooltip_pad_bottom          = 1;                                            // 0x58be54
-char *cutscene_loading_names[2]      = { "LoadingPopup640.tga", "LoadingPopup1024.tga" };   // 0x58be58 (name ours)
+const char *cutscene_loading_names[2]      = { "LoadingPopup640.tga", "LoadingPopup1024.tga" };   // 0x58be58 (name ours)
 int   cutscene_loading_bg_pos[3][2]  = { { 145, 190 }, { 181, 238 }, { 232, 304 } }; // 0x58be60 (names ours)
 int   cutscene_loading_bar_pos[3][2] = { { 160, 248 }, { 199, 310 }, { 254, 395 } }; // 0x58be78
 int   cutscene_loading_bar_size[3][2] = { { 320, 28 }, { 400, 36 }, { 516, 45 } };   // 0x58be90

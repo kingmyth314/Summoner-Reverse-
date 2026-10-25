@@ -33,7 +33,7 @@
 // ---- .data, in address order (0x5934d0-0x5937eb, the literals follow) --------------------------
 // Fourteen model names; GameInit passes &[0], &[2], &[4], &[6] to character_load (two names for the
 // first three heroes, one for Rosalind). The "#" half is not referenced directly. Label ours.
-char *hero_model_names[14] = {        // 0x5934d0
+const char *hero_model_names[14] = {        // 0x5934d0
     "Joseph", "Heavy Joseph", "Jekhar", "Heavy Jekhar", "Flece", "Heavy Flece", "Rosalind",
     "#Joseph", "#Heavy Joseph", "#Jekhar", "#Heavy Jekhar", "#Flece", "#Heavy Flece", "#Rosalind",
 };

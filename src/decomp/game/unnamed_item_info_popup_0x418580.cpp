@@ -62,7 +62,7 @@ ui_button_def item_info_popup_button_defs[POPUP_NUM_BUTTONS] = {                
     { "Icon-GrnClseHilite",   { { 552, 96 },  { 690, 120 }, { 883, 155 } }, 2 },     // 6 close
     { "Icon-GrnClsePress",    { { 552, 96 },  { 690, 120 }, { 883, 155 } }, 0 },
 };
-char *item_info_popup_scrollbar_names[2] = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };  // 0x58cd98
+const char *item_info_popup_scrollbar_names[2] = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };  // 0x58cd98
 
 // ---- .bss (0x5c1470-0x5c156b), address order ------------------------------------------------------------
 ui_button_state item_info_popup_buttons[POPUP_NUM_BUTTONS];   // 0x5c1470

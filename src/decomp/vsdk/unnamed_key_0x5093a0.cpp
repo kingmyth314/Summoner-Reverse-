@@ -53,7 +53,7 @@ int key_ascii_table_shifted[128] = {                 // 0x5a66c0
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 };
-char *key_names[256] = {                             // 0x5a68c0
+const char *key_names[256] = {                             // 0x5a68c0
     "", "Esc", "1", "2", "3", "4", "5", "6",
     "7", "8", "9", "0", "-", "=", "Backspace", "Tab",
     "Q", "W", "E", "R", "T", "Y", "U", "I",

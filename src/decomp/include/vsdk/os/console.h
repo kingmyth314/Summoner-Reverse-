@@ -65,7 +65,7 @@ void console_printf(const char *fmt, ...);   // 0x50aef0 (vsprintf + print_to_co
 
 // decomp44 (console.cpp, 0x50a000-0x50af59). The rest of the unit's globals and functions.
 extern char original_arg[256];           // 0x25db2e4 the parsed argument as typed
-extern char *rest_of_command_line;       // 0x25db914 the line after the parsed argument
+extern const char *rest_of_command_line;       // 0x25db914 the line after the parsed argument
 extern int current_command_count;        // 0x25db918
 extern console_command *Console_commands[MAX_CONSOLE_COMMANDS];   // 0x25db3e4 sorted by name (_stricmp)
 extern int debug_command_prefixed;       // 0x25db920 "debug <command>": trace the parse

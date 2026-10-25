@@ -574,7 +574,7 @@ void Character::fill_locomotion_anims()
     int i;
 
     for (i = 0; i < NUM_LOCO_ANIMS; i++) {
-        char *name = locomotion_anim_names[i];
+        const char *name = locomotion_anim_names[i];
         loco_anims[i] = charinfo_find_anim(info, name);
     }
     if (anim_stand < 0)

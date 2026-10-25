@@ -121,7 +121,7 @@ void localize_unescape(char *text)
 char *localize_strdup(const char *text)
 {
     if (localize_current_pool == NULL)
-        return "INVALID";
+        return (char *)"INVALID";   // the API hands out char *; this one must not be written (docs/future/modern-port.md, L2)
     if (localize_current_pool == &localize_pool_non_level)
         return localize_string_pool.Add(text);
     char *p = (char *)localize_current_pool->allocate_in_mempool(strlen(text) + 1);
@@ -168,7 +168,7 @@ void localize_set_string_raw(const char *text, int id)
 char *localize_table_lookup(const char *english, localize_node **table)
 {
     if (english == NULL)
-        return "INVALID";
+        return (char *)"INVALID";
     int hash = localize_hash(english);
     localize_node *p;
     for (p = table[(unsigned int)hash % LOCALIZE_TABLE_SIZE]; p != NULL; p = p->next) {
@@ -213,7 +213,14 @@ void localize_load_strings()
         localize_parse_string_line(&tf);
     tf.Close();
 
-    localize_set_string("NULL Format String", localize_max_string_id + 1);
+#ifdef MODERN_BUILD
+    // localize_set_string unescapes and remaps its text in place, so the original wrote into this literal (VC6
+    // kept literals writable). The modern build passes a copy (docs/future/modern-port.md, L2).
+    char null_text[] = "NULL Format String";
+    localize_set_string(null_text, localize_max_string_id + 1);
+#else
+    localize_set_string((char *)"NULL Format String", localize_max_string_id + 1);
+#endif
     for (int i = localize_max_string_id + 1; i < 1000; i++)
         localize_strings[i] = localize_strings[localize_max_string_id];
 }
@@ -653,7 +660,7 @@ char *localize_string_or_invalid(char **p)
 {
     if (p != NULL && *p != NULL)
         return *p;
-    return "INVALID";
+    return (char *)"INVALID";
 }
 
 // 0x505510  Confidence: exact.

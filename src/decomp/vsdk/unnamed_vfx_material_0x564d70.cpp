@@ -139,7 +139,7 @@ void vfx_material::reset()
     curve34 = NULL;
     rate = 15;
     _unk0b = 0;
-    name = "";                                // 0x2f91a70
+    name = (char *)"";                        // 0x2f91a70 (only read)
     bitmap = -1;
     _unk40 = 0.6f;
     num44 = 0;

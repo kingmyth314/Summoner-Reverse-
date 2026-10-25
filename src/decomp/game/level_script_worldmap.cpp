@@ -59,7 +59,7 @@ void cmd_random_encounters();
 
 // ---- .data (0x5a4c18-) -------------------------------------------------------------------------------
 // Coming back from one of these levels restores the saved map position. Names ours.
-char *ls_worldmap1_encounter_levels[12] = {                  // 0x5a4c18
+const char *ls_worldmap1_encounter_levels[12] = {                  // 0x5a4c18
     "Rand-Forest01", "Rand-Grassland01", "Rand-Iceland01", "Rand-Hills01", "Rand-Desert", "Rand-Orenia01",
     "Rand-ForestNite1", "Rand-GrasslandNite01", "Rand-IcelandNite01", "Rand-HillsNite01", "Rand-DesertNite01",
     "Rand-OreniaNite01",

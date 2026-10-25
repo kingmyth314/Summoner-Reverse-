@@ -1323,20 +1323,20 @@ ui_window gameplay_help_window;       // 0x60a670 constructed and destroyed only
 // ---- .data 0x5940ac-0x59412f: the help screen's tables ------------------------------------------------
 // {key, action} pairs; each count is the number of strings. The strings follow the tables in reverse
 // order (0x594130-0x59436c). The debug table is never drawn.
-char *help_mouse_controls[8] = {                              // 0x5940ac
+const char *help_mouse_controls[8] = {                              // 0x5940ac
     "Right click and release", "Moves player to specified point",
     "Right click and hold", "Makes player follow mouse cursor",
     "Right click on enemy", "Invokes attack on that enemy",
     "Left click", "Casts a spell, after a spell has been selected",
 };
 int help_num_mouse_controls = sizeof(help_mouse_controls) / sizeof(help_mouse_controls[0]);   // 0x5940cc
-char *help_keyboard_controls[6] = {                           // 0x5940d0
+const char *help_keyboard_controls[6] = {                           // 0x5940d0
     "Tab", "Switches control between main characters",
     "Enter", "Toggles combat mode",
     "Space", "Pause/unpause the game",
 };
 int help_num_keyboard_controls = sizeof(help_keyboard_controls) / sizeof(help_keyboard_controls[0]);   // 0x5940e8
-char *help_debug_controls[12] = {                             // 0x5940ec
+const char *help_debug_controls[12] = {                             // 0x5940ec
     "<debug>-P", "Debug mode for pathfinding",
     "<debug>-S", "Camera Slew Mode",
     "<debug>-G", "Disable World Collisions",
@@ -1345,7 +1345,7 @@ char *help_debug_controls[12] = {                             // 0x5940ec
     "<debug>-F", "Toggle Framerate counter",
 };
 int help_num_debug_controls = sizeof(help_debug_controls) / sizeof(help_debug_controls[0]);   // 0x59411c
-char *help_camera_controls[2] = {                             // 0x594120
+const char *help_camera_controls[2] = {                             // 0x594120
     "Arrow keys", "Move camera",
 };
 int help_num_camera_controls = sizeof(help_camera_controls) / sizeof(help_camera_controls[0]);   // 0x594128

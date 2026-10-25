@@ -18,7 +18,7 @@ extern const int item_info_popup_scrollbar_track[3][2];    // 0x57fe04
 extern const int item_info_popup_scrollbar_track_h[3];     // 0x57fe1c
 extern const int item_info_popup_model_offset[3][2];       // 0x57fe28
 extern ui_button_def item_info_popup_button_defs[7];       // 0x58cbd8
-extern char *item_info_popup_scrollbar_names[2];           // 0x58cd98
+extern const char *item_info_popup_scrollbar_names[2];           // 0x58cd98
 
 extern ui_button_state item_info_popup_buttons[7];         // 0x5c1470
 extern bool item_info_popup_visible;                       // 0x5c1518

@@ -48,7 +48,7 @@ public:
 };
 LAYOUT_CHECK(LineFile, sizeof(LineFile) == 0x1c);
 
-extern char *LineFile_eol;                        // 0x5adbe8 "\r\n" (name ours)
+extern const char *LineFile_eol;                        // 0x5adbe8 "\r\n" (name ours)
 LineFile *LineFile_open(const char *name, int buffer_size);   // 0x558910 NULL when it cannot be opened
 LineFile *LineFile_create(const char *name, bool append, int buffer_size);   // 0x558960
 int LineFile_printf(LineFile *f, const char *fmt, ...);       // 0x5588d0 (1 KB buffer) write's result

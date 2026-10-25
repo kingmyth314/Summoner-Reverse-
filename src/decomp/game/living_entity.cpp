@@ -111,7 +111,7 @@ const unsigned int team_enemy_masks[4] = { 0xc, 0, 0xb, 7 };   // 0x581904
 
 // ---- .data (0x599644-0x5996b3, the literals follow from 0x5996b4) --------------------------------
 int Character_los_enabled = 1;        // 0x599644 (label ours; only character_has_line_of_sight_to_point reads it)
-char *locomotion_anim_names[NUM_LOCO_ANIMS] = {    // 0x599648
+const char *locomotion_anim_names[NUM_LOCO_ANIMS] = {    // 0x599648
     "stand", "norm_walk", "norm_run", "ready", "walk", "run", "stand_hurt", "norm_walk_hurt",
     "norm_run_hurt", "ready_hurt", "walk_hurt", "run_hurt", "sneak_ready", "hide_ready",
     "tripped_liedown", "cloaked_ready", "cloaked_sneak", "statscreen",

@@ -73,7 +73,7 @@ ui_button_def gamelist_button_defs[GAMELIST_NUM_BUTTONS] = {
     { "Icon-GrnClsePress",     { { 427, 195 }, { 534, 244 }, { 683, 312 } }, 4 },
 };
 // 0x58ac20. The strings are pooled copies at 0x588b8c / 0x588b74 (see new_journal.cpp).
-char *gamelist_scrollbar_names[2] = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };
+const char *gamelist_scrollbar_names[2] = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };
 // then the literals "%-4d" (0x58ac28), "9999" (0x58ac30), "%d-%d" (0x58ac38), "%d/%d" (0x58ac40).
 
 // ---- .bss ----------------------------------------------------------------------------------------

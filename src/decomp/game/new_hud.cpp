@@ -179,7 +179,7 @@ int hud_portrait_species[16] = {                                                
     0, 1, 2, 3, 4, 0x90, 0xb0, 0xa4, 0xc0, 0xcb, 0xca, 0xcc, 0xb9, 9, 0xcd, 0xce,
 };
 // [ui_hires]; the literals follow at 0x58bc50 / 0x58bc64 in reverse order.
-char *hud_flash_paused_names[2] = { "FlashPaused640.vbm", "FlashPaused1024.vbm" };      // 0x58bc48
+const char *hud_flash_paused_names[2] = { "FlashPaused640.vbm", "FlashPaused1024.vbm" };      // 0x58bc48
 // Then the literals "%s%02d-%s" (0x58bc78), "unknown", "quicksave%s", ".sav", "Quick save", "*.sav" and the
 // one-glyph strings "\xb9" (0x58bcb4, camera-mode icon) and "\xba" (0x58bcb8, camera-lock icon) of the HUD font.
 

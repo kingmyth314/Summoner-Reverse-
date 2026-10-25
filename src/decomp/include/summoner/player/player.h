@@ -62,7 +62,7 @@ LAYOUT_CHECK(Player, sizeof(Player) == 0x188);
 
 // The list macros (list_init / list_insert / list_append / list_remove) are in vsdk/vsdk.h.
 
-extern char *hero_model_names[14];                  // 0x5934d0 (label ours)
+extern const char *hero_model_names[14];                  // 0x5934d0 (label ours)
 extern skill_progression joseph_skill_progression[17];   // 0x593508
 extern int joseph_skill_progression_count;               // 0x5935d4
 extern skill_progression jekhar_skill_progression[13];   // 0x5935d8

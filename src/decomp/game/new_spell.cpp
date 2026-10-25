@@ -97,7 +97,7 @@ const ui_button_def spells_button_defs[SPELLS_NUM_BUTTONS] = {
 };
 // 0x5924a0 (*new* name), by spell index; '?' becomes a..d for the four icon states. 0 = no icon (the
 // spells 9, 10, 18, 20 and 27 have none). The literals sit at 0x592538-0x5927df in reverse order.
-char *spells_icon_names[SPELLS_NUM_ICONS] = {
+const char *spells_icon_names[SPELLS_NUM_ICONS] = {
     "Spell-Heal?.tga", "Spell-Cure?.tga", "Spell-Regen?.tga", "Spell-Resurrect?.tga",
     "Spell-Vitalize?.tga", "Spell-Revive?.tga", "Spell-Poison?.tga", "Spell-Blind?.tga",
     "Spell-Silence?.tga", 0, 0, "Spell-Invis?.tga",

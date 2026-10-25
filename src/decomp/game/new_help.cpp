@@ -218,7 +218,7 @@ static void help_draw_page_automap()
 
 // ---------------------------------------------------------------- .data (0x58ac48-0x58ac83)
 // Strings stored in reverse order ("demohelp1024.tga" 0x58ac60, "DemoHelp640.tga" 0x58ac74).
-char *help_bkgrnd_names[2] = { "DemoHelp640.tga", "demohelp1024.tga" };   // 0x58ac48
+const char *help_bkgrnd_names[2] = { "DemoHelp640.tga", "demohelp1024.tga" };   // 0x58ac48
 void (*help_page_draw_table[4])() = {                                      // 0x58ac50
     help_draw_page_mouse,
     help_draw_page_keyboard1,

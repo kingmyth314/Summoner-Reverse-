@@ -35,7 +35,7 @@ const int credits_fade_bottom_end[3]   = { 448, 560, 717 };  // 0x57eb70 alpha 0
 // ---------------------------------------------------------------- .data (0x58a0e8-0x58a157)
 // The two strings are stored in reverse order (1024 at 0x58a0f4, 640 at 0x58a10c), as VC6 does
 // for the literals of one initialiser.
-char *credits_bkgrnd_names[2] = { "Credits-Bkgrnd640.tga", "Credits-Bkgrnd1024.tga" };  // 0x58a0e8
+const char *credits_bkgrnd_names[2] = { "Credits-Bkgrnd640.tga", "Credits-Bkgrnd1024.tga" };  // 0x58a0e8
 float credits_scroll_speed = 20.0f;                                                       // 0x58a0f0 pixels per second at 640
 
 // ---------------------------------------------------------------- .bss (0x5bc3f8-0x5bc413)

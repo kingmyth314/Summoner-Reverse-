@@ -97,7 +97,7 @@ ui_button_def saveload_button_defs[SAVELOAD_NUM_BUTTONS] = {
     { "Icon-GrnClseHilite",     { { 599, 18 },  { 749, 23 },  { 959, 32 } },  2 },
     { "Icon-GrnClsePress",      { { 599, 18 },  { 749, 23 },  { 959, 32 } },  0 },
 };
-char *saveload_scrollbar_names[2] = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };   // 0x590628 (*new*)
+const char *saveload_scrollbar_names[2] = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };   // 0x590628 (*new*)
 int saveload_thumbnail_bm = -1;                                                         // 0x590630
 
 // ---- .bss ----------------------------------------------------------------------------------

@@ -46,16 +46,16 @@ int pickup_list_row_width[3]  = { 245, 307, 398 };     // 0x58f390
 int pickup_list_count_x[3]    = { 218, 275, 363 };     // 0x58f39c (*new*) right edge of the stack count
 int pickup_list_button_x[3]   = { 230, 288, 380 };     // 0x58f3a8 x of the check box bitmap
 // [ui_hires][normal, highlighted]; strings in reverse order at 0x58f40c-0x58f4b3
-char *pickup_checkbox_names[2][2] = {                  // 0x58f3b4 (*new*) -> pickup_item_pressed_bm
+const char *pickup_checkbox_names[2][2] = {                  // 0x58f3b4 (*new*) -> pickup_item_pressed_bm
     { "checkbox640.tga", "checkbox-hilite640.tga" },
     { "checkbox1024.tga", "checkbox-hilite1024.tga" },
 };
-char *pickup_crossbox_names[2][2] = {                  // 0x58f3c4 (*new*) -> pickup_item_bm
+const char *pickup_crossbox_names[2][2] = {                  // 0x58f3c4 (*new*) -> pickup_item_bm
     { "crossbox640.tga", "crossbox-hilite640.tga" },
     { "crossbox1024.tga", "crossbox-hilite1024.tga" },
 };
 // Same literals as new_assess.cpp; the binary points at assess's copies (0x588b8c, 0x588b74).
-char *pickup_scrollbar_names[2] = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };   // 0x58f3d4 (*new*)
+const char *pickup_scrollbar_names[2] = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };   // 0x58f3d4 (*new*)
 pickup_point pickup_scrollbar_track[3] = { { 446, 210 }, { 559, 262 }, { 622, 335 } }; // 0x58f3dc (y = 0x58f3e0 in sum.symbols)
 int pickup_scrollbar_track_height[3] = { 35, 44, 56 };                                 // 0x58f3f4
 int pickup_page_size[3] = { 7, 7, 7 };                                                 // 0x58f400

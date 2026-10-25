@@ -90,9 +90,9 @@ const int automap_layer_text_y[3]  = { 372, 465, 595 };                         
 // (The literals follow the variables in reverse order: 0x588bd4 "Map-Label1024.tga", 0x588be8
 // "Map-Label640.tga", 0x588bfc "hud-mapmask01.tga", then "|" 0x588c10, which new_charselect.cpp,
 // new_gamecreate.cpp and new_levelselect.cpp reuse.)
-char *automap_mask_bm_name = "hud-mapmask01.tga";                                   // 0x588bc0 (*new*)
+const char *automap_mask_bm_name = "hud-mapmask01.tga";                                   // 0x588bc0 (*new*)
 bool Map_mask = true;                                                               // 0x588bc4
-char *automap_label_bm_names[2] = { "Map-Label640.tga", "Map-Label1024.tga" };      // 0x588bc8 (*new*)
+const char *automap_label_bm_names[2] = { "Map-Label640.tga", "Map-Label1024.tga" };      // 0x588bc8 (*new*)
 bool Show_coordinates = true;                                                       // 0x588bd0
 
 // ---- .bss ----------------------------------------------------------------------------------

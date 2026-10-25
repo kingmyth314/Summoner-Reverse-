@@ -17,7 +17,7 @@
 #include "vsdk/os/memory.h"
 
 // ---- .data ------------------------------------------------------------------------------------------
-char *LineFile_eol = "\r\n";                       // 0x5adbe8
+const char *LineFile_eol = "\r\n";                       // 0x5adbe8
 
 // 0x558340  Confidence: exact.
 int LineFile::open_read(const char *name, int size)

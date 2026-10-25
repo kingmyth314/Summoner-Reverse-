@@ -522,7 +522,7 @@ ca_character *ca_find_character(const char *name)
 }
 
 // 0x541450  Confidence: exact. unused: never read.
-ca_character *character_load(char **names, int num_names, bool keep_loaded, int unused,
+ca_character *character_load(const char *const *names, int num_names, bool keep_loaded, int unused,
                              Mempool *model_pool, Mempool *char_pool)
 {
     ca_character *c = ca_find_character(names[0]);
@@ -545,7 +545,7 @@ ca_character *character_load(char **names, int num_names, bool keep_loaded, int 
 // 0x541500  Confidence: exact (VC6 byte match, match23; was likely; the LOD loop's register / stack use). Never returns NULL (the table full
 // is a fatal error). Only names[0] is loaded; the other names only get a mesh slot with their file name.
 // Neither the slot allocations nor the number of names are checked (NOTES.md).
-ca_character *character_create_base(char **names, int num_names, Mempool *model_pool,
+ca_character *character_create_base(const char *const *names, int num_names, Mempool *model_pool,
                                     Mempool *char_pool)
 {
     char buf[CA_NAME_LEN] = "";

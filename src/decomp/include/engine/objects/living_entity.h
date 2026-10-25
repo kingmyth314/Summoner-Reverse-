@@ -363,7 +363,7 @@ extern Character living_list_inactive; // 0x8ed1e8 second sentinel (live_next 0x
                                       // living_entities_move_all
 #define MAX_LIVING_ENTITIES 175       // 0xaf (eh vector constructor count; living_entity_create)
 extern Character living_entity_pool[MAX_LIVING_ENTITIES];   // 0x8ed980
-extern char *locomotion_anim_names[NUM_LOCO_ANIMS];   // 0x599648 "stand", "norm_walk", ... "statscreen"
+extern const char *locomotion_anim_names[NUM_LOCO_ANIMS];   // 0x599648 "stand", "norm_walk", ... "statscreen"
 // Per char_info size (+0x90): character_size_height / character_size_radius and charinfo_boss_height /
 // _radius (boss_ai.cpp, decomp29). The heights {0.9, 1.8, 2.5, 99.9} are characterinfo.cpp's .rdata (name
 // ours), the radii {0.15, 0.47, 1.0, 99.9} .data of the AI think unit by address (defined there), not

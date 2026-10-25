@@ -176,7 +176,7 @@ ui_button_def inventory_button_defs[INVENTORY_NUM_BUTTONS] = {
     { "Icon-ClosePress",     { { 599, 19 },  { 749, 24 },  { 959, 31 } },  0 },
 };
 // 0x58cbc0 (*new*). The strings are the pooled copies at 0x588b8c / 0x588b74 (new_assess.cpp's .data).
-char *inventory_scrollbar_names[2] = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };
+const char *inventory_scrollbar_names[2] = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };
 // "inv_cameras.tbl" (0x58cbc8) is this unit's literal; "%d" (0x589820) and "" (0x5bd0d0) are pooled copies
 // in other units.
 

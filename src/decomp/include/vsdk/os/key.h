@@ -68,7 +68,7 @@ void key_init(int layout, bool fix_numlock);   // 0x509770 (LoadSettings: 0, 1)
 
 // The DirectInput key names, indexed by scan code (256 pointers, 0x5a68c0-0x5a6cbf; [1] is "Esc").
 // No name in sum.symbols; label ours.
-extern char *key_names[256];          // 0x5a68c0
+extern const char *key_names[256];          // 0x5a68c0
 
 int  key_inkey();                     // 0x509ce0 next queued key code, 0 none (decomp47: cd_prompt_disc2)
 // decomp52 (camera_key_yaw / camera_key_zoom): seconds the key has been held (0 when up).

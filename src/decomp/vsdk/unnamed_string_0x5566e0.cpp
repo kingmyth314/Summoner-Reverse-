@@ -23,7 +23,7 @@
 #include "vsdk/math/vector.h"
 
 // ---- .data ------------------------------------------------------------------------------------------
-static char *textbuffer_overrun_text = "Buffer overrun!";   // 0x5adb94 (labels ours)
+static const char *textbuffer_overrun_text = "Buffer overrun!";   // 0x5adb94 (labels ours)
 static int textbuffer_min_size = -1;                       // 0x5adb98 set on first use: strlen + 2
 
 // 0x5566e0  Confidence: exact. The first n chars of s (all of it for n < 0 or n past its end).

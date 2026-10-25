@@ -85,12 +85,12 @@
 #define AI_PROF_PERIOD      500       // ms between two averages of the profiler counters
 
 // ---- .data (0x59ad60-0x59b7c7) ---------------------------------------------------------------------
-char *ai_state_names[NUM_AI_STATES] = {                       // 0x59ad60
+const char *ai_state_names[NUM_AI_STATES] = {                       // 0x59ad60
     "AI_STATE_INACTIVE", "AI_STATE_IDLE", "AI_STATE_TRAVELING", "AI_STATE_COMBAT", "AI_STATE_CAST_SPELL",
     "AI_STATE_PATROL", "AI_STATE_SUMMONING", "AI_STATE_BANISHING", "AI_STATE_DISABLED", "AI_STATE_HIDING",
     "AI_STATE_SNEAKING", "AI_STATE_MOUNT_TRAVEL", "AI_STATE_MOUNT_IDLE",
 };
-char *ai_substate_names[65] = {                               // 0x59ad94 (55 names, 10 NULL)
+const char *ai_substate_names[65] = {                               // 0x59ad94 (55 names, 10 NULL)
     "AIS_PATH_TRAVELING", "AIS_DIRECT_TRAVELING", "AIS_TURN_TO_TARGET", "AIS_FOLLOW", "AIS_FOLLOW_WAITUP",
     "AIS_FOLLOW_STOPPED", "AIS_GOTO_NAVPOINT", "AIS_WALKTO_NAVPOINT", "AIS_WANDER", "AIS_ENTER_HIDING",
     "AIS_HIDING", "AIS_LEAVE_HIDING", "AIS_ENTER_SNEAKING", "AIS_LEAVE_SNEAKING", "AIS_TRANSITION",
@@ -104,7 +104,7 @@ char *ai_substate_names[65] = {                               // 0x59ad94 (55 na
     "AIS_GRAB_APPROACH", "AIS_THROW", "AIS_ILLUSION_OUT", "AIS_ILLUSION_IN", "AIS_BURNING_START",
     "AIS_BURNING_END",
 };
-char *ai_goal_type_names[18] = {                              // 0x59ae98
+const char *ai_goal_type_names[18] = {                              // 0x59ae98
     "unused", "attack", "follow", "cast_spell", "cast_targeted_spell", "cast_location_spell",
     "switch_combat_mode", "switch_normal_mode", "protect", "pathfind", "turn_to", "run_away",
     "goto_navpoint", "wander", "backstab", "sneak", "hide", "pickup item",

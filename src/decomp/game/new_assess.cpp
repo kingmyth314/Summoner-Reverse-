@@ -46,7 +46,7 @@ const int assess_page_size[3]  = { 9, 9, 9 };                                   
 // ---------------------------------------------------------------- .data (0x588b48-0x588bbb)
 // Strings stored in reverse order (1024 at 0x588b74, 640 at 0x588b8c); new_pickup.cpp's identical
 // literals were merged into these.
-char *assess_scrollbar_names[2] = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };   // 0x588b48 (*new*)
+const char *assess_scrollbar_names[2] = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };   // 0x588b48 (*new*)
 // Scroll bar track per resolution_index; sum.symbols names the y member (0x588b54).
 assess_point assess_scrollbar_track[3] = { { 444, 209 }, { 555, 261 }, { 713, 338 } };  // 0x588b50
 int assess_scrollbar_track_height[3] = { 80, 100, 125 };                               // 0x588b68

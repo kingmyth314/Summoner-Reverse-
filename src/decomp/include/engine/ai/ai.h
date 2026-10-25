@@ -554,9 +554,9 @@ extern char **ai_combat_style_names[6];               // 0x22e49a0 localize_stri
 // ai_state::mode names and the AIS_* sub-mode names (cmd_ai_state lists the first table; nothing reads
 // the second, which has 55 names and 10 empty slots and lacks five values: D1906).
 #define NUM_AI_STATES 13
-extern char *ai_state_names[NUM_AI_STATES];           // 0x59ad60 (name ours)
-extern char *ai_substate_names[65];                   // 0x59ad94 (name ours)
-extern char *ai_goal_type_names[18];                  // 0x59ae98 "unused", "attack", "follow", ... (name ours)
+extern const char *ai_state_names[NUM_AI_STATES];           // 0x59ad60 (name ours)
+extern const char *ai_substate_names[65];                   // 0x59ad94 (name ours)
+extern const char *ai_goal_type_names[18];                  // 0x59ae98 "unused", "attack", "follow", ... (name ours)
 // The default combat style (ai_combat_style_names index) per species, read by ai_reset. Type name ours.
 struct ai_species_style {
     int species;

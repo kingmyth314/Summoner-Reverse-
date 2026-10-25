@@ -80,7 +80,7 @@ ui_button_def journal_button_defs[JOURNAL_NUM_BUTTONS] = {
 };
 // 0x58d978. The strings are pooled copies at 0x588b8c / 0x588b74 (1024 first, as VC6 orders the literals
 // of one initialiser), outside this unit's .data.
-char *journal_scrollbar_names[2] = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };
+const char *journal_scrollbar_names[2] = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };
 
 // ---- .bss ----------------------------------------------------------------------------------
 int journal_desc_line_count;                                  // 0x5c1888

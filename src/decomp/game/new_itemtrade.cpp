@@ -86,7 +86,7 @@ ui_button_def itemtrade_button_defs[ITEMTRADE_NUM_BUTTONS] = {
     { "Icon-GrnClsePress",        { { 427, 143 }, { 534, 179 }, { 683, 286 } }, 8 },
 };
 // 0x58d4a0 (*new*). The strings are the pooled copies at 0x588b8c / 0x588b74, outside this unit.
-char *itemtrade_scrollbar_names[2] = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };
+const char *itemtrade_scrollbar_names[2] = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };
 // "Gold" (0x58d4a8) and "%s|" (0x58d4b0) are this unit's literals; "%d" is new_buysell.cpp's (0x589820).
 
 // ---- .bss ----------------------------------------------------------------------------------

@@ -612,7 +612,7 @@ char *chat_process_irc_message(char *line, int mode)
 
 // 0x4ad8b0  Confidence: exact (VC6 byte match, match23; was likely; the word loop counts n down; the separator array is 10 bytes, 5 of them
 // from the literal). A word starting with ':' is the rest of the line.
-char *irc_get_word(int n, char *text)
+char *irc_get_word(int n, const char *text)
 {
     char seps[10] = " \n\r\t";
     char *tok;
@@ -627,7 +627,7 @@ char *irc_get_word(int n, char *text)
             strcpy(irc_word_buf, text + (tok - irc_get_word_line) + 1);
         return irc_word_buf;
     }
-    return "";
+    return (char *)"";   // only read by the callers (copied or compared)
 }
 
 // 0x4ad9a0  Confidence: exact.
@@ -722,7 +722,7 @@ int irc_remove_user(char *nick)
 // 0x4adcd0  Confidence: exact (VC6 8966 byte match, D14203: list and quiet fall through to the final
 // return NULL, so the cross-jump keeps the xyz copy) (the word and the output share buf; target 0x34 bytes in the frame). Our
 // own PRIVMSG lines are echoed through chat_process_irc_message (mode 1) without the CR LF.
-char *irc_process_input(char *line, int quiet)
+char *irc_process_input(const char *line, int quiet)
 {
     char target[50];
     char buf[IRC_MAX_LINE];

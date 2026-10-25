@@ -531,7 +531,7 @@ void GameInit()
 {
     int speed;
     int start;
-    char *font_name;
+    const char *font_name;
 
 #ifdef EXPERIMENTAL_BUILD
     exp_game_options_init();   // experimental build: SummonerFix's [Game] options (before the main menu)

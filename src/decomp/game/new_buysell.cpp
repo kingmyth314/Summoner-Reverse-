@@ -90,7 +90,7 @@ ui_button_def buysell_button_defs[BUYSELL_NUM_BUTTONS] = {
     { "Icon-GrnClsePress",   { { 599, 18 },  { 749, 23 },  { 959, 32 } },  0 },
 };
 // 0x589808 (*new*). The strings are the pooled copies at 0x588b8c / 0x588b74, outside this unit.
-char *buysell_scrollbar_names[2] = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };
+const char *buysell_scrollbar_names[2] = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };
 // "bs_cameras.tbl" (0x589810) and "%d" (0x589820, also used by new_pickup.cpp and new_itemtrade.cpp)
 // are this unit's literals.
 

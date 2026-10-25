@@ -108,7 +108,7 @@ const ui_button_def skills_button_defs[SKILLS_NUM_BUTTONS] = {
 };
 // 0x5912b0 (*new* name), by skill id; '?' becomes a..d for the four icon states, 0 = no icon. The literals
 // sit at 0x591390-0x5917c7 in reverse order.
-char *skills_icon_names[SKILLS_NUM_ICONS] = {
+const char *skills_icon_names[SKILLS_NUM_ICONS] = {
     0, 0, 0, "SwordWeaponsPassive?.tga",
     "AxeWeaponsPassive?.tga", "BluntWeaponsPassive?.tga", "StaffWeaponsPassive?.tga", "BowWeaponsPassive?.tga",
     "HvyArmsPassive?.tga", "Skill-Parry?.tga", "Skill-CouterAttack?.tga", "Skill-Dodge?.tga",

@@ -113,13 +113,13 @@ int status_bar_size[3][2]           = { { 109, 9 }, { 136, 11 }, { 174, 14 } }; 
 int status_skill_row_right[3]       = { 248, 309, 397 };                                  // 0x5928e8 (a width)
 int status_page_size[3]             = { 10, 10, 10 };                                     // 0x5928f4
 // [ui_hires]; the literals sit at 0x592974-0x5929fb in reverse order (VC6 emits the last one first).
-char *status_skill_row_names[2]     = { "Icon-SklMod640.tga", "Icon-SklMod1024.tga" };        // 0x592900 (*new*)
-char *status_skill_up_names[2]      = { "Icon-SklMod-UP640.tga", "Icon-SklMod-UP1024.tga" };  // 0x592908 (*new*)
-char *status_skill_dn_names[2]      = { "Icon-SklMod-DN640.tga", "Icon-SklMod-DN1024.tga" };  // 0x592910 (*new*)
+const char *status_skill_row_names[2]     = { "Icon-SklMod640.tga", "Icon-SklMod1024.tga" };        // 0x592900 (*new*)
+const char *status_skill_up_names[2]      = { "Icon-SklMod-UP640.tga", "Icon-SklMod-UP1024.tga" };  // 0x592908 (*new*)
+const char *status_skill_dn_names[2]      = { "Icon-SklMod-DN640.tga", "Icon-SklMod-DN1024.tga" };  // 0x592910 (*new*)
 // x, y of the +/- button pair relative to the row; sum.symbols names the members status_skill_button_x / _y.
 int status_skill_button_pos[3][2]   = { { 195, 0 }, { 244, 1 }, { 312, 1 } };             // 0x592918 (*new*)
 // The strings are the pooled copies at 0x588b8c / 0x588b74 (new_assess.cpp's .data).
-char *status_scrollbar_names[2]     = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };  // 0x592930 (*new*)
+const char *status_scrollbar_names[2]     = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };  // 0x592930 (*new*)
 // Track top x, y; sum.symbols names the y member status_scrollbar_track_y (0x59293c).
 int status_scrollbar_track[3][2]    = { { 602, 129 }, { 753, 160 }, { 963, 200 } };       // 0x592938 (*new*)
 int status_scrollbar_track_height[3] = { 74, 95, 122 };                                   // 0x592950

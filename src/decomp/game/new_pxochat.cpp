@@ -336,7 +336,7 @@ ui_button_def pxochat_button_defs[PXOCHAT_NUM_BUTTONS] = {
 int pxochat_channel_users_right[3] = { 211, 0x108, 0x152 };  // 0x590038 (hex; D9814)
 int pxochat_channel_count_x[3]     = { 223, 0x117, 0x165 };  // 0x590044 (hex; D9814)
 // 0x590050. The strings are pooled copies at 0x588b8c / 0x588b74.
-char *pxochat_scrollbar_names[2] = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };
+const char *pxochat_scrollbar_names[2] = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };
 // then "+" (0x590058) and "!MOTD$#!" (0x59005c).
 
 // ---- .bss (0x5c3e90-0x5c595b) ----------------------------------------------------------------------

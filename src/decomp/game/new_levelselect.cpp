@@ -80,7 +80,7 @@ ui_button_def mp_levelselect_button_defs[LEVELSELECT_NUM_BUTTONS] = {
     { "CreateBeginPress",      { { 475, 413 }, { 594, 516 }, { 814, 671 } }, 0 },
 };
 // 0x58dd40. The strings are pooled copies at 0x588b8c / 0x588b74 (see new_journal.cpp).
-char *mp_levelselect_scrollbar_names[2] = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };
+const char *mp_levelselect_scrollbar_names[2] = { "ScrollBarMid640.tga", "ScrollBarMid1024.tga" };
 
 // ---- .bss ----------------------------------------------------------------------------------
 int mp_levelselect_pressed_button;                                // 0x5c1ad0
