@@ -51,7 +51,7 @@ int cd_find_drive(const char *volume)
     char cwd[MAX_PATH];
     struct _finddata_t fd;
     char label[256];
-    long h;
+    find_handle h;
     int i;
     int result;
     int found;

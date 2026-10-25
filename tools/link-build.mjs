@@ -45,13 +45,19 @@ if (useClang && (!CLANG || !existsSync(join(CLANG, "clang++.exe")))) {
   console.error("--compiler clang needs CLANG_DIR: the folder with clang++.exe and ld.lld.exe (LLVM 16 or later).");
   process.exit(2);
 }
-const exeName = config.name + (useClang ? "-clang" : "");
+// --arch x64 (rung L3, clang only): the x86_64 build, with llvm-mingw's 64-bit headers, C runtime and import
+// libraries instead of VC6's (VC6 has none for 64-bit). OpenGL only: Direct3D 7, Glide, EAX and Bink have no 64-bit
+// DLLs (src/link/x64_stubs.c answers their calls with failure). No address table: SummonerFix is 32-bit, so a 64-bit
+// exe runs without it.
+const x64 = opt("--arch", "x86") === "x64";
+if (x64 && !useClang) { console.error("--arch x64 needs --compiler clang"); process.exit(2); }
+const exeName = config.name + (useClang ? "-clang" : "") + (x64 ? "-x64" : "");
 const VC = process.env.VC6_DIR;
 if (!VC || !existsSync(join(VC, "BIN", "CL.EXE"))) {
   console.error("VC6_DIR is not set, or has no BIN\\CL.EXE: set it to the VC98 folder of Visual C++ 6.0.");
   process.exit(2);
 }
-const out = resolve(opt("--out", join(repo, "build", config.dir + (useClang ? "-clang" : ""))));
+const out = resolve(opt("--out", join(repo, "build", config.dir + (useClang ? "-clang" : "") + (x64 ? "-x64" : ""))));
 const objDir = join(out, "obj");
 mkdirSync(objDir, { recursive: true });
 const src = join(repo, "src", "decomp");
@@ -69,12 +75,13 @@ const run = (exe, argv, cwd = out) => {
 // Warnings: -Wall -Wextra without the classes that only report the decompiled style (unused names, signed/unsigned
 // compares, the VC6 headers' upper-case file names). Each unit's warnings go to <obj>.warn and the build prints the
 // total; rung L2 is done when it is 0.
-const clangFlags = ["--target=i686-pc-windows-msvc", "-fms-extensions", "-fms-compatibility", "-fms-compatibility-version=12.0",
-  "-march=pentiumpro", "-mfpmath=387", "-fno-strict-aliasing", "-fno-exceptions", "-fno-cxx-exceptions", "-fno-sized-deallocation", "-O2",
+const clangFlags = [...(x64 ? ["--target=x86_64-w64-mingw32", "-fms-extensions", "-g"]
+  : ["--target=i686-pc-windows-msvc", "-fms-extensions", "-fms-compatibility", "-fms-compatibility-version=12.0", "-march=pentiumpro", "-mfpmath=387"]),
+  "-fno-strict-aliasing", "-fno-exceptions", "-fno-cxx-exceptions", "-fno-sized-deallocation", "-O2",
   "-Wall", "-Wextra", "-Wno-unused-variable", "-Wno-unused-parameter", "-Wno-unused-but-set-variable", "-Wno-unused-function",
   "-Wno-unknown-pragmas", "-Wno-missing-field-initializers", "-Wno-sign-compare", "-Wno-nonportable-include-path",
   "-Wno-error=address-of-temporary", "-Wno-c++11-narrowing", "-Werror=return-type", "-D_MT", "-D_WIN32", "-DWIN32",
-  "-isystem", join(VC, "INCLUDE")];
+  ...(x64 ? [] : ["-isystem", join(VC, "INCLUDE")])];
 const runClang = (cpp, obj, extraDefs, includes) => {
   const r = spawnSync(join(CLANG, cpp.endsWith(".c") ? "clang.exe" : "clang++.exe"),
     [...clangFlags, ...(cpp.endsWith(".c") ? [] : ["-std=c++14"]), ...extraDefs.map((d) => `-D${d}`), ...includes.flatMap((i) => ["-I", i]), "-c", cpp, "-o", obj],
@@ -129,7 +136,7 @@ const jpegObjs = ["jcomapi", "jutils", "jerror", "jmemmgr", "jmemnobs", "jcapimi
   "jdatadst", "jcinit", "jcmaster", "jcmarker", "jcmainct", "jcprepct", "jccoefct", "jccolor", "jcsample", "jchuff",
   "jcphuff", "jcdctmgr", "jfdctfst", "jfdctflt", "jfdctint"];
 const haveJpeg = existsSync(join(jpegSrc, "jcapimin.c"));
-const stubs = ["dx7guids.c"];
+const stubs = x64 ? ["x64_stubs.c"] : ["dx7guids.c"];   // x64: llvm-mingw's libdxguid has the GUIDs
 if (haveJpeg) {
   const jdir = join(out, "jpeg");
   mkdirSync(jdir, { recursive: true });
@@ -139,6 +146,7 @@ if (haveJpeg) {
     const obj = join(jdir, n + ".obj");
     objs.push(obj);
     if (fresh(obj, join(jpegSrc, n + ".c"))) continue;
+    if (x64) { const t = runClang(join(jpegSrc, n + ".c"), obj, [], [jdir, jpegSrc]); if (t) { failed++; console.log(`libjpeg compile failed: ${n}.c\n${t}`); } continue; }
     try { execFileSync(join(VC, "BIN", "CL.EXE"), ["/nologo", "/c", "/O2", "/MT", `/Fo${obj}`, join(jpegSrc, n + ".c")], { env: jenv, cwd: jdir, encoding: "latin1" }); }
     catch (e) { failed++; console.log(`libjpeg compile failed: ${n}.c\n${e.stdout}`); }
   }
@@ -151,7 +159,9 @@ const support = join(repo, "src", "link");
 for (const c of stubs) {
   const obj = join(objDir, c.replace(/\.c$/, ".obj"));
   objs.push(obj);
-  if (!fresh(obj, join(support, c))) run("CL.EXE", ["/nologo", "/c", "/O2", "/MT", `/Fo${obj}`, join(support, c)]);
+  if (fresh(obj, join(support, c))) continue;
+  if (x64) { const t = runClang(join(support, c), obj, [], []); if (t) { failed++; console.log(`compile failed: ${c}\n${t}`); } }
+  else run("CL.EXE", ["/nologo", "/c", "/O2", "/MT", `/Fo${obj}`, join(support, c)]);
 }
 if (useClang) {
   const obj = join(objDir, "clang_support.obj"), cpp = join(support, "clang_support.cpp");
@@ -160,9 +170,11 @@ if (useClang) {
 }
 const stubDir = join(out, "stubs");
 mkdirSync(stubDir, { recursive: true });
-if (!existsSync(join(stubDir, "binkw32.lib")) || flag("--recompile"))
+if (x64) {
+  // nothing: the Bink and EAX import libraries are VC6-built 32-bit stubs; x64_stubs.c stands in for both
+} else if (!existsSync(join(stubDir, "binkw32.lib")) || flag("--recompile"))
   run("CL.EXE", ["/nologo", "/LD", join(support, "binkw32.c"), "/link", "/NOENTRY", "/NODEFAULTLIB", "/OUT:binkw32.dll"], stubDir);
-if (!existsSync(join(stubDir, "EAX.lib")) || flag("--recompile")) {
+if (!x64 && (!existsSync(join(stubDir, "EAX.lib")) || flag("--recompile"))) {
   // CL passes /link options on unquoted, so the .def goes next to the stub under a relative name.
   writeFileSync(join(stubDir, "eax.def"), readFileSync(join(support, "eax.def")));
   run("CL.EXE", ["/nologo", "/LD", join(support, "eax.c"), "/link", "/NOENTRY", "/NODEFAULTLIB", "/DEF:eax.def", "/OUT:EAX.DLL"], stubDir);
@@ -175,7 +187,16 @@ const libs = ["kernel32.lib", "user32.lib", "gdi32.lib", "winmm.lib", "advapi32.
 const linkArgs = ["/nologo", `/OUT:${exeName}.exe`, `/MAP:${exeName}.map`, "/SUBSYSTEM:WINDOWS", "/OPT:REF", "/OPT:ICF",
   ...(flag("--force") ? ["/FORCE:UNRESOLVED"] : []), "@objs.rsp", ...libs];
 let text;
-if (useClang) {
+if (x64) {
+  // The clang driver links with lld in its MinGW mode against llvm-mingw's 64-bit runtime and import libraries.
+  const mingwLibs = ["user32", "gdi32", "winmm", "advapi32", "shell32", "ole32", "wsock32", "ddraw", "dsound", "dinput",
+    "dxguid", "opengl32", "glu32", "comdlg32", "version", "rasapi32", "wininet", "msacm32"].map((l) => `-l${l}`);
+  writeFileSync(join(out, "objs-x64.rsp"), objs.map((o) => `"${o.replace(/\\/g, "/")}"`).join("\n") + "\n");
+  const r = spawnSync(join(CLANG, "clang++.exe"), ["--target=x86_64-w64-mingw32", "-mwindows", "-static", "-o", `${exeName}.exe`,
+    "@objs-x64.rsp", ...mingwLibs, `-Wl,-Map=${exeName}.map`, ...(flag("--force") ? ["-Wl,--unresolved-symbols=ignore-all"] : [])],
+    { cwd: out, encoding: "latin1", maxBuffer: 1 << 28 });
+  text = (r.stdout || "") + (r.stderr || "") + (r.status ? `\n(exit ${r.status})` : "");
+} else if (useClang) {
   // lld in MSVC mode, VC6's libraries; /SAFESEH:NO because VC6's objects carry no SafeSEH tables.
   try { text = execFileSync(join(CLANG, "ld.lld.exe"), ["-flavor", "link", ...linkArgs, `/LIBPATH:${join(VC, "LIB")}`, "/SAFESEH:NO", "/ENTRY:WinMainCRTStartup",
     // lld loads library members in reference order: without this, LIBCMT's console startup (crt0.obj) comes in first
@@ -210,7 +231,9 @@ const exe = join(out, `${exeName}.exe`);
 // the names hybrid-build resolved (build/hybrid-all/hybrid-addrs.txt; run a full hybrid build first).
 const dump = join(repo, "build", "hybrid-all", "hybrid-addrs.txt");
 const mapPath = join(out, `${exeName}.map`);
-if (existsSync(dump) && existsSync(mapPath)) {
+if (x64) {
+  console.log("no address table (x64: no SummonerFix to use it)");
+} else if (existsSync(dump) && existsSync(mapPath)) {
   const pub = new Map(), stat = new Map();
   let statics = false;
   for (const l of readFileSync(mapPath, "latin1").split(/\r?\n/)) {

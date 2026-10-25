@@ -355,7 +355,7 @@ int file_delete_all(int path_id)
     file_make_path(path_id, "*", path);
     File f;
     struct _finddata_t fd;
-    long handle = _findfirst(path, &fd);
+    find_handle handle = _findfirst(path, &fd);
     if (handle != -1) {
         do {
             if (!(fd.attrib & (_A_SUBDIR | _A_RDONLY))) {
@@ -387,7 +387,7 @@ void vfile_lower_access_level()
 // sees the stack copy and can reject the file.
 void file_find_files(file_find_list *list, int path_id, const char *pattern, int flags, void *callback)
 {
-    long handle;
+    find_handle handle;
     file_find_node entry;
     char base[80];
     struct _finddata_t fd;
@@ -524,7 +524,7 @@ void file_delete_small_files(const char *pattern, int path_id)
     char path[512];
 
     file_make_path(path_id, pattern, path);
-    long handle = _findfirst(path, &fd);
+    find_handle handle = _findfirst(path, &fd);
     if (handle != -1) {
         do {
             if (!(fd.attrib & _A_SUBDIR) && fd.size < 10)

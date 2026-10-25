@@ -255,6 +255,44 @@ fixed, and the `__asm` blocks have `MODERN_BUILD` forms:
 The x86_64 check now finds only the layout checks. 111 size warnings remain, nearly all `size_t` to `int`. VC6 still
 matches every function. The 32-bit clang build plays with the modern forms, with its clock at 96.3% of real time.
 
+### The 64-bit spike (2026-10-25)
+
+Done before porting anything (the advisor's order), to find out what a 64-bit exe needs instead of estimating from
+what SummonerFix gives the 32-bit one. **Observed**; the game state was read from outside with `ReadProcessMemory` at
+the link map's addresses, since screen captures of the OpenGL window come back black.
+
+**Baseline: the 32-bit clang build without SummonerFix** (`dinput.dll` moved aside).
+- It opens a framed 1024x768 window and runs the main menu at 120 fps, with the real-time clock advancing normally.
+- Real mouse clicks open the load screen and load the newest save, and the game plays (level time counting from the
+  save's 66.6 s).
+- It reads its settings from `HKCU\Software\Volition\Summoner`. 64-bit Windows does not redirect that key, so a 64-bit
+  exe sees the same settings.
+
+**The x86_64 build** (`link-build --config fixed --compiler clang --arch x64`, llvm-mingw's headers and libraries,
+layout checks off under `_WIN64`):
+- Every unit compiles. The link needed only three GUIDs taken from MinGW's `libdxguid` instead of the game's own
+  definitions, and stand-ins for 8 Bink functions and `EAXDirectSoundCreate` (`src/link/x64_stubs.c`).
+- Glide and Direct3D 7 need nothing at link time: the game reaches them at run time.
+- **It runs:** the window, the main menu at 120 fps, the clock right, and mouse input through window messages.
+- **First crash, fixed:** the load screen's save list. `_findfirst` returns a pointer-sized handle that four
+  functions kept in a `long`. They now use `find_handle` (`vsdk.h`): `long` in 32-bit builds, `intptr_t` in 64-bit.
+- **Second crash, open:** the level load, in the effect files. `.vfx` effects (and the animation tracks and attached
+  lights) are loaded as one block of the file, and `relocate` turns their 32-bit offset fields into pointers in place
+  (`reloc_ptr`, `ptr_relocate`). That is about 140 relocation calls in 10 units.
+
+**What this means for the plan:**
+- **L3b (agent mode in the source) is smaller than estimated.** Without SummonerFix the game already starts, takes
+  input and loads saves. What remains is agent mode itself and the test-save folder; the registry needs nothing.
+- **L3c is concentrated in one place, the relocated file formats.** Whole-struct reads elsewhere are few: a TGA
+  header, the options file, one effect header. The size warnings (111, nearly all `size_t` to `int`) are where to look
+  for more truncated handles like `_findfirst`'s.
+- **The relocated formats have two practical fixes:**
+  1. **32-bit pointer fields:** link the 64-bit exe so that every address stays below 2 GB (`/LARGEADDRESSAWARE:NO`),
+     and declare the pointer fields of the relocated structs as a 4-byte pointer type under `_WIN64`. The file
+     blocks then stay usable in place and the layouts stay those of the binary. The game uses far less than 2 GB.
+  2. **Convert on load:** read each relocated block into separately allocated 64-bit structs, one converter per
+     record type. That is more code, but it also lifts the 2 GB limit, which L4 may want.
+
 ## Recommendation
 
 L1 and L2 together as "the modern build", in the same tree, behind `MODERN_BUILD`, tested against the fixed build.

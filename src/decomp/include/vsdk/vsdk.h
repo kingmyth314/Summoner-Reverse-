@@ -40,8 +40,23 @@ typedef unsigned int   uint;
 #define MODERN_FINAL
 #endif
 
+// The handle of _findfirst / _findnext: long in the 32-bit builds (VC6's io.h), intptr_t in a 64-bit build, where a
+// long cuts the handle in half and _findnext then crashes (L3).
+#ifdef _WIN64
+#include <stddef.h>
+typedef intptr_t find_handle;
+#else
+typedef long find_handle;
+#endif
+
 // Compile-time layout check. VC6 has no static_assert; a negative array size fails the build.
+#ifdef _WIN64
+// 64-bit (docs/future/modern-port.md, L3): pointers are 8 bytes, so these 32-bit layouts do not hold. Off until L3c
+// sorts them into memory-only layouts (free) and file / network formats (read and written field by field).
+#define LAYOUT_CHECK(name, cond) typedef char layout_check_##name[1]
+#else
 #define LAYOUT_CHECK(name, cond) typedef char layout_check_##name[(cond) ? 1 : -1]
+#endif
 
 // windef.h style min / max: the game's code has the setle / dec / and pattern of `a > b ? a : b`.
 #ifndef max
