@@ -46,6 +46,43 @@ extern int exp_display_exact_ms;
 static float frametime_ms_carry;              // the millisecond fraction not yet given to the tickers, 0 <= x < 1
 #endif
 
+#ifdef FIXED_BUILD
+#include <windows.h>
+// Part of FIXED_BUILD G1 (FrameDone). Sleep wakes up as late as the Windows timer resolution allows: 1 ms
+// after the game's timeBeginPeriod(1) (snd_stream_init), but on Windows 11 only while the window is visible;
+// covered or minimised it is 15.6 ms, more than a frame. A high-resolution waitable timer (Windows 10 1803
+// and later, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION) wakes up on time either way, as in SummonerFix's
+// FrameSleep (src/summonerfix/timing.c). Without it (older Windows) Sleep is used.
+// Both functions are loaded at run time: VC6's headers declare neither for this build's Windows version.
+typedef HANDLE (WINAPI *frametime_create_timer_fn)(LPSECURITY_ATTRIBUTES, LPCWSTR, DWORD, DWORD);
+typedef BOOL (WINAPI *frametime_set_timer_fn)(HANDLE, const LARGE_INTEGER *, LONG, void *, void *, BOOL);
+static HANDLE frametime_wait_timer;
+static frametime_set_timer_fn frametime_set_timer;
+static bool frametime_wait_timer_tried;
+
+static void frametime_wait_us(int us)
+{
+    if (!frametime_wait_timer_tried) {
+        HMODULE k = GetModuleHandleA("kernel32.dll");
+        frametime_create_timer_fn create = (frametime_create_timer_fn)GetProcAddress(k, "CreateWaitableTimerExW");
+        frametime_set_timer = (frametime_set_timer_fn)GetProcAddress(k, "SetWaitableTimer");
+        if (create && frametime_set_timer)
+            frametime_wait_timer = create(NULL, NULL, 0x2 /* CREATE_WAITABLE_TIMER_HIGH_RESOLUTION */,
+                                          0x1F0003 /* TIMER_ALL_ACCESS */);
+        frametime_wait_timer_tried = true;
+    }
+    if (frametime_wait_timer) {
+        LARGE_INTEGER due;
+        due.QuadPart = -(__int64)us * 10;   // relative, 100 ns units
+        if (frametime_set_timer(frametime_wait_timer, &due, 0, NULL, NULL, FALSE)) {
+            WaitForSingleObject(frametime_wait_timer, INFINITE);
+            return;
+        }
+    }
+    timer_wait(us / 1000);
+}
+#endif
+
 // 0x501470 init_frametime_saved_min (jmp 0x501480, the store) /
 // 0x501490 init_frametime_saved_max (jmp 0x5014a0, the store): the compiler-generated
 // dynamic initialisers for the two definitions above (a jmp thunk into the store, VC6 $E pair).
@@ -110,18 +147,23 @@ void FrameDone()
 #ifdef FIXED_BUILD
             // FIXED_BUILD: G1 FrameLimiter (docs/sum-exe/timing-bugs.md #3, the 2x game speed). The original took
             // previous_done_time before the sleep, so the next frame counted the sleep again. Wait until the frame's
-            // end (one minimum frame after its start: coarse sleeps, then yields), and start the next frame there;
-            // a late wake-up is carried into the next frame, a stall of a whole frame or more resynchronises.
+            // end (one minimum frame after its start: a high-resolution wait, then yields), and start the next
+            // frame there. A late wake-up is carried into the next frame, however late: that frame then measures
+            // at least a whole minimum frame, takes the branch without a wait and starts from its own time. (Until
+            // 2026-10-25 a wake-up a whole frame late resynchronised instead and the lateness was never counted:
+            // with Sleep at 15.6 ms that was most frames, and the game clock ran at 82% of real time.)
             int min_us = (int)(min_reported_frametime * 1000000.0f);
             int target = now + min_us - delta;
             for (;;) {
                 int remain = target - timer_get(1000000);   // wrap-safe signed difference
                 if (remain <= 0)
                     break;
-                timer_wait(remain > 1500 ? (remain - 1000) / 1000 : 0);
+                if (remain > 1500)
+                    frametime_wait_us(remain - 1000);
+                else
+                    timer_wait(0);
             }
-            int end = timer_get(1000000);
-            previous_done_time = end - target < min_us ? target : end;
+            previous_done_time = target;
 #else
             timer_wait((int)((min_reported_frametime - actual_frametime) * 1000.0f));
 #endif

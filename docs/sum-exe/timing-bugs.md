@@ -137,6 +137,36 @@ about 7.8 ms, while the game believed it ran at about 115 FPS. Players reported 
 This corrects the earlier note on the [main loop page](main-loop.md#behaviour-implications),
 which said the effect was only that the slept time was "counted in the next frame".
 
+### The fixed build's port of the fix lost time (found and fixed 2026-10-25)
+
+The fixed build's `FrameDone` (G1) ported SummonerFix's `FrameSleep`, but waited with `Sleep` and kept its
+resynchronisation: a wake-up a whole frame or more late started the next frame at the wake-up, so that lateness was
+never counted. `Sleep` wakes up as late as the Windows timer resolution allows. The game asks for 1 ms
+(`timeBeginPeriod(1)` in `snd_stream_init`), but Windows 11 only guarantees that while the window is visible. Covered
+or minimised the resolution is 15.6 ms, more than a frame at 120 fps, and most frames lost time.
+
+**Observed** with `agent.mjs` (the game ticker `0x5a5758` read 10 s apart during play, the test window behind
+others):
+
+| Exe | Frames/s | Game clock / real time |
+|---|---|---|
+| `Sum-orig.exe` + SummonerFix (`FrameSleep`, a high-resolution timer) | 120 | 96.1% |
+| `Sum-fixed.exe`, VC6 and clang, before | 116 | 82% |
+| `Sum-fixed.exe` and `Sum-exp.exe`, after | 120 | 96.5% / 96.1% |
+
+The 96% is the original game's own rounding: each frame is counted in whole milliseconds, 8 of 8.33. The
+experimental `FrameRateCap` carries the fraction ([Experimental build](../experimental-build.md)).
+
+The fix (`vsdk/frametime.cpp`, `FIXED_BUILD` only): wait on a high-resolution waitable timer as `FrameSleep` does
+(`Sleep` on Windows before 10 1803), and always start the next frame at the target time. A late wake-up then makes the
+next frame measure at least a whole frame. That frame takes the branch without a wait and starts from its own time,
+so nothing accumulates.
+
+The same check on 2026-10-21 had shown no difference, presumably because the test window was visible then. The save
+check found it on 2026-10-25: after a fixed wait the party's 36 player timers showed about 6.0 s of game time where
+the original showed 7.1 s. With the fix the same check finds 4 / 5 / 3 / 5 dwords beyond the original runs' spread on
+Wolong2, WolongCaverns, sewer and lenele2aa (155 / 510 / 256 / 155 before), the level of 2026-10-21.
+
 ## Evidence
 
 | Claim | REA evidence ID |

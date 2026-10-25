@@ -36,7 +36,7 @@ Where each one stands in the fixed build:
 
 | SummonerFix layer | In the fixed build |
 |---|---|
-| 2x game speed (frame limiter) | **in the source** (G1): `FrameDone` waits until one minimum frame after the frame's start and starts the next frame there; SummonerFix's `FrameSleep` patch stands down (`FrameLimiter` in `Sum-fixed.fixes`) |
+| 2x game speed (frame limiter) | **in the source** (G1): `FrameDone` waits on a high-resolution timer until one minimum frame after the frame's start and starts the next frame there; SummonerFix's `FrameSleep` patch stands down (`FrameLimiter` in `Sum-fixed.fixes`). Until 2026-10-25 it waited with `Sleep` and dropped late wake-ups, so with the window covered the game clock ran at 82% of real time ([Timing bugs](sum-exe/timing-bugs.md#the-fixed-builds-port-of-the-fix-lost-time-found-and-fixed-2026-10-25)) |
 | QPC frequency above 4 GHz | **in the source** (G2): `timer_init` scales the counter and frequency down by the same power of two |
 | Cutscenes skip after about 24.9 days of uptime | **in the source** (G3): the elapsed time is an unsigned difference in all three readers; SummonerFix's `timeGetTime` rebase stands down (`CutsceneTimer`) |
 | Crash on Start New Game without sound | **in the source** (C1): the stream is only touched once `ds_init` finished; the guard patch stands down (`NoSoundGuard`) |

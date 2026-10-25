@@ -153,8 +153,9 @@ SummonerFix's fixes on, and the VC6 `Sum-fixed.exe` through the same checks the 
 - Most of the save differences in both builds come from one source: the party's 36 player timers show about 6.0 s of
   game time since the level started where the original shows about 7.1 s. Positions of walking characters and
   counters follow from that. It is a property of the fixed build, not of clang, and it is new since 2026-10-21, when
-  the same check found 1-10 dwords. It is being looked at with the experimental build's slow ticker
-  ([Experimental build](../experimental-build.md)).
+  the same check found 1-10 dwords. Found and fixed the same day: the fixed build's frame limiter dropped late
+  wake-ups from `Sleep`, and the clock ran at 82% of real time
+  ([Timing bugs](../sum-exe/timing-bugs.md#the-fixed-builds-port-of-the-fix-lost-time-found-and-fixed-2026-10-25)).
 - The memory counts are with `link-memcheck.mjs --exe`. Before that fix the tool translated every build's pointers
   with `Sum-rebuilt`'s address table, which showed about 475 differing symbols for clang.
 - The two return fixes were made after the save run. The screens were checked again with them (the lower pixel
