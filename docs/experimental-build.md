@@ -105,6 +105,16 @@ build lacks.
 - **Tentacle grab:** the switch is read (`tentacle grab on: chance 100%`), and the boss battle starts after TB-Intro.
   No grab was seen: agent mode could not put the party next to a tentacle (`npcgoto` finds no tentacle by name), and
   the original exe with SummonerFix's grab shows the same in this test, so the harness, not the port, is what is
-  missing. To do: a hand test in the sewer boss room, or a navpoint next to a tentacle.
+  missing. **Seen 2026-10-25** (chance 100, `[Debug] TraceTentacle=1`, 1366x768): loading the test save in the sewer
+  boss arena (`summoner20.sav`, "Lenele Palace Aqueduct") and `navgoto $tbintro` starts the battle as the level
+  script does; the trace then shows a grab, six hold ticks of 3 damage, a throw, a landing on the floor and a new
+  grab after the cooldown, as SummonerFix's version did on 2026-10-18. The earlier route (`cutscene_change_level_for`
+  plus `cutscene_play` through `callstr`) is not a valid harness: the rebuilt exes went back to the main menu after
+  the warp, and `cutscene_play` there crashed in `cutscene_script_unload` (`camera::set_target(cur_character)` with
+  no character, a byte match). The original exe warped into the cutscene instead; why the rebuilt ones return to the
+  menu is not yet known.
+- **Open:** the experimental build's speed line shows the game's real-time millisecond ticker at about 82% of wall
+  time with no frame-rate cap (116 fps). The ticker truncates each frame to whole milliseconds; the carry that
+  removes this is only active with a cap (above). To compare with the original exe before changing anything.
 - Not yet tested: vsync, frame-rate caps other than 60, the autosave skip rules (combat, menus, the 32-save limit),
   the controller's buttons and camera.

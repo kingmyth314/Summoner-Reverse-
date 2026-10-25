@@ -87,6 +87,11 @@ BOOL PatchBytes(DWORD va, const void *expect, const void *repl, SIZE_T n, const 
     const char *quiet = what;
     if (!what)
         what = "(bulk patch)";
+    if (!p) {
+        // A rebuilt exe whose address table has no entry for va (SumVa gives 0): nothing to compare, nothing written.
+        Log("SKIP %s: no address for 0x%06lX in this exe", what, va);
+        return FALSE;
+    }
     if (memcmp(p, expect, n) != 0) {
         Log("SKIP %s: unexpected bytes at 0x%06lX", what, va);
         return FALSE;

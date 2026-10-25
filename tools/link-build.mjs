@@ -161,12 +161,18 @@ if (existsSync(dump) && existsSync(mapPath)) {
   const starts = readFileSync(join(repo, "symbols", "sum.symbols"), "latin1").split(/\r?\n/).map((l) => /^0x([0-9a-f]+)\s/i.exec(l)).filter(Boolean)
     .map((m) => parseInt(m[1], 16)).sort((a, b) => a - b);
   const nextStart = (a) => { let lo = 0, hi = starts.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (starts[mid] <= a) lo = mid + 1; else hi = mid; } return starts[lo] ?? a + 4; };
+  // A C++ name whose parameter list changed since the hybrid build wrote the dump (e.g. get_hit_by_spell's last
+  // parameter became int, D25504) no longer matches exactly; it is matched by its qualified name without the
+  // signature ("?name@Class@@"), when exactly one public symbol has it.
+  const bySig = new Map();
+  for (const n of pub.keys()) { const m = /^(\?[^@]+@(?:[^@]+@)*@)/.exec(n); if (m) bySig.set(m[1], bySig.has(m[1]) ? null : n); }
+  const relaxed = (name) => { const m = /^(\?[^@]+@(?:[^@]+@)*@)/.exec(name); const n = m && bySig.get(m[1]); return n ? pub.get(n) : undefined; };
   const rows = new Map();
   for (const l of readFileSync(dump, "latin1").split(/\r?\n/)) {
     const [name, stem, a] = l.split("\t");
     if (!name) continue;
     const orig = parseInt(a, 16);
-    const va = stem ? statByStem.get(`${name}\t${stem}`) : pub.get(name);
+    const va = stem ? statByStem.get(`${name}\t${stem}`) : pub.get(name) ?? relaxed(name);
     if (va == null || rows.has(orig)) continue;
     rows.set(orig, va);
   }
