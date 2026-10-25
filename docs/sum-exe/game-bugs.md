@@ -29,7 +29,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Crash or hang | 7 | 82 | 7 |
 | Gameplay | 48 | 25 | 26 |
 | Cosmetic | 56 | 36 | 23 |
-| Invisible | 43 | 58 | 0 |
+| Invisible | 43 | 59 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
 does (see [SummonerFix](../summonerfix/index.md)).
@@ -3009,6 +3009,7 @@ the faulty branch. The Tentacle Beast's sewer (`sewerboss`, 2026-10-20, a scene 
 | V300 | Latent: a polygon colour tint whose red and green factors differ would tint red with the green factor and leave green untinted; every tint the game sets is grey | `gr_poly_rgb` `0x545610` | **Observed** code | No |
 | V301 | Latent: Direct3D 8-bit alpha textures read past the bitmap when it is smaller than its texture, and every section of a multi-section alpha bitmap gets the top-left texels | `gr_d3d_copy_bitmap_to_surface` `0x54c0a0` | **Observed** code | No |
 | V302 | Nothing: `key_init` flushes the key queue before the keyboard is marked ready, so the flush returns at once; `key_putkey` (no caller) does not check for a full queue | `key_init` `0x509770`, `key_putkey` `0x509d40` | **Observed** code | No |
+| V303 | Latent: the EAX reverb check tests only that the sound driver can set the reverb property, not that it can also read it, so EAX is switched on for a driver that supports only setting it | `ds3d_init` `0x55df30` | **Observed** code, *inferred* effect | No |
 
 **V1.** The `strcmp` result decides the store the wrong way round (`je 0x540dde` at `0x540dbe` skips a
 match). Nothing calls the function, so it never runs.
@@ -3690,6 +3691,14 @@ checked. Found in the `NOTES-unnamed-gr-line-poly-emitter-tcache.md` notes.
 pending key would make the queue read as empty; it has no caller. Found in the
 `NOTES-unnamed-key-timer-dialogue-levelscripts.md` notes.
 
+**V303. Half of the EAX support test.** `ds3d_init` asks the EAX property set which operations the reverb property
+supports (`QuerySupport` through the vtable at `0x55df74`) and wants both Get and Set (`KSPROPERTY_SUPPORT_GET` 1,
+`KSPROPERTY_SUPPORT_SET` 2). The source wrote `support & SET | GET`, which C parses as `(support & SET) | GET`, so the
+binary tests only Set: `and edx, 0x2; or edx, ebx` (ebx 1), `cmp dl, 0x3` (`0x55df86`..`0x55df8b`). A driver that
+supports Set but not Get passes, and the game later reads listener properties with Get (`eax_get_listener_props`).
+No such driver was tried; on current Windows the property set is usually absent and the function returns before the
+test. Found by clang's `-Wbitwise-op-parentheses` warning ([Modern C++ port](../future/modern-port.md)).
+
 ## Claims that did not hold
 
 | Claim | Where it was made | What the code does |
@@ -3709,6 +3718,8 @@ pending key would make the queue read as empty; it has no caller. Found in the
 | K131 (withdrawn 2026-10-18): every load of a game saved in the last temple level (TempleInt2) replays the 29 s "Nar-TempleAct4" narration, because `ls_templeint2_init` clears `ls_templeint2_act4_played` (`0x4ef1c3`) and no saved flag records it | This page ("saving is allowed in the level"), then [Bug fix priorities](bug-priorities.md) rank 34 | No such save can be made. The narration plays on the level's first frame, and its end callback sets the saved flag `mach_intro` at once (`0x4ef275`..`0x4ef282`). `savegame_location_allowed` refuses saving in TempleInt2 while `mach_intro` is set (`0x4d4b5e`..`0x4d4b73`; the refusal was seen in game for G130), and the cutscene itself cannot be saved in. A save from before the level cannot load into it |
 | K9 (withdrawn 2026-10-19): the Create Game screen's player count and level limits are centred with the string height twice, the width never read | This page, then [Bug fix priorities](bug-priorities.md) rank 81 | Not a bug. The three `sprintf` arguments are still on the stack (popped with the rest at the end), so after `gr_get_string_size` and three pushes `[esp+0x30]` (`0x40a541`) is the height, for y, and `[esp+0x34]` (`0x40a553`) the width, for x: two different locals, with no push between the reads. `gamecreate_draw_limits` (`0x40a5c1`/`0x40a5d3`, `0x40a631`/`0x40a643`) is the same. The decompilation had copied the claim (corrected, D9817) |
 | Melee calls `character_get_resistance(-1)`, which may read out of bounds | `NOTES-spells-combat.md` open question 7 | Type -1 returns 0 before any table access (`0x4626bb`..`0x4626cb`) |
+| `gr_bitmap_3d_projected` and `gr_bitmap_3d_oriented_quad` draw a point behind the viewer from screen coordinates never computed, because `if (!pnt->flags & 1)` never returns | the clang warnings of [Modern C++ port](../future/modern-port.md) L2 | The test is a precedence slip and never returns after `gr_project_vertex`, but neither function reads the screen coordinates: both build the quad from the view-space point and clip it with `gr_code_vertex`, which gives a point at z <= 0 code `0x20` on all four corners, so `codes_and` rejects it. No effect |
+| `objects_free_all` leaks what a derived object owns, because it deletes through `obj *` and `~obj` is not virtual | the same warnings | The objects deleted there are characters (the other players' objects), and `~Character` (`0x44e150`) only sets `type` to 0; its `ai_state` member's destructor is an empty function. Nothing is skipped. (The loop's real problem is C13) |
 
 Not counted as bugs: `camera_key_extra_axis` (`0x4348a0`) always returns 0 and `camera_cut_to_view_stub`
 (`0x479430`) is empty. They look like cut features ([Camera](camera.md)). The other oddities in the decompilation notes were checked again on 2026-10-15. Those that are bugs are in
@@ -4544,6 +4555,7 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | V300 tint channels | `gr_poly_rgb` `0x545617`, `0x54567b`, `0x5456bb`, `0x545706`, `0x54574c`; `world_hover_tint_character` `0x43b1d0`; `world_hover_tint_object` `0x43a650`; `murod_ai_leap` `0x4c54ec`..`0x4c54f8`; `luminar_teleport_in` `0x4ca166`..`0x4ca172` |
 | V301 alpha stride | `gr_d3d_copy_bitmap_to_surface` `0x54c1ab`..`0x54c28f` |
 | V302 key queue | `key_init` `0x5097b5`, `0x5097fa`; `key_flush` `0x509ab0`..`0x509aba`; `key_putkey` `0x509d54`..`0x509d76` |
+| V303 EAX support | `ds3d_init` `0x55df74` (QuerySupport), `0x55df86`..`0x55df8e` |
 | C310 install path | `packfile_add` `0x534425`, `0x53445c`..`0x53446c`, `0x53447b`; `packfile_init` `0x533e30`..`0x533e7d`; `packfile_fopen` `0x534690`, `0x534741`..`0x534798`; `file_init` `0x512dc6`; `File__get_packfile_path` `0x514045`..`0x51405b`; `snd_load` `0x520b17`, `0x520b47` |
 | C311 new LEP NULL | `mp_handle_new_lep` `0x47ff88`..`0x47ffc1`; `living_entity_create` `0x461b80` |
 | C312 respawn NULL | `mp_respawn_player` `0x481097`..`0x4810cb`; callers `0x481057`, `0x481136` |

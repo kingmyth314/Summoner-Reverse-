@@ -168,7 +168,7 @@ The clang build defines `MODERN_BUILD` and writes its warnings to `build/<folder
 and the upper-case file names of VC6's headers. VC6 never sees `MODERN_BUILD`, and the full strict sweep still matches
 all 5,613 functions.
 
-**Warnings: 708 distinct before, 6 now.** The 6 are listed under the candidates below (the door sound boxes).
+**Warnings: 708 distinct before, 6 now.** The 6 are the script editor's door sound boxes, an original bug (K220; below).
 
 | Kind | Count | Fix |
 |---|---|---|
@@ -196,23 +196,23 @@ another writer shows up.
   show 7,231 ms since the warp against 7,197-7,203 ms in the original runs, which this time agreed unusually closely.
   The walking characters' positions follow from those 30 ms. The VC6 fixed build was 3-5 dwords in the run before.
 
-**Candidates for the bug list** (found in the code while fixing warnings; not yet seen in game, so not yet on
+**What the warnings pointed at** (each candidate checked against the binary on 2026-10-25; see
 [Bugs in the original game](../sum-exe/game-bugs.md)):
-- **Script editor, door sounds** (`script_editor_list_door_sounds` `0x4e53a0`): six `sprintf("%.1f", byte)` calls
-  print a double made of the byte and the next stack dword. The minimum range, volume and roll-off boxes never show
-  the real values, and OK writes the shown text back. The same file converts correctly elsewhere (volume x 1/255).
-  These are the 6 remaining warnings.
-- **Script editor, creature level** (`0x4ec730`): `if (0.0f < v || 100.0f > v) v = 100.0f;` is true for every number,
-  so every skill but index 2 becomes 100. A clamp to 0..100 was meant.
-- **Projected bitmaps** (`gr_bitmap_3d_projected` and its neighbour in `unnamed_gr_line_0x53e520.cpp`):
-  `if (!pnt->flags & 1)` returns only for flags 0, so a vertex behind the viewer (flag 2, no screen coordinates) is
-  drawn from coordinates never computed. `!(pnt->flags & 1)` was meant.
-- **EAX check** (`unnamed_ds3d_0x55ddb0.cpp`): `support & SET | GET` tests only Set support.
-- **`objects_free_all`** deletes every object through `obj *`, whose destructor is not virtual, so a derived
-  object's own destructor never runs (a leak at level unload, not a corruption).
-- Smaller: `File::read_matrix43` writes one float past the matrix (dead code); the Glide texture paths store an
-  uninitialised format for two bitmap formats; the cutscene table parse writes an int into a `short` (harmless in
-  VC6's frame); a debug trace prints an int with `%f`.
+- **Script editor, door sounds:** already listed as K220. The six `sprintf("%.1f", byte)` calls are the 6 remaining
+  warnings.
+- **Script editor, creature level:** already listed as G226.
+- **EAX check:** new, V303. `support & SET | GET` tests only Set (`and edx, 0x2; or edx, 1; cmp dl, 3` at `0x55df86`).
+- **`File::read_matrix43`** writing past the matrix: already listed as V256 (dead code).
+- **Did not hold** (added to the page's "Claims that did not hold"):
+  - The projected-bitmap flag test `if (!pnt->flags & 1)` is a precedence slip that never returns. Both functions
+    still reject a point behind the viewer through the clip codes, so it has no effect.
+  - `objects_free_all` deleting through `obj *` skips nothing: `~Character` only sets `type`.
+- **Left as notes:**
+  - The Glide texture paths store an uninitialised format for two bitmap formats that no texture uses.
+  - The cutscene table parse writes an int into a `short`, which is harmless in VC6's frame.
+  - A debug trace prints an int with `%f`.
+- **Not seen in game:** K220 and G226 stay "Observed code". The editor opens in agent mode (game flag `0x80`), but its
+  buttons did not respond to agent-mode clicks in the test, so the door and creature windows could not be opened.
 
 ## Recommendation
 
