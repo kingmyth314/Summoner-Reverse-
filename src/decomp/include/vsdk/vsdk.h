@@ -32,6 +32,14 @@ typedef unsigned char  ubyte;
 typedef unsigned short ushort;
 typedef unsigned int   uint;
 
+// A class with a non-virtual destructor that nothing derives from, deleted through its own type: final in the modern
+// build (docs/future/modern-port.md, L2), so clang knows the delete runs the right destructor. VC6 has no final.
+#ifdef MODERN_BUILD
+#define MODERN_FINAL final
+#else
+#define MODERN_FINAL
+#endif
+
 // Compile-time layout check. VC6 has no static_assert; a negative array size fails the build.
 #define LAYOUT_CHECK(name, cond) typedef char layout_check_##name[(cond) ? 1 : -1]
 

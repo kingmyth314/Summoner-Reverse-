@@ -20,7 +20,7 @@
 // One screen or dialog (0x4ec bytes; vtable 0x581df4, 5 slots). The windows form a list through
 // next / prev with ui_window_sentinel as head; the gadgets form a list through the gadgets member
 // (a ui_gadget used only as sentinel), the top-level ones also a chain from first_gadget.
-class ui_window : public ui_element {
+class ui_window MODERN_FINAL : public ui_element {
 public:
     ui_window();                                      // 0x52b020
     ~ui_window();                                     // 0x52b0a0 (non-virtual)

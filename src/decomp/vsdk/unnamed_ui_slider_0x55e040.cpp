@@ -449,7 +449,11 @@ ui_tooltip::~ui_tooltip()
 void ui_tooltip::draw()
 {
     int tw, th;
+#ifdef MODERN_BUILD
+    int px = 0, py = 0;                 // unset in the binary for another kind; owners are only kinds 0 and 1
+#else
     int px, py;
+#endif
     int kind;
 
     gr_get_string_size(&tw, &th, text, -1, -1);

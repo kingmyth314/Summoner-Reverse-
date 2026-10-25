@@ -594,7 +594,7 @@ int automap_is_cell_revealed(int level, int layer, int x, int y)
 {
     if (level < 0 || level >= NUM_LEVEL_SCRIPTS || layer >= level_script_table[level].automap_layers)
         return 0;
-    return savegame_state.get_bit(level, ((layer << 6) + y << 6) + x);
+    return savegame_state.get_bit(level, (((layer << 6) + y) << 6) + x);
 }
 
 // 0x430110  Confidence: exact (value is a bool passed on: set_bit tests its byte). The twin levels share their map:
@@ -607,7 +607,7 @@ void automap_reveal_cell(int level, int layer, int x, int y, bool value)
 
     if (level < 0 || level >= NUM_LEVEL_SCRIPTS || layer >= level_script_table[level].automap_layers)
         return;
-    bit = ((layer << 6) + y << 6) + x;
+    bit = (((layer << 6) + y) << 6) + x;
     savegame_state.set_bit(level, bit, value);
     switch (level) {
     case 7:

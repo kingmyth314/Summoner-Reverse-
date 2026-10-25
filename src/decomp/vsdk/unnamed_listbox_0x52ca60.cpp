@@ -411,6 +411,20 @@ out:
     return key;
 }
 
+#ifdef MODERN_BUILD
+// The entries have a virtual set_text but a non-virtual destructor, so clang warns on every delete of one
+// (even through its exact type, the classes not being final). This deletes an entry as the type add_entry
+// allocated it as: its destructor, then operator delete, as VC6's scalar deleting destructors do.
+static void listbox_delete_entry(ui_listbox_entry *e, bool preallocated)
+{
+    if (preallocated)
+        e->ui_listbox_entry::~ui_listbox_entry();
+    else
+        ((ui_listbox_text_entry *)e)->ui_listbox_text_entry::~ui_listbox_text_entry();
+    ::operator delete(e);
+}
+#endif
+
 // 0x52d420  vtable slot 0 (ui_listbox__destroy). Confidence: exact (the head's prev as the temporary,
 // as the code does). Every entry is deleted as a base entry (non-virtual destructor; operator delete
 // does not need the size).
@@ -419,7 +433,14 @@ void ui_listbox::dtor()
     while (entries.next != &entries) {
         entries.prev = entries.next;
         entries.next = entries.next->next;
+#ifdef MODERN_BUILD
+        // What the binary does, spelled out (a text entry's own destructor is the base one): deleting a
+        // text entry through the non-virtual base destructor is undefined in C++.
+        entries.prev->ui_listbox_entry::~ui_listbox_entry();
+        ::operator delete(entries.prev);
+#else
         delete entries.prev;
+#endif
     }
     list_init(&entries);
     selected = NULL;
@@ -719,10 +740,14 @@ void ui_listbox::clear()
         e->prev = NULL;
         prev->next = next;
         next->prev = prev;
+#ifdef MODERN_BUILD
+        listbox_delete_entry(e, (flags & UI_LISTBOX_PREALLOCATED) != 0);
+#else
         if (flags & UI_LISTBOX_PREALLOCATED)
             delete e;
         else
             delete (ui_listbox_text_entry *)e;
+#endif
     }
     selected = NULL;
     content_height = 0;
@@ -759,10 +784,14 @@ void ui_listbox::remove_entry(ui_listbox_entry *e)
     e->prev = NULL;
     prev->next = next;
     next->prev = prev;
+#ifdef MODERN_BUILD
+    listbox_delete_entry(e, (flags & UI_LISTBOX_PREALLOCATED) != 0);
+#else
     if (flags & UI_LISTBOX_PREALLOCATED)
         delete e;
     else
         delete (ui_listbox_text_entry *)e;
+#endif
 
     if (selected == e)
         selected = NULL;

@@ -94,7 +94,7 @@ int ds3d_init(bool eax)
         support = 0;
         if (ps->QuerySupport(DSPROPSETID_EAX_ReverbProperties, 0, &support) < 0)
             return -1;
-        if ((support & KSPROPERTY_SUPPORT_SET | KSPROPERTY_SUPPORT_GET) != 3)
+        if (((support & KSPROPERTY_SUPPORT_SET) | KSPROPERTY_SUPPORT_GET) != 3)   // as parsed: GET is not tested
             return -1;
         value = 1;
         if (ps->Set(DSPROPSETID_EAX_ReverbProperties, 0, NULL, 0, &value, sizeof(value)) < 0)

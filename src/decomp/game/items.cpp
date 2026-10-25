@@ -860,6 +860,14 @@ bool character_species_can_use_type(Character *c, ItemType *type)
 #define RING_ROUND10(x) ((int)(float)(int)((x) * 10.0f + 0.5f))
 #define RING_ROUND10_NEG(x) ((int)(float)(int)(0.5f - (x) * 10.0f))
 
+// A translated line with no arguments copied into text. The original passes it as the format, so a '%'
+// in a translation would be read as one; the modern build prints it through "%s".
+#ifdef MODERN_BUILD
+#define RING_TEXT(s) sprintf(text, "%s", s)
+#else
+#define RING_TEXT(s) sprintf(text, s)
+#endif
+
 // 0x44b7a0  Confidence: exact (D14000: the speed tests as `!= 0` with the 1.00 text in the else, the
 // multiplayer skill remap as a switch, the resist and charge / effect format strings hoisted into locals,
 // two flags in the weapon requirement (comma, has), block-scoped values in the stat lines). Builds the
@@ -883,123 +891,123 @@ char *ring_format_info(item_info *item)
     case 2: {
         char num[0x80];
         if (!_stricmp(item->type->name, "Ring of Darkness")) {
-            sprintf(text, XSTR("Summoning Ring\n", 281));
+            RING_TEXT(XSTR("Summoning Ring\n", 281));
             strcat(ring_info_text, text);
             strcat(ring_info_text, XSTR("Ring Power: ", 276));
             int_to_string_with_commas(num, 0x7f, savegame_state.get_int(4, "dark_ring_xp"));
             strcat(ring_info_text, num);
             strcat(ring_info_text, "\n");
-            sprintf(text, XSTR("Available Summons:\n", 282));
+            RING_TEXT(XSTR("Available Summons:\n", 282));
             strcat(ring_info_text, text);
-            sprintf(text, XSTR(" Blackfire Elemental\n", 283));
+            RING_TEXT(XSTR(" Blackfire Elemental\n", 283));
             strcat(ring_info_text, text);
             if (savegame_state.get_flag(0x22, "got_laharah_spirit")) {
-                sprintf(text, XSTR(" Spirit of Laharah\n", 284));
+                RING_TEXT(XSTR(" Spirit of Laharah\n", 284));
                 strcat(ring_info_text, text);
             }
         } else if (!_stricmp(item->type->name, "Ring of Light")) {
-            sprintf(text, XSTR("Summoning Ring\n", 281));
+            RING_TEXT(XSTR("Summoning Ring\n", 281));
             strcat(ring_info_text, text);
             strcat(ring_info_text, XSTR("Ring Power: ", 276));
             int_to_string_with_commas(num, 0x7f, savegame_state.get_int(4, "light_ring_xp"));
             strcat(ring_info_text, num);
             strcat(ring_info_text, "\n");
-            sprintf(text, XSTR("Available Summons:\n", 282));
+            RING_TEXT(XSTR("Available Summons:\n", 282));
             strcat(ring_info_text, text);
-            sprintf(text, XSTR(" Mist Elemental\n", 285));
+            RING_TEXT(XSTR(" Mist Elemental\n", 285));
             strcat(ring_info_text, text);
             if (savegame_state.get_int(4, "light_ring_xp") >= 60000) {
-                sprintf(text, XSTR(" Wraith\n", 286));
+                RING_TEXT(XSTR(" Wraith\n", 286));
                 strcat(ring_info_text, text);
             }
         } else if (!_stricmp(item->type->name, "Ring of Fire")) {
-            sprintf(text, XSTR("Summoning Ring\n", 281));
+            RING_TEXT(XSTR("Summoning Ring\n", 281));
             strcat(ring_info_text, text);
             strcat(ring_info_text, XSTR("Ring Power: ", 276));
             int_to_string_with_commas(num, 0x7f, savegame_state.get_int(4, "fire_ring_xp"));
             strcat(ring_info_text, num);
             strcat(ring_info_text, "\n");
-            sprintf(text, XSTR("Available Summons:\n", 282));
+            RING_TEXT(XSTR("Available Summons:\n", 282));
             strcat(ring_info_text, text);
-            sprintf(text, XSTR(" Red Minotaur\n", 287));
+            RING_TEXT(XSTR(" Red Minotaur\n", 287));
             strcat(ring_info_text, text);
             if (savegame_state.get_int(4, "fire_ring_xp") >= 60000) {
-                sprintf(text, XSTR(" Blood Elemental\n", 288));
+                RING_TEXT(XSTR(" Blood Elemental\n", 288));
                 strcat(ring_info_text, text);
             }
         } else if (!_stricmp(item->type->name, "Ring of Stone")) {
-            sprintf(text, XSTR("Summoning Ring\n", 281));
+            RING_TEXT(XSTR("Summoning Ring\n", 281));
             strcat(ring_info_text, text);
             strcat(ring_info_text, XSTR("Ring Power: ", 276));
             int_to_string_with_commas(num, 0x7f, savegame_state.get_int(4, "stone_ring_xp"));
             strcat(ring_info_text, num);
             strcat(ring_info_text, "\n");
-            sprintf(text, XSTR("Available Summons:\n", 282));
+            RING_TEXT(XSTR("Available Summons:\n", 282));
             strcat(ring_info_text, text);
-            sprintf(text, XSTR(" Stone Golem\n", 289));
+            RING_TEXT(XSTR(" Stone Golem\n", 289));
             strcat(ring_info_text, text);
             if (savegame_state.get_int(4, "stone_ring_xp") >= 60000) {
-                sprintf(text, XSTR(" Blade of Urath\n", 290));
+                RING_TEXT(XSTR(" Blade of Urath\n", 290));
                 strcat(ring_info_text, text);
             }
         } else if (!_stricmp(item->type->name, "Ring of Water")) {
-            sprintf(text, XSTR("Summoning Ring\n", 281));
+            RING_TEXT(XSTR("Summoning Ring\n", 281));
             strcat(ring_info_text, text);
             strcat(ring_info_text, XSTR("Ring Power: ", 276));
             int_to_string_with_commas(num, 0x7f, savegame_state.get_int(4, "water_ring_xp"));
             strcat(ring_info_text, num);
             strcat(ring_info_text, "\n");
-            sprintf(text, XSTR("Available Summons:\n", 282));
+            RING_TEXT(XSTR("Available Summons:\n", 282));
             strcat(ring_info_text, text);
-            sprintf(text, XSTR(" Blue Imp\n", 291));
+            RING_TEXT(XSTR(" Blue Imp\n", 291));
             strcat(ring_info_text, text);
             if (savegame_state.get_int(4, "water_ring_xp") >= 60000) {
-                sprintf(text, XSTR(" Dragon of Water\n", 292));
+                RING_TEXT(XSTR(" Dragon of Water\n", 292));
                 strcat(ring_info_text, text);
             }
         } else if (!_stricmp(item->type->name, "Ring of Four Winds")) {
-            sprintf(text, XSTR("Summoning Ring\n", 281));
+            RING_TEXT(XSTR("Summoning Ring\n", 281));
             strcat(ring_info_text, text);
             strcat(ring_info_text, XSTR("Ring Power: ", 276));
             int_to_string_with_commas(num, 0x7f, savegame_state.get_int(4, "wind_ring_xp"));
             strcat(ring_info_text, num);
             strcat(ring_info_text, "\n");
-            sprintf(text, XSTR("Available Summons:\n", 282));
+            RING_TEXT(XSTR("Available Summons:\n", 282));
             strcat(ring_info_text, text);
-            sprintf(text, XSTR(" Celestial Samurai\n", 293));
+            RING_TEXT(XSTR(" Celestial Samurai\n", 293));
             strcat(ring_info_text, text);
             if (savegame_state.get_int(4, "wind_ring_xp") >= 60000) {
-                sprintf(text, XSTR(" Dragon of Four Winds\n", 294));
+                RING_TEXT(XSTR(" Dragon of Four Winds\n", 294));
                 strcat(ring_info_text, text);
             }
         } else if (!_stricmp(item->type->name, "Ring of Forest")) {
-            sprintf(text, XSTR("Summoning Ring\n", 281));
+            RING_TEXT(XSTR("Summoning Ring\n", 281));
             strcat(ring_info_text, text);
             strcat(ring_info_text, XSTR("Ring Power: ", 276));
             int_to_string_with_commas(num, 0x7f, savegame_state.get_int(4, "forest_ring_xp"));
             strcat(ring_info_text, num);
             strcat(ring_info_text, "\n");
-            sprintf(text, XSTR("Available Summons:\n", 282));
+            RING_TEXT(XSTR("Available Summons:\n", 282));
             strcat(ring_info_text, text);
-            sprintf(text, XSTR(" Poison Elemental\n", 295));
+            RING_TEXT(XSTR(" Poison Elemental\n", 295));
             strcat(ring_info_text, text);
             if (savegame_state.get_int(4, "forest_ring_xp") >= 60000) {
-                sprintf(text, XSTR(" Dragon of the Forest\n", 296));
+                RING_TEXT(XSTR(" Dragon of the Forest\n", 296));
                 strcat(ring_info_text, text);
             }
         } else if (!_stricmp(item->type->name, "Ring of Jade")) {
-            sprintf(text, XSTR("Summoning Ring\n", 281));
+            RING_TEXT(XSTR("Summoning Ring\n", 281));
             strcat(ring_info_text, text);
             strcat(ring_info_text, XSTR("Ring Power: ", 276));
             int_to_string_with_commas(num, 0x7f, savegame_state.get_int(4, "jade_ring_xp"));
             strcat(ring_info_text, num);
             strcat(ring_info_text, "\n");
-            sprintf(text, XSTR("Available Summons:\n", 282));
+            RING_TEXT(XSTR("Available Summons:\n", 282));
             strcat(ring_info_text, text);
-            sprintf(text, XSTR(" Jade Golem\n", 297));
+            RING_TEXT(XSTR(" Jade Golem\n", 297));
             strcat(ring_info_text, text);
             if (savegame_state.get_int(4, "jade_ring_xp") >= 60000) {
-                sprintf(text, XSTR(" Dragon of Jade\n", 298));
+                RING_TEXT(XSTR(" Dragon of Jade\n", 298));
                 strcat(ring_info_text, text);
             }
         } else {
@@ -1021,7 +1029,7 @@ char *ring_format_info(item_info *item)
         if (item->type->armour_speed != 0.0f)
             sprintf(text, XSTR("Speed: %3.2f\n", 278), 1.0f / item->type->armour_speed);
         else
-            sprintf(text, XSTR("Speed: 1.00\n", 279));
+            RING_TEXT(XSTR("Speed: 1.00\n", 279));
         strcat(ring_info_text, text);
         break;
     }
@@ -1036,7 +1044,7 @@ char *ring_format_info(item_info *item)
         if (item->type->speed != 0.0f)
             sprintf(text, XSTR("Speed: %3.2f\n", 278), 1.0f / item->type->speed);
         else
-            sprintf(text, XSTR("Speed: 1.00\n", 279));
+            RING_TEXT(XSTR("Speed: 1.00\n", 279));
         strcat(ring_info_text, text);
         break;
     }

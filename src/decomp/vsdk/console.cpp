@@ -311,7 +311,12 @@ void process_command(int arg_types)
             }
             if (arg_type & ARG_INT) {
                 // "%f" with an int argument (debug trace only).
+#ifdef MODERN_BUILD
+                // The int as an int (the original's "%f" read a double from the int and the next stack word).
+                sprintf(string_buffer, "Found int number! %d\n", command_argument_int);
+#else
                 sprintf(string_buffer, "Found int number! %f\n", command_argument_int);
+#endif
                 print_to_console(string_buffer, 0);
             }
             if (arg_type & ARG_HEX) {

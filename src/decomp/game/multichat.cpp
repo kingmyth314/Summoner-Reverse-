@@ -89,7 +89,11 @@ void chat_cmd_list(const char *unused)
     char buf[512];
     mp_player *p;
 
+#ifdef MODERN_BUILD
+    sprintf(buf, "%s", XSTR("Players:", 222));         // translated text is not a format
+#else
     sprintf(buf, XSTR("Players:", 222));
+#endif
     for (p = mp_player_list.next; p != &mp_player_list; p = p->next) {
         strcat(buf, " ");
         strcat(buf, p->name);

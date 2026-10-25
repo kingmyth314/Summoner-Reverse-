@@ -83,7 +83,7 @@ struct loco_blend_set {
 };
 
 // A character (party member, NPC or monster), 0x788 bytes (the living-entity pool stride).
-class Character : public obj {
+class Character MODERN_FINAL : public obj {
 public:
     // living_entity.cpp, in address order (decomp37). The older declarations below keep their text.
     Character();                      // 0x44e060 living_entity__living_entity

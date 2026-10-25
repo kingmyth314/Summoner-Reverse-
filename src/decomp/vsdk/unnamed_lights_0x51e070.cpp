@@ -119,7 +119,7 @@ int light_create_point(const vector3 *pos, float inner, float outer, float inten
     l->inner_sq = inner * inner;
     l->outer_sq = l->outer * l->outer;
     l->dynamic = dynamic;
-    l->enabled = 1;
+    l->enabled = -1;                  // the signed one-bit field's set value
     if (!dynamic)
         light_change_count++;
     return i;
@@ -171,7 +171,7 @@ int light_create_spot(const vector3 *pos, const vector3 *dir, float angle_a, flo
     l->inner_sq = inner * inner;
     l->outer_sq = l->outer * l->outer;
     l->dynamic = dynamic;
-    l->enabled = 1;
+    l->enabled = -1;                  // the signed one-bit field's set value
     l->bitmap = bm;
     if (bm != -1 && orient != NULL)
         orient->to_matrix_b(&l->orient);

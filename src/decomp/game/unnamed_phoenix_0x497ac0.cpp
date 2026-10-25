@@ -209,7 +209,7 @@ bool ai_state::phoenix_reposition_update()
             hi = 8.0f;
             lo = 5.0f;
         }
-        memcpy(&centre, &owner->pos, sizeof(vector3));     // D24602
+        memcpy((void *)&centre, &owner->pos, sizeof(vector3));     // D24602
     }
     float range = hi - lo;
     int tries = 7;

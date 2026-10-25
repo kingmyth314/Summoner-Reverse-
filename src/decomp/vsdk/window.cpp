@@ -1229,7 +1229,14 @@ void ui_window::dtor()
         gn->window_prev = gp;
         if (g->is_owned()) {
             g->dtor();
+#ifdef MODERN_BUILD
+            // What `delete g` compiles to: the non-virtual ~ui_gadget whatever the gadget's class (the
+            // virtual dtor() above did the class's own cleanup), then operator delete.
+            g->ui_gadget::~ui_gadget();
+            ::operator delete((void *)g);
+#else
             delete g;
+#endif
         } else {
             g->dtor();
         }

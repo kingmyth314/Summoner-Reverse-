@@ -218,12 +218,23 @@ void objects_free_all()
 
     while (obj_active_list.next != &obj_active_list) {
         o = obj_active_list.next;
+#ifdef MODERN_BUILD
+        // What the original's delete does (obj's destructor is not virtual): ~obj, then free.
+        o->obj::~obj();
+        ::operator delete(o);
+#else
         delete o;
+#endif
     }
     for (p = player_list_other.next; p != &player_list_other; p = p->next) {
         o = obj_from_handle(p->handle);
         if (o) {
+#ifdef MODERN_BUILD
+            o->obj::~obj();
+            ::operator delete(o);
+#else
             delete o;
+#endif
             p->handle = -1;
         }
     }

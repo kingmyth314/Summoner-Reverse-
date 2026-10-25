@@ -47,7 +47,7 @@ matrix43 identity_matrix43(vector3(1.0f, 0.0f, 0.0f), vector3(0.0f, 1.0f, 0.0f),
 // set before the copy).
 matrix::matrix(const matrix &m)
 {
-    memcpy(this, &m, sizeof(matrix));
+    memcpy((void *)this, &m, sizeof(matrix));
 }
 
 // 0x50fad0  Confidence: exact.
@@ -784,7 +784,7 @@ void matrix43::set_product_4x4(const matrix43 &a, const matrix43 &b)
         r.m[i][1] = a.m[i][0] * b.m[0][1] + a.m[i][1] * b.m[1][1] + a.m[i][2] * b.m[2][1] + Homogeneous_column[i] * b.m[3][1];
         r.m[i][2] = a.m[i][0] * b.m[0][2] + a.m[i][1] * b.m[1][2] + a.m[i][2] * b.m[2][2] + Homogeneous_column[i] * b.m[3][2];
     }
-    memcpy(this, &r, sizeof(matrix43));
+    memcpy((void *)this, &r, sizeof(matrix43));
 }
 
 // 0x511b70  Confidence: exact.

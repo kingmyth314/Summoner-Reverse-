@@ -90,6 +90,28 @@ void decal_build_clip_planes(decal_record *d, const vector3 *pos, const vector3 
     vector3 corner = *u + *v + depth;
     d->radius = corner.len();
 
+#ifdef MODERN_BUILD
+    // The original takes the addresses of the vector temporaries (VC6 needs them for the match); the
+    // modern build names each one, computed at the same point.
+    vector3 p, n;
+    p = d->pos + *u;
+    d->set_frame(plane(&un, &p));
+    d->set_v_axis(0.5f / u->len());
+    n = -1.0f * un;
+    p = d->pos - *u;
+    d->proj.add_plane(plane(&n, &p));
+    p = d->pos + *v;
+    d->proj.add_plane(plane(&vn, &p));
+    d->set_u_axis(0.5f / v->len());
+    n = -1.0f * vn;
+    p = d->pos - *v;
+    d->proj.add_plane(plane(&n, &p));
+    p = d->pos + depth;
+    d->proj.add_plane(plane(&d->normal, &p));
+    n = -1.0f * d->normal;
+    p = d->pos - depth;
+    d->proj.add_plane(plane(&n, &p));
+#else
     d->set_frame(plane(&un, &(d->pos + *u)));
     d->set_v_axis(0.5f / u->len());
     d->proj.add_plane(plane(&(-1.0f * un), &(d->pos - *u)));
@@ -98,6 +120,7 @@ void decal_build_clip_planes(decal_record *d, const vector3 *pos, const vector3 
     d->proj.add_plane(plane(&(-1.0f * vn), &(d->pos - *v)));
     d->proj.add_plane(plane(&d->normal, &(d->pos + depth)));
     d->proj.add_plane(plane(&(-1.0f * d->normal), &(d->pos - depth)));
+#endif
 }
 
 // 0x4bc290  Confidence: exact. vector3__len: the COMDAT of the inline vector3::len (vsdk/math/vector.h),

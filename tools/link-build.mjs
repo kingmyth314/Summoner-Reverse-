@@ -183,9 +183,10 @@ if (useClang) {
     "/INCLUDE:_WinMainCRTStartup",
     // lld turns on ASLR by default; the exe must load at 0x400000 as VC6's does (the address table, SummonerFix).
     "/DYNAMICBASE:NO", "/FIXED",
-    // VC6 kept string literals writable, and the game writes into some (localize_set_string fills "NULL Format
-    // String"); clang puts them in .rdata. Merged into .data, they are writable again (rung L2 fixes the writers).
-    "/MERGE:.rdata=.data"],
+    // VC6 kept string literals writable, and the original wrote into one (localize_set_string rewrote "NULL Format
+    // String"; MODERN_BUILD passes a copy since rung L2). --writable-literals merges .rdata into .data as before,
+    // for a writer not found yet; without it a write into a literal faults where it happens.
+    ...(flag("--writable-literals") ? ["/MERGE:.rdata=.data"] : [])],
     { cwd: out, encoding: "latin1", maxBuffer: 1 << 28, stdio: ["ignore", "pipe", "pipe"] }); }
   catch (e) { text = (e.stdout || "") + (e.stderr || "") + `\n(exit ${e.status})`; }
 } else text = run("LINK.EXE", linkArgs);

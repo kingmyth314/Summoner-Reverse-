@@ -483,7 +483,11 @@ void ls_lpalaceint_action(dialogue_action *action)
 
     if (!_stricmp(action->name, "StartCutscene")) {
         savegame_state.set_flag(cur_level_index, "lpalaceint_yago_found", true);
+#ifdef MODERN_BUILD
+        sprintf(line, "%s", XSTR("Flece acquired skill: Sneak!", 543));   // translated text, not a format
+#else
         sprintf(line, XSTR("Flece acquired skill: Sneak!", 543));
+#endif
         dialogue_show_line(line, 1, NULL);
         xp = 500;
         if (savegame_state.get_flag(cur_level_index, "got_suit"))
@@ -499,7 +503,11 @@ void ls_lpalaceint_action(dialogue_action *action)
     }
     if (!_stricmp(action->name, "GotRing")) {
         savegame_state.set_flag(cur_level_index, "got_ring_of_darkness", true);
+#ifdef MODERN_BUILD
+        sprintf(line, "%s", XSTR("Joseph acquired skill: Summon!", 545));   // translated text, not a format
+#else
         sprintf(line, XSTR("Joseph acquired skill: Summon!", 545));
+#endif
         dialogue_show_line(line, 1, NULL);
         hud_show_message(XSTR("Joseph acquired Summon Blackfire Elemental!", 546));
         return;

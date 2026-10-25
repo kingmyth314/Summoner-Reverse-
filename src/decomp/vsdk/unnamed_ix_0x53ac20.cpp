@@ -108,7 +108,7 @@ bool ix_linesegment_triangle_front(ix_ray *seg, vector3 **tri, plane *pl, vector
 bool ix_ray_parallelogram(ix_ray *ray, ix_ray *edge, const vector3 *b, vector3 *hit, float *u)
 {
     float t;
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(MODERN_BUILD)   // clang in MSVC mode defines _MSC_VER too
     plane pl(&edge->origin, &(edge->origin + edge->dir), &(edge->origin + *b));
 #else
     vector3 c2 = edge->origin + *b;

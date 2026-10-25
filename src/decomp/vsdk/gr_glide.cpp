@@ -464,7 +464,11 @@ int gr_glide_create_mipmapped_texture(int bm, glide_tcache_entry *entry)
     ubyte *buf;
     int size;
     ubyte *data;
+#ifdef MODERN_BUILD
+    GrTextureFormat_t format = 0;                     // unset in the binary for an unknown format (no data then)
+#else
     GrTextureFormat_t format;                         // left unset for an unknown bitmap format (as in the binary)
+#endif
     int w, h;
     ubyte *palette;
     int num_levels;
@@ -664,7 +668,11 @@ int gr_glide_create_texture_section(int bm, glide_tcache_entry *entry, int secti
     float v_scale = (float)sec_h * 256.0f / (float)max_dim;
     int size = 0;
     ubyte *buf = NULL;
+#ifdef MODERN_BUILD
+    GrTextureFormat_t gformat = 0;                    // unset in the binary for an unknown format (no data then)
+#else
     GrTextureFormat_t gformat;                        // left unset for an unknown bitmap format (as in the binary)
+#endif
 
     if (format == BM_FORMAT_8_ALPHA) {
         // The tile's position is not used: the bitmap's top left corner is copied (D2505).

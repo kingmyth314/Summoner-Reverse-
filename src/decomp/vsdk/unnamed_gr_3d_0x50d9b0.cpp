@@ -715,7 +715,7 @@ void matrix43_compose(const matrix *orient_a, const vector3 *pos_a, matrix *orie
 // /Ob0 unit calls it out of line as the binary does. Other compilers skip it (vector3() does nothing).
 gr_light_desc::gr_light_desc()
 {
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(MODERN_BUILD)   // an MSVC extension clang also accepts (with a warning)
     ((vector3 *)&_unk0c)->vector3::vector3();
 #endif
     reset();

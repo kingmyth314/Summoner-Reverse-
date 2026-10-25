@@ -223,7 +223,7 @@ void lobj_raycast_bsp(s3d_geom_block *block, void *root, s3d_geometry *g, int lo
     lobj_bsp_node *node = (lobj_bsp_node *)root;
     int near_i, far_i;
 
-    memset(&local, 0, sizeof(local));
+    memset((void *)&local, 0, sizeof(local));
     depth = 0;
     for (;;) {
         unsigned int bits = node->plane;

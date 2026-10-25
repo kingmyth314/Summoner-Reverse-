@@ -226,8 +226,15 @@ void mp_handle_new_mon(ubyte *data, void *from)
 
     for (c = living_list.live_next; c != &living_list; c = next) {
         next = c->live_next;
-        if (c->type >= 4 && (c->type <= 5 || c->type == 9))
+        if (c->type >= 4 && (c->type <= 5 || c->type == 9)) {
+#ifdef MODERN_BUILD
+            // `delete c` spelled out (no class derives from Character, so ~Character is the whole destructor).
+            c->Character::~Character();
+            ::operator delete((void *)c);
+#else
             delete c;
+#endif
+        }
     }
 }
 

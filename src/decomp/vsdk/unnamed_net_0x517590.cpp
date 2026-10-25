@@ -828,7 +828,7 @@ int nw_NewReceiveReliable(int socket, void *buf, int size)
 // D14204: from here to the end of the object the binary is compiled as with /Ow (assume aliasing across
 // function calls): nw_accept_reliable, nw_NewSendReliable and nw_ConnectToServer match only so, and no
 // function after them changes. Before nw_buffer_pop it cannot start (nw_buffer_push 0x517780 needs /O2).
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(MODERN_BUILD)        // clang's MSVC mode has no "w"
 #pragma optimize("w", on)
 #endif
 // 0x518ce0  Confidence: exact (VC6 8966 byte match under the /Ow pragma, D14204) (the found branch inside the loop, the address through a local, D6803).

@@ -50,7 +50,7 @@ LAYOUT_CHECK(ui_state_bitmap, sizeof(ui_state_bitmap) == 0x18);
 #define UI_BUTTON_ARROW_H2    0x200   // draw_arrow: horizontal lines from the left edge
 #define UI_BUTTON_RIGHT_CLICK 0x400   // also reacts to the right mouse button
 
-class ui_button : public ui_gadget {  // 0x428, vtable 0x581d88
+class ui_button MODERN_FINAL : public ui_gadget {  // 0x428, vtable 0x581d88
 public:
     ui_button();                      // 0x526f70
     // decomp61: slots 0, 5, 7, 8 of 0x581d88 (the others are ui_gadget's).
@@ -110,7 +110,7 @@ LAYOUT_CHECK(ui_button, sizeof(ui_button) == 0x428);
 // decomp61: the button being dragged (ui_button::process sets it; ui_process ends the drag).
 extern ui_button *ui_drag_gadget;     // 0x2cbfcb8
 
-class ui_static : public ui_gadget {  // 0x3cc, vtable 0x581dac
+class ui_static MODERN_FINAL : public ui_gadget {  // 0x3cc, vtable 0x581dac
 public:
     ui_static();                      // 0x527ea0
     // decomp61: slots 0, 5, 7 of 0x581dac (slot 8 is ui_gadget's).

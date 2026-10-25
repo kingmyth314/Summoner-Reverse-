@@ -204,7 +204,11 @@ void ls_lenele1b_action(dialogue_action *action)
                 gold = party_inventory[slot].count * 50;
                 party_inventory[slot].count = 0;
                 party_inventory_remove(slot, 1, 1);
+#ifdef MODERN_BUILD
+                sprintf(line, "%s", XSTR("<lost items: \"Bacite Tails\">", 557));   // translated text, not a format
+#else
                 sprintf(line, XSTR("<lost items: \"Bacite Tails\">", 557));
+#endif
                 dialogue_show_line(line, 1, NULL);
                 sprintf(line, XSTR("<party received %d gold>", 472), gold);
                 dialogue_show_line(line, 1, NULL);

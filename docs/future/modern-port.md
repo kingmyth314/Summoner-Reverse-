@@ -136,7 +136,7 @@ with lld: `build/link-fixed-clang/Sum-fixed-clang.exe`, `build/link-exp-clang/Su
 | clang's MSVC exception tables need a newer runtime | `-fno-exceptions` (the game throws none; SEH is kept) |
 | lld pulls in LIBCMT's console startup first, which clashes with the WinMain one | `/INCLUDE:_WinMainCRTStartup` |
 | lld turns on ASLR; the address table and SummonerFix need the exe at 0x400000 | `/DYNAMICBASE:NO /FIXED` |
-| the game writes into string literals (`localize_set_string`); clang puts them in read-only `.rdata` | `/MERGE:.rdata=.data` (L2 fixes the writers) |
+| the game writes into string literals (`localize_set_string`); clang puts them in read-only `.rdata` | `/MERGE:.rdata=.data` at first; since L2 the writer is fixed and literals are read-only (`--writable-literals` restores the merge) |
 | VC6's objects have no SafeSEH tables | `/SAFESEH:NO` |
 
 **Test (Observed, 2026-10-25):** the fixed build's checks, `Sum-fixed-clang.exe` against three runs of the original,
@@ -160,6 +160,59 @@ SummonerFix's fixes on, and the VC6 `Sum-fixed.exe` through the same checks the 
   with `Sum-rebuilt`'s address table, which showed about 475 differing symbols for clang.
 - The two return fixes were made after the save run. The screens were checked again with them (the lower pixel
   counts above).
+
+## L2: warning-clean (2026-10-25)
+
+The clang build defines `MODERN_BUILD` and writes its warnings to `build/<folder>-clang/warnings.txt`. They are
+`-Wall -Wextra` without the classes that only report the decompiled style: unused names, signed/unsigned compares,
+and the upper-case file names of VC6's headers. VC6 never sees `MODERN_BUILD`, and the full strict sweep still matches
+all 5,613 functions.
+
+**Warnings: 708 distinct before, 6 now.** The 6 are listed under the candidates below (the door sound boxes).
+
+| Kind | Count | Fix |
+|---|---|---|
+| writable strings | 570 | 39 name tables and the read-only literal pointers became `const char *`. `character_load` / `character_create_base` take `const char *const *`. The few `char *` APIs that return or store a literal cast it |
+| `sprintf(buf, XSTR(...))` with translated text as the format | 56 | `"%s"` under `MODERN_BUILD` (a `%` in a translation was read as a format) |
+| delete through a type with a non-virtual destructor | 17 | `Character`, `ui_window`, `ui_static` and `ui_button` are `final` in the modern build (`MODERN_FINAL`, `vsdk.h`). Elsewhere the destructor the binary calls is written out |
+| `memset` / `memcpy` on a class | 14 | `(void *)` casts, in every build |
+| the address of a temporary (D15902) | 11 | named locals under `MODERN_BUILD` |
+| self-assignments (the D10702 / D25504 matching aid) | 4 | the clamp written out under `MODERN_BUILD` |
+| uninitialised on some path, out of bounds, format types, parentheses, explicit constructor calls, a deprecated implicit copy | about 36 | each read in the code: braces and parentheses that keep the parse, defined values under `MODERN_BUILD`, defaulted copy constructors for `vector2` / `matrix43` under `MODERN_BUILD` |
+
+**No more writes into string literals.** The original rewrote one: `localize_load_strings` passes "NULL Format
+String" to `localize_set_string`, which unescapes it in place. The modern build passes a copy. So the clang build now
+links with read-only literals: lld's `/MERGE:.rdata=.data` is gone, and `--writable-literals` brings it back if
+another writer shows up.
+
+**Test (Observed, 2026-10-25),** with read-only literals and the fixed clock
+([Timing bugs](../sum-exe/timing-bugs.md#the-fixed-builds-port-of-the-fix-lost-time-found-and-fixed-2026-10-25)):
+- No fault anywhere: menu, save load, play, level warps, the four save levels and the four screens.
+- The game clock runs at 95.7% of real time, as the original does (96.1%).
+- Memory: 8 / 9 / 15 / 7 symbols differ of 3,290.
+- Screens: the main menu, the prologue at 12 s and the inventory are identical; the character screen differs by
+  117 pixels.
+- Saves: about 230 dwords per level beyond the original runs' spread. They are timing, not logic: the party timers
+  show 7,231 ms since the warp against 7,197-7,203 ms in the original runs, which this time agreed unusually closely.
+  The walking characters' positions follow from those 30 ms. The VC6 fixed build was 3-5 dwords in the run before.
+
+**Candidates for the bug list** (found in the code while fixing warnings; not yet seen in game, so not yet on
+[Bugs in the original game](../sum-exe/game-bugs.md)):
+- **Script editor, door sounds** (`script_editor_list_door_sounds` `0x4e53a0`): six `sprintf("%.1f", byte)` calls
+  print a double made of the byte and the next stack dword. The minimum range, volume and roll-off boxes never show
+  the real values, and OK writes the shown text back. The same file converts correctly elsewhere (volume x 1/255).
+  These are the 6 remaining warnings.
+- **Script editor, creature level** (`0x4ec730`): `if (0.0f < v || 100.0f > v) v = 100.0f;` is true for every number,
+  so every skill but index 2 becomes 100. A clamp to 0..100 was meant.
+- **Projected bitmaps** (`gr_bitmap_3d_projected` and its neighbour in `unnamed_gr_line_0x53e520.cpp`):
+  `if (!pnt->flags & 1)` returns only for flags 0, so a vertex behind the viewer (flag 2, no screen coordinates) is
+  drawn from coordinates never computed. `!(pnt->flags & 1)` was meant.
+- **EAX check** (`unnamed_ds3d_0x55ddb0.cpp`): `support & SET | GET` tests only Set support.
+- **`objects_free_all`** deletes every object through `obj *`, whose destructor is not virtual, so a derived
+  object's own destructor never runs (a leak at level unload, not a corruption).
+- Smaller: `File::read_matrix43` writes one float past the matrix (dead code); the Glide texture paths store an
+  uninitialised format for two bitmap formats; the cutscene table parse writes an int into a `short` (harmless in
+  VC6's frame); a debug trace prints an int with `%f`.
 
 ## Recommendation
 

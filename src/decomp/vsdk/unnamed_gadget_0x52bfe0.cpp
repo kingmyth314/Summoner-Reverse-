@@ -338,7 +338,12 @@ void ui_gadget::set_focus()
 // 0x52c630  Confidence: exact.
 void ui_gadget::clear_focus()
 {
+#ifdef MODERN_BUILD
+    // The same test without `this` as a bool (a modern compiler may assume this != NULL and drop it).
+    if (ui_current_gadget == this && ui_current_gadget != NULL) {
+#else
     if (ui_current_gadget == this && this) {
+#endif
         ui_current_gadget = NULL;
         send_event(4, UI_USE_ID);
     }

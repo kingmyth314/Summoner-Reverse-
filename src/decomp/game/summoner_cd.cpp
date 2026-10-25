@@ -140,7 +140,9 @@ int cd_set_root(int drive)
         strcpy(cd_root, "");
         return 0;
     }
-#ifdef SHIPPED_NOCD
+#if defined(SHIPPED_NOCD) && defined(MODERN_BUILD)
+    sprintf(cd_root, ".\\");                          // the patched format has no conversion for the drive
+#elif defined(SHIPPED_NOCD)
     sprintf(cd_root, ".\\", drive + 'A');
 #else
     sprintf(cd_root, "%c:\\", drive + 'A');

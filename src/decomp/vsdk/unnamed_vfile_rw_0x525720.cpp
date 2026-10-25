@@ -207,10 +207,17 @@ void File::read_matrix43(matrix43 *m, int min_ver, const matrix43 *def)
     m->m[3][0] = read_float(0, 0.0f);
     m->m[3][1] = read_float(0, 0.0f);
     m->m[3][2] = read_float(0, 0.0f);
+#ifdef MODERN_BUILD
+    // The same in-bounds stores; the 1.0f one float past the matrix is left out (no caller).
+    m->m[1][0] = 0.0f;
+    m->m[2][0] = 0.0f;
+    m->m[3][0] = 0.0f;
+#else
     m->m[0][3] = 0.0f;
     m->m[1][3] = 0.0f;
     m->m[2][3] = 0.0f;
     m->m[3][3] = 1.0f;
+#endif
 }
 
 // 0x525c90  Confidence: exact.

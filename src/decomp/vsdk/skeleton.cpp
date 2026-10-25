@@ -410,7 +410,7 @@ int skeleton_mem_limit;               // 0x2ee45a8
 // 0x543d20  Confidence: exact (the member constructors, then the memset).
 skeleton::skeleton()
 {
-    memset(this, 0, sizeof(skeleton));
+    memset((void *)this, 0, sizeof(skeleton));
 }
 
 // 0x543d50 (sum.symbols: skeleton_add)  Confidence: exact (store order; the fourth argument is not read).

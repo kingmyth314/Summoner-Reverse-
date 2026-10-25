@@ -629,13 +629,21 @@ void hud_confirm_level_exit()
             level_format_display_name(name, level);
             sprintf(text, XSTR("Enter %s?", 650), name);
         } else {
+#ifdef MODERN_BUILD
+            sprintf(text, "%s", XSTR("Enter location?", 651));   // translated text, not a format
+#else
             sprintf(text, XSTR("Enter location?", 651));
+#endif
         }
     } else if (game_flags & 2) {
         int endgame = level_table_find_id(level);
 
         if (endgame == -1)
+#ifdef MODERN_BUILD
+            sprintf(text, "%s", XSTR("Exit level?", 652));   // translated text, not a format
+#else
             sprintf(text, XSTR("Exit level?", 652));
+#endif
         else {
             char *fmt = XSTR("Exit to %s?", 653);
 
@@ -645,7 +653,11 @@ void hud_confirm_level_exit()
         level_format_display_name(name, level);
         sprintf(text, XSTR("Exit to %s?", 653), name);
     } else {
+#ifdef MODERN_BUILD
+        sprintf(text, "%s", XSTR("Exit level?", 652));   // translated text, not a format
+#else
         sprintf(text, XSTR("Exit level?", 652));
+#endif
     }
 
     buttons[0] = XSTR("Yes", 654);
@@ -977,7 +989,11 @@ void hud_key_save()
     case 2:
         level_format_display_name(name, cur_level_index);
         if (!_stricmp(name, "unknown"))
+#ifdef MODERN_BUILD
+            sprintf(text, "%s", XSTR("Cannot save here.", 658));   // translated text, not a format
+#else
             sprintf(text, XSTR("Cannot save here.", 658));
+#endif
         else
             sprintf(text, XSTR("Cannot save in %s.", 659), name);
         break;
@@ -1283,11 +1299,19 @@ void quicksave()
     saveload_capture_thumbnail();
     conversation_db.save_state();
     if (SAVEGAME_HM->write(filename, 0, "Quick save")) {
+#ifdef MODERN_BUILD
+        sprintf(message, "%s", XSTR("Quick save successful.", 669));   // translated text, not a format
+#else
         sprintf(message, XSTR("Quick save successful.", 669));
+#endif
         hud_show_message(message);
         return;
     }
+#ifdef MODERN_BUILD
+    sprintf(message, "%s", XSTR("Error during quick save.", 670));   // translated text, not a format
+#else
     sprintf(message, XSTR("Error during quick save.", 670));
+#endif
     if (game_flags & 1)
         game_pause(0, 0);
     ui_message_box_show(XSTR("Quick save", 665), message, -1, -1, 1, buttons, 0, 1);
@@ -1898,14 +1922,26 @@ void hud_draw_camera_mode()
 
     switch (mode) {
     case 2:
+#ifdef MODERN_BUILD
+        sprintf(text, "%s", XSTR("auto", 683));   // translated text, not a format
+#else
         sprintf(text, XSTR("auto", 683));
+#endif
         break;
     case 0:
+#ifdef MODERN_BUILD
+        sprintf(text, "%s", XSTR("low", 684));   // translated text, not a format
+#else
         sprintf(text, XSTR("low", 684));
+#endif
         break;
     case 1:
     case 3:
+#ifdef MODERN_BUILD
+        sprintf(text, "%s", XSTR("high", 685));   // translated text, not a format
+#else
         sprintf(text, XSTR("high", 685));
+#endif
         break;
     default:
         return;
@@ -2088,7 +2124,11 @@ void draw_game_over()
     screen_h = gr_screen_height();
     if (!(game_flags & 1))
         return;
+#ifdef MODERN_BUILD
+    sprintf(text, "%s", XSTR("Game Over. Press any key to continue", 686));   // translated text, not a format
+#else
     sprintf(text, XSTR("Game Over. Press any key to continue", 686));
+#endif
     gr_get_string_size(&w, &h, text, -1, -1);
     gr_set_color(255, 255, 255, 255);
     gr_string((screen_w - w) / 2, screen_h / 3, text, -1, gr_string_mode);

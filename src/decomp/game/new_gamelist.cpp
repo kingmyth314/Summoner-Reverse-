@@ -272,19 +272,39 @@ void gamelist_show_join_error(int code)
         strcpy(buf, XSTR("Your data does not match the server's data.", 793));
         break;
     case 9:
+#ifdef MODERN_BUILD
+        sprintf(buf, "%s", XSTR("Your level is too low to join this game.", 794));   // translated text, not a format
+#else
         sprintf(buf, XSTR("Your level is too low to join this game.", 794));
+#endif
         break;
     case 10:
+#ifdef MODERN_BUILD
+        sprintf(buf, "%s", XSTR("Your level is too high to join this game.", 795));   // translated text, not a format
+#else
         sprintf(buf, XSTR("Your level is too high to join this game.", 795));
+#endif
         break;
     case 11:
+#ifdef MODERN_BUILD
+        sprintf(buf, "%s", XSTR("You cannot join games of that difficulty level yet.", 796));   // translated text, not a format
+#else
         sprintf(buf, XSTR("You cannot join games of that difficulty level yet.", 796));
+#endif
         break;
     case 12:
+#ifdef MODERN_BUILD
+        sprintf(buf, "%s", XSTR("You have not unlocked that level yet.", 797));   // translated text, not a format
+#else
         sprintf(buf, XSTR("You have not unlocked that level yet.", 797));
+#endif
         break;
     case 13:
+#ifdef MODERN_BUILD
+        sprintf(buf, "%s", XSTR("No response from server.", 798));   // translated text, not a format
+#else
         sprintf(buf, XSTR("No response from server.", 798));
+#endif
         break;
     default:
         return;

@@ -1010,8 +1010,8 @@ int s3d_read_mesh_ref(File *f, lobj *mesh, lobj_face *ref)
         if (!mesh->lightmap_boxes)
             mesh->lightmap_boxes = (s3d_box *)level_mempool.allocate_in_mempool(mesh->mesh->num_faces * sizeof(s3d_box));
         box = &mesh->lightmap_boxes[ref - mesh->faces];
-        memcpy(&box->mins, &mins, sizeof(vector3));   // D18401: memcpy, not vector3's operator=
-        memcpy(&box->maxs, &maxs, sizeof(vector3));
+        memcpy((void *)&box->mins, &mins, sizeof(vector3));   // D18401: memcpy, not vector3's operator=
+        memcpy((void *)&box->maxs, &maxs, sizeof(vector3));
     }
     return f->error();
 }

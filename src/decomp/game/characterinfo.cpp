@@ -2603,11 +2603,12 @@ void characterinfo_alloc_level_buffers()
             continue;
         }
         c->instance = charinfo_create_character_instance(c->info, false);
-        if (game_flags & 2)
+        if (game_flags & 2) {
             if (c->equipment[7] && c->equipment[7]->type->slot == 8)
                 c->apply_hero_model(1);
             else
                 c->apply_hero_model(0);
+        }
         characterinfo_load_party_anims(c->info, c->equipment[5] ? c->equipment[5]->type->weapon_class : 0, true, false);
     }
     if (game_flags & 1) {

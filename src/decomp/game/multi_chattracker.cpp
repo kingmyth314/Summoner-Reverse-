@@ -593,7 +593,11 @@ char *chat_process_irc_message(char *line, int mode)
         return NULL;
     // ERR_ERRONEUSNICKNAME
     if (!stricmp(command, "432")) {
+#ifdef MODERN_BUILD
+        sprintf(chat_irc_format_buf, "%s", XSTR("Your nickname contains invalid characters", 244));   // not a format
+#else
         sprintf(chat_irc_format_buf, XSTR("Your nickname contains invalid characters", 244));
+#endif
         irc_queue_command(IRC_CMD_DISCONNECTED, NULL, 0);
         return chat_irc_format_buf;
     }

@@ -282,7 +282,7 @@ bool gr_bitmap_3d_projected(gr_vertex *pnt, float angle, float size, gr::Mode mo
     list[3] = &v[0];
     if (!(pnt->flags & 1))
         gr_project_vertex(pnt);
-    if (!pnt->flags & 1)
+    if ((!pnt->flags) & 1)
         return false;
     sa = (float)sin(angle);
     ca = (float)cos(angle);
@@ -360,7 +360,7 @@ bool gr_bitmap_3d_oriented_quad(gr_vertex *pnt, float angle, float width, float 
     list[3] = &v[0];
     if (!(pnt->flags & 1))
         gr_project_vertex(pnt);
-    if (!pnt->flags & 1)
+    if ((!pnt->flags) & 1)
         return false;
     sa = (float)sin(angle);
     ca = (float)cos(angle);

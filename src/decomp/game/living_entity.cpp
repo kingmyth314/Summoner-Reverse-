@@ -1359,10 +1359,16 @@ void Character::on_death()
         if (game_flags & GF_MULTIPLAYER)
             xp_total4 = mp_netgame_num_players * xp_total4;
         if (n4 > 0) {
+#ifdef MODERN_BUILD
+            share = xp_total4 / n4;    // the original's self-copy (D10702) written plainly
+            if (!(share < 2147483648.0f))
+                share = 2147483648.0f;
+#else
             if ((share = xp_total4 / n4) < 2147483648.0f)    // the binary copies share onto itself (D10702)
                 share = share;
             else
                 share = 2147483648.0f;
+#endif
             sprintf(text, XSTR("+%.f xp", 324), (double)(int)(n4 * share + 0.5f));
             set_floating_text(text, 2.0f, 0x32, 0xb4, 0x32);
             if (!MP_IS_CLIENT()) {
@@ -3185,10 +3191,16 @@ void Character::update_status_effects()
                         }
                         if (v < 0.0f) {
                             res_magic = get_resistance(3);
+#ifdef MODERN_BUILD
+                            v = (1.0f - res_magic) * v;    // the original copies v onto itself when < 0
+                            if (!(v < 0.0f))
+                                v = 0.0f;
+#else
                             if ((v = (1.0f - res_magic) * v) < 0.0f)
                                 v = v;
                             else
                                 v = 0.0f;
+#endif
                         }
                     }
                     add_hp(v, status[s].source, 0, false);
@@ -4145,7 +4157,11 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
             else
                 fx = fx_add_effect(spell_get_hit_effect(spell), pos, orient, 1);
             dmg = hp * 0.5f;
+#ifdef MODERN_BUILD
+            printf("jade dmg: %d\n", (int)dmg);    // the original passes a double to %d (debug output only)
+#else
             printf("jade dmg: %d\n", (double)dmg);
+#endif
             add_hp(-dmg, source, 1, false);
         }
         break;
@@ -4315,10 +4331,16 @@ void Character::get_hit_by_spell(int spell, int source, vector3 *pos, matrix *or
             ASSIGN_MAX(leech, leech, 0);
         }
         add_ap((float)-leech);
+#ifdef MODERN_BUILD
+        gain = (float)leech;    // D25504's self-copy written plainly
+        if (!(gain < 20.0f))
+            gain = 20.0f;
+#else
         if ((gain = (float)leech) < 20.0f)    // D25504: ASSIGN_MIN with the store in its test (fst)
             gain = gain;
         else
             gain = 20.0f;
+#endif
         src_n->add_ap(gain);
         play_flinch(0x82);
         break;
@@ -4711,10 +4733,16 @@ void Character::spell_apply_hit_effects(spell_hit *h)
                 float gain;
 
                 add_ap(-(float)h->iamount);
+#ifdef MODERN_BUILD
+                gain = (float)h->iamount;    // the original's self-copy (D10702) written plainly
+                if (!(gain < 20.0f))
+                    gain = 20.0f;
+#else
                 if ((gain = (float)h->iamount) < 20.0f)     // the binary copies gain onto itself (D10702)
                     gain = gain;
                 else
                     gain = 20.0f;
+#endif
                 origin->add_ap(gain);
             }
             if (h->flinch)
@@ -4942,8 +4970,12 @@ int Character::move_trigger_fired(int trigger, bool latch)
 {
     int i;
 
+#ifdef MODERN_BUILD
+    (void)latch;    // the original sets it for trigger 9 and never reads it
+#else
     if (trigger == 9)
         latch = true;
+#endif
     for (i = 0; i < 3; i++) {
         if (cur_move == NULL)
             return -1;

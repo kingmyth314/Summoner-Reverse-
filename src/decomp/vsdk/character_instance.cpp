@@ -80,9 +80,9 @@ void character_instance::alloc_buffers()
     int anims = character->num_anims;
     if (anims) {
         bone_cache = new ci_bone_matrix[num_bones];
-        memset(bone_cache, 0, num_bones * sizeof(ci_bone_matrix));
+        memset((void *)bone_cache, 0, num_bones * sizeof(ci_bone_matrix));
         skin_matrices = new matrix43[num_bones];
-        memset(skin_matrices, 0, num_bones * sizeof(matrix43));
+        memset((void *)skin_matrices, 0, num_bones * sizeof(matrix43));
         times = new int[CI_MAX_ANIMS];
         weights = new float[CI_MAX_ANIMS];
         memset(weights, 0, CI_MAX_ANIMS * sizeof(float));
@@ -97,13 +97,13 @@ void character_instance::alloc_buffers()
 // For the static ui_character_instance (init_character_instance_5bd820); everything zero.
 character_instance::character_instance()
 {
-    memset(this, 0, sizeof(*this));
+    memset((void *)this, 0, sizeof(*this));
 }
 
 // 0x519700  Confidence: exact (store order of the fields set after alloc_buffers).
 character_instance::character_instance(ca_character *ch)
 {
-    memset(this, 0, sizeof(*this));
+    memset((void *)this, 0, sizeof(*this));
     held_anim = -1;
     action_anim = -1;
     state_anim = -1;

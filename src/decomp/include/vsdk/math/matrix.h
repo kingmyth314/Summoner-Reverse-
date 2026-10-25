@@ -69,6 +69,10 @@ extern matrix identity_matrix;                        // 0x2692ea0 (matrix.cpp)
 class matrix43 {                                      // rotation rows m[0..2] + position m[3]
 public:
     matrix43() {}                                     // folded with 0x505530 (empty)
+#ifdef MODERN_BUILD
+    // The member-wise copy the implicit one does (C++11 deprecates it next to a user operator=).
+    matrix43(const matrix43 &) = default;
+#endif
     matrix43(const vector3 &r, const vector3 &u, const vector3 &f, const vector3 &p);  // 0x5113f0
     matrix43(const matrix &rot);                      // 0x5113a0 matrix43__matrix43_rot (zero position; decomp20)
     matrix43(const vector3 &pos, const matrix &rot);  // 0x511450 matrix43__matrix43_pos_rot

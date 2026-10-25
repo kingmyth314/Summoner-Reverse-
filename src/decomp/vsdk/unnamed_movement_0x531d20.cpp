@@ -109,11 +109,11 @@ void movement_read_controls(vector3 *pos, matrix *orient, float dt)
     vector3 max_vel = movement_max_vel;
     vector3 max_rotvel = movement_max_rotvel;
     if (Allow_movement_vel_change) {
-        if (key_is_down(KEY_RSHIFT) | key_is_down(KEY_LSHIFT)) {
+        if ((int)key_is_down(KEY_RSHIFT) | (int)key_is_down(KEY_LSHIFT)) {
             max_vel *= 5.0f;
             max_rotvel *= 5.0f;
         }
-        if (key_is_down(KEY_RCONTROL) | key_is_down(KEY_LCONTROL)) {
+        if ((int)key_is_down(KEY_RCONTROL) | (int)key_is_down(KEY_LCONTROL)) {
             max_vel *= 0.1f;
             max_rotvel *= 0.25f;
         }

@@ -289,7 +289,11 @@ void playmenu_open_save()
         buttons[0] = localize_strings[231];
         level_format_display_name(level_name, cur_level_index);
         if (!_stricmp(level_name, "unknown"))
+#ifdef MODERN_BUILD
+            sprintf(text, "%s", localize_strings[658]);              // translated text is not a format
+#else
             sprintf(text, localize_strings[658]);                    // "Cannot save here."
+#endif
         else
             sprintf(text, localize_strings[659], level_name);        // "Cannot save in %s."
         ui_message_box_show(localize_strings[645], text, -1, -1, 1, buttons, NULL, 0);

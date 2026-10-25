@@ -487,7 +487,12 @@ void cutscene_parse_table()
             effect = (char *)cutscene_alloc_pool.Alloc(strlen(buf2) + 1);
             strcpy(effect, buf2);
             tbl.ReadLine(ln, 0x100);
+#ifdef MODERN_BUILD
+            // "%hd": VC6 gave the short a four-byte slot; a modern frame may not (same low 16 bits).
+            count = sscanf(ln, "%d %hd", &shot_num, &length);
+#else
             count = sscanf(ln, "%d %d", &shot_num, &length);
+#endif
             if (count > 0) {
                 ent->shot_effects[ent->num_shot_effects] = (cutscene_shot_effect *)cutscene_alloc_pool.Alloc(0x10);
                 ent->shot_effects[ent->num_shot_effects]->name = effect;

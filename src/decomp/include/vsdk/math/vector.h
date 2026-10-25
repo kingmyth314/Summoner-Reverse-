@@ -183,6 +183,10 @@ public:
     // avoidance tables static initialisers 0x4a6720 / 0x4a6760 / 0x4a67a0 pass 0x505530 to `vector
     // constructor iterator` for their vector2 arrays (count 30 / 8, size 8).
     vector2() {}
+#ifdef MODERN_BUILD
+    // The member-wise copy the implicit one does (C++11 deprecates it next to a user operator=).
+    vector2(const vector2 &) = default;
+#endif
     // decomp60: inline; the COMDATs 0x525650 / 0x5256a0 / 0x525700 at the end of the vector unit.
     vector2(float x, float y)                         // 0x525650 vector2__vector2 (ret 8)
     { this->x = x; this->y = y; }

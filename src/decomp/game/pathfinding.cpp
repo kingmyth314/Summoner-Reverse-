@@ -635,7 +635,7 @@ void seg2d_closest_point(vector2 *p, const seg2d *s, vector2 *out)
     pf_edge line;
 
     if (vector2::nearly_equal(s->a, s->b)) {
-        memcpy(out, s->a, sizeof(vector2));
+        memcpy((void *)out, s->a, sizeof(vector2));
         return;
     }
     line.a = p;
@@ -644,9 +644,9 @@ void seg2d_closest_point(vector2 *p, const seg2d *s, vector2 *out)
     perp.y = p->y - (s->b->x - s->a->x);
     seg2d_line_intersect(s, &line, out, 0);
     if (seg2d_param < 0.0f)
-        memcpy(out, s->a, sizeof(vector2));
+        memcpy((void *)out, s->a, sizeof(vector2));
     else if (seg2d_param > 1.0f)
-        memcpy(out, s->b, sizeof(vector2));
+        memcpy((void *)out, s->b, sizeof(vector2));
 }
 
 // 0x49dbe0  Confidence: exact.

@@ -390,7 +390,11 @@ void pickup_take_selected()
         obj_mark_for_delete(pickup_container);
 
     if (picked == 1) {
+#ifdef MODERN_BUILD
+        sprintf(msg, "%s", XSTR("1 item picked up", 700));   // translated text is not a format
+#else
         sprintf(msg, XSTR("1 item picked up", 700));
+#endif
         hud_show_message(msg);
     } else if (picked > 1) {
         sprintf(msg, XSTR("%d items picked up", 701), picked);

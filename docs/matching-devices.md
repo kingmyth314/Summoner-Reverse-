@@ -118,6 +118,9 @@ through: a name, a scope, a local, an aliasing pointer, a control-flow edge or a
 These change no behaviour under VC6, but they are not how anyone wrote the code. The
 [fixed build](builds.md#the-fixed-build) replaces them with plain C++ when it touches the function. Two of them
 return nothing, which is undefined behaviour under a modern compiler, so a compiler port has to add the return.
+The clang build ([Modern C++ port](future/modern-port.md#l2-warning-clean-2026-10-25)) has the plain form of each
+one a warning points at, under `MODERN_BUILD`: the returns (`__clang__`), the `&(a+b)` temporaries, the
+self-assignments, and the `#pragma optimize("w")`, which it skips.
 
 | Device | Decision |
 |---|---|

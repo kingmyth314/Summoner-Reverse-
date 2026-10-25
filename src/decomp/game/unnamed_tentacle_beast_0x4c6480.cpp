@@ -665,8 +665,8 @@ static void exp_tentacle_fly(tentacle_info *t, Character *r)
     float damp;
     const char *why = "floor";
 
-    memset(&ray, 0, sizeof ray);
-    memset(&hit, 0, sizeof hit);
+    memset((void *)&ray, 0, sizeof ray);
+    memset((void *)&hit, 0, sizeof hit);
     ray.start = r->pos;
     ray.dir = t->throw_velocity * dt;
     ray._unk18 = 0.01f;

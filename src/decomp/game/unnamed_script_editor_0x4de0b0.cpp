@@ -5792,8 +5792,14 @@ bool script_editor_creature_ok(int event, int value)
         if (i == 2)
             continue;
         v = ((Character *)script_editor_sel.object)->skill[i] * scale;
+#ifdef MODERN_BUILD
+        // The original's test (0 < v || 100 > v) holds for every number, so each skill becomes 100.
+        if (v == v)
+            v = 100.0f;
+#else
         if (0.0f < v || 100.0f > v)
             v = 100.0f;
+#endif
         ((Character *)script_editor_sel.object)->skill[i] = (ubyte)(int)v;
     }
     script_editor_creature_window.set_disabled(true);
