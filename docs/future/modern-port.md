@@ -195,6 +195,8 @@ another writer shows up.
 - Saves: about 230 dwords per level beyond the original runs' spread. They are timing, not logic: the party timers
   show 7,231 ms since the warp against 7,197-7,203 ms in the original runs, which this time agreed unusually closely.
   The walking characters' positions follow from those 30 ms. The VC6 fixed build was 3-5 dwords in the run before.
+  (Corrected later the same day: part of it was not timing. Some NPCs had an extra AI goal from two float roundings
+  in clang's code, found and fixed in [L3b](#the-clang-builds-extra-npc-goals-two-float-roundings-2026-10-25).)
 
 **What the warnings pointed at** (each candidate checked against the binary on 2026-10-25; see
 [Bugs in the original game](../sum-exe/game-bugs.md)):
@@ -378,13 +380,58 @@ actual load address.
     the NPC goal difference below (and its consequences), which the 32-bit clang build shows too; the party records
     match, timers included.
   - The memory check does not apply: the layouts differ by design.
-- **Open: clang's NPC goals.** In both clang builds, some NPCs and monsters have a second AI goal that the original
-  does not (the save check's differences at record offsets `+0xb2`..`+0xe1`, the second of the five saved goals). The
-  VC6 fixed build shows none. Compiler-dependent behaviour, such as argument evaluation order or floating-point
-  evaluation, is the suspect; it is not specific to 64-bit.
+- **Solved: clang's NPC goals** (below).
+
+### The clang builds' extra NPC goals: two float roundings (2026-10-25)
+
+**The symptom.** In both clang builds, some NPCs and monsters saved a second AI goal that the original's never have
+(the save check's differences at record offsets `+0xb2`..`+0xe1`, the second of five saved goals). There were 41 such
+dwords in 6 records on Wolong2, and `ai_goal_next_id` showed 6 more goals created. The VC6 fixed build had none.
+
+**Found by bisecting objects, then functions** (**Observed**):
+- Both builds use the MSVC ABI and VC6's runtime, so their objects link together. `link-build --mix FILE` takes the
+  units listed in FILE from clang and every other unit from the VC6 build. Each mix ran the Wolong2 save check, and
+  the second-goal dwords were counted.
+- All VC6: 0. All clang: 41. Bisecting the units, two were each enough on their own:
+  `game/script_internal.cpp` (41) and `game/unnamed_lobj_raycast_0x4ae890.cpp` (25).
+- Narrowing the cause:
+  - `script_internal.cpp` built by clang at `-O0` gave 0, so the cause is in the optimised code.
+  - `-fno-delete-null-pointer-checks -fwrapv` (null checks kept, signed overflow wrapping) still gave 41, and
+    `-ftrivial-auto-var-init=zero` (every local zeroed) also gave 41. So neither those optimisations nor
+    uninitialised locals cause it.
+  - Bisecting the functions with `#pragma clang optimize off` left one function in each unit:
+    `script_parse_navpoints` and `lobj_raycast`.
+- **The cause: where x87 intermediates are rounded.** Both functions are exact byte matches, so the original's code
+  shows where VC6 stores, and so rounds to float:
+  - In `script_parse_navpoints` (0x4db939..0x4db999), when a navpoint is dropped onto the ground: the product
+    `dir.y * t`, then the sum with `start.y`, then the height difference. That height is zero, give or take the last
+    bit, for a navpoint placed on the ground, and its sign decides whether the navpoint is snapped.
+  - In `lobj_raycast` (0x4ae935..0x4ae978), for the ray's end point `dir + start - pos`: the y and z sums are rounded
+    before `pos` is taken off, the x sum is not.
+  - clang kept these values in 80-bit registers, so borderline decisions went the other way: a navpoint snapped
+    differently, a ray grazing a face hit or missed it.
+- **The fix**, under `MODERN_BUILD` only: the same steps, done in `double` (two floats multiply or add exactly in
+  double, and VC6's x87 runs at 53-bit precision) and stored through `volatile float`s where the original stores.
+  That gives the same rounding on x87 and on SSE (64-bit).
+- **Result:** with both fixes, the all-clang mix has 1 second-goal dword (0 in each unit's own mix).
+- **The 64-bit exe keeps some** (24-25 dwords in 3-4 records on each test level, after the fixes). x86-64 does float
+  maths in SSE, which rounds every step to 32 bits, where VC6 keeps 53-bit intermediates in registers. So any
+  borderline decision in the game can go the other way, not only the two spots the x87 build needed. This is the
+  float difference the plan expected at L3. Making it vanish would mean writing the original's rounding into every
+  float-sensitive function. Later screens of the same run: main menu, prologue and inventory identical to the
+  original's, the character screen (its animated model) 468 pixels.
+
+**The other clang difference is the test's timing, not behaviour.** With clang's `vsdk/` code (the engine), the
+party timers in the save show 35-50 ms more game time since the level started than the original runs. The `game/`
+half alone gives none. The clang build's clock rate matches the original (96.0% against 96.1%), and the save check
+waits a fixed wall time after the level change. So, presumably, the clang engine loads the level slightly faster,
+and the extra time is spent playing. The walking characters' positions follow from those milliseconds.
+
+**Found on the way:** with SummonerFix loaded, `TestSaves` no longer worked in the 32-bit clang build. It changes
+the one "savegame" string in the exe's data, and the in-source host had added a second copy. The host now returns
+only "savetest" (or nothing), and `summoner.cpp` keeps the original's literal.
 
 **Next:**
-- The clang NPC goal difference above.
 - FFmpeg for the Bink movies.
 - Longer play in 64-bit: combat, spells, every level.
 

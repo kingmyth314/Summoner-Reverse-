@@ -33,7 +33,7 @@ bool modern_host();                            // the services are on (SummonerF
 int  modern_ini_int(const char *section, const char *key, int def);
 void modern_ini_str(const char *section, const char *key, const char *def, char *out, int size);
 const char *modern_dir();                      // the exe's folder, no trailing backslash
-const char *modern_save_folder();              // "savegame", or "savetest" with [Debug] TestSaves=1
+const char *modern_save_folder();              // "savetest" with [Debug] TestSaves=1, else NULL (the original's)
 void *modern_sum_va(unsigned int sum_addr);    // a Sum.exe address in this exe (the address table), NULL if unknown
 void modern_log(const char *fmt, ...);         // summonerfix.log beside the exe (the test tools read it)
 

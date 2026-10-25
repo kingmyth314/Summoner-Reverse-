@@ -248,7 +248,24 @@ void script_parse_navpoints(TextFile *tf)
         memset((void *)&hit, 0, sizeof(hit));
         lobj_raycast_all(&ray, &hit);
         hit_pos = ray.start + ray.dir * hit.t;
+#ifdef MODERN_BUILD
+        {
+            // A navpoint placed on the ground has a height of zero give or take the last bit, so the snap below
+            // depends on how the arithmetic rounds. The original's (VC6, x87 at 53-bit precision): the hit point
+            // rounded to float, then the difference rounded to float. clang keeps hit_pos.y in an 80-bit register
+            // (x87) or rounds each step to float (SSE), and some navpoints then snapped the other way, which gave
+            // their NPCs other goals (docs/future/modern-port.md, L3b). Here each step is rounded where the original's
+            // code (0x4db939..0x4db999) stores it: the product dir.y * t, the sum with start.y, the difference.
+            // In double, two floats multiply and add exactly; the volatile stores do the rounding.
+            volatile float dy = (float)((double)ray.dir.y * (double)hit.t);
+            volatile float hy = (float)((double)ray.start.y + (double)dy);
+            volatile float gh = (float)((double)np->pos.y - (double)hy);
+            hit_pos.y = hy;
+            np->ground_height = gh;
+        }
+#else
         np->ground_height = np->pos.y - hit_pos.y;
+#endif
         l = lobj_from_index(hit.face);
         np->layer = l->pick_layer(&hit_pos, 1);
         if (np->ground_height < 0.0f) {

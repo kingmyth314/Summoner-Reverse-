@@ -515,7 +515,7 @@ void setup_data_paths()
     path_internal = path_internal_copy = file_add_path("data\\internal", ".pfg .mlo .vis .vex .bsp .lkf .eax");
     path_players = file_add_path("players", ".plr");
 #ifdef MODERN_BUILD
-    path_savegame = file_add_path(modern_save_folder(), ".sav");   // savetest with [Debug] TestSaves=1 (modern/host.cpp)
+    path_savegame = file_add_path(modern_save_folder() ? modern_save_folder() : "savegame", ".sav");   // TestSaves (modern/host.cpp)
 #else
     path_savegame = file_add_path("savegame", ".sav");
 #endif

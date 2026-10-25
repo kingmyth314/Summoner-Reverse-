@@ -64,7 +64,20 @@ void lobj_raycast(int lobj_index, lobj_ray *ray, lobj_hit *hit, bool clear)
 
     vector3 d = ray->start - l->pos;
     ray->local_start = d.rotated(l->orient);
+#ifdef MODERN_BUILD
+    {
+        // Rounded where the original's code (0x4ae935..0x4ae978) rounds: dir + start is stored as a float for y and
+        // z, but kept at full precision for x, before l->pos is taken off. clang kept all three in registers, so
+        // rays grazing a face hit or missed it differently and some NPCs chose other goals
+        // (docs/future/modern-port.md, L3b).
+        volatile float ty = ray->dir.y + ray->start.y, tz = ray->dir.z + ray->start.z;
+        d.x = (float)(((double)ray->dir.x + (double)ray->start.x) - (double)l->pos.x);
+        d.y = (float)((double)ty - (double)l->pos.y);
+        d.z = (float)((double)tz - (double)l->pos.z);
+    }
+#else
     d = ray->dir + ray->start - l->pos;
+#endif
     vector3 r = d.rotated(l->orient);
     ray->local_dir = r - ray->local_start;
 

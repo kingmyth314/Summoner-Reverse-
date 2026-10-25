@@ -11,7 +11,7 @@ static bool host_on;
 static char host_dir[MAX_PATH];
 static char host_ini[MAX_PATH];
 static char host_log[MAX_PATH];
-static char host_save_folder[16] = "savegame";
+static bool host_test_saves;   // [Debug] TestSaves=1 without SummonerFix
 
 // The address table: Sum.exe address, size, this exe's address against the preferred base 0x400000
 // (tools/link-build.mjs writes <exe>.addr for the 32-bit and the x64 clang builds).
@@ -120,14 +120,17 @@ void modern_host_init()
         char dir[MAX_PATH];
         _snprintf(dir, MAX_PATH, "%s\\savetest", host_dir);
         CreateDirectoryA(dir, NULL);
-        strcpy(host_save_folder, "savetest");
+        host_test_saves = true;
         modern_log("modern host: save folder -> savetest (TestSaves)");
     }
 }
 
 bool modern_host() { return host_on; }
 const char *modern_dir() { return host_dir; }
-const char *modern_save_folder() { return host_save_folder; }
+// "savetest" with [Debug] TestSaves=1 without SummonerFix, else NULL: the caller keeps the original's "savegame"
+// literal, the one string SummonerFix's TestSaves finds and changes when it is loaded (a second copy in this unit
+// took its search away).
+const char *modern_save_folder() { return host_test_saves ? "savetest" : NULL; }
 
 int modern_ini_int(const char *section, const char *key, int def)
 {

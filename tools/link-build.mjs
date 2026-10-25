@@ -104,8 +104,19 @@ const definesFile = join(out, "defines.txt"), definesNow = defines.slice().sort(
 const definesChanged = !existsSync(definesFile) || readFileSync(definesFile, "latin1").trim() !== definesNow;
 if (definesChanged) console.log(`defines changed (now "${definesNow}"): recompiling every unit`);
 const fresh = (obj, source) => existsSync(obj) && !flag("--recompile") && !definesChanged && statSync(obj).mtimeMs >= statSync(source).mtimeMs;
+// --mix FILE (clang builds, for bisecting a clang-only behaviour): only the units listed in FILE (one per line, as in
+// vc6-matches.txt) are clang's; every other unit links the VC6 object of the same configuration's VC6 build
+// (build/<folder>/obj, which must be built and current). Both follow the MSVC ABI with VC6's runtime, so they link.
+const mixFile = opt("--mix");
+const mixSet = mixFile ? new Set(readFileSync(mixFile, "latin1").split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) : null;
+if (mixSet && (!useClang || x64)) { console.error("--mix needs --compiler clang (32-bit)"); process.exit(2); }
 for (const u of units) {
-  const cpp = join(src, u), obj = join(objDir, u.replace(/[\/\\]/g, "_").replace(/\.cpp$/, ".obj"));
+  const stem = u.replace(/[\/\\]/g, "_").replace(/\.cpp$/, ".obj");
+  if (mixSet && !mixSet.has(u)) {
+    objs.push(join(repo, "build", config.dir, "obj", stem));
+    continue;
+  }
+  const cpp = join(src, u), obj = join(objDir, stem);
   objs.push(obj);
   if (fresh(obj, cpp)) continue;
   const f = (flags.get(u) ?? "/O2 /GX /MT").split(/\s+/);
