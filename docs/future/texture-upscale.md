@@ -323,6 +323,24 @@ Both are in `tools/texture-upscale.mjs` (on by default; `--no-vbm`, `--no-fonts`
   and the cursors drawn from their upscaled VBMs. The menus, the Load screen text and the game drew correctly.
 - Both are part of the pack in the user's game folder.
 
+### Animation flicker (2026-10-25)
+
+The general model (used for the pack) and the anime-video model made for frame sequences (`realesr-animevideov3`)
+were compared on three animations (**Observed**). Flicker is each version's mean frame-to-frame change over that of a
+plain bilinear enlargement of the original frames (1.0 = no change added). Sharpness is the mean gradient, the same
+ratio.
+
+| Animation | Flicker, general | Flicker, anime-video | Sharpness, general | Sharpness, anime-video |
+|---|---|---|---|---|
+| `FireSmall01.vbm` (64x32, 4x, 26 frames) | 1.15 | 1.22 | 1.40 | 1.47 |
+| `firehaze01.vbm` (64x64, 4x, 36 frames) | 1.04 | 1.03 | 1.27 | 1.22 |
+| `grslnd-h2o.vbm` (128x128, 2x, 30 frames) | 1.40 | 1.23 | 1.53 | 1.34 |
+
+The extra change follows the extra detail: flicker over sharpness is 0.82-0.92 for both models on all three, so
+neither adds shimmer of its own. The tone correction ties every frame to its original. A sheet of four consecutive
+water frames shows both upscales as steady as the original, the general one with finer ripples. The pack keeps the
+general model.
+
 ### Order of work
 
 1. The VBM reader / writer and a comparison on a water, a fire and a cursor animation.
