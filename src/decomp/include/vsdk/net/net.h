@@ -109,7 +109,7 @@ LAYOUT_CHECK_32(reliable_socket, sizeof(reliable_socket) == 0xd2d);
 extern reliable_socket nw_reliable_sockets[NW_MAX_RELIABLE_SOCKETS];   // 0x2708ad0
 
 extern int nw_server_socket;                                        // 0x5a7dcc -1, the client's link
-extern unsigned int nw_udp_socket;                                  // 0x5a7dd0 SOCKET
+extern net_socket nw_udp_socket;                                    // 0x5a7dd0 SOCKET
 extern char nw_connection_speed[0x400];                             // 0x2707d2c
 extern int nw_network_status;                                       // 0x270812c
 extern int nw_reliable_resend_time;                                 // 0x2710e94
@@ -127,7 +127,7 @@ void nw_buffer_init(nw_packet_buffer *buf);                         // 0x517730
 void nw_buffer_push(nw_packet_buffer *buf, ubyte *data, int size, net_addr *from);  // 0x517780
 int  nw_buffer_pop(nw_packet_buffer *buf, ubyte *data, int *size, net_addr *from);  // 0x517820
 unsigned long nw_ras_init();                                        // 0x5178c0 dial-up IP, 0 if none
-void nw_set_socket_options(unsigned int sock);                      // 0x517ae0
+void nw_set_socket_options(net_socket sock);                        // 0x517ae0
 int  nw_reliable_reset();                                           // 0x517bf0 returns 1
 void nw_init_socket(unsigned short port);                           // 0x517c10
 int  nw_send_reliable_reply(net_addr *to, int seq, int send_time);  // 0x517d20 RNT_ACK

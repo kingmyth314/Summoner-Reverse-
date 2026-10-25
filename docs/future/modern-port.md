@@ -276,7 +276,7 @@ layout checks off under `_WIN64`):
 - **It runs:** the window, the main menu at 120 fps, the clock right, and mouse input through window messages.
 - **First crash, fixed:** the load screen's save list. `_findfirst` returns a pointer-sized handle that four
   functions kept in a `long`. They now use `find_handle` (`vsdk.h`): `long` in 32-bit builds, `intptr_t` in 64-bit.
-- **Second crash, open:** the level load, in the effect files. `.vfx` effects (and the animation tracks and attached
+- **Second crash, fixed in L3c below:** the level load, in the effect files. `.vfx` effects (and the animation tracks and attached
   lights) are loaded as one block of the file, and `relocate` turns their 32-bit offset fields into pointers in place
   (`reloc_ptr`, `ptr_relocate`). That is about 140 relocation calls in 10 units.
 
@@ -292,6 +292,47 @@ layout checks off under `_WIN64`):
      blocks then stay usable in place and the layouts stay those of the binary. The game uses far less than 2 GB.
   2. **Convert on load:** read each relocated block into separately allocated 64-bit structs, one converter per
      record type. That is more code, but it also lifts the 2 GB limit, which L4 may want.
+
+### L3c, first stage: the 64-bit exe loads a save (2026-10-25)
+
+**Option 1 chosen** (with the advisor). The 2 GB limit is not a regression: the shipped Sum.exe is a 32-bit exe without
+large-address awareness, so the game, texture pack included, already lives under 2 GB. Option 2 can replace it format
+by format later if L4 needs the room.
+
+**Checked first (Observed, a test program):**
+- Linked without large-address awareness, the stack, the heap (64 MB blocks too), `VirtualAlloc`, the exe and
+  `kernel32` all lie below 2 GB. Only `ntdll` stays high: it is mapped before the flag applies, and no game data
+  points into it.
+- clang's `__ptr32 __uptr` makes a 4-byte pointer that converts to and from an ordinary one. MinGW's `_mingw.h`
+  defines `__ptr32` as nothing; `vsdk.h` undoes that after including it.
+
+**What changed:**
+
+| Part | Change |
+|---|---|
+| `vsdk.h` | `PTR32`: `__ptr32 __uptr` under `_WIN64`, nothing in 32-bit builds. `LAYOUT_CHECK` holds in every build again; `LAYOUT_CHECK_32` holds in 32-bit builds only |
+| `vfx.h`, `effect_mem.h`, `skeleton.h` (the relocated formats) | all 122 pointer members are `PTR32`. Their 38 layout checks pass on x64: the file layouts are proven, not assumed |
+| `reloc_ptr`, `ptr_relocate` | work on 4-byte slots under `_WIN64` |
+| the other 173 failing layout checks | `LAYOUT_CHECK_32`: memory-only layouts. The save structures are written field by field. The packfile, file and line-file structures are in-memory handles. The multiplayer packets (`multi.h`, `net.h`) are to be looked at again when multiplayer is ported |
+| the 11 unions that mix a pointer with an `int` | the pointer is `PTR32`, so both halves are 4 bytes. The ground probe wrote a face pointer through the `int` half and the raycast read 8 bytes |
+| `delete` of a `PTR32` field | a cast to the field's own type gives an ordinary pointer |
+| sockets | `net_socket`: `unsigned int` in 32-bit builds, pointer-sized under `_WIN64`. An `unsigned int` never equals the 64-bit `INVALID_SOCKET` |
+| `link-build --arch x64` | links at 0x400000 and clears the large-address-aware and high-entropy flags in the PE header |
+
+The other narrowing warnings were checked by kind rather than one by one: `size_t` and pointer differences (265),
+`WPARAM` / `LPARAM` (5) and `time_t` (1) carry small values. Pointer-to-`int` casts lose nothing when every address is
+below 2 GB. Window styles (`SetWindowLongA` with `GWL_STYLE` / `GWL_EXSTYLE`), `ShellExecute`'s result and
+`_beginthread`'s result are used as 32-bit values.
+
+**Observed** with `tools/standalone-probe.ps1`: the 64-bit exe opens the load screen, loads the newest test save
+(level time from 66.5 s, as the 32-bit build loads it) and plays at 120 fps. VC6 still matches all 5,613 functions,
+and every build's address table is unchanged.
+
+**Next:**
+- Agent mode in the source (L3b), so the save, memory and screen checks can run on the 64-bit exe. The memory check
+  does not apply there, since the layouts differ by design; saves, screens and scenarios do.
+- FFmpeg for the Bink movies.
+- Longer play in 64-bit: combat, spells, every level.
 
 ## Recommendation
 

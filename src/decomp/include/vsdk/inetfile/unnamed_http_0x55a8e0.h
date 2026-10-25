@@ -58,7 +58,7 @@ public:
     char filename[100];                           // +0x39e
     bool aborting;                                // +0x402
     ubyte _pad403;
-    unsigned int sock;                            // +0x404 SOCKET
+    net_socket sock;                              // +0x404 SOCKET
     FILE *file;                                   // +0x408
     char recv_buffer[1000];                       // +0x40c
 };

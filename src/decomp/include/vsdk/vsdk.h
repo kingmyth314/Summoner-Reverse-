@@ -49,6 +49,14 @@ typedef intptr_t find_handle;
 typedef long find_handle;
 #endif
 
+// A WinSock SOCKET: unsigned int in the 32-bit builds (the original's declarations), pointer-sized in a 64-bit build,
+// where an unsigned int never equals INVALID_SOCKET and a failed socket() goes unnoticed (L3).
+#ifdef _WIN64
+typedef unsigned __int64 net_socket;
+#else
+typedef unsigned int net_socket;
+#endif
+
 // A pointer member of a structure that is also the layout of file data (the effect, animation and skeleton files,
 // loaded as one block and relocated in place): 4 bytes in every build (L3). The 64-bit exe is linked without
 // large-address awareness, so every address the game uses lies below 2 GB and fits; clang's __ptr32 converts to and

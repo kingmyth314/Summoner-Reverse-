@@ -61,9 +61,9 @@ public:
     char filename[100];                           // +0x266
     char recv_buffer[1000];                       // +0x2ca
     ubyte _pad6b2[2];
-    unsigned int listen_socket;                   // +0x6b4 SOCKET
-    unsigned int data_socket;                     // +0x6b8
-    unsigned int control_socket;                  // +0x6bc
+    net_socket listen_socket;                     // +0x6b4 SOCKET
+    net_socket data_socket;                       // +0x6b8
+    net_socket control_socket;                    // +0x6bc
     FILE *file;                                   // +0x6c0
 };
 LAYOUT_CHECK_32(ftp_get, sizeof(ftp_get) == 0x6c4);

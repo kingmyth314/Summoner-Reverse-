@@ -65,7 +65,7 @@ typedef DWORD (WINAPI *nw_RasGetProjectionInfo_t)(HANDLE, int, void *, DWORD *);
 
 // ---- .data (0x5a7dcc-0x5a7dd3) ----------------------------------------------------------------------
 int nw_server_socket = -1;                               // 0x5a7dcc
-unsigned int nw_udp_socket = INVALID_SOCKET;             // 0x5a7dd0
+net_socket nw_udp_socket = INVALID_SOCKET;               // 0x5a7dd0
 
 // ---- .bss (0x26b63f0-0x2710ebb, address order) ------------------------------------------------------
 nw_packet_buffer nw_recv_buffers[NW_NUM_BUFFERS];        // 0x26b63f0
@@ -269,7 +269,7 @@ unsigned long nw_ras_init()
 
 // 0x517ae0  Confidence: exact (the halving loop's form). Broadcast on, non-blocking, then the largest
 // receive buffer from 32 KB down that the stack accepts, but never below the current size.
-void nw_set_socket_options(unsigned int sock)
+void nw_set_socket_options(net_socket sock)
 {
     int current;
     int wanted;
