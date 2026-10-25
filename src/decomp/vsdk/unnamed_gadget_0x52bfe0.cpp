@@ -187,6 +187,9 @@ bool ui_gadget::send_event(int event, int value)
             return parent->send_event(event, value);
         return window->send_event(event, value);
     }
+#ifdef __clang__
+    return true;    // the clang build (docs/future/modern-port.md): VC6 returns the callback's AL, true here
+#endif
 }
 
 // 0x52c390  vtable slot 5. Confidence: exact. LOGIC FIX (D10700): each child gets the previous child's

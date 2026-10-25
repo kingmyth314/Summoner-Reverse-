@@ -107,14 +107,69 @@ Each rung is usable on its own, and each has its own test.
 - This is a new engine port. It is open-ended, and it slowly gives up the equivalence anchor. The `_unk` fields cannot
   be redesigned until they are understood.
 
+## L1 done: the clang build (2026-10-25)
+
+`node tools/link-build.mjs --config fixed --compiler clang` (or `experimental`) builds every unit with clang and links
+with lld: `build/link-fixed-clang/Sum-fixed-clang.exe`, `build/link-exp-clang/Sum-exp-clang.exe`
+([Tools](../tools.md#toolslink-buildmjs-the-standalone-rebuilt-exe)). Same tree, same defines, same units.
+
+**How the rung was met:**
+- **Compiler mode.** clang's MSVC mode (`--target=i686-pc-windows-msvc`, `_MSC_VER` 1200) with VC6's own headers and
+  libraries, not mingw. That keeps the MSVC name mangling, which the address table needs. It also keeps VC6's CRT,
+  so the game's own `operator new` / `delete` and its memory pools stay as they are.
+- **The 11 errors.** The address of a temporary (D15902) and the narrowing case value are accepted as warnings. Their
+  plain forms are L2 work.
+- **The two missing returns** (D15400, D21001) return their VC6 value under `__clang__`. VC6's bytes are unchanged:
+  the strict sweep still matches both units. clang now treats a missing return as an error, so no new one can slip in.
+- **`__asm` blocks.** clang's MSVC mode compiles them as they are. Nothing had to be replaced.
+- **Imports.** VC6's import libraries, plus the DirectX, Bink and EAX ones `src/link` already builds.
+- **Address table.** lld's map file is read like VC6's (16-digit addresses). The table has 9,373 entries; the VC6
+  build's has 9,330.
+- **x87.** `-march=pentiumpro -mfpmath=387`: no SSE, as in VC6.
+
+**What lld and clang needed that VC6 did not:**
+
+| Problem | Fix |
+|---|---|
+| clang calls `operator new[]`, which VC6's runtime does not have | `src/link/clang_support.cpp` forwards it to the plain operator |
+| sized `operator delete` | `-fno-sized-deallocation` |
+| clang's MSVC exception tables need a newer runtime | `-fno-exceptions` (the game throws none; SEH is kept) |
+| lld pulls in LIBCMT's console startup first, which clashes with the WinMain one | `/INCLUDE:_WinMainCRTStartup` |
+| lld turns on ASLR; the address table and SummonerFix need the exe at 0x400000 | `/DYNAMICBASE:NO /FIXED` |
+| the game writes into string literals (`localize_set_string`); clang puts them in read-only `.rdata` | `/MERGE:.rdata=.data` (L2 fixes the writers) |
+| VC6's objects have no SafeSEH tables | `/SAFESEH:NO` |
+
+**Test (Observed, 2026-10-25):** the fixed build's checks, `Sum-fixed-clang.exe` against three runs of the original,
+SummonerFix's fixes on, and the VC6 `Sum-fixed.exe` through the same checks the same day for comparison:
+
+| Check | clang | VC6 fixed |
+|---|---|---|
+| save, Wolong2 / WolongCaverns / sewer / lenele2aa (dwords beyond the original runs' spread) | 217 / 622 / 227 / 225 | 155 / 510 / 256 / 155 |
+| memory (symbols that differ, of about 3,290) | 10 / 10 / - / - (the other two were counted after the exe was rebuilt, against a table that no longer matched the dumps) | 13 / 11 / 22 / 11 |
+| screens: main menu / inventory / character | 0 / 1-30 / 59-94 pixels | |
+
+- The clang build plays, loads every test save, and behaves like the VC6 fixed build. Its save differences are the
+  same kinds and roughly the same counts.
+- Most of the save differences in both builds come from one source: the party's 36 player timers show about 6.0 s of
+  game time since the level started where the original shows about 7.1 s. Positions of walking characters and
+  counters follow from that. It is a property of the fixed build, not of clang, and it is new since 2026-10-21, when
+  the same check found 1-10 dwords. It is being looked at with the experimental build's slow ticker
+  ([Experimental build](../experimental-build.md)).
+- The memory counts are with `link-memcheck.mjs --exe`. Before that fix the tool translated every build's pointers
+  with `Sum-rebuilt`'s address table, which showed about 475 differing symbols for clang.
+- The two return fixes were made after the save run. The screens were checked again with them (the lower pixel
+  counts above).
+
 ## Recommendation
 
 L1 and L2 together as "the modern build", in the same tree, behind `MODERN_BUILD`, tested against the fixed build.
 L3 as the next milestone. L4 per module, later, only where it buys something (the renderer first, as it also helps
 the [texture upscaling](texture-upscale.md) and display work).
 
-## Decisions for the user
+## Decisions
 
-1. How far "modern" goes: L1+L2, up to L3 (64-bit), or the full L4 rewrite?
-2. Same tree with `MODERN_BUILD` (recommended) or a separate fork?
-3. Whether to start L1 now or after the in-game work already planned.
+1. How far "modern" goes: **the full L4 rewrite, eventually**, reached through L1 to L3, so that modern features and
+   graphics options can be built natively.
+2. Same tree, with the clang build selected by `--compiler clang` (and later `MODERN_BUILD`).
+3. L1 was done after the planned in-game work (the original-game texture pack, animation flicker, the tentacle grab
+   test).

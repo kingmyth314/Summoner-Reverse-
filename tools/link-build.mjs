@@ -32,13 +32,23 @@ if (configName && !CONFIGS[configName]) { console.error(`unknown --config ${conf
 const config = CONFIGS[configName ?? "shipped"];
 const defines = [...(configName ? config.defines : []), ...args.flatMap((a, i) => (a === "--define" ? [args[i + 1]] : []))]
   .filter((d, i, a) => a.indexOf(d) === i);
-const exeName = config.name;
+// --compiler clang (docs/future/modern-port.md, rung L1): the same units, defines and libraries, compiled by clang in
+// its MSVC mode (target i686-pc-windows-msvc, _MSC_VER 1200, VC6's headers) and linked by lld in its MSVC mode
+// against VC6's libraries, so the exe keeps the MSVC name mangling the address table needs. CLANG_DIR is the folder
+// with clang++.exe and ld.lld.exe. Output: build/<config dir>-clang, <exe name>-clang.exe.
+const useClang = opt("--compiler", "vc6") === "clang";
+const CLANG = process.env.CLANG_DIR;
+if (useClang && (!CLANG || !existsSync(join(CLANG, "clang++.exe")))) {
+  console.error("--compiler clang needs CLANG_DIR: the folder with clang++.exe and ld.lld.exe (LLVM 16 or later).");
+  process.exit(2);
+}
+const exeName = config.name + (useClang ? "-clang" : "");
 const VC = process.env.VC6_DIR;
 if (!VC || !existsSync(join(VC, "BIN", "CL.EXE"))) {
   console.error("VC6_DIR is not set, or has no BIN\\CL.EXE: set it to the VC98 folder of Visual C++ 6.0.");
   process.exit(2);
 }
-const out = resolve(opt("--out", join(repo, "build", config.dir)));
+const out = resolve(opt("--out", join(repo, "build", config.dir + (useClang ? "-clang" : ""))));
 const objDir = join(out, "obj");
 mkdirSync(objDir, { recursive: true });
 const src = join(repo, "src", "decomp");
@@ -48,6 +58,24 @@ const run = (exe, argv, cwd = out) => {
   catch (e) { return (e.stdout || "") + (e.stderr || "") + `\n(exit ${e.status})`; }
 };
 
+// clang: x87 maths as VC6 (no SSE), no strict aliasing (the decompiled code reads memory through other types), no C++
+// exceptions (the game throws none; clang's MSVC exception tables need a newer runtime than VC6's), SEH kept. Two
+// VC6 extensions the matching source relies on are accepted: the address of a temporary (D15902), a narrowing case
+// value (gr_font.cpp). A function that falls off its end is an error: the two the matching source has (D15400,
+// D21001) return their VC6 value under __clang__.
+const clangFlags = ["--target=i686-pc-windows-msvc", "-fms-extensions", "-fms-compatibility", "-fms-compatibility-version=12.0",
+  "-march=pentiumpro", "-mfpmath=387", "-fno-strict-aliasing", "-fno-exceptions", "-fno-cxx-exceptions", "-fno-sized-deallocation", "-O2", "-w",
+  "-Wno-error=address-of-temporary", "-Wno-c++11-narrowing", "-Werror=return-type", "-D_MT", "-D_WIN32", "-DWIN32",
+  "-isystem", join(VC, "INCLUDE")];
+const runClang = (cpp, obj, extraDefs, includes) => {
+  try {
+    execFileSync(join(CLANG, cpp.endsWith(".c") ? "clang.exe" : "clang++.exe"),
+      [...clangFlags, ...(cpp.endsWith(".c") ? [] : ["-std=c++14"]), ...extraDefs.map((d) => `-D${d}`), ...includes.flatMap((i) => ["-I", i]), "-c", cpp, "-o", obj],
+      { cwd: out, encoding: "latin1", maxBuffer: 1 << 28, stdio: ["ignore", "pipe", "pipe"] });
+    return "";
+  } catch (e) { return (e.stdout || "") + (e.stderr || "") + `\n(exit ${e.status})`; }
+};
+const decompIncludes = () => [process.env.DECOMP_INCLUDE || join(src, "include"), join(process.env.DECOMP_INCLUDE || join(src, "include"), "vsdk")];
 const flags = new Map();
 for (const l of readFileSync(join(src, "vc6-flags.txt"), "latin1").split(/\r?\n/)) {
   if (!l || l.startsWith("#")) continue;
@@ -66,9 +94,10 @@ for (const u of units) {
   objs.push(obj);
   if (fresh(obj, cpp)) continue;
   const f = (flags.get(u) ?? "/O2 /GX /MT").split(/\s+/);
-  const text = run("CL.EXE", ["/nologo", "/c", ...f, ...defines.map((d) => `/D${d}`), `/Fo${obj}`, cpp]);
+  const text = useClang ? runClang(cpp, obj, defines, decompIncludes())
+    : run("CL.EXE", ["/nologo", "/c", ...f, ...defines.map((d) => `/D${d}`), `/Fo${obj}`, cpp]);
   compiled++;
-  if (/error C\d+|\(exit/.test(text)) { failed++; console.log(`compile failed: ${u}\n${text.split("\n").filter((x) => /error/.test(x)).slice(0, 5).join("\n")}`); }
+  if (/error C\d+|error:|\(exit/.test(text)) { failed++; console.log(`compile failed: ${u}\n${text.split("\n").filter((x) => /error/.test(x)).slice(0, 5).join("\n")}`); }
 }
 // The experimental build's own units (src/decomp/experimental/*.cpp, docs/experimental-build.md): not part of
 // Sum.exe, so not in vc6-matches.txt; compiled only with EXPERIMENTAL_BUILD.
@@ -78,9 +107,10 @@ if (defines.includes("EXPERIMENTAL_BUILD")) {
     const cpp = join(xdir, f), obj = join(objDir, "experimental_" + f.replace(/\.cpp$/, ".obj"));
     objs.push(obj);
     if (fresh(obj, cpp)) continue;
-    const text = run("CL.EXE", ["/nologo", "/c", "/O2", "/GX", "/MT", ...defines.map((d) => `/D${d}`), `/Fo${obj}`, cpp]);
+    const text = useClang ? runClang(cpp, obj, defines, decompIncludes())
+      : run("CL.EXE", ["/nologo", "/c", "/O2", "/GX", "/MT", ...defines.map((d) => `/D${d}`), `/Fo${obj}`, cpp]);
     compiled++;
-    if (/error C\d+|\(exit/.test(text)) { failed++; console.log(`compile failed: experimental/${f}\n${text.split("\n").filter((x) => /error/.test(x)).slice(0, 5).join("\n")}`); }
+    if (/error C\d+|error:|\(exit/.test(text)) { failed++; console.log(`compile failed: experimental/${f}\n${text.split("\n").filter((x) => /error/.test(x)).slice(0, 5).join("\n")}`); }
   }
 }
 // libjpeg 6b (Sum.exe links it statically): built from the IJG source when it is in third_party/jpeg6b/jpeg-6b
@@ -115,6 +145,11 @@ for (const c of stubs) {
   objs.push(obj);
   if (!fresh(obj, join(support, c))) run("CL.EXE", ["/nologo", "/c", "/O2", "/MT", `/Fo${obj}`, join(support, c)]);
 }
+if (useClang) {
+  const obj = join(objDir, "clang_support.obj"), cpp = join(support, "clang_support.cpp");
+  objs.push(obj);
+  if (!fresh(obj, cpp)) { const t = runClang(cpp, obj, [], []); if (t) { failed++; console.log(`compile failed: clang_support.cpp\n${t}`); } }
+}
 const stubDir = join(out, "stubs");
 mkdirSync(stubDir, { recursive: true });
 if (!existsSync(join(stubDir, "binkw32.lib")) || flag("--recompile"))
@@ -129,12 +164,27 @@ writeFileSync(join(out, "objs.rsp"), objs.map((o) => `"${o}"`).join("\r\n") + "\
 const libs = ["kernel32.lib", "user32.lib", "gdi32.lib", "winmm.lib", "advapi32.lib", "shell32.lib", "ole32.lib", "wsock32.lib",
   "ddraw.lib", "dsound.lib", "dinput.lib", "dxguid.lib", "opengl32.lib", "glu32.lib", "comdlg32.lib", "version.lib", "rasapi32.lib",
   "wininet.lib", "msacm32.lib", join(stubDir, "binkw32.lib"), join(stubDir, "EAX.lib")];
-const text = run("LINK.EXE", ["/nologo", `/OUT:${exeName}.exe`, `/MAP:${exeName}.map`, "/SUBSYSTEM:WINDOWS", "/OPT:REF", "/OPT:ICF",
-  ...(flag("--force") ? ["/FORCE:UNRESOLVED"] : []), "@objs.rsp", ...libs]);
+const linkArgs = ["/nologo", `/OUT:${exeName}.exe`, `/MAP:${exeName}.map`, "/SUBSYSTEM:WINDOWS", "/OPT:REF", "/OPT:ICF",
+  ...(flag("--force") ? ["/FORCE:UNRESOLVED"] : []), "@objs.rsp", ...libs];
+let text;
+if (useClang) {
+  // lld in MSVC mode, VC6's libraries; /SAFESEH:NO because VC6's objects carry no SafeSEH tables.
+  try { text = execFileSync(join(CLANG, "ld.lld.exe"), ["-flavor", "link", ...linkArgs, `/LIBPATH:${join(VC, "LIB")}`, "/SAFESEH:NO", "/ENTRY:WinMainCRTStartup",
+    // lld loads library members in reference order: without this, LIBCMT's console startup (crt0.obj) comes in first
+    // for __amsg_exit and then clashes with the WinMain one (wincrt0.obj), which VC6's linker resolves first.
+    "/INCLUDE:_WinMainCRTStartup",
+    // lld turns on ASLR by default; the exe must load at 0x400000 as VC6's does (the address table, SummonerFix).
+    "/DYNAMICBASE:NO", "/FIXED",
+    // VC6 kept string literals writable, and the game writes into some (localize_set_string fills "NULL Format
+    // String"); clang puts them in .rdata. Merged into .data, they are writable again (rung L2 fixes the writers).
+    "/MERGE:.rdata=.data"],
+    { cwd: out, encoding: "latin1", maxBuffer: 1 << 28, stdio: ["ignore", "pipe", "pipe"] }); }
+  catch (e) { text = (e.stdout || "") + (e.stderr || "") + `\n(exit ${e.status})`; }
+} else text = run("LINK.EXE", linkArgs);
 writeFileSync(join(out, "link.txt"), text);
 const names = (re) => [...new Set([...text.matchAll(re)].map((m) => m[1]))].sort();
-const unres = names(/unresolved external symbol (?:"[^"]*" \()?([^\s)"]+)/g);
-const multi = names(/LNK(?:2005|4006): "?(?:[^"]*" \()?([^\s)"]+)/g);
+const unres = useClang ? names(/undefined symbol: ([^\r\n]+)/g) : names(/unresolved external symbol (?:"[^"]*" \()?([^\s)"]+)/g);
+const multi = useClang ? names(/duplicate symbol: ([^\r\n]+)/g) : names(/LNK(?:2005|4006): "?(?:[^"]*" \()?([^\s)"]+)/g);
 console.log(`${units.length} units (${compiled} compiled, ${failed} failed); unresolved ${unres.length}; multiply defined ${multi.length}`);
 for (const n of unres) console.log(`  unresolved ${n}`);
 for (const n of multi) console.log(`  multiple ${n}`);
@@ -150,7 +200,8 @@ if (existsSync(dump) && existsSync(mapPath)) {
   let statics = false;
   for (const l of readFileSync(mapPath, "latin1").split(/\r?\n/)) {
     if (/Static symbols/.test(l)) statics = true;
-    const m = /^\s*[0-9a-f]{4}:[0-9a-f]{8}\s+(\S+)\s+([0-9a-f]{8})\s+(?:f\s+)?(?:i\s+)?(\S+)\s*$/.exec(l);
+    // VC6's LINK writes 8-digit addresses and an "f" for functions; lld's /MAP 16 digits and no "f".
+    const m = /^\s*[0-9a-f]{4}:[0-9a-f]{8}\s+(\S+)\s+([0-9a-f]{8,16})\s+(?:f\s+)?(?:i\s+)?(\S+)\s*$/.exec(l);
     if (!m) continue;
     const va = parseInt(m[2], 16), obj = m[3].replace(/^.*:/, "").replace(/\.obj$/i, "");
     if (statics) stat.set(`${m[1]}\t${obj}`, va); else if (!pub.has(m[1])) pub.set(m[1], va);

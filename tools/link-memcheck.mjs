@@ -4,13 +4,13 @@
 // a Sum.exe address counts as equal when the address table translates it to the rebuilt value, or when both point to
 // the same string (read from the two exe files); values outside both images (heap, stack) count as equal.
 //
-//   node tools/link-memcheck.mjs <original dump> <rebuilt dump> [--also orig2,orig3] [--show 60]
+//   node tools/link-memcheck.mjs <original dump> <rebuilt dump> [--also orig2,orig3] [--show 60] [--exe Sum-fixed.exe]
 // With --also (more dumps of the original at the same point), a symbol counts only when the rebuilt value differs
 // from every original dump and the original dumps agree in it; symbols that vary between original runs are counted
 // apart. A byte that both processes still hold as their exe file has it is skipped (the static data is
 // tools/link-datacheck.mjs's job; string literals sit in another order next to named data); --static keeps them.
-import { readFileSync } from "node:fs";
-import { join, resolve, dirname } from "node:path";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
+import { join, resolve, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -18,7 +18,14 @@ const [dumpA, dumpB] = process.argv.slice(2);
 const show = Number(process.argv[process.argv.indexOf("--show") + 1] || 60);
 const alsoAt = process.argv.indexOf("--also");
 const also = alsoAt > 0 ? process.argv[alsoAt + 1].split(",") : [];
-const out = join(repo, "build", "link");
+// --exe: the rebuilt exe the dump came from, with its .addr next to it (default build/link/Sum-rebuilt.exe). Its .map
+// is read from next to it, or else from the build folder that made it (build/*/<name>.map; test folders hold no map).
+const exeAt = process.argv.indexOf("--exe");
+const exePath = resolve(exeAt > 0 ? process.argv[exeAt + 1] : join(repo, "build", "link", "Sum-rebuilt.exe"));
+const stem = exePath.replace(/\.exe$/i, "");
+const mapPath = existsSync(stem + ".map") ? stem + ".map"
+  : readdirSync(join(repo, "build")).map((d) => join(repo, "build", d, basename(stem) + ".map")).find((p) => existsSync(p));
+if (!mapPath) { console.error(`no map for ${exePath}: build it with tools/link-build.mjs`); process.exit(2); }
 
 function pe(path) {
   const b = readFileSync(path);
@@ -39,8 +46,8 @@ function pe(path) {
   };
   return { read, base, end: Math.max(...secs.map((s) => s.va + s.vsize)) };
 }
-const orig = pe(join(repo, "Summoner", "Sum.exe")), now = pe(join(out, "Sum-rebuilt.exe"));
-const rows = readFileSync(join(out, "Sum-rebuilt.addr"), "latin1").trim().split(/\n/).map((l) => l.split(" ").map((x) => parseInt(x, 16)));
+const orig = pe(join(repo, "Summoner", "Sum.exe")), now = pe(exePath);
+const rows = readFileSync(stem + ".addr", "latin1").trim().split(/\n/).map((l) => l.split(" ").map((x) => parseInt(x, 16)));
 const rowOf = new Map(rows.map((r) => [r[0], r]));
 const translate = (va) => {
   let lo = 0, hi = rows.length - 1, best = -1;
@@ -54,8 +61,8 @@ for (const l of readFileSync(join(repo, "symbols", "sum.symbols"), "latin1").spl
   if (m) { names.set(parseInt(m[1], 16), m[2]); starts.push(parseInt(m[1], 16)); }
 }
 starts.sort((a, b) => a - b);
-const mapStarts = [...new Set(readFileSync(join(out, "Sum-rebuilt.map"), "latin1").split(/\r?\n/)
-  .map((l) => /^\s*[0-9a-f]{4}:[0-9a-f]{8}\s+\S+\s+([0-9a-f]{8})\s/.exec(l)).filter(Boolean).map((m) => parseInt(m[1], 16)))].sort((a, b) => a - b);
+const mapStarts = [...new Set(readFileSync(mapPath, "latin1").split(/\r?\n/)
+  .map((l) => /^\s*[0-9a-f]{4}:[0-9a-f]{8}\s+\S+\s+([0-9a-f]{8,16})\s/.exec(l)).filter(Boolean).map((m) => parseInt(m[1], 16)))].sort((a, b) => a - b);
 const after = (list, a) => { let lo = 0, hi = list.length; while (lo < hi) { const m = (lo + hi) >> 1; if (list[m] <= a) lo = m + 1; else hi = m; } return list[lo] ?? a + 4; };
 const sameString = (p, q) => {
   const sa = orig.read(p, 256), sb = now.read(q, 256);

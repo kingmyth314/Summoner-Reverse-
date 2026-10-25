@@ -82,7 +82,7 @@ In this order:
    and throw (`[Experimental] TentacleGrab` in SummonerFix today, ported), a save editor window, a console window and
    cheats page, wider display options (resolution list, vsync, frame rate, field of view, UI scale), dgVoodoo 2 for
    the Glide and Direct3D renderers.
-4. **Later:** a modern-compiler port, and from there 64-bit or other platforms.
+4. **Later:** a modern-compiler port, and from there 64-bit or other platforms. Its first rung is done (2026-10-25): both configurations also build with clang and lld (`--compiler clang`; [Modern C++ port](future/modern-port.md#l1-done-the-clang-build-2026-10-25)).
 
 Every experimental feature also has its own switch in the ini, off by default, so a problem can be ruled out by
 turning it off.

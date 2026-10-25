@@ -115,7 +115,7 @@ try {
     if (why) { note(`${level}: REBUILT FAILED: ${why}`); continue; }
     const bad = compareSaves([...Array(runs).keys()].map((i) => p(`orig${i}.sav`)), p("reb.sav"));
     const also = runs > 1 ? ["--also", [...Array(runs - 1).keys()].map((i) => p(`orig${i + 1}.bin`)).join(",")] : [];
-    const mem = spawnSync("node", [join(repo, "tools", "link-memcheck.mjs"), p("orig0.bin"), p("reb.bin"), ...also, "--show", "40"],
+    const mem = spawnSync("node", [join(repo, "tools", "link-memcheck.mjs"), p("orig0.bin"), p("reb.bin"), ...also, "--show", "40", "--exe", join(game, tested)],
       { cwd: repo, encoding: "latin1" }).stdout ?? "";
     note(`${level}: save ${bad.length} dwords differ beyond the original runs' spread; memory ${mem.split(/\r?\n/)[0]}`);
     for (const [, , line] of bad.slice(0, 25)) note("  save " + line);

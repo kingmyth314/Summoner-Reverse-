@@ -118,5 +118,9 @@ build lacks.
 - **Open:** the experimental build's speed line shows the game's real-time millisecond ticker at about 82% of wall
   time with no frame-rate cap (116 fps). The ticker truncates each frame to whole milliseconds; the carry that
   removes this is only active with a cap (above). To compare with the original exe before changing anything.
+  The fixed build shows the same thing in the save check (2026-10-25): after the level warp and a fixed wait, the
+  party's player timers show about 6.0 s of game time where the original shows about 7.1 s, on all four test levels,
+  in both the VC6 and the clang build ([Modern C++ port](future/modern-port.md#l1-done-the-clang-build-2026-10-25)).
+  The same check found no such difference on 2026-10-21.
 - Not yet tested: vsync, frame-rate caps other than 60, the autosave skip rules (combat, menus, the 32-save limit),
   the controller's buttons and camera.
