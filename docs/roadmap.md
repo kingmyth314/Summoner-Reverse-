@@ -204,7 +204,7 @@ the plan for a fixed build and an experimental build that take them up is in
   renderer; dgVoodoo 2 would make the original Glide and Direct3D renderers usable too (with their own gamma,
   K90 does not apply there). To find out: which dgVoodoo DLLs Summoner loads, and whether the launcher-free start
   and the widescreen output can work with it. Done 2026-10-21: both renderers run through dgVoodoo 2 ([dgVoodoo 2](future/dgvoodoo.md)).
-- **Higher-resolution textures.** Researched 2026-10-23 ([Texture upscaling](future/texture-upscale.md)): loose files override the packfiles, so world, character and effect textures need no code (a 4x texture was seen working in the original game); interface images and fonts need a renderer change, and every upscaled texture needs new mip files.
+- **Higher-resolution textures.** Researched 2026-10-23 ([Texture upscaling](future/texture-upscale.md)): loose files override the packfiles, so world, character and effect textures need no code (a 4x texture was seen working in the original game); interface images and fonts need a renderer change, and every upscaled texture needs new mip files. **Done 2026-10-24/25:** the full pack (5,261 textures, 100 VBMs, 7 fonts, Real-ESRGAN, each checked) for the experimental build with `HiResInterface`, and a version without the interface art for the original game.
 - **Modern C++.** Researched 2026-10-23 ([Modern C++ port](future/modern-port.md)): 257 of 259 units already parse with clang as C++17; a ladder from a clang 32-bit build to 64-bit and an idiomatic rewrite, checked by behaviour while the VC6 configuration stays the byte-match reference.
 - **Auto-saving.** The game already has `quicksave` (`quicksave.sav`) and the rules for when saving is allowed
   (`savegame_location_allowed`, [Savegame](sum-exe/savegame.md#saving-and-loading)). An autosave could write a
@@ -227,8 +227,11 @@ the plan for a fixed build and an experimental build that take them up is in
   as intended. To confirm in game before any fix: walk an AI character's path through a closed door on a high and on a
   low level and compare.
 - **Wider display options.** Today: any `GameWidth` / `GameHeight` (resolution table slot 2), borderless or
-  window output, centred menus and HUD, brightness. Candidates: a proper resolution list, exclusive fullscreen,
-  vsync and frame-rate options, anti-aliasing, field of view, UI scale.
+  window output, centred menus and HUD, brightness. Done 2026-10-24: `GameWidth=Auto` (the default) fits the 768-high
+  layout to the screen's shape, and the config app's **Display / resolution...** window lists the sizes, the renderer,
+  fullscreen or window and the window sizes the monitor reports ([SummonerFix](summonerfix/index.md)); the
+  experimental build has vsync and a frame-rate cap. Candidates: exclusive fullscreen, anti-aliasing, field of view,
+  UI scale.
 
 ## Other planned work
 

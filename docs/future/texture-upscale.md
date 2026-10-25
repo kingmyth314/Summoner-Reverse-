@@ -341,7 +341,7 @@ neither adds shimmer of its own. The tone correction ties every frame to its ori
 water frames shows both upscales as steady as the original, the general one with finer ripples. The pack keeps the
 general model.
 
-### Order of work
+### Order of work (done 2026-10-24, above)
 
 1. The VBM reader / writer and a comparison on a water, a fire and a cursor animation.
 2. The font tool and the font loader hook (experimental build, behind HiResInterface).
@@ -349,6 +349,6 @@ general model.
 
 ## Decisions for the user
 
-1. Which model (the user chose AI upscaling, 2026-10-23; Real-ESRGAN's ncnn-vulkan build is the first candidate,
-   pending a download approval).
-2. Whether to try the large-address flag in the fixed and experimental builds.
+1. Model: decided 2026-10-23, Real-ESRGAN's general model (`realesrgan-x4plus`), also for the animations
+   (2026-10-25, above).
+2. Open: whether to try the large-address flag in the fixed and experimental builds (the pack has run without it).

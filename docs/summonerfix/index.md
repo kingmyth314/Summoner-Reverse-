@@ -45,7 +45,7 @@ to get the proxy loaded.
 | Fix | Mechanism | Why |
 |---|---|---|
 | No launcher needed | IAT hooks on `RegOpenKeyExA`, `RegCreateKeyExA`, `RegQueryValueExA`, `RegSetValueExA`, `RegDeleteValueA`, `RegDeleteKeyA`, `RegCloseKey` | The launcher can't detect modern cards, so the registry key stays empty. Display and sound values now come from the ini, and values the game writes are kept in ini `[Registry]`. Other keys pass through. See [Video settings](../sum-exe/video-settings.md). |
-| Game resolution | `GameWidth`/`GameHeight` (default 1024x768); other sizes are written into resolution-table slot 2 (`0x580e48`, `0x580e4c`) | `LoadSettings` only accepts sizes in the table. Keep 1024x768: UI, clip rectangles and menus are laid out for it |
+| Game resolution | `GameWidth`/`GameHeight` (default `Auto` since 2026-10-24: 768 high at the screen's shape; before, 1024x768); other sizes are written into resolution-table slot 2 (`0x580e48`, `0x580e4c`) | `LoadSettings` only accepts sizes in the table. Keep 1024x768: UI, clip rectangles and menus are laid out for it |
 | OpenGL renderer | `0x43da64`: `BF 67` -> `BF 68` (`MOV EDI, 0x68`) | The default renderer is Glide; the OpenGL renderer `0x68` is never selected by the game |
 | Windowed mode | `0x43db45`: `68 C9` -> `68 C8` (`PUSH 200`), always for OpenGL | `gr_opengl.cpp` refuses fullscreen mode 201 |
 | Fullscreen output and scaling | Hooks on `SetWindowLongA`/`SetWindowPos` (only calls from `GrInit`), `glViewport`, `SwapBuffers` | See [Display scaling](#display-scaling) |

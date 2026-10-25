@@ -35,7 +35,14 @@ documentation and the decompilation notes are also a working log, so they mentio
   pass; the per-fix reproductions are still to run.
 - **The experimental build:** `node tools/link-build.mjs --config experimental` builds `Sum-exp.exe`, the fixed build
   plus new features, each off by default: controller support, autosave, a frame-rate cap and vsync, the Tentacle
-  Beast's grab ([Experimental build](docs/experimental-build.md); smoke-tested in game 2026-10-21).
+  Beast's grab (seen in game 2026-10-25), and upscaled interface images and fonts (`HiResInterface`). It has every
+  feature the original game gets from SummonerFix, checked by comparing SummonerFix's logs for both exes (2026-10-24):
+  any game resolution, the widescreen interface in its own source, the game options
+  ([Experimental build](docs/experimental-build.md)).
+- **Higher-resolution textures:** `tools/texture-upscale.mjs` makes a loose-file texture pack from your own install with
+  Real-ESRGAN: 5,261 textures, the 100 animated VBMs and the 7 fonts, at 2x or 4x, each checked against its original.
+  `tools/texture-pack-original.mjs` makes the version the original `Sum.exe` can use (no interface art). The pack is
+  derived from the game's art, so it is never part of this repository ([Texture upscaling](docs/future/texture-upscale.md)).
 - **The decompilation:** Microsoft Visual C++ 6.0 with Service Pack 5 (compiler build 8966, the one Sum.exe was built
   with), which you have to supply yourself; set `VC6_DIR` to its `VC98` folder. `tools/vc6-sweep.mjs` compares every
   function with your `Sum.exe`; `tools/link-build.mjs` links the standalone executable (it also needs libjpeg 6b
@@ -46,7 +53,7 @@ documentation and the decompilation notes are also a working log, so they mentio
 
 | Topic | Summary | Page |
 |---|---|---|
-| SummonerFix | Our own `dinput.dll` patch: runs on Windows 11 without the launcher (hidden OpenGL renderer), fixes 2x game speed, the >4 GHz timer and the 24.9-day cutscene skip, black save thumbnails; widescreen; key and mouse rebinding with a config app; fast-mode key with an on-screen badge; console-command keys; optional zoom, interaction-range and intro-skip settings; fixes the crash on Start New Game without an audio device, the low textures on a fresh OpenGL install, the brightness slider under OpenGL and world sounds at the sfx volume squared; 42 more fixes for bugs in the original game (crashes, AI slips, UI errors), almost all reproduced before they were fixed (in game, by a direct function call or with a faked failure), each with its own switch in the config app; a key for the hidden script editor | [SummonerFix](docs/summonerfix/index.md) |
+| SummonerFix | Our own `dinput.dll` patch: runs on Windows 11 without the launcher (hidden OpenGL renderer), fixes 2x game speed, the >4 GHz timer and the 24.9-day cutscene skip, black save thumbnails; widescreen, with the game resolution fitted to the screen (`GameWidth=Auto`) or picked in the config app; key and mouse rebinding with a config app; fast-mode key with an on-screen badge; console-command keys; optional zoom, interaction-range and intro-skip settings; fixes the crash on Start New Game without an audio device, the low textures on a fresh OpenGL install, the brightness slider under OpenGL and world sounds at the sfx volume squared; 42 more fixes for bugs in the original game (crashes, AI slips, UI errors), almost all reproduced before they were fixed (in game, by a direct function call or with a faked failure), each with its own switch in the config app; a key for the hidden script editor | [SummonerFix](docs/summonerfix/index.md) |
 | Main loop | Variable timestep, capped at 120 FPS, clamped at 0.25 s per frame, driven by a 15-entry game-state table | [Main loop and frame timer](docs/sum-exe/main-loop.md) |
 | Game bugs | 355 defects in v1.40 checked in the code: crashes and hangs (most latent), gameplay slips such as a save overwrite without a prompt, cosmetic UI errors; which ones SummonerFix fixes | [Bugs in the original game](docs/sum-exe/game-bugs.md) |
 | Timing bugs | QPC frequency truncated to 32 bits (>4 GHz); frame limiter double-counts its sleep (2x speed); cutscene timer breaks after ~24.9 days of uptime (reproduced and fixed) | [Timing bugs](docs/sum-exe/timing-bugs.md) |

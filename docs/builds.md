@@ -117,7 +117,9 @@ Next:
 
 4. The modern-PC layers as `FIXED_BUILD` code. **Timing and start-up done 2026-10-21** (G1, G2, G3, C1 and the
    1024x768 default; SummonerFix stands down for each through `.fixes`; see [Fixed build changes](fixed-build.md#modern-pc-layers)).
-   Still open: the display layer (scaling, mouse mapping, aspect, widescreen, brightness) and key bindings.
+   Still open: the display layer (scaling, mouse mapping, aspect, brightness) and key bindings, which SummonerFix
+   provides for the rebuilt exes. Done 2026-10-24: any game resolution (`CustomResolution`, both builds) and, in the
+   experimental build, the widescreen interface in the source ([Experimental build](experimental-build.md)).
 5. Controller tier 1: done as a SummonerFix feature and tested by the user with a real controller (2026-10-21; see
    the SummonerFix docs). Still to do: the same code in the experimental build.
 6. Every in-game test above. Smart App Control was turned off on the test PC on 2026-10-21; the first queued run
