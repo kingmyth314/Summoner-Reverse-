@@ -25,7 +25,7 @@ class TextFile;
 #define MAX_CUTSCENE_FADES       16
 #define MAX_CUTSCENE_SEQUENCES   50   // the camera shots of the cutscene object
 #define MAX_CUTSCENE_SAVED_ACTORS 175 // ends at the pool buffer 0x5fd260; cutscene_play does not check it
-#define CUTSCENE_POOL_SIZE       0x4c00
+#define CUTSCENE_POOL_SIZE       POOL64(0x4c00)
 
 #define CUTSCENE_FLAG_NOABORT        1  // +NoAbort: Esc does not end it (interface_frame)
 #define CUTSCENE_FLAG_HIDEUNSCRIPTED 2  // +HideUnscripted

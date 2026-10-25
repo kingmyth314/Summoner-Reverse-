@@ -319,9 +319,9 @@ int conversation::parse_table(const char *script_name)
     char speaker_name[0x100];
     char ref_speaker[0x100];
     char quest_name[0x100];
-    char pending_buffer[0x2000];
-    char ext_buffer[0x2000];
-    char speaker_buffer[0x2000];
+    char pending_buffer[POOL64(0x2000)];
+    char ext_buffer[POOL64(0x2000)];
+    char speaker_buffer[POOL64(0x2000)];
     NoRlsAllocPool pending_pool;
     NoRlsAllocPool ext_pool;
     NoRlsAllocPool speaker_pool;
@@ -345,9 +345,9 @@ int conversation::parse_table(const char *script_name)
 
     strcpy(filename, script_name);
     strcat(filename, "_dlg.tbl");
-    pending_pool.Init(pending_buffer, 0x2000);
-    ext_pool.Init(ext_buffer, 0x2000);
-    speaker_pool.Init(speaker_buffer, 0x2000);
+    pending_pool.Init(pending_buffer, POOL64(0x2000));
+    ext_pool.Init(ext_buffer, POOL64(0x2000));
+    speaker_pool.Init(speaker_buffer, POOL64(0x2000));
     err = tf.Open(filename, 9999999);
     if (err != 0)
         return err;

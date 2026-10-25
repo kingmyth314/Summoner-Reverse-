@@ -494,14 +494,14 @@ void cutscene_parse_table()
             count = sscanf(ln, "%d %d", &shot_num, &length);
 #endif
             if (count > 0) {
-                ent->shot_effects[ent->num_shot_effects] = (cutscene_shot_effect *)cutscene_alloc_pool.Alloc(0x10);
+                ent->shot_effects[ent->num_shot_effects] = (cutscene_shot_effect *)cutscene_alloc_pool.Alloc(sizeof(cutscene_shot_effect));
                 ent->shot_effects[ent->num_shot_effects]->name = effect;
                 ent->shot_effects[ent->num_shot_effects]->shot = shot_num;
                 ent->shot_effects[ent->num_shot_effects]->character = char_name;
                 ent->shot_effects[ent->num_shot_effects]->length = count > 1 ? (length > 1 ? length : (short)1) : (short)0;
                 ent->num_shot_effects++;
             } else {
-                ent->effects[ent->num_effects] = (cutscene_effect *)cutscene_alloc_pool.Alloc(8);
+                ent->effects[ent->num_effects] = (cutscene_effect *)cutscene_alloc_pool.Alloc(sizeof(cutscene_effect));
                 ent->effects[ent->num_effects]->name = effect;
                 ent->effects[ent->num_effects]->character = char_name;
                 ent->num_effects++;
@@ -517,14 +517,14 @@ void cutscene_parse_table()
             track = (char *)cutscene_alloc_pool.Alloc(strlen(buf2) + 1);
             strcpy(track, buf2);
             tshot = tbl.ParseInt();
-            ent->minitracks[ent->num_minitracks] = (cutscene_minitrack *)cutscene_alloc_pool.Alloc(8);
+            ent->minitracks[ent->num_minitracks] = (cutscene_minitrack *)cutscene_alloc_pool.Alloc(sizeof(cutscene_minitrack));
             ent->minitracks[ent->num_minitracks]->name = track;
             ent->minitracks[ent->num_minitracks]->shot = tshot;
             ent->num_minitracks++;
         }
         ent->num_fogs = 0;
         while (tbl.Accept("$Fog:")) {
-            fog = (cutscene_fog *)cutscene_alloc_pool.Alloc(0xc);
+            fog = (cutscene_fog *)cutscene_alloc_pool.Alloc(sizeof(cutscene_fog));
             ent->fogs[ent->num_fogs] = fog;
             fog->near_dist = tbl.ParseFloat();
             fog->far_dist = tbl.ParseFloat();
@@ -547,7 +547,7 @@ void cutscene_parse_table()
             start_time = tbl.ParseFloat();
             fade_len = tbl.ParseFloat();
             shot_at = tbl.ParseInt();
-            ent->fades[ent->num_fades] = (cutscene_fade *)cutscene_alloc_pool.Alloc(0x10);
+            ent->fades[ent->num_fades] = (cutscene_fade *)cutscene_alloc_pool.Alloc(sizeof(cutscene_fade));
             ent->fades[ent->num_fades]->fade_out = fade_out2;
             ent->fades[ent->num_fades]->time = start_time;
             ent->fades[ent->num_fades]->length = fade_len;
@@ -576,7 +576,7 @@ int cutscene_parse_visset(cutscene_entry *e, TextFile *tf)
         return -1;
     if (!tf->Accept("$VisSet:"))
         return -1;
-    vs = (cutscene_visset *)cutscene_alloc_pool.Alloc(0x44);
+    vs = (cutscene_visset *)cutscene_alloc_pool.Alloc(sizeof(cutscene_visset));
     for (ix = 0; ix < 16; ix++)
         vs->names[ix] = NULL;
     e->vissets[idx] = vs;

@@ -169,7 +169,7 @@ extern item_info item_records[MAX_ITEMS];     // 0x8b50c8 (label ours)
 extern material materials[MAX_MATERIALS];     // 0x8b9d48 (sum.symbols names +4, 0x8b9d4c)
 extern unsigned int items_table_checksum;     // 0x8b9e9c
 extern NoRlsAllocPool items_alloc_pool;       // 0x8b9ea0
-extern char items_alloc_buffer[0x12000];      // 0x8b9ebc (label ours)
+extern char items_alloc_buffer[POOL64(0x12000)];      // 0x8b9ebc (label ours)
 extern int items_num_allocated;               // 0x8cbebc
 extern char ring_info_text[0x200];            // 0x8ec7c4
 

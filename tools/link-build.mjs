@@ -128,6 +128,19 @@ if (defines.includes("EXPERIMENTAL_BUILD")) {
     if (/error C\d+|error:|\(exit/.test(text)) { failed++; console.log(`compile failed: experimental/${f}\n${text.split("\n").filter((x) => /error/.test(x)).slice(0, 5).join("\n")}`); }
   }
 }
+// The in-source host (src/decomp/modern/*.cpp, docs/future/modern-port.md rung L3b): what SummonerFix gives a
+// rebuilt exe, for when it is not there. Not part of Sum.exe; compiled only into the clang builds (MODERN_BUILD).
+if (defines.includes("MODERN_BUILD")) {
+  const mdir = join(src, "modern");
+  for (const f of existsSync(mdir) ? readdirSync(mdir).filter((n) => n.endsWith(".cpp")).sort() : []) {
+    const cpp = join(mdir, f), obj = join(objDir, "modern_" + f.replace(/\.cpp$/, ".obj"));
+    objs.push(obj);
+    if (fresh(obj, cpp)) continue;
+    const text = runClang(cpp, obj, defines, decompIncludes());
+    compiled++;
+    if (/error:|\(exit/.test(text)) { failed++; console.log(`compile failed: modern/${f}\n${text.split("\n").filter((x) => /error/.test(x)).slice(0, 5).join("\n")}`); }
+  }
+}
 // libjpeg 6b (Sum.exe links it statically): built from the IJG source when it is in third_party/jpeg6b/jpeg-6b
 // (jpegsrc.v6b.tar.gz, not in the repository; docs/reference/sources.md), its common and compression objects as
 // the IJG's makefile.vc lists them, with jconfig.vc as jconfig.h. Without it the no-op stub is linked.
@@ -242,8 +255,48 @@ const exe = join(out, `${exeName}.exe`);
 // the names hybrid-build resolved (build/hybrid-all/hybrid-addrs.txt; run a full hybrid build first).
 const dump = join(repo, "build", "hybrid-all", "hybrid-addrs.txt");
 const mapPath = join(out, `${exeName}.map`);
-if (x64) {
-  console.log("no address table (x64: no SummonerFix to use it)");
+if (x64 && existsSync(dump) && existsSync(mapPath)) {
+  // The x64 exe's table, for the in-source agent mode (src/decomp/modern/; peek, poke and the call commands take
+  // Sum.exe addresses). lld's MinGW map lists demangled names ("quicksave()", "vfx_base::relocate_node(char*,
+  // char*)", plain data names) at offsets from the image base; hybrid-build's names are MSVC-mangled. Both are reduced
+  // to the qualified name without the parameter list, and only names that occur once on each side are joined.
+  // Addresses are written against the preferred base 0x400000; the agent adds the actual load offset.
+  const byQual = new Map();
+  for (const l of readFileSync(mapPath, "latin1").split(/\r?\n/)) {
+    const m = /^([0-9a-f]{8}) 00000000 +0 +(.+)$/.exec(l);
+    if (!m || m[2].startsWith(".") || m[2].includes("/")) continue;
+    const q = m[2].replace(/\(.*$/, "").trim(), va = 0x400000 + parseInt(m[1], 16);
+    byQual.set(q, byQual.has(q) && byQual.get(q) !== va ? null : va);
+  }
+  // ?name@Scope@Outer@@... -> Outer::Scope::name; ??0X@@ / ??1X@@ -> X::X / X::~X; other special names are skipped.
+  const msvcQual = (n) => {
+    let special = null, s = n;
+    if (s.startsWith("??0")) { special = "ctor"; s = s.slice(3); } else if (s.startsWith("??1")) { special = "dtor"; s = s.slice(3); }
+    else if (s.startsWith("?") && !s.startsWith("??") && !s.startsWith("?$")) s = s.slice(1); else return null;
+    const end = s.indexOf("@@");
+    if (end < 0 || s.slice(0, end).includes("?$")) return null;
+    const parts = s.slice(0, end).split("@").reverse();
+    if (special) { const cls = parts[parts.length - 1]; parts.push(special === "ctor" ? cls : `~${cls}`); }
+    return parts.join("::");
+  };
+  const starts = readFileSync(join(repo, "symbols", "sum.symbols"), "latin1").split(/\r?\n/).map((l) => /^0x([0-9a-f]+)\s/i.exec(l)).filter(Boolean)
+    .map((m) => parseInt(m[1], 16)).sort((a, b) => a - b);
+  const nextStart = (a) => { let lo = 0, hi = starts.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (starts[mid] <= a) lo = mid + 1; else hi = mid; } return starts[lo] ?? a + 4; };
+  const rows = new Map();
+  for (const l of readFileSync(dump, "latin1").split(/\r?\n/)) {
+    const [name, stem, a] = l.split("\t");
+    if (!name || stem) continue;   // file statics are not in the map
+    const q = /^[A-Za-z_]/.test(name) ? name : msvcQual(name);   // C names are unmangled on both sides
+    const va = q ? byQual.get(q) : null, orig = parseInt(a, 16);
+    if (va == null || rows.has(orig)) continue;
+    rows.set(orig, va);
+  }
+  const sorted = [...rows].sort((x, y) => x[0] - y[0]);
+  const lines = sorted.map(([o, v], i) => { const next = i + 1 < sorted.length ? sorted[i + 1][0] : o + 4; const size = o < 0x57db40 ? nextStart(o) - o : next - o; return `${o.toString(16)} ${size.toString(16)} ${v.toString(16)}`; });
+  writeFileSync(join(out, `${exeName}.addr`), lines.join("\n") + "\n");
+  console.log(`address table: ${lines.length} symbols (${exeName}.addr, against base 0x400000)`);
+} else if (x64) {
+  console.log("no address table: build/hybrid-all/hybrid-addrs.txt missing (run a full hybrid-build first)");
 } else if (existsSync(dump) && existsSync(mapPath)) {
   const pub = new Map(), stat = new Map();
   let statics = false;

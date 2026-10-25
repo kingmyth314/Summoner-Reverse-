@@ -40,6 +40,18 @@ typedef unsigned int   uint;
 #define MODERN_FINAL
 #endif
 
+// The 32-bit clang build compiles with VC6's stdarg.h, whose va_start takes the address of the last named
+// parameter; clang does not keep that parameter where the macro expects in a static variadic function (agent mode's
+// output and the crash handler's hprintf came out wrong). clang's builtins give the same x86 va_list (a char
+// pointer) that VC6's runtime reads. stdarg.h is included first, so its include guard keeps these.
+#if defined(MODERN_BUILD) && !defined(_WIN64)
+#include <stdarg.h>
+#undef va_start
+#undef va_end
+#define va_start(ap, v) __builtin_va_start(ap, v)
+#define va_end(ap) __builtin_va_end(ap)
+#endif
+
 // The handle of _findfirst / _findnext: long in the 32-bit builds (VC6's io.h), intptr_t in a 64-bit build, where a
 // long cuts the handle in half and _findnext then crashes (L3).
 #ifdef _WIN64
@@ -67,6 +79,14 @@ typedef unsigned int net_socket;
 #define PTR32 __ptr32 __uptr
 #else
 #define PTR32
+#endif
+
+// The byte size of a fixed memory pool (a static buffer behind a Mempool or NoRlsAllocPool): as the original in the
+// 32-bit builds, doubled in a 64-bit build, whose objects with pointers are larger (none more than twice) (L3).
+#ifdef _WIN64
+#define POOL64(n) ((n) * 2)
+#else
+#define POOL64(n) (n)
 #endif
 
 // Compile-time layout check. VC6 has no static_assert; a negative array size fails the build. LAYOUT_CHECK holds in

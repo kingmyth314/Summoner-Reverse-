@@ -737,7 +737,7 @@ matrix script_editor_saved_orient;                   // 0x254a8b0
 NoRlsAllocPool script_editor_alloc_pool;             // 0x255dc60
 
 // ---- the rest of .bss (no initialisers) ------------------------------------------------------------------
-char script_editor_alloc_pool_buffer[0x800];         // 0x2568f58
+char script_editor_alloc_pool_buffer[POOL64(0x800)];         // 0x2568f58
 char script_editor_status_text[256];                 // 0x254ecc8
 bool script_editor_camera_held;                      // 0x256b73d
 float script_editor_pick_distance;                   // 0x255dc58
@@ -971,7 +971,7 @@ void script_editor_create_ui()
     int i;
     ui_listbox_entry *e;
 
-    script_editor_alloc_pool.Init(script_editor_alloc_pool_buffer, 0x800);
+    script_editor_alloc_pool.Init(script_editor_alloc_pool_buffer, POOL64(0x800));
     script_editor_mode = SE_MODE_CREATURE;
     script_editor_pick_filter = 1;
     // Only size classes 0-2: [3] (huge) stays zero (cmp eax, 0x255e9d0 at 0x4e06db; D9800).
@@ -4492,7 +4492,7 @@ int script_write_level_script(const char *filename, bool level)
                 && ((navpoint *)c->start_navpoint)->type == NAVPOINT_TYPE_LEVEL)
                 count++;
         }
-        names = (const char **)script_editor_alloc_pool.Alloc(count * 4);
+        names = (const char **)script_editor_alloc_pool.Alloc(count * sizeof(const char *));
         if (names != NULL) {
             dups = 0;
             n = 0;
@@ -4527,7 +4527,7 @@ int script_write_level_script(const char *filename, bool level)
             f.write_line("*/", -1);
             f.write_line(NULL, -1);
         }
-        script_editor_alloc_pool.Init(script_editor_alloc_pool_buffer, 0x800);
+        script_editor_alloc_pool.Init(script_editor_alloc_pool_buffer, POOL64(0x800));
     }
     f.write_line("#End", -1);
     return f.close();

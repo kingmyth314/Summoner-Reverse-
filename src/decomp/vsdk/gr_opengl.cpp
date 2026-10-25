@@ -29,6 +29,15 @@
 #include "vsdk/gr/opengl/gl_min.h"
 #include "vsdk/gr/opengl/gr_opengl.h"
 
+#ifdef MODERN_BUILD
+// The in-source host (modern/display.cpp, L3b): the viewport scaled into the output window, the bars and captures
+// at the swap, the thumbnail read-back mapped. Each passes the call through unchanged while SummonerFix is loaded.
+#include "modern/modern.h"
+#define glViewport modern_gl_viewport
+#define SwapBuffers modern_swap_buffers
+#define glReadPixels modern_gl_read_pixels
+#endif
+
 // Original __FILE__ of this unit (0x5ad91c and 0x5ad988; string pooling is off).
 #define GR_OPENGL_CPP "D:\\projects\\Summoner\\pccode\\vsdk\\gr\\opengl\\gr_opengl.cpp"
 

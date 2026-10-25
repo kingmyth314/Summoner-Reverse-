@@ -328,9 +328,63 @@ below 2 GB. Window styles (`SetWindowLongA` with `GWL_STYLE` / `GWL_EXSTYLE`), `
 (level time from 66.5 s, as the 32-bit build loads it) and plays at 120 fps. VC6 still matches all 5,613 functions,
 and every build's address table is unchanged.
 
+### L3b: the in-source host (2026-10-25)
+
+What SummonerFix gives a rebuilt exe, now in the source for when it is not there: a 64-bit exe (SummonerFix is a
+32-bit DLL), or a 32-bit clang build run without it. `src/decomp/modern/` (`include/modern/modern.h`), compiled into
+the clang builds only (`MODERN_BUILD`). It reads SummonerFix's own `summonerfix.ini` keys and writes
+`summonerfix.log`, so the settings and the test tools carry over.
+
+| Unit | What it does |
+|---|---|
+| `host.cpp` | detects SummonerFix (a `dinput.dll` beside the exe; for a 64-bit exe Windows skips that 32-bit DLL and loads the system one), reads the settings, loads `<exe>.addr` (the Sum.exe-address table, so commands with Sum.exe addresses work), picks the save folder (`savetest` with `[Debug] TestSaves=1`), keeps the log |
+| `display.cpp` | SummonerFix's display layer: borderless full screen (`[Display] Mode`) or a sized window, every `glViewport` scaled into a centred 4:3 area, the bars cleared before each swap, the mouse mapped between window and game pixels, the save thumbnail's read-back mapped and box-filtered, the focus handling that lets Alt+Tab leave, and captures at half size |
+| `agent.cpp` | agent mode with SummonerFix's protocol (`agent\cmd.txt`, `result.txt`, `ready.txt`) and commands, so `tools/agent.mjs` and every check tool work unchanged. Game-thread calls go through the game's own message pump. Characters are reached through their members (the layouts differ in 64-bit) |
+
+The game calls it at six places, each under `MODERN_BUILD` and passing straight through while SummonerFix is loaded:
+WinMain (settings), `os_init` (agent mode), `path_savegame`, `gr_init`'s windowed branch (the output window),
+`os_wndproc`'s activation (the focus), and the GL and mouse calls of `gr_opengl.cpp` and the mouse unit (`glViewport`,
+`SwapBuffers`, `glReadPixels`, `ScreenToClient`, `ClientToScreen`). Not yet in the source: SummonerFix's centred
+widescreen menus, brightness and fast-mode badge, and its controller (the experimental build has its own).
+
+`link-build --arch x64` now also writes the 64-bit exe's `.addr`. lld's map lists demangled names, and the hybrid
+build's names are MSVC-mangled; both are reduced to the qualified name, and the names that occur once on each side
+are joined. That gives 8,884 of the 9,330 rows. Rows are written against the base 0x400000, and the host adds the
+actual load address.
+
+**Found on the way** (all fixed, VC6's code unchanged):
+- **Fixed-size allocations:** six cutscene records were allocated with their 32-bit sizes (`Alloc(0x10)` for a
+  structure that is 0x20 bytes in 64-bit), and the script editor allocated a pointer array as `count * 4`. They now
+  use `sizeof`, which is the same constant in 32-bit builds. Starting a new game crashed on the first one.
+- **Fixed-size pools:** the game's static memory pools (character and model pools, items, localisation, dialogue,
+  the script editor, cutscenes, and the 25.6 MB level pool) are sized for 32-bit objects; the cutscene pool ran out
+  once its records had their real size. `POOL64(n)` (`vsdk.h`) is `n` in 32-bit builds and twice that in 64-bit.
+- **`va_start` in the 32-bit clang build:** VC6's macro takes the address of the last named parameter, which clang
+  does not keep in place in a static variadic function. Agent mode's answers came out empty; the crash handler's
+  `hprintf` and the experimental tentacle trace had the same flaw. `vsdk.h` and `modern.h` use clang's builtins
+  there.
+
+**Observed:**
+- **The 32-bit clang build with SummonerFix:** the host stays off; SummonerFix's log, window and agent are the ones
+  in use, and the clock runs at 96.0%.
+- **The same build without SummonerFix:** the in-source agent drives it; the menu, a save load and play work.
+- **The 64-bit exe:** borderless at 2560x1440 with the 4:3 picture centred. Captures, the main menu, the load screen,
+  a save load and play, and Start New Game with the prologue all work.
+- **The save and screen checks on the 64-bit exe** (`link-savecheck` / `link-screencheck --exe
+  Sum-fixed-clang-x64.exe --fixes`, driven by the in-source agent):
+  - Screens: the main menu, the prologue at 12 s and the character screen are identical to the original's; the
+    inventory differs by 20 pixels.
+  - Saves: all four levels load and save; 82 / 246 / 207 / 94 dwords lie beyond the original runs' spread. They are
+    the NPC goal difference below (and its consequences), which the 32-bit clang build shows too; the party records
+    match, timers included.
+  - The memory check does not apply: the layouts differ by design.
+- **Open: clang's NPC goals.** In both clang builds, some NPCs and monsters have a second AI goal that the original
+  does not (the save check's differences at record offsets `+0xb2`..`+0xe1`, the second of the five saved goals). The
+  VC6 fixed build shows none. Compiler-dependent behaviour, such as argument evaluation order or floating-point
+  evaluation, is the suspect; it is not specific to 64-bit.
+
 **Next:**
-- Agent mode in the source (L3b), so the save, memory and screen checks can run on the 64-bit exe. The memory check
-  does not apply there, since the layouts differ by design; saves, screens and scenarios do.
+- The clang NPC goal difference above.
 - FFmpeg for the Bink movies.
 - Longer play in 64-bit: combat, spells, every level.
 

@@ -59,6 +59,7 @@
 #include "summoner/interface/interface.h"
 #include "summoner/interface/new_pxochat.h"   // pxo_run_updater_on_exit
 #include "experimental/experimental.h"   // EXPERIMENTAL_BUILD only (the renderer's window mode)
+#include "modern/modern.h"               // MODERN_BUILD only (the in-source host, L3b)
 
 void console_sound_stop();            // 0x43d710 (defined after its first caller)
 
@@ -338,6 +339,9 @@ void LoadSettings()
     int i;
 
     os_init("Volition", "Summoner");
+#ifdef MODERN_BUILD
+    modern_agent_init();   // the in-source agent mode, when SummonerFix is not there (modern/agent.cpp)
+#endif
     os_registry_set_app_key("Volition", "Summoner");
     cmdline_read_params();
     os_registry_write_dword("Version", "Major", 1);
@@ -510,7 +514,11 @@ void setup_data_paths()
     path_tables_characterinfo = file_add_path("data\\tables\\characterinfo", ".tbl");
     path_internal = path_internal_copy = file_add_path("data\\internal", ".pfg .mlo .vis .vex .bsp .lkf .eax");
     path_players = file_add_path("players", ".plr");
+#ifdef MODERN_BUILD
+    path_savegame = file_add_path(modern_save_folder(), ".sav");   // savetest with [Debug] TestSaves=1 (modern/host.cpp)
+#else
     path_savegame = file_add_path("savegame", ".sav");
+#endif
     path_tables_levels = file_add_path("data\\tables\\levels", ".tbl");
     path_movies = file_add_path("data\\movies", "*.bik");
 }
@@ -740,6 +748,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 {
     int result;
 
+#ifdef MODERN_BUILD
+    modern_host_init();   // the in-source host's settings, before anything reads them (modern/host.cpp)
+#endif
     cd_select_drive();
     result = -1;
 #ifdef _MSC_VER

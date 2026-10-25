@@ -28,6 +28,7 @@
 #include <cpuid.h>                                   // __cpuid: the modern build has no __asm (L3)
 #endif
 #include "vsdk/os/os.h"
+#include "modern/modern.h"                            // MODERN_BUILD only (the in-source host's window, L3b)
 #include "vsdk/os/timer.h"
 #include "vsdk/os/console.h"
 #include "vsdk/os/vstring.h"
@@ -245,10 +246,17 @@ LRESULT CALLBACK os_wndproc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
             is_main_wnd_active = wparam != 0;
         if (was_active != is_main_wnd_active) {
             if (is_main_wnd_active) {
+#ifdef MODERN_BUILD
+                // The in-source host keeps its output window and lets Alt+Tab leave it (modern/display.cpp).
+                if (!modern_window_activate(main_wnd, true))
+#endif
                 SetWindowPos(main_wnd, HWND_TOPMOST, 0, 0, GetSystemMetrics(SM_CXSCREEN),
                              GetSystemMetrics(SM_CYSCREEN), 0);
                 SetThreadPriority(os_main_thread, THREAD_PRIORITY_HIGHEST);
             } else {
+#ifdef MODERN_BUILD
+                if (!modern_window_activate(main_wnd, false))
+#endif
                 SetWindowPos(main_wnd, HWND_NOTOPMOST, 0, 0, GetSystemMetrics(SM_CXSCREEN),
                              GetSystemMetrics(SM_CYSCREEN), 0);
                 SetThreadPriority(os_main_thread, THREAD_PRIORITY_NORMAL);

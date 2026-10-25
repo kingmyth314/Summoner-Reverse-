@@ -75,7 +75,7 @@ unsigned int items_table_checksum;            // 0x8b9e9c
 // 0x449f10 register_dtor_norlsallocpool_8b9ea0 (atexit(0x449f20)). Confidence: exact.
 // 0x449f20 dtor_norlsallocpool_8b9ea0 (jmp NoRlsAllocPool::~NoRlsAllocPool). Confidence: exact.
 NoRlsAllocPool items_alloc_pool;              // 0x8b9ea0
-char items_alloc_buffer[0x12000];             // 0x8b9ebc (label ours)
+char items_alloc_buffer[POOL64(0x12000)];             // 0x8b9ebc (label ours)
 int items_num_allocated;                      // 0x8cbebc
 ItemType item_types[MAX_ITEM_TYPES];          // 0x8cbec0
 int num_item_types;                           // 0x8ec7c0
@@ -114,7 +114,7 @@ char **status_effect_names[18] = {            // 0x8ec9e8
 void items_init()
 {
     items_table_checksum = 0;
-    items_alloc_pool.Init(items_alloc_buffer, 0x12000);
+    items_alloc_pool.Init(items_alloc_buffer, POOL64(0x12000));
     materials_parse_table();
     items_parse_table();
 }

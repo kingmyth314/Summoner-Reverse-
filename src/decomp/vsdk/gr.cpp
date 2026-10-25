@@ -33,6 +33,7 @@
 #include "vsdk/os/frametime.h"
 #include "vsdk/vfile/file.h"
 #include "vsdk/bmpman/bmpman.h"
+#include "modern/modern.h"           // MODERN_BUILD only (the in-source host's output window, L3b)
 #include "vsdk/bmpman/targautils.h"
 #include "vsdk/gr/gr.h"
 #include "vsdk/gr/directx/gr_direct3d.h"
@@ -275,6 +276,15 @@ int gr_init(int w, int h, int mode, int window_mode, HWND hwnd, float far_z, boo
 
     switch (gr_screen.window_mode) {
     case 200: {
+#ifdef MODERN_BUILD
+        if (modern_host()) {
+            // Without SummonerFix: its output window (borderless or sized; modern/display.cpp), and the game's own
+            // aspect instead of the desktop's.
+            modern_window_setup(hwnd);
+            aspect = (float)gr_screen.max_w / (float)gr_screen.max_h;
+            break;
+        }
+#endif
         RECT rect;
         RECT work;
         rect.left = 0;

@@ -403,7 +403,7 @@ const char *offense_point_names[10] = {       // 0x59614c (offense_point_name)
 // names them. ccmd_charinfo 0x65e968, ccmd_Quick_combo 0x65e998, charinfo_string_pool 0x68e1a8,
 // charinfo_script_anim_pool 0x68e1c0, ccmd_All_summons 0x68e200, the Mempools, ccmd_levelchars 0x8b3c38,
 // chain_skill_table 0x8b3c68, skill_table 0x8b3f88, resistance_level_names 0x8b5098.
-char rosalind_char_buffer[0x2f800];           // 0x65e9a4
+char rosalind_char_buffer[POOL64(0x2f800)];           // 0x65e9a4
 void *joseph_anim_buffer;                     // 0x68e1a4
 // Between charinfo_string_pool (0x68e1a8, 0x14 bytes) and charinfo_script_anim_pool (0x68e1c0): an int of
 // this unit's .bss that only mp_send_jn_rqst reads (the join request's +0x40); no instruction writes it by address (name ours).
@@ -412,33 +412,33 @@ int joseph_anim_buffer_size;                  // 0x68e1d4
 int charinfo_cast_spells_used;            // 0x68e1f4 entries of charinfo_cast_spells in use
 void *statscreen_anim_buffer;                 // 0x68e1f8
 int charinfo_anim_mem_total;                  // 0x68e1fc the four hero anim blocks (written only)
-char jekhar_model_buffer[0x49c00];            // 0x68e20c
+char jekhar_model_buffer[POOL64(0x49c00)];            // 0x68e20c
 int summon_anim_buffer_size;                  // 0x6d7e4c
 char_info char_infos[MAX_CHARACTER_INFO];     // 0x6d7e50
 void *summon_anim_buffer;                     // 0x714e50
 int num_char_infos;                           // 0x714e54
 void *jekhar_anim_buffer;                     // 0x714e58
-char flece_char_buffer[0x2f800];              // 0x714e7c
-char charinfo_string_pool_buffer[0x14c00];    // 0x74469c
-char joseph_model_buffer[0x38400];            // 0x7592dc
+char flece_char_buffer[POOL64(0x2f800)];              // 0x714e7c
+char charinfo_string_pool_buffer[POOL64(0x14c00)];    // 0x74469c
+char joseph_model_buffer[POOL64(0x38400)];            // 0x7592dc
 move_info *move_info_free_list;               // 0x7916dc
 int flece_anim_buffer_size;                   // 0x7916e0
-char flece_model_buffer[0x4d800];             // 0x7916e4
+char flece_model_buffer[POOL64(0x4d800)];             // 0x7916e4
 multi_charinfo_slot_t multi_charinfo_slots[4];// 0x7def08
-char charinfo_script_anim_pool_buffer[0x1400];// 0x7dfeb8
+char charinfo_script_anim_pool_buffer[POOL64(0x1400)];// 0x7dfeb8
 int rosalind_anim_buffer_size;                // 0x7e12b8
 void *flece_anim_buffer;                      // 0x7e12dc
 Player *stashed_summon_player;                // 0x7e12e0
 move_info move_infos[MAX_TOTAL_MOVES];        // 0x7e12e8
-char joseph_char_buffer[0x2a800];             // 0x81d7c0
+char joseph_char_buffer[POOL64(0x2a800)];             // 0x81d7c0
 int statscreen_anim_buffer_size;              // 0x847fdc 0x7800 (written only)
 int jekhar_anim_buffer_size;                  // 0x847fe0
-char player_instance_buffer[0xa000];          // 0x848004
-char rosalind_model_buffer[0x37000];          // 0x852004
+char player_instance_buffer[POOL64(0xa000)];          // 0x848004
+char rosalind_model_buffer[POOL64(0x37000)];          // 0x852004
 unsigned int summon_stash_level_offset;       // 0x889044
 void *rosalind_anim_buffer;                   // 0x889048
 int charinfo_cast_spells[250];                // 0x88904c (up to 0x889434)
-char jekhar_char_buffer[0x2a800];             // 0x889434
+char jekhar_char_buffer[POOL64(0x2a800)];             // 0x889434
 Character *stashed_summon;                    // 0x8b3c34
 int charinfo_level_mem_used;                  // 0x8b3c44
 bool All_summons;                             // 0x8b50b0

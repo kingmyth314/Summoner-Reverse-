@@ -121,7 +121,7 @@ extern int script_editor_action_list_kind;           // 0x254da98
 extern int script_editor_param_field_count;          // 0x256325c
 extern int script_editor_new_selection;              // 0x256362c
 extern NoRlsAllocPool script_editor_alloc_pool;      // 0x255dc60
-extern char script_editor_alloc_pool_buffer[0x800];  // 0x2568f58
+extern char script_editor_alloc_pool_buffer[POOL64(0x800)];  // 0x2568f58
 extern console_command ccmd_remove_nav;              // 0x254a8a0
 extern console_command ccmd_render_s3d_navpoints;    // 0x2549d30
 // script_ambients_dirty (0x255b4d8) and script_level_items_dirty (0x2563d88) are declared in

@@ -65,8 +65,8 @@ StringPool localize_string_pool(0xa800);                 // 0x25c68d0 the non-le
 localize_node *localize_topic_table[LOCALIZE_TABLE_SIZE];   // 0x25c68e4
 localize_node *localize_script_table[LOCALIZE_TABLE_SIZE];  // 0x25c6cd8
 localize_node *localize_quest_table[LOCALIZE_TABLE_SIZE];   // 0x25c70cc
-static char localize_level_buffer[0x2800];               // 0x25c74dc (name ours)
-static char localize_non_level_buffer[0x3800];           // 0x25c9cdc (name ours)
+static char localize_level_buffer[POOL64(0x2800)];               // 0x25c74dc (name ours)
+static char localize_non_level_buffer[POOL64(0x3800)];           // 0x25c9cdc (name ours)
 char *localize_strings[1000];                            // 0x25cd4dc
 localize_node *localize_item_table[LOCALIZE_TABLE_SIZE];    // 0x25d847c
 int localize_french_punct;                               // 0x25d8870 (module - in sum.symbols; gr_font reads it)

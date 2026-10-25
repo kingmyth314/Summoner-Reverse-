@@ -30,6 +30,14 @@
 #include "vsdk/os/os.h"
 #include "vsdk/os/timestamp.h"
 
+#ifdef MODERN_BUILD
+// The in-source host (modern/display.cpp, L3b): the poll maps window pixels to game pixels (and takes agent mode's
+// cursor), the warp maps them back. Both pass through unchanged while SummonerFix is loaded.
+#include "modern/modern.h"
+#define ScreenToClient modern_screen_to_client
+#define ClientToScreen modern_client_to_screen
+#endif
+
 #ifndef WM_MOUSEWHEEL
 #define WM_MOUSEWHEEL 0x020a              // winuser.h has it only for _WIN32_WINNT >= 0x400
 #endif

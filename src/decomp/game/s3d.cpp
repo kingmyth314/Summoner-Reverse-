@@ -50,7 +50,7 @@ bool S3d_load_lightmaps = true;           // 0x59aa58
 // ---- .bss (0xa5a2a0-0x22e4425) -----------------------------------------------------------------------
 // In address order, except the objects with dynamic initialisers: those are defined below in the order
 // of their initialisers (static_initializers entries 207-213), each next to its functions.
-char level_mempool_buffer[0x186a000];  // 0xa5a380 25.6 MB (name ours)
+char level_mempool_buffer[POOL64(0x186a000)];  // 0xa5a380 25.6 MB (name ours)
 int s3d_vertex_cursor;                    // 0x22c4380 level +0xb4 (names of the cursors ours)
 int s3d_cursor_22c4384;                   // 0x22c4384 reset only
 // 0x22c4388 ccmd_load_lightmaps
@@ -91,7 +91,7 @@ s3d_level level_s3d;                      // 0xa5a2a0
 // Mempool's inline constructor is a bare Copy call (D12).
 // 0x46dd90 init_mempool_level_thunk (jmp). Confidence: exact.
 // 0x46dda0 init_mempool_level (Mempool::Copy). Confidence: exact.
-Mempool level_mempool(level_mempool_buffer, 0x186a000, "level");   // 0x22e43c0
+Mempool level_mempool(level_mempool_buffer, POOL64(0x186a000), "level");   // 0x22e43c0
 
 // ---- console commands --------------------------------------------------------------------------------
 void cmd_test_meshes_on_load();
