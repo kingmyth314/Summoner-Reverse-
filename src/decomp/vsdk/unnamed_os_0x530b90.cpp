@@ -24,6 +24,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#ifdef MODERN_BUILD
+#include <cpuid.h>                                   // __cpuid: the modern build has no __asm (L3)
+#endif
 #include "vsdk/os/os.h"
 #include "vsdk/os/timer.h"
 #include "vsdk/os/console.h"
@@ -311,11 +314,13 @@ unsigned int cpu_read_tsc()
 {
     unsigned int t;
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(MODERN_BUILD)
     __asm {
         rdtsc
         mov t, eax
     }
+#elif defined(MODERN_BUILD)
+    t = (unsigned int)__builtin_ia32_rdtsc();
 #else
     t = 0;                                           // (syntax check only)
 #endif
@@ -358,7 +363,7 @@ void cpu_identify(int *family, int *mmx, int *amd3dnow, int *katmai, int *tsc, c
         char vendor[16];
     } regs = { 0 };
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(MODERN_BUILD)
     __asm {
         push eax
         push ebx
@@ -394,6 +399,20 @@ done:
         pop ebx
         pop eax
     }
+#elif defined(MODERN_BUILD)
+    {
+        // The same reads through the intrinsic (every CPU that runs the modern build has CPUID). The vendor
+        // string is EBX, EDX, ECX, as the asm stores it.
+        unsigned int a, b, c, d;
+        __cpuid(0, a, b, c, d);
+        regs.max_level = a;
+        memcpy(regs.vendor + 0, &b, 4);
+        memcpy(regs.vendor + 4, &d, 4);
+        memcpy(regs.vendor + 8, &c, 4);
+        __cpuid(1, a, b, c, d);
+        eax1 = a;
+        features = d;
+    }
 #else
     eax1 = 0x400;                               // (syntax check only)
     features = 0;
@@ -420,30 +439,40 @@ done:
         *katmai = 1;
 
     if (!_stricmp(regs.vendor, "AuthenticAMD")) {
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(MODERN_BUILD)
         __asm {
             mov eax, 0x80000000
             cpuid
             mov eax1, eax
+        }
+#elif defined(MODERN_BUILD)
+        {
+            unsigned int b, c, d;
+            __cpuid(0x80000000u, eax1, b, c, d);
         }
 #endif
         if (eax1 < 0x80000005) {
             if (name)
                 sprintf(name, "AMD-K%d, MMX:%s", *family, mmx ? "Yes" : "No");
         } else {
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(MODERN_BUILD)
             __asm {
                 mov eax, 0x80000001
                 cpuid
                 mov eax1, eax
                 mov features, edx
             }
+#elif defined(MODERN_BUILD)
+            {
+                unsigned int b, c;
+                __cpuid(0x80000001u, eax1, b, c, features);
+            }
 #endif
             if (features & 0x80000000)
                 *amd3dnow = 1;
             if (name) {
                 memset(brand_text, 0, sizeof(brand_text));
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(MODERN_BUILD)
                 __asm {
                     mov eax, 0x80000002
                     cpuid
@@ -463,6 +492,12 @@ done:
                     mov dword ptr brand_text[36], ebx
                     mov dword ptr brand_text[40], ecx
                     mov dword ptr brand_text[44], edx
+                }
+#elif defined(MODERN_BUILD)
+                for (int leaf = 0; leaf < 3; leaf++) {
+                    unsigned int r[4];
+                    __cpuid(0x80000002u + leaf, r[0], r[1], r[2], r[3]);
+                    memcpy(brand_text + 16 * leaf, r, 16);   // EAX, EBX, ECX, EDX, as the asm stores them
                 }
 #endif
                 strcpy(name, brand_text);
@@ -576,7 +611,7 @@ void PrintSystemInfo(TextBuffer *tb, int unused, bool test_ram)
         copies_v = 0;
         end_time_ = timeGetTime() + 1000;
         while (timeGetTime() < end_time_) {
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(MODERN_BUILD)
             __asm {
                 push esi
                 push edi
@@ -589,6 +624,9 @@ void PrintSystemInfo(TextBuffer *tb, int unused, bool test_ram)
                 pop edi
                 pop esi
             }
+#elif defined(MODERN_BUILD)
+            memcpy(dst_v, src_v, 0x10000 * 4);           // rep movsd, 0x10000 dwords
+            (void)*(volatile char *)dst_v;                // keeps the copy (the result is never read)
 #endif
             copies_v++;
         }

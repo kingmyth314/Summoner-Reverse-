@@ -33,9 +33,18 @@ extern HMODULE acm_dll;                           // 0x2fbdb74 (name ours; freed
 extern HACMDRIVERID acm_driver_id;                // 0x2fbdb78
 extern bool acm_initialized;                      // 0x2fbdb7c
 
+// The pointer-sized user parameters of the multimedia timer and ACM callbacks: DWORD in the 32-bit builds (the
+// original's declarations; VC6's headers have no DWORD_PTR), DWORD_PTR in a 64-bit build (L3).
+#ifdef _WIN64
+typedef DWORD_PTR snd_callback_param;
+#else
+typedef DWORD snd_callback_param;
+#endif
+
 // (delay ms, stream): a periodic timer calling snd_timer_proc.
 MMRESULT snd_start_timer(int delay, int stream);  // 0x566560
-void CALLBACK snd_timer_proc(UINT id, UINT msg, DWORD user, DWORD dw1, DWORD dw2);   // 0x566580
+void CALLBACK snd_timer_proc(UINT id, UINT msg, snd_callback_param user, snd_callback_param dw1,
+                             snd_callback_param dw2);   // 0x566580
 void snd_stream_kill_timer(snd_stream_slot *s);   // 0x5665b0
 unsigned int snd_stream_get_writable(int stream); // 0x5665d0 bytes from the write position to the play cursor
 // (stream, bytes, &written): 0 / -1.
@@ -50,7 +59,7 @@ int  snd_stream_start(int buffer, int channel, bool looping);   // 0x566c60 the 
 void snd_stream_init();                           // 0x566cf0
 void snd_stream_close_all();                      // 0x566d30
 
-BOOL CALLBACK acm_driver_enum_callback(HACMDRIVERID id, DWORD instance, DWORD support);   // 0x566d70
+BOOL CALLBACK acm_driver_enum_callback(HACMDRIVERID id, snd_callback_param instance, DWORD support);   // 0x566d70
 // (file format, PCM format filled in, &stream, bits): 0 / -1.
 int  acm_stream_open(WAVEFORMATEX *src, WAVEFORMATEX *dst, HACMSTREAM *out, int bits);   // 0x566e20
 int  acm_stream_close(HACMSTREAM s);              // 0x566eb0

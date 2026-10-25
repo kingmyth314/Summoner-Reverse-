@@ -39,6 +39,16 @@
 #define MAX_STACK_DUMP   2048            // dwords (8 KB) of stack at most
 #define STACK_DUMP_SLACK 50              // flush the line buffer when fewer bytes are left
 
+// The instruction and stack pointers of the crash context: Eip / Esp in the 32-bit builds (the original's text),
+// Rip / Rsp in a 64-bit build (docs/future/modern-port.md, L3).
+#ifdef _WIN64
+#define CONTEXT_IP(c) ((c)->Rip)
+#define CONTEXT_SP(c) ((c)->Rsp)
+#else
+#define CONTEXT_IP(c) ((c)->Eip)
+#define CONTEXT_SP(c) ((c)->Esp)
+#endif
+
 static void hprintf(HANDLE file, const char *format, ...);
 static void RecordModuleList(HANDLE file);
 static void ShowModuleInfo(HANDLE file, HINSTANCE module);
@@ -88,12 +98,13 @@ int RecordExceptionInfo(PEXCEPTION_POINTERS data, const char *message)
     char CrashModulePathName[MAX_PATH];
     const char *CrashModuleFileName = "Unknown";
     MEMORY_BASIC_INFORMATION MemInfo;
-    if (VirtualQuery((void *)Context->Eip, &MemInfo, sizeof(MemInfo))
+    if (VirtualQuery((void *)CONTEXT_IP(Context), &MemInfo, sizeof(MemInfo))
         && GetModuleFileNameA((HINSTANCE)MemInfo.AllocationBase, CrashModulePathName, MAX_PATH) > 0)
         CrashModuleFileName = GetFilePart(CrashModulePathName);
 
     hprintf(LogFile, "%s caused %s in module %s at %04x:%08x.\r\n", FileName,
-            GetExceptionDescription(Exception->ExceptionCode), CrashModuleFileName, Context->SegCs, Context->Eip);
+            GetExceptionDescription(Exception->ExceptionCode), CrashModuleFileName, Context->SegCs,
+            CONTEXT_IP(Context));
     hprintf(LogFile, "Exception handler called in %s.\r\n", message);
     RecordSystemInformation(LogFile);
 
@@ -109,6 +120,14 @@ int RecordExceptionInfo(PEXCEPTION_POINTERS data, const char *message)
 
     hprintf(LogFile, "\r\n");
     hprintf(LogFile, "Registers:\r\n");
+#ifdef _WIN64
+    hprintf(LogFile, "RAX=%016I64x RBX=%016I64x RCX=%016I64x RDX=%016I64x\r\n", Context->Rax, Context->Rbx,
+            Context->Rcx, Context->Rdx);
+    hprintf(LogFile, "RSI=%016I64x RDI=%016I64x RBP=%016I64x RSP=%016I64x\r\n", Context->Rsi, Context->Rdi,
+            Context->Rbp, Context->Rsp);
+    hprintf(LogFile, "RIP=%016I64x EFLGS=%08x CS=%04x SS=%04x\r\n", Context->Rip, Context->EFlags, Context->SegCs,
+            Context->SegSs);
+#else
     hprintf(LogFile, "EAX=%08x CS=%04x EIP=%08x EFLGS=%08x\r\n", Context->Eax, Context->SegCs, Context->Eip,
             Context->EFlags);
     hprintf(LogFile, "EBX=%08x SS=%04x ESP=%08x EBP=%08x\r\n", Context->Ebx, Context->SegSs, Context->Esp,
@@ -117,9 +136,10 @@ int RecordExceptionInfo(PEXCEPTION_POINTERS data, const char *message)
             Context->SegFs);
     hprintf(LogFile, "EDX=%08x ES=%04x EDI=%08x GS=%04x\r\n", Context->Edx, Context->SegEs, Context->Edi,
             Context->SegGs);
+#endif
 
     hprintf(LogFile, "Bytes at CS:EIP:\r\n");
-    unsigned char *code = (unsigned char *)Context->Eip;
+    unsigned char *code = (unsigned char *)CONTEXT_IP(Context);
     for (int codebyte = 0; codebyte < NUM_CODE_BYTES; codebyte++) {
         __try {
             hprintf(LogFile, "%02x ", code[codebyte]);
@@ -130,15 +150,19 @@ int RecordExceptionInfo(PEXCEPTION_POINTERS data, const char *message)
 
     hprintf(LogFile, "\r\nStack dump:\r\n");
     __try {
-        DWORD *pStack = (DWORD *)Context->Esp;
+        DWORD *pStack = (DWORD *)CONTEXT_SP(Context);
         DWORD *pStackTop;
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(MODERN_BUILD)
         __asm {
             mov eax, fs:[4]
             mov pStackTop, eax
         }
 #else
-        pStackTop = (DWORD *)__readfsdword(4);
+        // The stack's top (fs:[4] in 32-bit code): the end of the committed region that holds the stack pointer.
+        MEMORY_BASIC_INFORMATION StackInfo;
+        pStackTop = pStack;
+        if (VirtualQuery(pStack, &StackInfo, sizeof(StackInfo)))
+            pStackTop = (DWORD *)((char *)StackInfo.BaseAddress + StackInfo.RegionSize);
 #endif
         if (pStackTop > pStack + MAX_STACK_DUMP)
             pStackTop = pStack + MAX_STACK_DUMP;

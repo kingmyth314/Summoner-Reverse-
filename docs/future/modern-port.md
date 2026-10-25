@@ -214,6 +214,47 @@ another writer shows up.
 - **Not seen in game:** K220 and G226 stay "Observed code". The editor opens in agent mode (game flag `0x80`), but its
   buttons did not respond to agent-mode clicks in the test, so the door and creature windows could not be opened.
 
+## L3: 64-bit (begun 2026-10-25)
+
+**Platform facts** (**Observed** on the test PC):
+- Direct3D 7 immediate mode (`d3dim700.dll`) exists only as a 32-bit DLL (SysWOW64). So do Glide, EAX and Bink
+  (`binkw32.dll`).
+- DirectDraw, DirectSound, DirectInput and OpenGL have 64-bit DLLs.
+- llvm-mingw has the x86_64 headers and import libraries for them.
+
+**Decisions** (the user, 2026-10-25):
+1. **Renderer:** the 64-bit build has the OpenGL renderer only, the one the fixed build already uses, and DirectSound
+   without EAX. The 32-bit builds keep everything.
+2. **Movies:** decoded with FFmpeg's libavcodec, which reads Bink 1 (LGPL, loaded as DLLs, never committed; the
+   download is asked for first).
+3. **Testing:** agent mode, and the test-save, dump and key hooks the checks use, move from SummonerFix (a 32-bit DLL)
+   into the source, so any build, 32 or 64-bit, can be driven.
+
+**Stages:**
+
+| Stage | Work | Tested in |
+|---|---|---|
+| L3a | portable code: no `__asm`, the 64-bit crash context, pointer-sized callback parameters | the 32-bit clang build |
+| L3b | agent mode in the source | the 32-bit clang build, then 64-bit |
+| L3c | the 211 failing layout checks: memory-only layouts freed, file and network formats read and written field by field | both |
+| L3d | the x86_64 build: `link-build --compiler clang --arch x64`, OpenGL only, no EAX, FFmpeg for Bink | 64-bit |
+
+**L3a done.** An x86_64 syntax check of every unit found 226 errors: 211 layout checks and 15 others. The 15 are now
+fixed, and the `__asm` blocks have `MODERN_BUILD` forms:
+
+| Where | Modern form |
+|---|---|
+| `timer_get` (64-bit by 32-bit division in `__asm`) | the same division in C: the low 32 bits of the quotient |
+| `read_tsc`, `cpu_read_tsc` | `__builtin_ia32_rdtsc()` |
+| `cpu_identify` (CPUID levels 0, 1, 0x80000000-4) | `<cpuid.h>`'s `__cpuid` (clang's; `<intrin.h>` needs a newer C runtime than VC6's) |
+| the `sysinfo` memory benchmark (`rep movsd`) | `memcpy`, with a volatile read so it is not optimised away |
+| `float_to_int_round` (`fld` / `fistp`) | rounding to nearest, ties to even, written out: equal to `fistp` on 2,000,013 test values. The old syntax-check stub truncated instead |
+| the crash handler: `Eip` / `Esp` / the register dump, the stack top from `fs:[4]` | `CONTEXT_IP` / `CONTEXT_SP` (the same text in 32-bit builds), a `Rxx` dump under `_WIN64`, the stack top from `VirtualQuery` |
+| `snd_timer_proc` and `acm_driver_enum_callback` | `snd_callback_param`: `DWORD` in 32-bit builds, `DWORD_PTR` under `_WIN64` |
+
+The x86_64 check now finds only the layout checks. 111 size warnings remain, nearly all `size_t` to `int`. VC6 still
+matches every function. The 32-bit clang build plays with the modern forms, with its clock at 96.3% of real time.
+
 ## Recommendation
 
 L1 and L2 together as "the modern build", in the same tree, behind `MODERN_BUILD`, tested against the fixed build.

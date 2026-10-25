@@ -36,7 +36,8 @@ MMRESULT snd_start_timer(int delay, int stream)
 }
 
 // 0x566580  Confidence: exact.
-void CALLBACK snd_timer_proc(UINT id, UINT msg, DWORD user, DWORD dw1, DWORD dw2)
+void CALLBACK snd_timer_proc(UINT id, UINT msg, snd_callback_param user, snd_callback_param dw1,
+                             snd_callback_param dw2)
 {
     EnterCriticalSection(&snd_stream_lock);
     snd_stream_service(user);
@@ -324,7 +325,7 @@ void snd_stream_close_all()
 
 // 0x566d70  Confidence: exact (the FALSE of the found case is _stricmp's 0). Picks the "MS-ADPCM" driver
 // (none when it is disabled) and stops the enumeration there.
-BOOL CALLBACK acm_driver_enum_callback(HACMDRIVERID id, DWORD instance, DWORD support)
+BOOL CALLBACK acm_driver_enum_callback(HACMDRIVERID id, snd_callback_param instance, DWORD support)
 {
     ACMDRIVERDETAILS dd;
     DWORD priority;

@@ -59,10 +59,19 @@ float __stdcall fast_sqrt(float x)
 int __stdcall float_to_int_round(float x)
 {
     int i;
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(MODERN_BUILD)
     __asm {
         fld x
         fistp i
+    }
+#elif defined(MODERN_BUILD)
+    {
+        // fistp rounds in the FPU's mode, which the game leaves at the default: to nearest, ties to even.
+        float r = (float)floor(x);
+        float d = x - r;
+        if (d > 0.5f || (d == 0.5f && fmod(r, 2.0) != 0.0))
+            r += 1.0f;
+        i = (int)r;
     }
 #else
     i = (int)x;

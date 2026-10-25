@@ -109,7 +109,7 @@ int timer_get(int scale)
     ticks = elapsed;
     LeaveCriticalSection(&timer_lock);
     ticks = ticks * scale;
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(MODERN_BUILD)
     __asm {
         mov edx, dword ptr [ticks + 4]
         mov eax, dword ptr [ticks]
@@ -122,7 +122,8 @@ int timer_get(int scale)
         mov result, eax
     }
 #else
-    result = (int)(unsigned int)((unsigned __int64)ticks / timer_qpc_freq_low32);   // (syntax check only)
+    // The same value: the low 32 bits of the quotient (the modern build; for the mingw syntax check too).
+    result = (int)(unsigned int)((unsigned __int64)ticks / timer_qpc_freq_low32);
 #endif
     return result;
 }
@@ -133,11 +134,13 @@ int read_tsc()
 {
     int t;
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(MODERN_BUILD)
     __asm {
         rdtsc
         mov t, eax
     }
+#elif defined(MODERN_BUILD)
+    t = (int)(unsigned int)__builtin_ia32_rdtsc();   // the modern build has no __asm (L3)
 #else
     t = 0;                                           // (syntax check only)
 #endif
