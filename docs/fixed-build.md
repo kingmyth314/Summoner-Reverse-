@@ -44,6 +44,7 @@ Where each one stands in the fixed build:
 | No launcher needed | the game starts without the launcher's registry values (renderer and install path have defaults); **in the source**: 1024x768 by default instead of 640x480 |
 | OpenGL renderer, windowed mode, texture-size cap | `REBUILT_OPENGL`, part of the `fixed` configuration |
 | No CD | `SHIPPED_NOCD`, part of the `fixed` configuration |
+| Movies under OpenGL | **in the source** (2026-10-25): `movie_blit_frame` copies Bink frames into the locked back buffer of Glide or Direct3D only, so under OpenGL every movie ended at once without a picture. The fixed build copies each frame into a 640x480 RGB565 bitmap and draws it centred (in the 1024-wide menu layout outside gameplay). **Observed:** the Volition and THQ logo movies play, centred, in the VC6 fixed build and the 64-bit exe |
 | Fullscreen output and scaling, mouse mapping, 3D aspect, widescreen, the strip right of centred menus | not yet: SummonerFix's hooks still apply to the fixed build (they hook Windows and OpenGL calls, not game code) |
 | Brightness under OpenGL, Print Screen above 1024 rows, black save thumbnails, key bindings | not yet: as above |
 

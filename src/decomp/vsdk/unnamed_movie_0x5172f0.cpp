@@ -24,6 +24,9 @@
 #include "vsdk/gr/glide/glide_min.h"
 #include "vsdk/gr/glide/gr_glide.h"
 #include "summoner/summoner.h"
+#ifdef FIXED_BUILD
+#include "vsdk/bmpman/bmpman.h"
+#endif
 
 // ---- the Bink API (binkw32.dll) -------------------------------------------------------------------------
 struct BINK {
@@ -56,6 +59,25 @@ int movie_blit_frame(HBINK bink);
 
 // ---- .bss ----------------------------------------------------------------------------------------------
 HBINK movie_bink_handle;                             // 0x26b63e4
+
+#ifdef FIXED_BUILD
+// FIXED_BUILD: movies under OpenGL (docs/fixed-build.md). The original copies each frame into the locked back
+// buffer of Glide or Direct3D only; under OpenGL (SummonerFix's renderer and the rebuilt builds' only one) every
+// movie ended at once without a picture. Here the frame goes into a 640x480 RGB565 user bitmap that is drawn
+// centred like any interface bitmap, so the output window's scaling applies to it too.
+static unsigned short *movie_gl_pixels;
+static int movie_gl_bitmap = -1;
+
+static void movie_gl_release()
+{
+    if (movie_gl_bitmap >= 0) {
+        bm_release(movie_gl_bitmap);
+        movie_gl_bitmap = -1;
+    }
+    delete[] movie_gl_pixels;
+    movie_gl_pixels = NULL;
+}
+#endif
 
 // 0x5172f0  Confidence: exact (VC6 8966 byte match, w1 / D11001: the missing window is an early return and the
 // path buffer is declared after it, which puts the File at [esp] as in the original; D5607). The File
@@ -91,6 +113,9 @@ void movie_play(const char *filename)
             BinkClose(movie_bink_handle);
             movie_bink_handle = NULL;
         }
+#ifdef FIXED_BUILD
+        movie_gl_release();
+#endif
     }
 }
 
@@ -131,6 +156,28 @@ int movie_blit_frame(HBINK bink)
         dest = desc.lpSurface;
         pitch = desc.lPitch;
         break;
+#ifdef FIXED_BUILD
+    case GR_OPENGL:
+        if (movie_gl_pixels == NULL) {
+            movie_gl_pixels = new unsigned short[640 * 480];
+            memset(movie_gl_pixels, 0, 640 * 480 * sizeof(unsigned short));
+            movie_gl_bitmap = bm_create(BM_FORMAT_565, 640, 480, movie_gl_pixels, NULL, -1);
+        }
+        skipped = BinkCopyToBuffer(bink, movie_gl_pixels, 640 * 2, 480, 0, 0, BINKSURFACE565 | BINKCOPYALL);
+        if (!skipped && movie_gl_bitmap >= 0) {
+            gr_mark_texture_dirty(movie_gl_bitmap);
+            gr_set_color(0, 0, 0, 255);
+            gr_clear();
+            // Centred in the menu layout: outside gameplay a game wider than 1024 (SummonerFix's GameWidth) shows its
+            // 1024-wide menu layout centred, so the frame is centred in those 1024 pixels.
+            int w = gr_screen_width();
+            if (w > 1024 && gameseq_state_cur != 4)
+                w = 1024;
+            gr_bitmap(movie_gl_bitmap, (w - 640) / 2, (gr_screen_height() - 480) / 2, gr_mode_ui_bitmap);
+            gr_flip();
+        }
+        goto next;
+#endif
     default:
         return 1;
     }

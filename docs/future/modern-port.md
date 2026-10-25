@@ -431,8 +431,25 @@ and the extra time is spent playing. The walking characters' positions follow fr
 the one "savegame" string in the exe's data, and the in-source host had added a second copy. The host now returns
 only "savetest" (or nothing), and `summoner.cpp` keeps the original's literal.
 
+### Movies in 64-bit: Bink through FFmpeg (2026-10-25)
+
+`binkw32.dll` has no 64-bit build, so the 64-bit exe implements the eight Bink calls the game makes itself
+(`src/decomp/modern/bink.cpp`, compiled only under `MODERN_BUILD` and `_WIN64`):
+- **Decoding:** FFmpeg 9.0's LGPL shared build (libavformat, libavcodec, which reads Bink 1, libswscale,
+  libswresample, libavutil). The DLLs are loaded at run time from the exe's folder with `GetProcAddress`; they are
+  never committed. Without them, or when the build had no FFmpeg headers (`FFMPEG_DIR` unset), `BinkOpen` returns
+  NULL and the game skips the movie as it does for a missing file.
+- **The game's view of a movie:** `BinkOpen` returns a struct that starts with the four fields the game reads (width,
+  height, frame count, current frame). `BinkDoFrame` decodes the next video frame, `BinkCopyToBuffer` converts it to
+  RGB565 with libswscale, and `BinkWait` paces the frames by the performance counter at the file's frame rate.
+- **Sound:** the audio packets are resampled to 16-bit stereo and played through `waveOut`, not DirectSound.
+- **Drawing:** the frame goes through the fixed build's new OpenGL movie path ([fixed build](../fixed-build.md#modern-pc-layers)):
+  the original's copy into a locked Glide or Direct3D back buffer has no OpenGL form.
+
+**Observed:** the log shows `vlogo.bik, 640x480, 416 frames at 30.00 fps, audio on`, and a capture 4 s into the start
+shows the THQ logo centred. The 32-bit builds keep `binkw32.dll`; the VC6 sweep keeps 5,613 matches.
+
 **Next:**
-- FFmpeg for the Bink movies.
 - Longer play in 64-bit: combat, spells, every level.
 
 ## Recommendation

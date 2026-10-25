@@ -141,13 +141,17 @@ if (defines.includes("EXPERIMENTAL_BUILD")) {
 }
 // The in-source host (src/decomp/modern/*.cpp, docs/future/modern-port.md rung L3b): what SummonerFix gives a
 // rebuilt exe, for when it is not there. Not part of Sum.exe; compiled only into the clang builds (MODERN_BUILD).
+// FFMPEG_DIR (x64): the folder of an FFmpeg shared build (its include\ is used by modern/bink.cpp, the movies; the
+// DLLs go beside the exe at run time). Without it the 64-bit build plays no movies.
+const ffmpegInclude = x64 && process.env.FFMPEG_DIR ? join(process.env.FFMPEG_DIR, "include") : null;
+if (x64) console.log(ffmpegInclude ? `movies: FFmpeg headers from ${ffmpegInclude}` : "movies: no FFMPEG_DIR, so no movies in the 64-bit build");
 if (defines.includes("MODERN_BUILD")) {
   const mdir = join(src, "modern");
   for (const f of existsSync(mdir) ? readdirSync(mdir).filter((n) => n.endsWith(".cpp")).sort() : []) {
     const cpp = join(mdir, f), obj = join(objDir, "modern_" + f.replace(/\.cpp$/, ".obj"));
     objs.push(obj);
-    if (fresh(obj, cpp)) continue;
-    const text = runClang(cpp, obj, defines, decompIncludes());
+    if (fresh(obj, cpp) && !(f === "bink.cpp" && flag("--recompile"))) continue;
+    const text = runClang(cpp, obj, defines, [...decompIncludes(), ...(ffmpegInclude ? [ffmpegInclude] : [])]);
     compiled++;
     if (/error:|\(exit/.test(text)) { failed++; console.log(`compile failed: modern/${f}\n${text.split("\n").filter((x) => /error/.test(x)).slice(0, 5).join("\n")}`); }
   }
@@ -214,7 +218,7 @@ let text;
 if (x64) {
   // The clang driver links with lld in its MinGW mode against llvm-mingw's 64-bit runtime and import libraries.
   const mingwLibs = ["user32", "gdi32", "winmm", "advapi32", "shell32", "ole32", "wsock32", "ddraw", "dsound", "dinput",
-    "dxguid", "opengl32", "glu32", "comdlg32", "version", "rasapi32", "wininet", "msacm32"].map((l) => `-l${l}`);
+    "dxguid", "opengl32", "glu32", "comdlg32", "version", "rasapi32", "wininet", "msacm32", "winmm"].map((l) => `-l${l}`);
   writeFileSync(join(out, "objs-x64.rsp"), objs.map((o) => `"${o.replace(/\\/g, "/")}"`).join("\n") + "\n");
   const r = spawnSync(join(CLANG, "clang++.exe"), ["--target=x86_64-w64-mingw32", "-mwindows", "-static", "-o", `${exeName}.exe`,
     "@objs-x64.rsp", ...mingwLibs, `-Wl,-Map=${exeName}.map`, "-Wl,--image-base,0x400000",
