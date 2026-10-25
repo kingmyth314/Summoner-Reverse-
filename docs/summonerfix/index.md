@@ -451,6 +451,13 @@ The game uses its defaults for these.
 ## In the standalone rebuilt exe
 
 {: .important }
+Added 2026-10-25: the clang builds (`link-build --compiler clang`, 32 and 64-bit) carry their own copy of SummonerFix's
+display layer and agent mode ([Modern C++ port, L3b](../future/modern-port.md#l3b-the-in-source-host-2026-10-25)). It
+reads the same `summonerfix.ini` and writes `summonerfix.log`, and it stands down when this DLL is loaded beside the
+exe, so a 32-bit clang build with SummonerFix behaves as described below. A 64-bit exe cannot load SummonerFix (a
+32-bit DLL; Windows skips it and loads the system `dinput.dll`), so it always uses its own.
+
+{: .important }
 Added 2026-10-24: in rebuilt mode `WidescreenInstall` patches nothing; for an exe whose `.fixes` lists `CenterHud` (the
 experimental build, which centres its interface itself) it only enables the full-screen-panel shift of the display
 layer. The `key_to_ascii` patch checks for `key_inited`'s translated address, so it applies to rebuilt exes too.
