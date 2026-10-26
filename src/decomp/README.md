@@ -1,4 +1,12 @@
-# Decompiled source (Phase 3 pilot)
+# Decompiled source
+
+> **State on 2026-10-26:** all 259 units compile with VC6 SP5, and 5,613 of the 5,926 compiled functions match
+> Sum.exe byte for byte (`node tools/vc6-sweep.mjs --check src/decomp/vc6-matches.txt`). The whole tree links into
+> standalone exes (`tools/link-build.mjs`): shipped, fixed and experimental, with VC6 or clang, 32 or 64-bit. How to
+> build: [docs/quickstart.md](../../docs/quickstart.md); current state: [docs/status.md](../../docs/status.md); in brief for
+> agents: [AGENTS.md](../../AGENTS.md). The text below is the pilot phase's README (2026-10-15 and 16), kept as written.
+
+## The pilot (2026-10-15 and 16)
 
 C++ source rewritten from Sum.exe's disassembly, one file per original translation unit, for a future
 byte-matching build with Visual C++ 6.0 (see [docs/decomp-plan.md](../../docs/decomp-plan.md), "Phase 3" and

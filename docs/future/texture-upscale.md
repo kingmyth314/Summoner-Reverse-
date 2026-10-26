@@ -1,5 +1,7 @@
 ---
 title: Texture upscaling (research)
+parent: Projects
+nav_order: 2
 ---
 
 # Texture upscaling (research, 2026-10-23)

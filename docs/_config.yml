@@ -1,5 +1,5 @@
 title: Summoner Reverse
-description: Reverse-engineering notes for Summoner (Volition, 2000) using REA and Ghidra
+description: Reverse engineering, matching decompilation and a 64-bit port of Summoner (Volition, 2000)
 remote_theme: just-the-docs/just-the-docs@v0.10.1
 plugins:
   - jekyll-remote-theme

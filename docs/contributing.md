@@ -42,6 +42,15 @@ be pushed to GitHub and published with GitHub Pages at any time.
 - Third-party binaries such as patch DLLs. Record source, size and SHA-256 instead.
 - Credentials or personal paths beyond what is needed to reproduce the setup.
 
+## Before a push
+
+1. `node tools/docs-check.mjs`: no missing front matter, no broken relative link or `#anchor`. A renamed heading
+   changes its anchor, and the tool finds the links that still use the old one.
+2. When a result changes what works, update [Current state](status.md), the summary box at the top of a long page
+   (as in the [Modern C++ port](future/modern-port.md)), and `AGENTS.md` if a command, invariant or pitfall changed.
+   The pages stay chronological under their summary.
+3. The VC6 sweep still ends with `0 lost` (`AGENTS.md`, "Invariants").
+
 ## Publishing to GitHub Pages
 
 1. Create a GitHub repository and push this folder.

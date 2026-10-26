@@ -11,7 +11,12 @@ nav_order: 2
 
 Setup performed on 2026-10-12 on Windows 11 Pro (10.0.26100), x64.
 
-**Added 2026-10-16.** The repository has a private GitHub remote (`origin`, pushed only on the owner's request).
+{: .note }
+> This page is the **analysis** toolchain (REA, Ghidra, x64dbg), needed only to repeat the reverse engineering. To
+> build and play, see [Reproduce and play](quickstart.md).
+
+**Added 2026-10-16.** The repository has a GitHub remote (`origin`, pushed only on the owner's request; private
+until 2026-10-21, public since).
 The real compiler, Visual C++ 6.0 Professional (cl 12.00.8168), is used from an extracted copy outside the
 repository, never installed or committed; `tools/vc6-compare.mjs` needs its `VC98` folder in `VC6_DIR` (see
 [Tools](tools.md) and the toolchain notes in the [decompilation plan](decomp-plan.md)). Standard Edition has no

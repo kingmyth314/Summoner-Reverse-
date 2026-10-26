@@ -11,13 +11,19 @@ produced with [REA](https://github.com/morluto/rea) and Ghidra 12.1.4.
 
 ## Start here
 
-- [Tooling setup](setup.md) - how the REA + Ghidra environment was installed and verified.
+- [Reproduce and play](quickstart.md) - what to supply, and the commands from a fresh clone to each result: the
+  byte-match check, the 32-bit builds, the 64-bit player build, the tests, each with what you should see.
+- [Current state](status.md) - every build and part in one table: what passes, what is open.
+- For AI agents: [`AGENTS.md`](https://github.com/kingmyth314/Summoner-Reverse-/blob/main/AGENTS.md) at the
+  repository root, the same facts in a compact form with the commands, invariants and pitfalls.
+- [Tooling setup](setup.md) - the analysis environment (REA, Ghidra, x64dbg), needed only to repeat the reverse
+  engineering.
 - [Sum.exe overview](sum-exe/index.md) - identity, layout and imports of the game executable.
 - [Main loop and frame timer](sum-exe/main-loop.md) - how the game advances time each frame.
 - [Timing bugs](sum-exe/timing-bugs.md) - the ">4 GHz" bug and the cutscene uptime bug.
 - [Bugs in the original game](sum-exe/game-bugs.md) - 355 defects found in the code, and which ones SummonerFix fixes.
 - [Bug fix priorities](sum-exe/bug-priorities.md) - the unfixed bugs ranked by gameplay impact and how easily we can reproduce them.
-- [Tentacle Beast grab and throw](future/tentacle-grab.md) - a future project: the grab the developers switched off, and how to make it work.
+- [Tentacle Beast grab and throw](future/tentacle-grab.md) - the grab the developers switched off, how it was made to work, and how it plays in the experimental build (seen in game 2026-10-25).
 - [Timeslip's patch](patches/timeslip.md) - what the community patch actually changes.
 - [SummonerFix](summonerfix/index.md) - our replacement patch: runs the game on Windows 11 via OpenGL.
 - [Decompilation plan](decomp-plan.md) - the symbol file, the C++ rewrite in `src/decomp`, and the byte matching: Sum.exe was built with Visual C++ 6.0 SP5 (build 8966), and 5,613 of 5,926 compiled functions match byte for byte, calls and data references included. The whole decompiled source also runs inside the game as a hybrid (5,922 functions in a DLL that replaces the originals); save comparisons and checks against the original on live calls found five decompilation errors byte matching could not see, and a read-through of the functions no test had run, followed by in-game checks, found eight more ([review](hybrid-review.md)). It also links into a standalone executable, in which a new game reaches Masad and plays; comparing its data with the original's found three more errors, and a play-test through the start of Act 1 one more.
@@ -26,7 +32,7 @@ produced with [REA](https://github.com/morluto/rea) and Ghidra 12.1.4.
 - [Fixed build changes](fixed-build.md) - every change the fixed build makes, with its bug number.
 - [Experimental build](experimental-build.md) - new features in the source (controller, autosave, frame-rate cap, the Tentacle Beast grab, upscaled interface and fonts), each off by default, plus every SummonerFix feature of the original game (widescreen interface, any resolution, game options).
 - [Texture upscaling](future/texture-upscale.md) - a loose-file pack of AI-upscaled textures, VBM animations and fonts made from your own install, how the game finds them, the checks, and the version for the original game.
-- [Modern C++ port](future/modern-port.md) - how far the decompiled source is from modern C++ (257 of 259 units parse with clang), and the ladder from a clang build to 64-bit and an idiomatic rewrite; the first two rungs (the clang build, warning-clean) are done, and the third (64-bit) plays the same game as the original within float rounding.
+- [Modern C++ port](future/modern-port.md) - how far the decompiled source is from modern C++ (257 of 259 units parse with clang), and the ladder from a clang build to 64-bit and an idiomatic rewrite; the first two rungs (the clang build, warning-clean) are done, and the third (64-bit) plays the same game as the original within float rounding; built from the experimental configuration it is the player build, which needs no SummonerFix.
 - [Save editor](save-editor.md) - `SummonerSaveEditor.exe`, a window that edits a copy of a save.
 - [Roadmap](roadmap.md) - done and planned work: key bindings, the speed control and widescreen (in SummonerFix), the decompilation, and the future projects.
 - [Address map](reference/address-map.md) - every address and label used in these notes.

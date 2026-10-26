@@ -1,0 +1,35 @@
+---
+title: Current state
+nav_order: 1.6
+---
+
+# Current state (2026-10-26)
+
+What exists, what passes and what is open, one row per part. The pages linked hold the evidence and the history;
+how to reproduce each line: [Reproduce and play](quickstart.md).
+
+## Builds
+
+| Build | Command | Output | Passes | Open |
+|---|---|---|---|---|
+| Byte-match reference | `node tools/vc6-sweep.mjs --check src/decomp/vc6-matches.txt` (VC6 SP5) | a report | 5,613 of 5,926 compiled functions give Sum.exe's bytes; 7,725 functions decompiled in all | the 310 that differ are listed per unit in the sweep's report ([plan](decomp-plan.md)) |
+| Shipped (VC6) | `link-build --config shipped` | `Sum-rebuilt.exe` | plays the game; save and memory comparison over 28 levels | none known |
+| Fixed (VC6) | `link-build --config fixed` | `Sum-fixed.exe` | 53 bug fixes in the source; movies under OpenGL | per-fix reproductions ([fixed build](fixed-build.md)) |
+| Experimental (VC6) | `link-build --config experimental` | `Sum-exp.exe` | controller, autosave, frame cap, Tentacle grab, hi-res interface, widescreen in source | vsync and the autosave skip rules untested ([experimental build](experimental-build.md)) |
+| 32-bit clang (L1, L2) | `--compiler clang` | `*-clang.exe` | plays; warning-clean except 6 known; NPC goal parity fixed | test timing only ([modern port](future/modern-port.md)) |
+| **64-bit player build** (L3) | `--config experimental --compiler clang --arch x64` | `Sum-exp-clang-x64.exe` | runs without SummonerFix; movies (FFmpeg); 45 of 48 levels as the original; saves match within float rounding and load across exes; the shop, a six-minute fight, conversations, world map | slider, ramp, mouse bindings, controller untested in 64-bit; L4 not started |
+
+## Other parts
+
+| Part | State | Page |
+|---|---|---|
+| SummonerFix (`dinput.dll` for the original game) | Windows 10/11, OpenGL, widescreen, key rebinding, controller, 40+ bug fixes with switches | [SummonerFix](summonerfix/index.md) |
+| Game documentation | 35 topic pages on Sum.exe; 355 bugs checked in the code | [Sum.exe](sum-exe/index.md), [bugs](sum-exe/game-bugs.md) |
+| Save editor | `SummonerSaveEditor.exe`, writes new saves only | [Save editor](save-editor.md) |
+| Texture pack | made from your own install with Real-ESRGAN, never distributed | [Texture upscaling](future/texture-upscale.md) |
+| Multiplayer | documented (66 packet types); not ported to 64-bit | [Multiplayer](sum-exe/multiplayer.md) |
+
+## Next
+
+1. A player's test of the 64-bit build.
+2. L4, the idiomatic rewrite, the renderer first ([modern port](future/modern-port.md#recommendation)).

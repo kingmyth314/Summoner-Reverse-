@@ -59,6 +59,13 @@ Starts x32dbg, if it is not already running, and waits until its MCP server list
 Build SummonerFix (`-Install` copies it next to Sum.exe), and start the game for a timed
 test with screenshots, dialog text and the SummonerFix log. See [SummonerFix](summonerfix/index.md).
 
+## `tools/docs-check.mjs`
+
+`node tools/docs-check.mjs` checks the documentation before a push (2026-10-26): every page in `docs/` has front
+matter with a `title` and a `nav_order` ([Documentation standard](contributing.md)), and every relative link in
+`docs/`, `README.md` and `AGENTS.md` points at a file that exists and, with `#fragment`, at a heading of that page
+(heading ids as Jekyll's kramdown makes them). External links are not fetched. Exit code 1 when a problem is found.
+
 ## `tools/symbols.mjs`
 
 Works with the symbol file `symbols/sum.symbols` (format described in its header).
@@ -301,8 +308,10 @@ the unconditional no-sound crash guard (DirectSound fails on a machine without a
 Run it from a separate folder holding hard links to the `.vpp` archives and the Bink and EAX DLLs, copies of
 `data`, `summoner.cfg` and a save, SummonerFix's `dinput.dll` and an ini, and the exe with its `.addr` file;
 `tools/agent.mjs` drives it with `SUMMONER_GAME=<folder>` and `SUMMONER_EXE=Sum-rebuilt.exe`. Without SummonerFix
-the exe reads the real registry (`ConnectionSpeed` there decides whether it starts WinSock, and Windows Firewall then
-asks about the new exe).
+a VC6 exe reads the real registry (`ConnectionSpeed` there decides whether it starts WinSock, and Windows Firewall then
+asks about the new exe); the clang builds answer it from `summonerfix.ini` themselves (since 2026-10-26,
+`src/decomp/modern/registry.cpp`). For the 64-bit exe the folder also needs the five FFmpeg DLLs, and the exe its
+`.addr` and `.fixes` files ([Reproduce and play](quickstart.md#4-run-the-tests)).
 
 | Tool | What it compares |
 |---|---|

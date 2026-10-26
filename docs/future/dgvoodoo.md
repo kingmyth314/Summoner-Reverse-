@@ -1,5 +1,7 @@
 ---
 title: dgVoodoo 2
+parent: Projects
+nav_order: 3
 ---
 
 # dgVoodoo 2 for the Glide and Direct3D renderers

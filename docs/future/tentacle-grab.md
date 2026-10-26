@@ -1,5 +1,7 @@
 ---
 title: Tentacle Beast grab and throw (future project)
+parent: Projects
+nav_order: 4
 ---
 
 # Tentacle Beast grab and throw (future project, G250)

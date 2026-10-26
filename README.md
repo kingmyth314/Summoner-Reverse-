@@ -12,8 +12,16 @@ It has three parts:
   game is rewritten, 5,613 of the 5,926 compiled functions give the original machine code byte for byte with the
   original compiler, and the source links into a complete executable that plays the game, every boss fight
   included ([Decompilation plan](docs/decomp-plan.md)).
+- **A modern port** of that source ([Modern C++ port](docs/future/modern-port.md)): it also builds with clang, and as
+  a **64-bit exe that needs no SummonerFix**. Built from the experimental configuration it is the player build, with
+  the Bink movies through FFmpeg and SummonerFix's display, key bindings, brightness and widescreen in its own
+  source. It plays every level as the original does, and its saves match the original's within float rounding.
 
 **You need your own copy of Summoner** (it is still sold in digital stores). This repository contains no game files.
+
+**Start here:** [Reproduce and play](docs/quickstart.md) has the commands from a fresh clone to every result,
+with what you should see; [Current state](docs/status.md) has one table of what works and what is open. For AI agents,
+[`AGENTS.md`](AGENTS.md) gives the same facts in a compact form, with the invariants and pitfalls.
 
 The analysis used [Ghidra](https://github.com/NationalSecurityAgency/ghidra) through
 [REA](https://github.com/morluto/rea), LLVM's `llvm-objdump`, and the game's own compiler for byte matching. The
@@ -47,7 +55,11 @@ documentation and the decompilation notes are also a working log, so they mentio
   with), which you have to supply yourself; set `VC6_DIR` to its `VC98` folder. `tools/vc6-sweep.mjs` compares every
   function with your `Sum.exe`; `tools/link-build.mjs` links the standalone executable (it also needs libjpeg 6b
   from the IJG source in `third_party/`). See [Setup](docs/setup.md) and [Tools](docs/tools.md).
-- The scripts in `tools/` run with Node.js 24 from the repository folder.
+- **The clang and 64-bit builds:** `--compiler clang` (llvm-mingw, `CLANG_DIR`) builds the same configurations with
+  clang; `--arch x64` makes the 64-bit exe, and `--config experimental --compiler clang --arch x64` the player build
+  (FFmpeg's headers through `FFMPEG_DIR`, its DLLs beside the exe). See [Reproduce and play](docs/quickstart.md).
+- The scripts in `tools/` run with Node.js 24 from the repository folder. Before a push, `node tools/docs-check.mjs`
+  checks the documentation's links and front matter.
 
 ## Findings so far
 
@@ -79,13 +91,16 @@ documentation and the decompilation notes are also a working log, so they mentio
 | Matching decompilation | `src/decomp`: 7,725 functions rewritten in C++ (all game and engine code); Sum.exe was built with Visual C++ 6.0 Service Pack 5 (`c2.dll` build 8966, identified 2026-10-16), and with that compiler 5,613 of the 5,926 compiled functions give the original bytes exactly, with every checkable call and data reference pointing at the same place | [Decompilation plan](docs/decomp-plan.md) |
 | Hybrid game | The whole decompiled source (5,922 functions) compiled with VC6 into a DLL that SummonerFix loads in place of the original functions: the game starts, loads a save and plays the same, so each decompiled function can be tested in the real game on its own. Comparing quicksaves with the original (18 levels, inventory, a trader) and running decompiled functions against the original on the game's own calls in the boss fights found five decompilation errors that byte matching could not see; reading the functions no test had run and then running them in the game found eight more (thirteen in all, all fixed; 628 of the 890 functions that do not match byte for byte have now run in a checked scenario) | [Decompilation plan](docs/decomp-plan.md) |
 | Standalone rebuild | The decompiled source links into its own executable with Visual C++ 6.0 SP5 and its libraries, nothing from the original Sum.exe (`tools/link-build.mjs`); with libjpeg 6b built from the IJG source, a new game reaches Masad and plays; comparing its data with the original's found three more errors (D9811, D9813, D9814), and a play-test through the start of Act 1 one more (D9815, the prologue cinematic), and a review of the functions it first ran three more (D9816, D9817); later play-tests and a save and memory comparison over 28 levels found no further difference (2026-10-19) | [Decompilation plan](docs/decomp-plan.md) |
+| Modern port | The fixed and experimental builds also build with clang (warning-clean) and as a 64-bit exe that runs without SummonerFix: pointer fields of the relocated file formats kept 4 bytes (`PTR32`, linked below 2 GB), float expressions evaluated in double as on the x87, Bink movies through FFmpeg, SummonerFix's layers in an in-source host. 45 of 48 levels play as in the original (the same 3 fail in both); saves match within float rounding | [Modern C++ port](docs/future/modern-port.md) |
 | Timeslip's patch (v3) | Hooks QPC/QPF through the import table, adds a virtual-clock speed control and removes the CD check | [Timeslip's patch](docs/patches/timeslip.md) |
 
 ## Repository layout
 
 ```
 docs/            GitHub Pages site (Markdown, Jekyll "Just the Docs" theme)
-src/decomp/      The C++ decompilation of Sum.exe (game/, vsdk/, include/; see its NOTICE.md)
+AGENTS.md        The repository in brief for AI agents: commands, invariants, pitfalls
+src/decomp/      The C++ decompilation of Sum.exe (game/, vsdk/, include/; see its NOTICE.md); experimental/ holds
+                 the experimental build's features, modern/ the clang builds' in-source host
 src/link/        Import stubs and small C files the standalone link needs (no original code)
 src/saveeditor/  SummonerSaveEditor.exe and the saveedit command-line tool (C)
 src/summonerfix/ SummonerFix source (C, built with LLVM-MinGW)

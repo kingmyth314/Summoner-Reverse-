@@ -1,10 +1,26 @@
 ---
 title: Modern C++ port (research)
+parent: Projects
+nav_order: 1
 ---
 
 # Rewriting the code to modern standards (research, 2026-10-23)
 
-**Summary:**
+{: .note }
+> **State on 2026-10-26.** The page below is the work's log, oldest first; this box is where it stands.
+> - **L1 and L2 done:** the fixed and experimental builds also build with clang and lld (`--compiler clang`),
+>   warning-clean apart from 6 known warnings.
+> - **L3 done:** `--arch x64` builds a 64-bit exe that runs without SummonerFix through the in-source host
+>   (`src/decomp/modern/`).
+>   - It plays the Bink movies through FFmpeg and passes 45 of 48 levels; the 3 that fail fail the same way in the
+>     original.
+>   - Its saves match the original's within float rounding (`-ffp-eval-method=double`) and load across the two exes.
+>   - Built from the experimental configuration it is the **player build**: SummonerFix's keys, brightness, registry
+>     settings and centred menus are in its source ([the player build](#the-player-build-the-64-bit-experimental-exe-2026-10-26)).
+> - **L4 (an idiomatic rewrite) not started;** the renderer comes first ([recommendation](#recommendation)).
+> - How to build and install it: [Reproduce and play](../quickstart.md).
+
+**Summary of the research (2026-10-23):**
 - The decompiled source is much closer to modern C++ than its age suggests. Checked with a current compiler (clang,
   C++17, 32-bit Windows target), **257 of the 259 units already parse**, with 11 errors in all (**Observed**).
 - The work is not in the syntax. It is in four things:

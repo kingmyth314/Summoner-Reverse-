@@ -34,6 +34,21 @@ nav_order: 2
   Sum.exe links libjpeg 6b statically; `tools/link-build.mjs` builds its common and compression objects with VC6 from
   `third_party/jpeg6b/jpeg-6b` (git-ignored, not in the repository).
 
+## llvm-mingw (the clang builds and SummonerFix)
+
+- [mstorsjo/llvm-mingw](https://github.com/mstorsjo/llvm-mingw) - release 20260908, UCRT, x86_64 host (clang 23.1.1),
+  installed with `winget install MartinStorsjo.LLVM-MinGW.UCRT`. `CLANG_DIR` names its `bin` folder. It builds
+  SummonerFix and the clang configurations, 32 and 64-bit ([Modern C++ port](../future/modern-port.md)); LLVM 16 or
+  later is needed for `-ffp-eval-method=double`.
+
+## FFmpeg (movies in the 64-bit build)
+
+- [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds/releases) - `ffmpeg-n9.0-latest-win64-lgpl-shared-9.0.zip`
+  from the `latest` release, downloaded 2026-10-25 with the owner's approval (77,222,798 bytes, SHA-256
+  a87174b0bc935e5d944d8c28a74c7099ea82d1de6bc8f271e0e6dd3fa645781b; "latest" is rebuilt over time, so a later download
+  differs). LGPL build, shared DLLs: `FFMPEG_DIR` names the extracted folder, and `avformat-63`, `avcodec-63`,
+  `avutil-61`, `swscale-10` and `swresample-7` go beside the 64-bit exe. Kept outside the repository.
+
 ## dgVoodoo 2 (the Glide and Direct3D renderers)
 
 - [dgVoodoo2 v2.87.5 on GitHub (dege-diosg/dgVoodoo2, the author's releases)](https://github.com/dege-diosg/dgVoodoo2/releases/tag/v2.87.5)
