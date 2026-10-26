@@ -160,6 +160,7 @@ extern "C" void *WINAPI BinkOpen(const char *name, unsigned int flags)
     }
     m->vstream = p_av_find_best_stream(m->fmt, AVMEDIA_TYPE_VIDEO, -1, -1, NULL, 0);
     m->astream = p_av_find_best_stream(m->fmt, AVMEDIA_TYPE_AUDIO, -1, m->vstream, NULL, 0);
+    modern_log("movies: %u streams, video %d, audio %d", m->fmt->nb_streams, m->vstream, m->astream);
     m->vdec = m->vstream >= 0 ? open_decoder(m->fmt->streams[m->vstream]) : NULL;
     if (!m->vdec) {
         modern_log("movies: no video decoder for %s", name);
@@ -186,8 +187,15 @@ extern "C" void *WINAPI BinkOpen(const char *name, unsigned int flags)
                                   rate, 0, NULL) < 0 || p_swr_init(m->swr) < 0)
             p_swr_free(&m->swr);
         WAVEFORMATEX wf = { WAVE_FORMAT_PCM, 2, (DWORD)rate, (DWORD)rate * 4, 4, 16, 0 };
-        if (m->swr && waveOutOpen(&m->wave, WAVE_MAPPER, &wf, 0, 0, CALLBACK_NULL) != MMSYSERR_NOERROR)
+        MMRESULT wr = MMSYSERR_NOERROR;
+        if (!m->swr)
+            modern_log("movies: no resampler for the audio (%d Hz), no sound", rate);
+        else if ((wr = waveOutOpen(&m->wave, WAVE_MAPPER, &wf, 0, 0, CALLBACK_NULL)) != MMSYSERR_NOERROR) {
+            modern_log("movies: waveOutOpen failed (%u) for %d Hz stereo, no sound", (unsigned)wr, rate);
             m->wave = NULL;
+        }
+    } else if (m->astream >= 0) {
+        modern_log("movies: no audio decoder, no sound");
     }
     QueryPerformanceFrequency(&m->freq);
     QueryPerformanceCounter(&m->start);

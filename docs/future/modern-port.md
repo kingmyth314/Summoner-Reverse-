@@ -460,6 +460,10 @@ waveOut has played, the latest frame and the audio chunks dropped (all buffers b
 
 The EAX logo is not played: the 64-bit build has no EAX, and the game shows that movie only with EAX on.
 
+`BinkOpen` logs the streams found and why a movie has no sound (no audio decoder, no resampler, or `waveOutOpen`'s
+error). On 2026-10-26 the movies played silently with `waveOutOpen failed (2)`, `MMSYSERR_BADDEVICEID`: no playback
+device was connected to the test PC at the time (every audio endpoint "Unknown"), not a fault of the build.
+
 ### Longer play in 64-bit: every level (2026-10-25)
 
 `tools/link-soak.mjs` played all 49 levels in one session per exe from the newest test save, each with
