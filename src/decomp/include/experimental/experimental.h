@@ -63,6 +63,7 @@ extern int exp_mouse_raw_x, exp_mouse_raw_y;             // the unshifted cursor
 int  exp_ws_mouse_tick(int *x, int *y, int *z);          // GameTick's mouse_get_pos
 int  exp_ws_side_panel_begin(bool frame);                // around interface_draw / interface_frame's switch
 void exp_ws_side_panel_end(int undo);
+bool exp_ws_full_panel();                                // a full-screen panel in play, centred like a menu
 int  exp_ws_view_width();                                // interface_set_view_clip's gr_screen_width
 int  exp_ws_panel_width(int width);                      // interface_set_view_clip's side-panel widths
 // The Tentacle Beast grab is written inside game/unnamed_tentacle_beast_0x4c6480.cpp under EXPERIMENTAL_BUILD

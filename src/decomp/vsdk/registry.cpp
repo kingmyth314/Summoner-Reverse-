@@ -17,6 +17,19 @@
 #include "vsdk/os/debug.h"
 #include "vsdk/os/vstring.h"
 
+#ifdef MODERN_BUILD
+// The in-source host answers Software\Volition\Summoner from summonerfix.ini, as SummonerFix does (modern/registry.cpp);
+// every other key, and every key while SummonerFix is loaded, reaches the real registry.
+#include "modern/modern.h"
+#define RegOpenKeyExA modern_RegOpenKeyExA
+#define RegCreateKeyExA modern_RegCreateKeyExA
+#define RegQueryValueExA modern_RegQueryValueExA
+#define RegSetValueExA modern_RegSetValueExA
+#define RegDeleteValueA modern_RegDeleteValueA
+#define RegDeleteKeyA modern_RegDeleteKeyA
+#define RegCloseKey modern_RegCloseKey
+#endif
+
 // Original __FILE__ of this unit (the DebugError call pushes this literal, 0x5a75b4).
 #define REGISTRY_CPP "D:\\projects\\Summoner\\pccode\\vsdk\\os\\registry.cpp"
 

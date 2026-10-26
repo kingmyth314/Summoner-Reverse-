@@ -9,13 +9,20 @@
 //   - the mouse is mapped between window pixels and game pixels,
 //   - the save thumbnail's read-back reads the scaled area and box-filters it down,
 //   - agent mode's captures are taken from the back buffer (half size, 24-bit BMP).
-// Not yet here: SummonerFix's centred widescreen menus, the brightness and the fast-mode badge.
+//   - on a screen wider than 1024 the menus' 1024-wide layout is centred ([Display] CenterMenus, default 1), and in
+//     the experimental build so are the full-screen panels in play (inventory, character ...) when its interface is
+//     centred ([Display] CenterHud), as SummonerFix's GetMap does.
+// The brightness and the fast-mode badge are drawn from modern_swap_buffers (modern/gamma.cpp).
 #include <windows.h>
 #include <GL/gl.h>
 #include <stdlib.h>
 #include <string.h>
 #include "vsdk/gr/gr.h"
 #include "modern/modern.h"
+#include "summoner/summoner.h"
+#ifdef EXPERIMENTAL_BUILD
+#include "experimental/experimental.h"
+#endif
 
 #ifndef GL_BGR_EXT
 #define GL_BGR_EXT 0x80E0
@@ -26,7 +33,9 @@ static bool display_borderless = true;
 static int display_window_w = 1600, display_window_h = 1200;
 
 // Game pixels -> window pixels for the current client size.
-struct display_map { int cw, ch; double scale; int off_x, off_y; };
+// menu_shift: a centred 1024-wide menu layout (only that part of the game screen is shown).
+struct display_map { int cw, ch; double scale; int off_x, off_y; bool menu_shift; };
+static int display_center_menus = -1;   // [Display] CenterMenus, read at the first frame
 
 static bool get_map(display_map *m)
 {
@@ -41,6 +50,19 @@ static bool get_map(display_map *m)
     m->scale = sx < sy ? sx : sy;
     m->off_x = (int)((m->cw - gr_screen.max_w * m->scale) / 2 + 0.5);
     m->off_y = (int)((m->ch - gr_screen.max_h * m->scale) / 2 + 0.5);
+    m->menu_shift = false;
+    // Outside play (state 4) the interface is a fixed 1024-wide layout at the left of a wider game screen: the output
+    // is shifted so that layout is centred, and the empty right part moves off screen. The mouse uses the same map.
+    if (display_center_menus < 0)
+        display_center_menus = modern_ini_int("Display", "CenterMenus", 1);
+    bool full_panel = false;
+#ifdef EXPERIMENTAL_BUILD
+    full_panel = gameseq_state_cur == 4 && exp_ws_full_panel();
+#endif
+    if (display_center_menus && gr_screen.max_w > 1024 && (gameseq_state_cur != 4 || full_panel)) {
+        m->off_x += (int)((gr_screen.max_w - 1024) / 2.0 * m->scale + 0.5);
+        m->menu_shift = gameseq_state_cur != 4;   // menus only, not the panels in play
+    }
     return true;
 }
 
@@ -229,8 +251,8 @@ BOOL modern_swap_buffers(HDC dc)
 {
     display_map m;
     if (get_map(&m)) {
-        int used_w = round_int(gr_screen.max_w * m.scale), used_h = round_int(gr_screen.max_h * m.scale);
-        if (m.off_x > 0 || m.off_y > 0 || m.off_x + used_w < m.cw) {
+        int used_w = round_int((m.menu_shift ? 1024 : gr_screen.max_w) * m.scale), used_h = round_int(gr_screen.max_h * m.scale);
+        if (m.off_x > 0 || m.off_y > 0 || m.menu_shift || m.off_x + used_w < m.cw) {
             GLfloat old[4];
             GLboolean scissor = glIsEnabled(GL_SCISSOR_TEST);
             glGetFloatv(GL_COLOR_CLEAR_VALUE, old);

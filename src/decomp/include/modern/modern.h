@@ -60,6 +60,17 @@ void modern_key_mark_raw(int code, int down);  // a game key code, not remapped 
 void modern_keys_agent_speed(bool on);         // agent mode's speedkey: as if the speed key were pressed
 float modern_keys_speed_active();              // the speed factor while fast mode is on, else 0
 
+// ---- registry.cpp ----
+// vsdk/registry.cpp's registry calls: SoftwareVolitionSummoner is answered from summonerfix.ini, as SummonerFix does.
+LONG WINAPI modern_RegOpenKeyExA(HKEY h, LPCSTR sub, DWORD opt, REGSAM sam, PHKEY out);
+LONG WINAPI modern_RegCreateKeyExA(HKEY h, LPCSTR sub, DWORD res, LPSTR cls, DWORD opt, REGSAM sam,
+                                   LPSECURITY_ATTRIBUTES sa, PHKEY out, LPDWORD disp);
+LONG WINAPI modern_RegQueryValueExA(HKEY h, LPCSTR name, LPDWORD reserved, LPDWORD type, LPBYTE data, LPDWORD cb);
+LONG WINAPI modern_RegSetValueExA(HKEY h, LPCSTR name, DWORD reserved, DWORD type, const BYTE *data, DWORD cb);
+LONG WINAPI modern_RegDeleteValueA(HKEY h, LPCSTR name);
+LONG WINAPI modern_RegDeleteKeyA(HKEY h, LPCSTR sub);
+LONG WINAPI modern_RegCloseKey(HKEY h);
+
 // ---- gamma.cpp ----
 void modern_brightness(HWND wnd, int cw, int ch);   // modern_swap_buffers: the options screen's brightness (K90)
 void modern_speed_badge(HDC dc, int cw, int ch, int off_x, int off_y, double scale);   // "FAST xN" in play

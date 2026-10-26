@@ -77,6 +77,9 @@ static bool ws_full_panel()
     return !ws_call_shift_screen(s) && !ws_side_panel(s);
 }
 
+// The host's display map (modern/display.cpp) centres these panels as SummonerFix's GetMap does.
+bool exp_ws_full_panel() { return ws_get_shift() > 0 && ws_full_panel(); }
+
 static bool ws_active() { return ws_get_shift() > 0 && !ws_no_shift && ws_in_game() && !ws_full_panel(); }
 static bool ws_shift_draw() { return ws_active() && !exp_ws_clip_shifted; }
 
