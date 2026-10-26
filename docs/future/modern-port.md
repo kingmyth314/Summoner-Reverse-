@@ -239,7 +239,7 @@ another writer shows up.
 | L3a | portable code: no `__asm`, the 64-bit crash context, pointer-sized callback parameters | the 32-bit clang build | done |
 | L3b | agent mode in the source | the 32-bit clang build, then 64-bit | done: the in-source host, display layer and agent mode |
 | L3c | the 211 failing layout checks: memory-only layouts freed, file and network formats read and written field by field | both | done for files and memory (`PTR32`, `LAYOUT_CHECK_32`); **left out:** the multiplayer packets (`multi.h`, `net.h`), deferred with multiplayer |
-| L3d | the x86_64 build: `link-build --compiler clang --arch x64`, OpenGL only, no EAX, FFmpeg for Bink | 64-bit | done: menus, every level, saves, movies. Not yet a player's build: SummonerFix cannot load into it, so its gamma, widescreen, Print Screen, key-binding and speed-key layers are missing (next) |
+| L3d | the x86_64 build: `link-build --compiler clang --arch x64`, OpenGL only, no EAX, FFmpeg for Bink | 64-bit | done: menus, every level, saves, movies; with `--config experimental` the player build, SummonerFix's layers in the source (2026-10-26) |
 
 **L3a done.** An x86_64 syntax check of every unit found 226 errors: 211 layout checks and 15 others. The 15 are now
 fixed, and the `__asm` blocks have `MODERN_BUILD` forms:
@@ -634,10 +634,58 @@ The 64-bit exe uses about 85 MB more: pointers are 8 bytes, and the static pools
 growth over the six minutes, so no leak shows. The capture at 150 s shows the four party members in the fight with
 their HP down and one portrait greyed out.
 
-**Next:** the advisor's step 5: SummonerFix's remaining layers (gamma, widescreen, Print Screen, key bindings, the
-speed key) in the in-source host, so the 64-bit exe becomes a player's build.
-- Then the advisor's step 5: SummonerFix's remaining layers (gamma, widescreen, Print Screen, key bindings, the speed
-  key) in the in-source host, so the 64-bit exe becomes a player's build.
+### The player build: the 64-bit experimental exe (2026-10-26)
+
+SummonerFix is a 32-bit DLL and can never load into a 64-bit exe, so whatever it gives a player has to be in the
+source. **The player build is the experimental configuration in 64-bit:**
+
+```
+node tools/link-build.mjs --config experimental --compiler clang --arch x64
+```
+
+`build/link-exp-clang-x64/Sum-exp-clang-x64.exe`. Beside it in the game folder: the five FFmpeg DLLs (movies),
+`summonerfix.ini` and `SummonerFixConfig.exe` (settings). SummonerFix's `dinput.dll` is not needed; a 32-bit one
+lying there is simply not loaded.
+
+**Where each SummonerFix layer now is** (the bug fixes are all in the source, `FIXED_BUILD`: the 53 keys of the
+`.fixes` file; SummonerFix's own fix list has no other fix):
+
+| SummonerFix | In the 64-bit player build |
+|---|---|
+| `display.c`: borderless or sized window, scaling, bars, mouse mapping, thumbnails, captures | the host, `modern/display.cpp` (L3b); now with the centred 1024-wide menus (`[Display] CenterMenus`) and full-screen panels |
+| `widescreen.c`: the centred interface | `experimental/widescreen.cpp` (`[Display] CenterHud`, `SidePanelsOverWorld`); the full-screen panels through the host's display map (`exp_ws_full_panel`) |
+| `reghook.c`: the game's registry key in the ini | `modern/registry.cpp`: `vsdk/registry.cpp`'s seven calls; `[Display] GameWidth` (Auto or a size), `GameHeight`, `Renderer`, `[Sound] Soundcard`, `[Registry]` for the rest |
+| `keys.c`: `[KeyBindings]`, `[ConsoleKeys]`, the config, speed and script-editor keys, live reload | `modern/keys.cpp`: key_mark after the layout swap, the mouse handler, key_to_ascii, a message handler, a polling thread, an ini watcher |
+| `gamma.c` and the speed badge | `modern/gamma.cpp`: `[Display] Brightness` (shader pass or monitor ramp) and "FAST xN", from the swap |
+| `gameopts.c`: zoom, intro skip, interaction ranges, Targa screenshots above 1024 lines | `experimental/gameopts.cpp` |
+| `controller.c` | `experimental/controller.cpp` (XInput loaded at run time) |
+| `tentacle.c` | the Tentacle Beast's own code (`EXPERIMENTAL_BUILD`) |
+| `timing.c` (frame limiter, cutscene timer), `glfix.c` (texture-size cap) | `FIXED_BUILD` fixes and `REBUILT_OPENGL` |
+| `[Game] MaxFPS` | `[Experimental] FrameRateCap` |
+| `agent.c` | `modern/agent.cpp` (now also `speedkey`, `shop`, `savenow`) |
+| `diag.c`, `trace.c`, `hybrid.c`, `dualcall.c` | development tools of the 32-bit builds; the crash report is the game's own (`errorlog.txt`) |
+
+The host's parts are on only while SummonerFix is not loaded, so the 32-bit builds under SummonerFix are unchanged.
+Agent mode and the controller put game key codes past the bindings (`modern_key_mark_raw`).
+
+**Observed** in the 64-bit experimental build (test folder, agent mode):
+- Keys: the log lists the 8 bindings of the test ini; E (bound to I) opens and closes the inventory, I still does.
+  `speedkey 1` sets `frametime_divisor` to 1/3 and `speedkey 0` back to 1. A `[ConsoleKeys]` entry written
+  while the game ran was loaded ("console keys: 1 command key(s)") and ran on its key.
+- Brightness: with `gr_gamma` at 2.0 the frame's mean brightness went from 39 to 114, and back to 39 at 1.0
+  ("brightness: OpenGL shader pass ready"). The "FAST x3" badge is drawn in fast mode.
+- Settings: at `GameWidth=1366` the registry reads come from the ini ("registry: game 1366x768"), the game runs at
+  1366x768, the menu is centred with bars, in play the world fills the screen with the HUD centred, and the
+  inventory is centred. The ini's contents are unchanged by a run.
+- Found: the "gamma" console command only stores `Summoner_options.gamma_correction`; the options screen applies
+  it. (SummonerFix's comment said otherwise.)
+
+**Not yet tested in 64-bit:** the brightness through the options screen's slider, the monitor-ramp fallback, mouse
+bindings and side buttons, the config key opening SummonerFixConfig.exe, the controller with a real pad.
+
+**Next:**
+- A player's test of the 64-bit experimental build in the user's own game folder.
+- L4, the renderer first.
 
 ## Recommendation
 

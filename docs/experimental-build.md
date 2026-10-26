@@ -25,6 +25,9 @@ decided (2026-10-21) on one tree with three configurations, so the features are 
   `exp_frame_begin` in `GameTick` (0x401070) after the mouse is read, for input; `exp_frame_end` before `FrameEnd`,
   for per-frame work; `exp_level_loaded` at the end of `level_load` (0x438570). Each feature's init runs at the first
   frame.
+- **64-bit (2026-10-26):** `--config experimental --compiler clang --arch x64` builds the same features as a 64-bit
+  exe, which is the player build of the modern port: SummonerFix's remaining layers (keys, brightness, the registry
+  settings, the centred menus) are in its in-source host ([Modern C++ port](future/modern-port.md#the-player-build-the-64-bit-experimental-exe-2026-10-26)).
 - **The switches** are in `summonerfix.ini` next to the exe, the file `SummonerFixConfig.exe` edits, each off by
   default: a problem can always be ruled out by turning a feature off. `[Debug] ExperimentalLog=1` writes
   `experimental.log` next to the exe.
