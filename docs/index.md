@@ -26,7 +26,7 @@ produced with [REA](https://github.com/morluto/rea) and Ghidra 12.1.4.
 - [Fixed build changes](fixed-build.md) - every change the fixed build makes, with its bug number.
 - [Experimental build](experimental-build.md) - new features in the source (controller, autosave, frame-rate cap, the Tentacle Beast grab, upscaled interface and fonts), each off by default, plus every SummonerFix feature of the original game (widescreen interface, any resolution, game options).
 - [Texture upscaling](future/texture-upscale.md) - a loose-file pack of AI-upscaled textures, VBM animations and fonts made from your own install, how the game finds them, the checks, and the version for the original game.
-- [Modern C++ port](future/modern-port.md) - how far the decompiled source is from modern C++ (257 of 259 units parse with clang), and the ladder from a clang build to 64-bit and an idiomatic rewrite; the first two rungs (the clang build, warning-clean) are done.
+- [Modern C++ port](future/modern-port.md) - how far the decompiled source is from modern C++ (257 of 259 units parse with clang), and the ladder from a clang build to 64-bit and an idiomatic rewrite; the first two rungs (the clang build, warning-clean) are done, and the third (64-bit) plays the same game as the original within float rounding.
 - [Save editor](save-editor.md) - `SummonerSaveEditor.exe`, a window that edits a copy of a save.
 - [Roadmap](roadmap.md) - done and planned work: key bindings, the speed control and widescreen (in SummonerFix), the decompilation, and the future projects.
 - [Address map](reference/address-map.md) - every address and label used in these notes.
