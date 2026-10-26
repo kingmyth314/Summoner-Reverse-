@@ -222,6 +222,26 @@ static void BagOnGameThread(void *unused)
         bag, bag ? *(int *)((BYTE *)bag + 0xd8) : 0);
 }
 
+// "shop NAME": opens the shop of a level script character as a click on a shopkeeper does (WORLD_CLICK_SHOP:
+// shop_set_shopkeeper_from_char 0x406360, then interface_set_screen(7, NULL) 0x412620), on the game thread.
+#define VA_SHOP_SET_SHOPKEEPER 0x406360u // cdecl (Character *)
+#define VA_INTERFACE_SET_SCREEN 0x412620u // cdecl (id, arg)
+#define VA_LEVEL_SHOPKEEPER_FIND 0x4ce950u // cdecl (name) -> shopkeeper *
+static char g_shopName[64];
+static void ShopOnGameThread(void *unused)
+{
+    (void)unused;
+    BYTE *npc = ((BYTE *(__cdecl *)(const char *))(UINT_PTR)SumVa(VA_SCRIPT_OBJECT_FIND_CHARACTER))(g_shopName);
+    if (!npc) {
+        Log("agent: shop %s: no such NPC", g_shopName);
+        return;
+    }
+    void *keeper = ((void *(__cdecl *)(const char *))(UINT_PTR)SumVa(VA_LEVEL_SHOPKEEPER_FIND))((const char *)(npc + 0x2f4));
+    Log("agent: shop %s: %s", g_shopName, keeper ? "a shopkeeper" : "not a shopkeeper");
+    ((void(__cdecl *)(void *))(UINT_PTR)SumVa(VA_SHOP_SET_SHOPKEEPER))(npc);
+    ((void(__cdecl *)(int, void *))(UINT_PTR)SumVa(VA_INTERFACE_SET_SCREEN))(7, NULL);
+}
+
 // "savenow": writes quicksave.sav as quicksave (0x40e7c0) does once its checks pass: the thumbnail, the
 // conversation state, savegame::write. Without savegame_location_allowed, so combat and the area rules do not refuse
 // it; the save checks use it (tools/link-savecheck.mjs). The result is logged.
@@ -679,6 +699,14 @@ static void RunLine(char *line)
             memcpy(ch + 0x10, pos, sizeof pos);
             Out("navgoto %s: %.2f %.2f %.2f", argv[1], pos[0], pos[1], pos[2]);
         }
+    } else if (!_stricmp(c, "shop") && argc >= 2) {
+        g_shopName[0] = 0;
+        for (int i = 1; i < argc; i++) {
+            if (i > 1)
+                strncat(g_shopName, " ", sizeof g_shopName - strlen(g_shopName) - 1);
+            strncat(g_shopName, argv[i], sizeof g_shopName - strlen(g_shopName) - 1);
+        }
+        Out("shop %s: %s", g_shopName, AgentRunSync(ShopOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "npcgoto") && argc >= 2) {
         // npcgoto NAME: put the current character 4 units from a level script NPC (e.g. Luminar), as
         // script_object_find_character finds it. Testing only.

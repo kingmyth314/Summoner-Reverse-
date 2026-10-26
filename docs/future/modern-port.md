@@ -565,7 +565,7 @@ Driven by agent mode, with captures; the original under SummonerFix ran the same
 | TempleInt2's opening cutscene, no Esc | the cutscene flag clears after 137 s and play resumes; the frame at 81 s matches the original's | 136 s |
 | Conversation | Uvala (masad) and Beelon (the save's level) open the dialogue screen (screen 13) with the conversation camera; a topic is answered, the window closes | |
 | Inventory | Joseph's model and equipment, party items, gold | |
-| Shop | **not reached**: the Arms Merchant was not found on screen by clicking; the shop screen (7) is still untested in 64-bit | |
+| Shop | opened with the agent's `shop Arms Merchant` (the click's two calls); buy and sell lists identical to the original's pixel for pixel; selling the first item **paid one gold more** (91 to 105, the original 104) until the float fix below | the same steps |
 
 **Found on the way, in the test tools:**
 - The round trip first compared four copies of one old file. A second `[Debug]` section added for `TestSaves` is
@@ -576,8 +576,40 @@ Driven by agent mode, with captures; the original under SummonerFix ran the same
   they began (very likely also the save check's random "no new save"). Esc is now sent only while a movie is open,
   and a moment when tasklist misses the starting game no longer ends the wait.
 
+### Float expressions in double: `-ffp-eval-method=double` (2026-10-26)
+
+**The shop's extra gold.** The shop's buy-back price is `(int)(value * 0.7f)`. 0.7f is 0.699999988, so for a value
+of 20 the exact product is 13.9999997. The original's x87 code keeps the product unrounded until `__ftol` truncates
+it: 13. The 64-bit exe's SSE code rounded the product to float first, which is exactly 14.0: 14. The source has
+about 290 such integer truncations of float products. Most are screen layout and colours, but some are gameplay
+numbers: the ring experience, action-point regeneration, spell damage counts, skill levels.
+
+**The fix for the whole class:** the 64-bit build compiles with clang's `-ffp-eval-method=double`
+(`FLT_EVAL_METHOD` 1). Float expressions are evaluated in double and rounded to float only where they are stored,
+as the original's x87 code does at the C runtime's 53-bit precision. The VC6 and 32-bit clang builds are unchanged
+(the 32-bit clang build already uses the x87). `link-build` now counts the clang flags as part of the build's
+defines, so a changed flag recompiles every unit; before, only changed sources were rebuilt.
+
+**Observed:**
+- The shop: the sell list is identical to the original's, and the sale gives 104 gold.
+- The save check (monsters' and NPCs' positions and goals, dwords beyond the original runs' spread):
+
+| Level | 64-bit before | 64-bit with the flag | 32-bit clang |
+|---|---|---|---|
+| Wolong | 77 | 13, 14, 23 (three runs) | 22 |
+| Catacombs | 105 | 32 | 62 |
+| lenele1c | 31 | 12 | 12 |
+| IkaemosTopInt | 52 | 12, 13, 13 (three runs; a fourth run diverged to 182 once, its counters showing one different AI decision) | 21 |
+| KhosaniLab | 36 | 6 | 9 |
+| Rand-IcelandNite01 | 51 | 17 | 25 |
+| sewerboss | 15 | 6 | 4 |
+
+So the 64-bit exe is now as close to the original as the 32-bit clang build. The rest is where the original
+rounds to float that the flag cannot see (spills and stores of intermediates, as in the two NPC-goal functions) and
+the test's timing. The flag adds 29 `-Wabsolute-value` warnings: `fabsf` now receives a double-evaluated
+argument, which it rounds to float as every float expression was rounded before.
+
 **Next:**
-- The shop in 64-bit.
 - Longer sessions on one level: real combat with the party's own spells and the AI, saving and loading in between.
 - Then the advisor's step 5: SummonerFix's remaining layers (gamma, widescreen, Print Screen, key bindings, the speed
   key) in the in-source host, so the 64-bit exe becomes a player's build.

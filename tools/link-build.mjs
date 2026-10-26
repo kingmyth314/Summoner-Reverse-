@@ -75,7 +75,10 @@ const run = (exe, argv, cwd = out) => {
 // Warnings: -Wall -Wextra without the classes that only report the decompiled style (unused names, signed/unsigned
 // compares, the VC6 headers' upper-case file names). Each unit's warnings go to <obj>.warn and the build prints the
 // total; rung L2 is done when it is 0.
-const clangFlags = [...(x64 ? ["--target=x86_64-w64-mingw32", "-fms-extensions", "-g"]
+// x64: -ffp-eval-method=double evaluates float expressions in double until they are stored, as the original's x87
+// code does at the C runtime's 53-bit precision (FLT_EVAL_METHOD 1). Without it SSE rounds every float product, and
+// e.g. the shop's (int)(20 * 0.7f) became 14 instead of 13 (docs/future/modern-port.md, 2026-10-26).
+const clangFlags = [...(x64 ? ["--target=x86_64-w64-mingw32", "-fms-extensions", "-g", "-ffp-eval-method=double"]
   : ["--target=i686-pc-windows-msvc", "-fms-extensions", "-fms-compatibility", "-fms-compatibility-version=12.0", "-march=pentiumpro", "-mfpmath=387"]),
   "-fno-strict-aliasing", "-fno-exceptions", "-fno-cxx-exceptions", "-fno-sized-deallocation", "-O2",
   "-Wall", "-Wextra", "-Wno-unused-variable", "-Wno-unused-parameter", "-Wno-unused-but-set-variable", "-Wno-unused-function",
@@ -100,7 +103,9 @@ for (const l of readFileSync(join(src, "vc6-flags.txt"), "latin1").split(/\r?\n/
 const units = [...new Set(readFileSync(join(src, "vc6-matches.txt"), "latin1").split(/\r?\n/).filter(Boolean).map((l) => l.split(" ")[0]))];
 const objs = [];
 let compiled = 0, failed = 0;
-const definesFile = join(out, "defines.txt"), definesNow = defines.slice().sort().join(" ");
+// The clang flags count as part of the defines: a changed flag (e.g. -ffp-eval-method) must recompile every unit.
+const definesFile = join(out, "defines.txt"),
+  definesNow = defines.slice().sort().join(" ") + (useClang ? ` | ${clangFlags.join(" ")}` : "");
 const definesChanged = !existsSync(definesFile) || readFileSync(definesFile, "latin1").trim() !== definesNow;
 if (definesChanged) console.log(`defines changed (now "${definesNow}"): recompiling every unit`);
 const fresh = (obj, source) => existsSync(obj) && !flag("--recompile") && !definesChanged && statSync(obj).mtimeMs >= statSync(source).mtimeMs;

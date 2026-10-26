@@ -31,6 +31,7 @@
 #include "levelscripts/level_scripts.h"
 #include "levelscripts/savegame.h"
 #include "levelscripts/script_internal.h"
+#include "summoner/interface/new_buysell.h"
 
 #ifdef _WIN64
 #define AGENT_THISCALL
@@ -175,6 +176,21 @@ static void savenow_body(void *)
     int r = ((int (AGENT_THISCALL *)(void *, const char *, int, const char *))sum_va(0x4d1c40))(
         sum_va(0x2493a38), "quicksave.sav", 0, "Quick save");                          // savegame_state.write
     modern_log("agent: savenow: %s", r ? "quicksave.sav written" : "write failed");
+}
+
+// shop NAME: opens the shop of a level script character as a click on a shopkeeper does (gametarget.cpp,
+// WORLD_CLICK_SHOP: shop_set_shopkeeper_from_char, then screen 7), on the game thread.
+static char shop_name[64];
+static void shop_body(void *)
+{
+    Character *npc = script_object_find_character(shop_name);
+    if (!npc) {
+        modern_log("agent: shop %s: no such NPC", shop_name);
+        return;
+    }
+    modern_log("agent: shop %s: %s", shop_name, level_shopkeeper_find(npc->name) ? "a shopkeeper" : "not a shopkeeper");
+    shop_set_shopkeeper_from_char(npc);
+    interface_set_screen(7, NULL);
 }
 
 static int summon_spell;
@@ -504,6 +520,9 @@ static void run_line(char *line)
             ch->pos = pos;
             out("navgoto %s: %.2f %.2f %.2f", argv[1], pos.x, pos.y, pos.z);
         }
+    } else if (!_stricmp(c, "shop") && argc >= 2) {
+        join_words(shop_name, sizeof shop_name, argv, 1, argc);
+        out("shop %s: %s", shop_name, run_sync(shop_body, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "npcgoto") && argc >= 2) {
         char name[64];
         join_words(name, sizeof name, argv, 1, argc);
