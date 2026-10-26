@@ -105,7 +105,22 @@ if (cmd === "start") {
   spawn(join(game, exe), [], { cwd: game, detached: true, stdio: "ignore" }).unref();
   const limit = Date.now() + Number(opt("wait", "60")) * 1000;
   while (!existsSync(join(dir, "ready.txt")) && Date.now() < limit) await sleep(250);
-  console.log(existsSync(join(dir, "ready.txt")) ? "agent ready" : "agent not ready (check summonerfix.log)");
+  if (!existsSync(join(dir, "ready.txt"))) {
+    console.log("agent not ready (check summonerfix.log)");
+    process.exit(0);
+  }
+  // Agent mode is ready before the intro movies. They play in the builds with a movie path under OpenGL (the fixed
+  // builds, the 64-bit exe) and end at once in the original under OpenGL, so wait for the main menu (state 1) with no
+  // movie open (movie_bink_handle 0x26b63e4 NULL; in 64-bit its low 4 bytes, every address being below 2 GB). The
+  // main menu sets state 1 before it plays them. A movie is skipped with Esc, so every check starts from the menu.
+  let menu = false;
+  while (!menu && Date.now() < limit && running()) {
+    const out = (await run("info; peek 26b63e4 4")).out;
+    const handle = /26B63E4:((?: [0-9A-F]{2})+)/i.exec(out);
+    menu = /state=1\b/.test(out) && !!handle && /^( 00)+$/.test(handle[1]);
+    if (!menu) await run("key Esc; wait 500");
+  }
+  console.log(menu ? "agent ready" : "agent ready (main menu not seen)");
 } else if (cmd === "run") {
   const { out, pngs } = await run(rest.join(" "));
   process.stdout.write(out);

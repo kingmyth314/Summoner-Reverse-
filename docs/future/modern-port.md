@@ -508,7 +508,54 @@ game's crash filter, and without SummonerFix a crash wrote no `errorlog.txt`. Un
 installs the same `RecordExceptionInfo` as the unhandled-exception filter while the in-source host is on. The report
 prints code and fault addresses in full in 64-bit (`ADDR_FMT`).
 
+### Same game state: the save check on 14 levels (2026-10-26)
+
+The soak shows the 64-bit exe does not crash; the save check shows whether it plays the same game. It ran on 14
+levels (interiors, exteriors, a night level, the sewer boss, `masad` with its `_v2` script), the original three
+times and the tested exe once per level, for the 64-bit exe and, for comparison, the 32-bit clang build: the same
+code with the original's x87 floating point.
+
+**Three test problems were found and fixed first** (each made the comparison meaningless):
+1. **No save loaded.** The main menu sets state 1 before it plays the intro movies. The 64-bit exe now plays them;
+   the original under OpenGL does not. So the check's fixed-time clicks landed in the movie, the 64-bit exe started
+   every level fresh, and its object and goal counters started at 1 (hundreds of differences). `agent.mjs start` now
+   waits for the menu with no movie open (`movie_bink_handle`). Today's earlier soak runs of the 64-bit exe had
+   the same problem: they played every level, but from a fresh start rather than from the save.
+2. **The quicksave was refused.** "Cannot save in combat" when a monster targets the warped party (varies from run
+   to run) and "Cannot save in this area" (KhosaniLab until a story flag is set). The check now waits out the
+   opening cutscene and saves with the new agent command `savenow`: the quicksave's own write, without
+   `savegame_location_allowed`.
+3. With `savenow` the original still made no save in about one run in ten, at random. Not yet explained; the check
+   now logs the `savenow` result and the game state when it happens.
+
+**Observed** (dwords beyond the original runs' spread, by class; levels where all four saves were made):
+
+| Level | 64-bit: positions and goals | 64-bit: party timers | 32-bit clang: positions and goals | 32-bit clang: party timers |
+|---|---|---|---|---|
+| Wolong | 77 | 0 | 22 | 0 |
+| Catacombs | 105 | 144 | 62 | 144 |
+| lenele1c | 31 | 144 | 12 | 144 |
+| IkaemosTopInt | 52 | 144 | 21 | 0 |
+| KhosaniLab | 36 | 0 | 9 | 0 |
+| Rand-IcelandNite01 | 51 | 145 | 25 | 1 |
+| sewerboss | 15 | 0 | 4 | 0 |
+| rand-forest01, IonaExt02, LPalaceInt02 (64-bit only) | 50, 41, 54 | 0 | | |
+| Liangshan, jadetemple, masad_v2 (32-bit only) | | | 81, 12, 35 | 0 |
+
+- **Positions and goals** are the monsters' and NPCs' (record types 4 and 5) float positions in their last bits and
+  the AI goals that follow from them. The 32-bit clang build has them too. The 64-bit exe has two to four times as
+  many on the same level: SSE rounding instead of x87, the float class this rung expected.
+- **Party timers** are 36 fields of each party member holding one game-time value, 60-65 ms ahead of the original.
+  This is the test-timing class described above; it shows in both builds, on some runs and not others.
+- **Everything else:** the goal counter (one to three goals ahead, following the goals above) and the camera's
+  last bit. No difference in the inventory, items, story flags or the party's own records beyond 1-3 position bits.
+
+**So the 64-bit exe plays the same game**, within float rounding. Making the rounding vanish would mean writing the
+original's x87 rounding into every float-sensitive function, which is not planned.
+
 **Next:**
+- Paths the soak and the save check skip: the world map, a cutscene played through, dialogue, inventory and a shop,
+  and a save-load-save round trip in 64-bit.
 - Longer sessions on one level: real combat with the party's own spells and the AI, saving and loading in between.
 
 ## Recommendation

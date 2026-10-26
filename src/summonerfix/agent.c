@@ -222,6 +222,25 @@ static void BagOnGameThread(void *unused)
         bag, bag ? *(int *)((BYTE *)bag + 0xd8) : 0);
 }
 
+// "savenow": writes quicksave.sav as quicksave (0x40e7c0) does once its checks pass: the thumbnail, the
+// conversation state, savegame::write. Without savegame_location_allowed, so combat and the area rules do not refuse
+// it; the save checks use it (tools/link-savecheck.mjs). The result is logged.
+#define VA_SAVELOAD_CAPTURE_THUMBNAIL 0x427100u // cdecl ()
+#define VA_CONVERSATION_SAVE_STATE 0x4d8390u    // thiscall (conversation_db)
+#define VA_CONVERSATION_DB 0x25461a0u
+#define VA_SAVEGAME_WRITE 0x4d1c40u             // thiscall (savegame_state, filename, 0, description) -> int
+#define VA_SAVEGAME_STATE 0x2493a38u
+static void SaveNowOnGameThread(void *unused)
+{
+    (void)unused;
+    ((void(__cdecl *)(void))(UINT_PTR)SumVa(VA_SAVELOAD_CAPTURE_THUMBNAIL))();
+    ((void(__attribute__((thiscall)) *)(void *))(UINT_PTR)SumVa(VA_CONVERSATION_SAVE_STATE))(
+        (void *)(UINT_PTR)SumVa(VA_CONVERSATION_DB));
+    int r = ((int(__attribute__((thiscall)) *)(void *, const char *, int, const char *))(UINT_PTR)SumVa(
+        VA_SAVEGAME_WRITE))((void *)(UINT_PTR)SumVa(VA_SAVEGAME_STATE), "quicksave.sav", 0, "Quick save");
+    Log("agent: savenow: %s", r ? "quicksave.sav written" : "write failed");
+}
+
 // Knock the current character down for MS milliseconds as a melee hit does (ai_knock_down_local on its ai_state at
 // +0x324), logging the AI mode before and after and the result (game-bugs K80: knocked down while casting).
 #define VA_AI_KNOCK_DOWN_LOCAL 0x4742b0u // thiscall (ai_state, ms) -> int
@@ -642,6 +661,8 @@ static void RunLine(char *line)
         for (int i = 0; i < g_callArgc; i++)
             g_callArgs[i] = (DWORD)strtoul(argv[3 + i], NULL, 0);
         Out("callt %06lX: %s", g_callAddr, AgentRunSync(CallThisOnGameThread, NULL) ? "requested" : "no window");
+    } else if (!_stricmp(c, "savenow")) {
+        Out("savenow: %s", AgentRunSync(SaveNowOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "call0") && argc >= 2) {
         // call0 ADDR [N]: call the cdecl void game function at ADDR with no arguments, N times, on the game thread.
         g_callAddr = (DWORD)strtoul(argv[1], NULL, 16);

@@ -86,14 +86,26 @@ function runOnce(exe, level, sav, dump) {
   utimesSync(quicksave, OLD, OLD);
   const before = readFileSync(quicksave);
   session(exe);
-  const res = agent(exe, `poke 609fe0 1; level ${name} ${script}; wait 8000; postkey Esc; wait 1500; dumpdata ${dump} ${table}; call0 40e7c0; wait 3000`);
+  agent(exe, `poke 609fe0 1; level ${name} ${script}; wait 8000`);
+  // A level's opening cutscene refuses the quicksave: wait until play (state 4) with no cutscene (game_flags bit 0x20),
+  // skipping one with Esc (2026-10-25: six levels made no save in the original without this).
+  for (let t0 = Date.now(); Date.now() - t0 < 90000; ) {
+    const r = agent(exe, "info; peek 5fbfd8 1", 30000);
+    const state = /state=(\d+)/.exec(r), flags = /5FBFD8: ([0-9A-F]{2})/i.exec(r);
+    if (state && state[1] === "4" && flags && !(parseInt(flags[1], 16) & 0x20)) break;
+    agent(exe, "postkey Esc; wait 1500", 30000);
+  }
+  const res = agent(exe, `wait 1500; dumpdata ${dump} ${table}; savenow; wait 3000; info`);
   kill(exe);
   const log = readFileSync(join(game, "summonerfix.log"), "latin1");
   const after = readFileSync(quicksave);
   utimesSync(quicksave, OLD, OLD);
   const m = /(MessageBox from[^\r\n]*|access violation[^\r\n]*|ExitProcess\(3221225477\)[^\r\n]*)/i.exec(log);
   if (m) return m[1] + (existsSync(join(game, "errorlog.txt")) ? " (errorlog.txt)" : "");
-  if (after.equals(before)) return "no new save" + (/timed out/.test(res) ? " (no frames)" : "");
+  if (after.equals(before)) {
+    const sn = /savenow: [^\r\n]*/.exec(log), st = /state=[^\r\n]*/.exec(res);
+    return "no new save" + (/timed out/.test(res) ? " (no frames)" : "") + ` [${sn ? sn[0] : "no savenow in the log"}; ${st ? st[0] : res.trim().split(/\r?\n/).pop()}]`;
+  }
   writeFileSync(sav, after);
   return "";
 }

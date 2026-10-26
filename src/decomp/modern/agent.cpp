@@ -162,6 +162,21 @@ static void callt_body(void *)
                (unsigned __int64)r);
 }
 
+// savenow: quicksave.sav written as quicksave (0x40e7c0) writes it once its checks pass (thumbnail, conversation
+// state, savegame::write), without savegame_location_allowed, so combat and the area rules do not refuse it.
+static void savenow_body(void *)
+{
+    if (!sum_va(0x427100) || !sum_va(0x4d8390) || !sum_va(0x25461a0) || !sum_va(0x4d1c40) || !sum_va(0x2493a38)) {
+        modern_log("agent: savenow: not in the address table");
+        return;
+    }
+    ((void (*)())sum_va(0x427100))();                                                  // saveload_capture_thumbnail
+    ((void (AGENT_THISCALL *)(void *))sum_va(0x4d8390))(sum_va(0x25461a0));           // conversation_db.save_state
+    int r = ((int (AGENT_THISCALL *)(void *, const char *, int, const char *))sum_va(0x4d1c40))(
+        sum_va(0x2493a38), "quicksave.sav", 0, "Quick save");                          // savegame_state.write
+    modern_log("agent: savenow: %s", r ? "quicksave.sav written" : "write failed");
+}
+
 static int summon_spell;
 static void summon_body(void *)
 {
@@ -442,6 +457,8 @@ static void run_line(char *line)
         if (argc >= 4)
             savegame_state.set_flag(level, argv[2], atoi(argv[3]) != 0);
         out("flag %s (level %d) = %d", argv[2], level, savegame_state.get_flag(level, argv[2]));
+    } else if (!_stricmp(c, "savenow")) {
+        out("savenow: %s", run_sync(savenow_body, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "call0") && argc >= 2) {
         call_addr = (unsigned int)strtoul(argv[1], NULL, 16);
         call_count = argc >= 3 ? atoi(argv[2]) : 1;
