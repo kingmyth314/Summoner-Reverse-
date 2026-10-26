@@ -64,7 +64,9 @@ test with screenshots, dialog text and the SummonerFix log. See [SummonerFix](su
 `node tools/docs-check.mjs` checks the documentation before a push (2026-10-26): every page in `docs/` has front
 matter with a `title` and a `nav_order` ([Documentation standard](contributing.md)), and every relative link in
 `docs/`, `README.md` and `AGENTS.md` points at a file that exists and, with `#fragment`, at a heading of that page
-(heading ids as Jekyll's kramdown makes them). External links are not fetched. Exit code 1 when a problem is found.
+under both GitHub's and kramdown's rules for heading ids. The two differ for headings that start with a digit or
+contain underscores (function names such as `FUN_00501510`): such a heading is linked through an explicit
+`<a name="..."></a>` on the line before it. External links are not fetched. Exit code 1 when a problem is found.
 
 ## `tools/symbols.mjs`
 
@@ -311,7 +313,7 @@ Run it from a separate folder holding hard links to the `.vpp` archives and the 
 a VC6 exe reads the real registry (`ConnectionSpeed` there decides whether it starts WinSock, and Windows Firewall then
 asks about the new exe); the clang builds answer it from `summonerfix.ini` themselves (since 2026-10-26,
 `src/decomp/modern/registry.cpp`). For the 64-bit exe the folder also needs the five FFmpeg DLLs, and the exe its
-`.addr` and `.fixes` files ([Reproduce and play](quickstart.md#4-run-the-tests)).
+`.addr` and `.fixes` files ([Reproduce and play](quickstart.md#step-4-run-the-tests)).
 
 | Tool | What it compares |
 |---|---|

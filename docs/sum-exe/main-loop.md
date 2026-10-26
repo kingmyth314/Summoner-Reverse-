@@ -33,6 +33,8 @@ flowchart TD
     T --> O["FrameEnd / HUD<br/>FUN_004328b0"]
 ```
 
+<a name="outer-loop-mainloop-fun_0043d7b0"></a>
+
 ## Outer loop: `MainLoop` (`FUN_0043d7b0`)
 
 **Observed.**
@@ -51,6 +53,8 @@ Shutdown();                    // FUN_0043e1f0, FUN_0043df20
 `PumpMessages` (`FUN_00530cb0`) loops `PeekMessageA(..., PM_REMOVE)` followed by
 `TranslateMessage` and `DispatchMessageA` until the queue is empty. It never blocks, so
 the loop runs as fast as the frame limiter allows.
+
+<a name="one-frame-gametick-fun_00401070"></a>
 
 ## One frame: `GameTick` (`FUN_00401070`)
 
@@ -158,6 +162,8 @@ flowchart LR
   good load it calls `game_pause_count_inc`, the counterpart of the enter's decrement. It clears
   `game_flags` `0x100`, `0x200` and `0x40000`, and turns solo mode off.
 
+<a name="frame-timer-frametimer-fun_00501510"></a>
+
 ## Frame timer: `FrameTimer` (`FUN_00501510`)
 
 **Observed** in both the decompiled code and the assembly.
@@ -205,6 +211,8 @@ if (!total_paused /*0x257f0a8*/) total_ms += ms;       // 0x257f08c
 
 Float constants: `0x581d20` = 1e-6, `0x581d24` = 1e6, `0x57ef28` = 1000.0,
 `0x580df0` = 16.0.
+
+<a name="game-clocks-gameclockadvance-fun_005017f0"></a>
 
 ### Game clocks: `GameClockAdvance` (`FUN_005017f0`)
 

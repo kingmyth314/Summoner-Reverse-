@@ -83,7 +83,7 @@ every member, then `party_set_leader`, and plays sound `0x23`. **Observed.** `pa
 members with flag `0x2` in `+0x320`, which the status code sets while a member is asleep, paralysed or
 in an ice coffin (**observed** in `status_effect_add`; other setters were not searched). *Inferred:* Tab
 passes over a disabled member, while F5-F9 can still select it. In multiplayer it only stops on members
-owned by the local player. **Observed.** See [Controls](controls.md#default-keyboard-map-hud_handle_keys).
+owned by the local player. **Observed.** See [Controls](controls.md#default-keyboard-map).
 
 `party_count_active` (`0x434350`) counts members that exist and do not have `0x800000`. Outside the world
 map (`cur_level_index` 4) it also skips hidden (`0x8`) members. The inventory trade buttons and the

@@ -10,6 +10,8 @@ nav_order: 2
 1. TOC
 {:toc}
 
+<a name="1-qpc-frequency-truncation-4-ghz-bug"></a>
+
 ## 1. QPC frequency truncation (">4 GHz" bug)
 
 **Status:** Observed in the code, and reproduced with a faked 4.5 GHz frequency (2026-10-18: the game clock ran 22
@@ -49,6 +51,8 @@ about 205 MHz, so game time runs about **22 times too fast**. Every user of
 arithmetic on the result (`SAR EAX,1` at `0x5328b8`), which overflows above about
 4.29 GHz as well. But the result (`0x2cbffb0`) is **written and never read**, so it is
 harmless.
+
+<a name="2-cutscene-timer-sign-bug-249-day-uptime"></a>
 
 ## 2. Cutscene timer sign bug (~24.9-day uptime)
 
@@ -107,6 +111,8 @@ timing. Rebasing only one of them would break that difference.
 
 `0x601e78` is also referenced at `0x43703f` (`FUN_00436c00`) and `0x49431e`
 (`FUN_00494310`). Both read `timeGetTime` through the same IAT slot, so the SummonerFix hook covers them too.
+
+<a name="3-frame-limiter-double-counts-its-sleep-2x-game-speed"></a>
 
 ## 3. Frame limiter double-counts its sleep (2x game speed)
 

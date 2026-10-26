@@ -12,7 +12,7 @@ nav_order: 6.3
 record's handlers into globals, which the game states call. The handlers are named `ls_<level>_<slot>` in the
 symbol file (138 functions). The record layout is `level_script_info` in `symbols/types.h`. The shared code
 that calls them, parses the level tables and offers the script helpers is `level_scripts_common.cpp`
-(`0x4ca700`..`0x4ceebf`, see [Common code](#common-code-level_scripts_commoncpp)).
+(`0x4ca700`..`0x4ceebf`, see [Common code](#common-code)).
 
 ## Record layout
 
@@ -44,7 +44,9 @@ might speak a line, start a cutscene, open a gate or spawn the next wave of enem
 `lsf_<flag>` after the first flag they test (for example `lsf_liangshan_flag_wave2`). These names are
 *inferred*: the flag says when the helper runs, not everything it does.
 
-## Common code (`level_scripts_common.cpp`)
+## Common code
+
+The code in `level_scripts_common.cpp`.
 
 Everything in this section is **observed** in the disassembly (`tools/asm.mjs`) unless it is marked
 otherwise. It was written while decompiling `src/decomp/game/level_scripts_common.cpp` (92 functions) and
@@ -155,5 +157,5 @@ The `frame` row said only "while `Do_frame_callback` is set". The slot also need
 script) and runs after `level_check_triggers`. The `init` and `leave` rows now say that the script editor's
 restart calls the slots directly.
 
-- Added [Common code](#common-code-level_scripts_commoncpp): level loading, the frame order, leaving a
+- Added [Common code](#common-code): level loading, the frame order, leaving a
   level, and the helpers whose rules differ from what their names suggest.

@@ -30,7 +30,7 @@ Nothing below is in the repository: no game files, compilers or third-party DLLs
 The downloads, with URLs and checksums, are in [Sources](reference/sources.md). The analysis tools (REA, Ghidra,
 x64dbg) are only needed to repeat the reverse engineering, not to build: [Tooling setup](setup.md).
 
-## 1. Verify the byte matching
+## Step 1: verify the byte matching
 
 ```powershell
 $env:VC6_DIR = 'C:\path\to\vc6sp5\VC98'
@@ -42,11 +42,11 @@ Compiles every unit with VC6 SP5 and compares each function with `Summoner\Sum.e
 `259 units: 5613 match, 2 wrong target, 310 differ, 1 not found` and `5613 matched there, 5613 now, 0 lost`.
 A different `Sum.exe` than the one above may lose a few matches (the no-CD bytes are already accounted for).
 
-## 2. Build the 32-bit exes (VC6)
+## Step 2: build the 32-bit exes (VC6)
 
 ```powershell
 node tools/link-build.mjs --config shipped        # build\link\Sum-rebuilt.exe: the decompiled game as it shipped
-node tools/link-build.mjs --config fixed          # build\link-fixed\Sum-fixed.exe: 53 bugs fixed in the source
+node tools/link-build.mjs --config fixed          # build\link-fixed\Sum-fixed.exe: 53 fixes in the source (46 game bugs)
 node tools/link-build.mjs --config experimental   # build\link-exp\Sum-exp.exe: plus the new features
 ```
 
@@ -55,7 +55,7 @@ folder with SummonerFix's `dinput.dll` ([SummonerFix](summonerfix/index.md), bui
 `tools/build-summonerfix.ps1`). What each configuration changes: [builds](builds.md),
 [fixed build](fixed-build.md), [experimental build](experimental-build.md).
 
-## 3. Build and install the 64-bit player build
+## Step 3: build and install the 64-bit player build
 
 ```powershell
 $env:CLANG_DIR = 'C:\path\to\llvm-mingw\bin'
@@ -73,6 +73,7 @@ brightness, settings and widescreen are in its own source ([the player build](fu
 | `avformat-63.dll`, `avcodec-63.dll`, `avutil-61.dll`, `swscale-10.dll`, `swresample-7.dll` | FFmpeg's `bin` folder |
 | `summonerfix.ini` | the one SummonerFix uses (`src/summonerfix/summonerfix.ini` is the template); the 64-bit exe reads the same keys |
 | `SummonerFixConfig.exe` (optional) | `tools/build-summonerfix.ps1`; edits the ini, `F10` opens it in game |
+| `Sum-exp-clang-x64.addr` (only for tests) | the build folder: agent-mode commands with Sum.exe addresses need it; the game starts and plays without it (checked 2026-10-26) |
 
 Start `Sum-exp-clang-x64.exe`. Settings come from `summonerfix.ini` (`[Display] GameWidth`, `[KeyBindings]` ...),
 not from the registry. `summonerfix.log` beside it says what the build found (`modern host`, `registry: game WxH`,
@@ -81,7 +82,7 @@ not from the registry. `summonerfix.log` beside it says what the build found (`m
 **Not yet tested in 64-bit:** the brightness slider in the options screen, the monitor-ramp fallback, mouse-button
 bindings, the config key, a real controller.
 
-## 4. Run the tests
+## Step 4: run the tests
 
 The tests drive the game through **agent mode** ([Tools](tools.md#toolsagentmjs-agent-mode)): `tools/agent.mjs` writes commands
 to `agent\cmd.txt` and the game answers in `agent\result.txt`. Use a **test folder**, never your own saves:
@@ -97,7 +98,7 @@ to `agent\cmd.txt` and the game answers in `agent\result.txt`. Use a **test fold
 | Test | Command | Expect |
 |---|---|---|
 | Save state per level | `node tools/link-savecheck.mjs OUT Wolong:Wolong ... --exe Sum-fixed-clang-x64.exe --fixes` | the 64-bit exe: about 5-35 dwords beyond the original runs' spread per level, all monster and NPC positions and goals (float rounding), plus a 144-dword block of party timers on some runs (test timing) ([details](future/modern-port.md#float-expressions-in-double--ffp-eval-methoddouble-2026-10-26)) |
-| Every level | `node tools/link-soak.mjs OUT --exe Sum-exp-clang-x64.exe` | 45 of 48 levels; the same 3 crash in the original (a burned townsperson with no death animation) |
+| Every level | `node tools/link-soak.mjs OUT --exe Sum-exp-clang-x64.exe` | 45 of 48 levels; the same 3 crash in the original (a character killed by the test's fire walls whose death move has no animation) |
 | Screens | `node tools/link-screencheck.mjs OUT --exe ...` | identical menus and prologue; small differences in animated views |
 
 **Practical rules** (each cost a failed run once): stop one exe (`node tools/agent.mjs stop`) before starting

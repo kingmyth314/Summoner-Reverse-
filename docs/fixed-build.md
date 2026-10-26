@@ -5,6 +5,9 @@ nav_order: 6.475
 
 # Fixed build: the source fixes
 
+**Status (2026-10-26):** 53 fixes, the keys of `Sum-fixed.fixes`: 46 game bugs, 4 timing and start-up bugs (G1-G3,
+C1), 2 launcher settings (`CustomResolution`, `ResolutionDefault`) and the movies under OpenGL (`MoviesOpenGL`).
+
 **Status (2026-10-21):** 48 changes in the source under `FIXED_BUILD` (the fixed build of
 [Fixed and experimental builds](builds.md)):
 - every gameplay fix SummonerFix's `bugfix.c` makes, plus C317 (43);

@@ -61,7 +61,7 @@ int movie_blit_frame(HBINK bink);
 HBINK movie_bink_handle;                             // 0x26b63e4
 
 #ifdef FIXED_BUILD
-// FIXED_BUILD: movies under OpenGL (docs/fixed-build.md). The original copies each frame into the locked back
+// FIXED_BUILD: movies MoviesOpenGL (not a numbered bug; docs/fixed-build.md): movies under OpenGL. The original copies each frame into the locked back
 // buffer of Glide or Direct3D only; under OpenGL (SummonerFix's renderer and the rebuilt builds' only one) every
 // movie ended at once without a picture. Here the frame goes into a 640x480 RGB565 user bitmap that is drawn
 // centred like any interface bitmap, so the output window's scaling applies to it too.

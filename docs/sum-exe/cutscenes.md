@@ -92,6 +92,8 @@ example `ls_sewer_tb_intro_cs_end` (`0x4ee2d0`). See [Level scripts](level-scrip
 [Bosses](bosses.md). If the name is not in the table, `cutscene_play` returns without setting bit
 `0x20`, so the continuation runs on the next frame. *Inferred.*
 
+<a name="what-cutscene_play-changes"></a>
+
 ## What `cutscene_play` changes
 
 In order (**observed**):

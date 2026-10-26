@@ -27,6 +27,8 @@ The launcher detects cards with `DirectDrawEnumerateA` and `DirectDrawCreateEx`,
 *Inferred, not yet confirmed:* it only accepts 16-bit-colour display modes or old
 DirectDraw device types, which Windows 10/11 no longer reports.
 
+<a name="settings-loader-loadsettings-fun_0043d7f0"></a>
+
 ## Settings loader: `LoadSettings` (`FUN_0043d7f0`)
 
 This is the function earlier labelled `InitTimers`; it does all of the settings setup.
@@ -64,6 +66,8 @@ patch overwrites entry 2 (`0x580e48`, `0x580e4c`) with the custom resolution.
 
 `-port`, `-directsound3d`, `-eax`, `-pack`, `-glide`, `-direct3d`, `-800`, `-1024`,
 `-dsinit`. Parsed by the `vsdk\os\cmdline.cpp` module (source path string in the launcher).
+
+<a name="graphics-init-grinit-fun_00505e00"></a>
 
 ## Graphics init: `GrInit` (`FUN_00505e00`)
 

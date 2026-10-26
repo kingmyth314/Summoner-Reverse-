@@ -37,8 +37,9 @@ documentation and the decompilation notes are also a working log, so they mentio
 - **The save editor:** `tools/build-saveeditor.ps1` builds `SummonerSaveEditor.exe`, a window that changes a save's
   gold, party, inventory and story flags and always writes a new save ([Save editor](docs/save-editor.md)).
 - **The fixed build:** `node tools/link-build.mjs --config fixed` builds `Sum-fixed.exe`, the decompiled game with
-  43 bugs fixed in the source, plus the timing and start-up fixes a modern PC needs (correct speed, the >4 GHz timer,
-  the cutscene timer, no crash without an audio device, 1024x768 without the launcher). See
+  53 fixes in the source: 46 game bugs, the 4 timing and start-up bugs a modern PC hits (correct speed, the >4 GHz
+  timer, the cutscene timer, no crash without an audio device), 2 launcher settings (any resolution, 1024x768 without
+  the launcher) and movies under OpenGL. See
   [Fixed build changes](docs/fixed-build.md). First in-game run 2026-10-21: the queued checks against the original
   pass; the per-fix reproductions are still to run.
 - **The experimental build:** `node tools/link-build.mjs --config experimental` builds `Sum-exp.exe`, the fixed build

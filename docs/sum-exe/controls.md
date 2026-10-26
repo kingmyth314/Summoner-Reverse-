@@ -46,7 +46,9 @@ The mouse always runs in cursor mode: `mouse_use_cursor` (`0x5a5734`) is 1 in `.
 so `mouse_di_init` returns -1 before it reaches `DirectInputCreateA` (`0x500e90`..`0x500e9b`). **Observed.**
 (Corrected 2026-10-15; this page said the mouse used DirectInput.)
 
-## Default keyboard map (`hud_handle_keys`)
+## Default keyboard map
+
+The keys `hud_handle_keys` handles.
 
 | Key | Code | Action | Function |
 |---|---|---|---|

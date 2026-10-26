@@ -1,7 +1,8 @@
 // Checks the documentation before a push (docs/contributing.md): every page in docs/ has front matter with a title
 // and a nav_order, and every relative link in docs/, README.md and AGENTS.md points at a file that exists and, with
-// a #fragment, at a heading of that page (heading ids as Jekyll's kramdown makes them; GitHub's are the same for
-// these pages). External links are not fetched.
+// a #fragment, at a heading of that page. A fragment has to be the heading's id under both rules, GitHub's (the
+// repository view) and kramdown's (the Pages site): they differ for headings that start with a digit or contain
+// underscores, so such headings cannot be linked to. External links are not fetched.
 // usage: node tools/docs-check.mjs [--quiet]
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
@@ -19,17 +20,24 @@ function walk(dir, out = []) {
   return out;
 }
 
-// kramdown's auto ids: lower case, markup and punctuation dropped (letters, digits, spaces, - and _ kept), spaces
-// to dashes.
-function slug(text) {
+function plain(text) {
   return text
     .replace(/`([^`]*)`/g, "$1")
     .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/\*{1,2}([^*]+)\*{1,2}/g, "$1")   // emphasis; underscores stay (they are part of names)
     .toLowerCase()
-    .replace(/[^a-z0-9 _-]/g, "")
-    .trim()
-    .replace(/ /g, "-");
+    .trim();
+}
+
+// GitHub: punctuation dropped (letters, digits, spaces, - and _ kept), spaces to dashes.
+function slug(text) {
+  return plain(text).replace(/[^a-z0-9 _-]/g, "").replace(/ /g, "-");
+}
+
+// kramdown: only letters, digits, spaces and dashes kept, everything before the first letter dropped, spaces to
+// dashes.
+function kramdownSlug(text) {
+  return plain(text).replace(/[^a-z0-9 -]/g, "").replace(/^[^a-z]+/, "").replace(/ /g, "-");
 }
 
 const anchorCache = new Map();
@@ -40,7 +48,12 @@ function anchors(file) {
     for (const line of readFileSync(file, "utf8").split(/\r?\n/)) {
       if (/^```/.test(line)) inCode = !inCode;
       const m = !inCode && /^#{1,6}\s+(.*?)\s*#*\s*$/.exec(line);
-      if (m) set.add(slug(m[1]));
+      if (m && slug(m[1]) === kramdownSlug(m[1]))   // linkable only where both sites give the same id
+        set.add(slug(m[1]));
+      // An explicit anchor (<a name="..."></a> before a heading that names a function, such as FUN_00501510) has the
+      // same id on both sites.
+      for (const a of line.matchAll(/<a\s+(?:name|id)="([^"]+)"/g))
+        set.add(a[1]);
     }
     anchorCache.set(file, set);
   }
