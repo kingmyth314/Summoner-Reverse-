@@ -115,10 +115,18 @@ if (cmd === "start") {
   // main menu sets state 1 before it plays them. A movie is skipped with Esc, so every check starts from the menu.
   let menu = false;
   while (!menu && Date.now() < limit && running()) {
-    const out = (await run("info; peek 26b63e4 4")).out;
+    let out;
+    try {
+      out = (await run("info; peek 26b63e4 4")).out;
+    } catch {
+      await sleep(500);   // tasklist can miss the game for a moment while it starts
+      continue;
+    }
     const handle = /26B63E4:((?: [0-9A-F]{2})+)/i.exec(out);
-    menu = /state=1\b/.test(out) && !!handle && /^( 00)+$/.test(handle[1]);
-    if (!menu) await run("key Esc; wait 500");
+    const movie = !!handle && !/^( 00)+$/.test(handle[1]);
+    menu = /state=1\b/.test(out) && !!handle && !movie;
+    // Esc only while a movie is open: on the main menu itself Esc quits the game.
+    if (!menu) await run(movie ? "key Esc; wait 500" : "wait 500").catch(() => {});
   }
   console.log(menu ? "agent ready" : "agent ready (main menu not seen)");
 } else if (cmd === "run") {

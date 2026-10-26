@@ -553,10 +553,34 @@ code with the original's x87 floating point.
 **So the 64-bit exe plays the same game**, within float rounding. Making the rounding vanish would mean writing the
 original's x87 rounding into every float-sensitive function, which is not planned.
 
+### The paths the soak skips (2026-10-26)
+
+Driven by agent mode, with captures; the original under SummonerFix ran the same steps where noted. **Observed:**
+
+| Path | 64-bit exe | Original |
+|---|---|---|
+| Save, load that save, save again | A to B: 89 dwords (party 38, objects 49, the two counters), the 15 s of play between | 75 dwords (party 38, objects 35, the counters) |
+| Saves across the two exes | the 64-bit exe loads the original's save and plays on (goal counter 0x27B, 0x27F after play) | the original loads the 64-bit exe's save (0x27F, then 0x281) |
+| World map (`level worldmap1`) | terrain, labels, party marker and HUD drawn; a click on Masad scrolls the map and the party sets out | the same warp, twice in each exe, without a problem |
+| TempleInt2's opening cutscene, no Esc | the cutscene flag clears after 137 s and play resumes; the frame at 81 s matches the original's | 136 s |
+| Conversation | Uvala (masad) and Beelon (the save's level) open the dialogue screen (screen 13) with the conversation camera; a topic is answered, the window closes | |
+| Inventory | Joseph's model and equipment, party items, gold | |
+| Shop | **not reached**: the Arms Merchant was not found on screen by clicking; the shop screen (7) is still untested in 64-bit | |
+
+**Found on the way, in the test tools:**
+- The round trip first compared four copies of one old file. A second `[Debug]` section added for `TestSaves` is
+  ignored (the ini reader takes the first), so the game saved into `savegame\`. Keys are now set inside the existing
+  section.
+- `agent.mjs start` pressed Esc whenever the menu was not yet confirmed. In the original, which opens and closes
+  each intro movie at once, an Esc could land on the main menu, where Esc quits: some original runs ended before
+  they began (very likely also the save check's random "no new save"). Esc is now sent only while a movie is open,
+  and a moment when tasklist misses the starting game no longer ends the wait.
+
 **Next:**
-- Paths the soak and the save check skip: the world map, a cutscene played through, dialogue, inventory and a shop,
-  and a save-load-save round trip in 64-bit.
+- The shop in 64-bit.
 - Longer sessions on one level: real combat with the party's own spells and the AI, saving and loading in between.
+- Then the advisor's step 5: SummonerFix's remaining layers (gamma, widescreen, Print Screen, key bindings, the speed
+  key) in the in-source host, so the 64-bit exe becomes a player's build.
 
 ## Recommendation
 
