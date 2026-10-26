@@ -44,9 +44,11 @@
 #ifdef _WIN64
 #define CONTEXT_IP(c) ((c)->Rip)
 #define CONTEXT_SP(c) ((c)->Rsp)
+#define ADDR_FMT "%016I64x"           // code and fault addresses in full
 #else
 #define CONTEXT_IP(c) ((c)->Eip)
 #define CONTEXT_SP(c) ((c)->Esp)
+#define ADDR_FMT "%08x"
 #endif
 
 static void hprintf(HANDLE file, const char *format, ...);
@@ -102,7 +104,7 @@ int RecordExceptionInfo(PEXCEPTION_POINTERS data, const char *message)
         && GetModuleFileNameA((HINSTANCE)MemInfo.AllocationBase, CrashModulePathName, MAX_PATH) > 0)
         CrashModuleFileName = GetFilePart(CrashModulePathName);
 
-    hprintf(LogFile, "%s caused %s in module %s at %04x:%08x.\r\n", FileName,
+    hprintf(LogFile, "%s caused %s in module %s at %04x:" ADDR_FMT ".\r\n", FileName,
             GetExceptionDescription(Exception->ExceptionCode), CrashModuleFileName, Context->SegCs,
             CONTEXT_IP(Context));
     hprintf(LogFile, "Exception handler called in %s.\r\n", message);
@@ -113,7 +115,7 @@ int RecordExceptionInfo(PEXCEPTION_POINTERS data, const char *message)
         const char *readwrite = "Read from";
         if (Exception->ExceptionInformation[0])
             readwrite = "Write to";
-        wsprintfA(DebugMessage, "%s location %08x caused an access violation.\r\n", readwrite,
+        wsprintfA(DebugMessage, "%s location " ADDR_FMT " caused an access violation.\r\n", readwrite,
                   Exception->ExceptionInformation[1]);
         hprintf(LogFile, "%s", DebugMessage);
     }

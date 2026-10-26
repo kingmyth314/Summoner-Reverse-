@@ -449,8 +449,39 @@ only "savetest" (or nothing), and `summoner.cpp` keeps the original's literal.
 **Observed:** the log shows `vlogo.bik, 640x480, 416 frames at 30.00 fps, audio on`, and a capture 4 s into the start
 shows the THQ logo centred. The 32-bit builds keep `binkw32.dll`; the VC6 sweep keeps 5,613 matches.
 
+### Longer play in 64-bit: every level (2026-10-25)
+
+`tools/link-soak.mjs` played all 49 levels in one session per exe from the newest test save, each with
+`level NAME NAME` and the full party, a golem summoned, three walls of fire cast and a capture. The original
+`Sum-orig.exe` (with SummonerFix) ran the same steps for comparison. **Observed:**
+
+| | Original | 64-bit exe |
+|---|---|---|
+| Levels played through | 44 | 45 |
+| masad, IonaExt | crash at the summon (null read in `character_instance::get_root_velocity`) | gone at the same step |
+| endgame | crash on entry | gone on entry |
+| LPalaceInt, TempleInt2 | crash after the summon | ok |
+| IkaemosExt2 | ok (fresh start after TempleInt2's crash) | gone on entry, after TempleInt2 |
+| frame rate | 120 menu, 81-114 in levels | 120 menu, 86-120 in levels |
+
+**No failure is the 64-bit exe's alone.**
+- The summon crashes are timing-dependent: the same level fails in one run and passes in another, in both exes. The
+  32-bit clang build fails masad in the same function as the original. They come from the agent's `summon` placing a
+  golem where the test puts it, and are not claimed as a game bug.
+- IkaemosExt2 alone passes twice. After TempleInt2, the 64-bit exe fails on entry. The original fails on the same
+  sequence without any summon: the `level` command fires while TempleInt2's opening cutscene still runs, and the
+  original crashes in `skeleton_read` while loading the next level. That is the known "level change during a
+  cutscene" crash of the agent's warp ([tools](../tools.md)). The 64-bit exe gets through the load and then reads
+  the cutscene's forced vis sets: `level_vis_force_list` still points into the old level's pool, because only the
+  cutscene's end clears `level_vis_forced`.
+
+**Fixed on the way: crash reports in the clang builds.** Clang has no `__try` / `__except`, so WinMain ran without the
+game's crash filter, and without SummonerFix a crash wrote no `errorlog.txt`. Under `MODERN_BUILD`, WinMain now
+installs the same `RecordExceptionInfo` as the unhandled-exception filter while the in-source host is on. The report
+prints code and fault addresses in full in 64-bit (`ADDR_FMT`).
+
 **Next:**
-- Longer play in 64-bit: combat, spells, every level.
+- Longer sessions on one level: real combat with the party's own spells and the AI, saving and loading in between.
 
 ## Recommendation
 

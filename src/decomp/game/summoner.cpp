@@ -740,6 +740,17 @@ void launch_updater()
 
 // ---- entry point -----------------------------------------------------------------------------------
 
+#if defined(MODERN_BUILD) && !defined(_MSC_VER)
+// MODERN_BUILD: clang has no __try / __except, so WinMain's filter would never run and a crash wrote no
+// errorlog.txt. The same filter as an unhandled-exception filter; it searches on as the original's does. Not
+// while SummonerFix is loaded, which installs its own.
+static LONG WINAPI modern_crash_filter(PEXCEPTION_POINTERS data)
+{
+    RecordExceptionInfo(data, "Summoner Main Thread");
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+#endif
+
 // 0x43e5e0  Confidence: likely (unit membership: see the file comment; the code is exact). The
 // __except filter writes errorlog.txt and returns EXCEPTION_CONTINUE_SEARCH on every path (D2905), so the
 // __except block never runs and the crash goes on to the system handler; result = -1 is never returned.
@@ -759,6 +770,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     } __except (RecordExceptionInfo(GetExceptionInformation(), "Summoner Main Thread")) {
     }
 #else
+#ifdef MODERN_BUILD
+    if (modern_host())
+        SetUnhandledExceptionFilter(modern_crash_filter);
+#endif
     result = MainLoop();
 #endif
     return result;
