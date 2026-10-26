@@ -609,6 +609,11 @@ rounds to float that the flag cannot see (spills and stores of intermediates, as
 the test's timing. The flag adds 29 `-Wabsolute-value` warnings: `fabsf` now receives a double-evaluated
 argument, which it rounds to float as every float expression was rounded before.
 
+**Also fixed:** now and then the save load did not happen: the game stayed on the load screen after the click on
+the save. Six starts in a row all loaded; both misses came on the first start of a freshly copied exe, which is
+presumably slow enough that the list is not ready for the click. `link-savecheck` and `link-soak` now check that
+the game is in play after the load and click the save again if not.
+
 **Next:**
 - Longer sessions on one level: real combat with the party's own spells and the AI, saving and loading in between.
 - Then the advisor's step 5: SummonerFix's remaining layers (gamma, widescreen, Print Screen, key bindings, the speed

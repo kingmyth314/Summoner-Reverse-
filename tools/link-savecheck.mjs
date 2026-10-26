@@ -77,7 +77,11 @@ function session(exe) {
   writeFileSync(ini, text, "latin1");
   spawnSync("node", [join(repo, "tools", "agent.mjs"), "start", "--wait", "60"], { cwd: repo, env: env(exe), encoding: "latin1" });
   // Main menu: Load Saved Game, the newest save, then wait for the level.
-  return agent(exe, "wait 4000; click 744 392; wait 2500; click 798 368; wait 15000");
+  // The first start of a freshly copied exe can be slow enough that the click on the save comes before the list is
+  // ready (2026-10-26): while the game is not in play, the save is clicked again.
+  let res = agent(exe, "wait 4000; click 744 392; wait 2500; click 798 368; wait 15000; info");
+  for (let i = 0; i < 2 && !/state=4\b/.test(res); i++) res = agent(exe, "click 744 392; wait 3000; click 798 368; wait 15000; info");
+  return res;
 }
 
 // One run: warp, dump, quicksave. Returns the problem or "".
