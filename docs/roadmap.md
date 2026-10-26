@@ -239,7 +239,7 @@ the plan for a fixed build and an experimental build that take them up is in
 - Port the remaining Timeslip features. Done 2026-10-14: intro-movie skip, camera zoom range and interaction
   ranges (`[Game]` options, see [SummonerFix](summonerfix/index.md#fixes)). The speed key was done 2026-10-13.
   Console-command keys were done the same day (`[ConsoleKeys]`, also editable in the config app). The save-image problem showed up as black thumbnails under SummonerFix's scaling and is fixed
-  (`glReadPixels` hook). Still open: Timeslip's Bink 32-bit fix (no movie corruption seen with OpenGL).
+  (`glReadPixels` hook). Timeslip's Bink 32-bit fix is not needed in the fixed and 64-bit builds: under OpenGL they copy movie frames into their own 640x480 RGB565 bitmap, not into a locked screen buffer (2026-10-25). It stays open only for the original exe under Direct3D or Glide.
 - ~~Fix the cutscene uptime bug~~: done 2026-10-14 (see [SummonerFix](summonerfix/index.md#fixes)).
 - **World sounds too quiet with the default sound setting: done 2026-10-16** (SummonerFix `bugfix.c`, K260; the slider is now linear).
 - **Story state lost on load: no fix needed (2026-10-16).** G130 and G131 cannot happen in retail play: the game refuses saving in TempleINT2 once `mach_intro` is set and in the Jade Temple once `got_laharah_spirit` is set (`savegame_location_allowed`, tested in agent mode). See [Bugs](sum-exe/game-bugs.md).

@@ -87,6 +87,8 @@ struct bink_movie {
     HWAVEOUT wave;
     WAVEHDR hdr[AUDIO_BUFFERS];
     int next_hdr;
+    int dropped;          // audio chunks dropped with every buffer busy
+    double max_late;      // the latest a frame was shown after its time, in seconds
 };
 
 static void audio_reap(bink_movie *m)
@@ -111,8 +113,10 @@ static void audio_queue(bink_movie *m)
     if (cap <= 0)
         return;
     WAVEHDR *w = &m->hdr[m->next_hdr];
-    if (w->lpData)   // all buffers still playing: this chunk is dropped
+    if (w->lpData) {   // all buffers still playing: this chunk is dropped
+        m->dropped++;
         return;
+    }
     unsigned char *out = (unsigned char *)malloc((size_t)cap * 4);
     if (!out)
         return;
@@ -257,6 +261,8 @@ extern "C" int WINAPI BinkWait(void *bink)
         Sleep(1);
         return 1;
     }
+    if (t - (m->h.FrameNum - 1) / m->fps > m->max_late)
+        m->max_late = t - (m->h.FrameNum - 1) / m->fps;
     return 0;
 }
 
@@ -265,6 +271,16 @@ extern "C" void WINAPI BinkClose(void *bink)
     bink_movie *m = (bink_movie *)bink;
     if (!m)
         return;
+    // Sync: the video time shown, the wall time, and the audio played so far (waveOut's position).
+    LARGE_INTEGER now;
+    QueryPerformanceCounter(&now);
+    MMTIME pos = { TIME_SAMPLES };
+    double audio = -1;
+    if (m->wave && waveOutGetPosition(m->wave, &pos, sizeof pos) == MMSYSERR_NOERROR && pos.wType == TIME_SAMPLES)
+        audio = (double)pos.u.sample / m->adec->sample_rate;
+    modern_log("movies: closed at frame %u of %u: video %.2f s, wall %.2f s, audio %.2f s; latest frame %.0f ms late, "
+               "%d audio chunks dropped", m->h.FrameNum, m->h.Frames, (m->h.FrameNum - 1) / m->fps,
+               (double)(now.QuadPart - m->start.QuadPart) / (double)m->freq.QuadPart, audio, m->max_late * 1000, m->dropped);
     if (m->wave) {
         waveOutReset(m->wave);
         audio_reap(m);

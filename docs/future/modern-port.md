@@ -216,7 +216,7 @@ another writer shows up.
 - **Not seen in game:** K220 and G226 stay "Observed code". The editor opens in agent mode (game flag `0x80`), but its
   buttons did not respond to agent-mode clicks in the test, so the door and creature windows could not be opened.
 
-## L3: 64-bit (begun 2026-10-25)
+## L3: 64-bit (2026-10-25: the 64-bit exe plays)
 
 **Platform facts** (**Observed** on the test PC):
 - Direct3D 7 immediate mode (`d3dim700.dll`) exists only as a 32-bit DLL (SysWOW64). So do Glide, EAX and Bink
@@ -234,12 +234,12 @@ another writer shows up.
 
 **Stages:**
 
-| Stage | Work | Tested in |
-|---|---|---|
-| L3a | portable code: no `__asm`, the 64-bit crash context, pointer-sized callback parameters | the 32-bit clang build |
-| L3b | agent mode in the source | the 32-bit clang build, then 64-bit |
-| L3c | the 211 failing layout checks: memory-only layouts freed, file and network formats read and written field by field | both |
-| L3d | the x86_64 build: `link-build --compiler clang --arch x64`, OpenGL only, no EAX, FFmpeg for Bink | 64-bit |
+| Stage | Work | Tested in | Status |
+|---|---|---|---|
+| L3a | portable code: no `__asm`, the 64-bit crash context, pointer-sized callback parameters | the 32-bit clang build | done |
+| L3b | agent mode in the source | the 32-bit clang build, then 64-bit | done: the in-source host, display layer and agent mode |
+| L3c | the 211 failing layout checks: memory-only layouts freed, file and network formats read and written field by field | both | done for files and memory (`PTR32`, `LAYOUT_CHECK_32`); **left out:** the multiplayer packets (`multi.h`, `net.h`), deferred with multiplayer |
+| L3d | the x86_64 build: `link-build --compiler clang --arch x64`, OpenGL only, no EAX, FFmpeg for Bink | 64-bit | done: menus, every level, saves, movies. Not yet a player's build: SummonerFix cannot load into it, so its gamma, widescreen, Print Screen, key-binding and speed-key layers are missing (next) |
 
 **L3a done.** An x86_64 syntax check of every unit found 226 errors: 211 layout checks and 15 others. The 15 are now
 fixed, and the `__asm` blocks have `MODERN_BUILD` forms:
@@ -449,6 +449,17 @@ only "savetest" (or nothing), and `summoner.cpp` keeps the original's literal.
 **Observed:** the log shows `vlogo.bik, 640x480, 416 frames at 30.00 fps, audio on`, and a capture 4 s into the start
 shows the THQ logo centred. The 32-bit builds keep `binkw32.dll`; the VC6 sweep keeps 5,613 matches.
 
+**End to end** (2026-10-25). `BinkClose` logs the sync: the frame reached, the video time, the wall time, the audio
+waveOut has played, the latest frame and the audio chunks dropped (all buffers busy). **Observed:**
+
+| Run | Result |
+|---|---|
+| `vlogo.bik` played through | 416 of 416 frames: video 13.83 s, wall 13.84 s, audio 13.83 s; latest frame 2 ms late; nothing dropped. The main menu follows (state 1, screen 14) |
+| Esc 1.5 s into `vlogo.bik` | the menu 300 ms later, no crash (the queued audio freed after `waveOutReset`) |
+| `geeks.bik` (the credits movie, 4,548 frames, 2.5 min), Esc after 30 s | frame 901: video 30.00 s, wall 30.00 s, audio 29.98 s; latest frame 29 ms late; nothing dropped; back to the menu. The capture shows the frame centred |
+
+The EAX logo is not played: the 64-bit build has no EAX, and the game shows that movie only with EAX on.
+
 ### Longer play in 64-bit: every level (2026-10-25)
 
 `tools/link-soak.mjs` played all 49 levels in one session per exe from the newest test save, each with
@@ -474,6 +485,23 @@ shows the THQ logo centred. The 32-bit builds keep `binkw32.dll`; the VC6 sweep 
   cutscene" crash of the agent's warp ([tools](../tools.md)). The 64-bit exe gets through the load and then reads
   the cutscene's forced vis sets: `level_vis_force_list` still points into the old level's pool, because only the
   cutscene's end clears `level_vis_forced`.
+
+**Second run: the test waits out cutscenes.** The first run's failures were mostly the test acting during a cutscene.
+`link-soak.mjs` now waits until the game is in play (state 4) with no cutscene running (`game_flags` bit 0x20),
+pressing Esc to skip one, before the summon and again before the next level change. `endgame` is left out: the
+`level` warp crashes the original's load of it (`File::sync_float` into a null target), so it is not a way into
+that level. **Observed** (48 levels, each exe once):
+
+| | Original | 64-bit exe |
+|---|---|---|
+| Levels played through | 45 | 45 |
+| Failed | IonaExt, LPalaceInt, tancredhouse | the same three |
+
+- The masad, TempleInt2 and IkaemosExt2 failures are gone in both exes, so they were the test's timing.
+- The three that remain crash in the same place in both: `character_instance::get_anim_length` with animation -1,
+  from `Character::update_head_look` for a dying character whose death move has no animation (the original at
+  0x51B0CB; the 64-bit exe caught under lldb). They come after the walls of fire in three town and palace levels,
+  so presumably a townsperson burned to death. **Not yet seen in normal play**, so not listed as a game bug.
 
 **Fixed on the way: crash reports in the clang builds.** Clang has no `__try` / `__except`, so WinMain ran without the
 game's crash filter, and without SummonerFix a crash wrote no `errorlog.txt`. Under `MODERN_BUILD`, WinMain now

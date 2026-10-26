@@ -24,8 +24,9 @@ if (!opt("--game") && !process.env.SUMMONER_GAME) {
 const game = resolve(opt("--game", process.env.SUMMONER_GAME));
 const exe = opt("--exe", "Sum-fixed-clang-x64.exe");
 const ini = join(game, "summonerfix.ini"), backup = join(out, "summonerfix.ini.bak"), log = join(game, "summonerfix.log");
-// Not levels to play: the developers' test level and the world map (no party to place).
-let levels = LEVELS.filter((l) => l !== "test" && l !== "worldmap1");
+// Not levels to play: the developers' test level, the world map (no party to place) and endgame (the `level` warp
+// crashes the original's load of it in File::sync_float, 2026-10-25).
+let levels = LEVELS.filter((l) => l !== "test" && l !== "worldmap1" && l !== "endgame");
 if (opt("--only")) levels = opt("--only").split(",");
 if (opt("--from")) levels = levels.slice(Math.max(0, levels.findIndex((l) => l.toLowerCase() === opt("--from").toLowerCase())));
 
@@ -60,6 +61,20 @@ function session() {
   agent("wait 4000; click 744 392; wait 2500; click 798 368; wait 15000");
 }
 
+// Waits until the game plays (state 4) with no cutscene running (game_flags 0x5fbfd8 bit 0x20), pressing Esc
+// every 1.5 s to skip one; up to `secs`. Returns the seconds waited, or -1 when it never got there.
+function waitPlay(secs = 90) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < secs * 1000) {
+    if (!running()) return -1;
+    const r = agent("info; peek 5fbfd8 1", 30000);
+    const state = /state=(\d+)/.exec(r), flags = /5FBFD8: ([0-9A-F]{2})/i.exec(r);
+    if (state && state[1] === "4" && flags && !(parseInt(flags[1], 16) & 0x20)) return Math.round((Date.now() - t0) / 1000);
+    agent("postkey Esc; wait 1500", 30000);
+  }
+  return -1;
+}
+
 const bad = /(MessageBox from[^\r\n]*|access violation[^\r\n]*|ExitProcess\([^)]*\)[^\r\n]*|crash[^\r\n]*)/i;
 let failures = 0;
 try {
@@ -67,9 +82,14 @@ try {
     if (!running()) session();
     const pos = logSize();
     const t0 = Date.now();
-    // Level change with the whole party; Esc past an opening cutscene; then a golem and three walls of fire.
-    const res = agent(`poke 609fe0 1; level ${level} ${level}; wait 10000; postkey Esc; wait 1500; info; summon 38; wait 3000; ` +
-      `firewall 3; wait 4000; capture soak; info`);
+    // Level change with the whole party; wait until play, past an opening cutscene; then a golem and three walls of
+    // fire, and again until no cutscene runs, so the next level change never comes during one.
+    let res = agent(`poke 609fe0 1; level ${level} ${level}; wait 8000`);
+    const toPlay = waitPlay();
+    if (toPlay >= 0) {
+      res += agent(`info; summon 38; wait 3000; firewall 3; wait 4000; capture soak; info`);
+      waitPlay();
+    }
     const secs = ((Date.now() - t0) / 1000).toFixed(0);
     const text = logSince(pos);
     const m = bad.exec(text);
@@ -82,7 +102,13 @@ try {
       kill();
       continue;
     }
-    note(`${level}: ok (${secs} s), fps ${fps || "?"}`);
+    if (toPlay < 0) {
+      failures++;
+      note(`${level}: FAILED (${secs} s): never in play without a cutscene`);
+      kill();
+      continue;
+    }
+    note(`${level}: ok (${secs} s, in play after ${toPlay + 8} s), fps ${fps || "?"}`);
   }
 } finally {
   agent("quit", 20000);
