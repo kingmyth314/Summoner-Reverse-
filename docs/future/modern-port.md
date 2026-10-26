@@ -614,8 +614,28 @@ the save. Six starts in a row all loaded; both misses came on the first start of
 presumably slow enough that the list is not ready for the click. `link-savecheck` and `link-soak` now check that
 the game is in play after the load and click the save again if not.
 
-**Next:**
-- Longer sessions on one level: real combat with the party's own spells and the AI, saving and loading in between.
+### A long fight (2026-10-26)
+
+From the test save, the full party warped to rand-forest01, whose monsters attack at once, and left to fight for
+four minutes (a golem raised at 1 min, three walls of fire at 2 min), sampled every 30 s; then a save made in the
+fight, the exe restarted, that save loaded and two more minutes played. The original under SummonerFix ran the same
+steps. **Observed:**
+
+| | Original | 64-bit exe |
+|---|---|---|
+| Frame rate, every sample | 120 | 120 |
+| AI goal counter at 30, 60, 90 s | 0x2B2, 0x2D3, 0x2F9 | 0x2B2, 0x2D3, 0x2F9: the same goals made in the same order |
+| AI goal counter at 240 s | 0x401 | 0x3E4 (the fights drift apart after the summon and the walls of fire) |
+| Memory during the fight | 123.6 to 125.4 MB, flat | 208 to 219 MB, flat after the first two minutes |
+| The save made in the fight | loads, two minutes of play | loads, two minutes of play |
+| Crashes, error dialogs | none | none |
+
+The 64-bit exe uses about 85 MB more: pointers are 8 bytes, and the static pools are doubled (`POOL64`). No
+growth over the six minutes, so no leak shows. The capture at 150 s shows the four party members in the fight with
+their HP down and one portrait greyed out.
+
+**Next:** the advisor's step 5: SummonerFix's remaining layers (gamma, widescreen, Print Screen, key bindings, the
+speed key) in the in-source host, so the 64-bit exe becomes a player's build.
 - Then the advisor's step 5: SummonerFix's remaining layers (gamma, widescreen, Print Screen, key bindings, the speed
   key) in the in-source host, so the 64-bit exe becomes a player's build.
 
