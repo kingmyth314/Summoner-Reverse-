@@ -244,6 +244,8 @@ BOOL modern_swap_buffers(HDC dc)
                 glDisable(GL_SCISSOR_TEST);
             glClearColor(old[0], old[1], old[2], old[3]);
         }
+        modern_brightness(display_wnd, m.cw, m.ch);   // before the badge and a capture, as in SummonerFix
+        modern_speed_badge(dc, m.cw, m.ch, m.off_x, m.off_y, m.scale);
         if (capture_wanted) {
             save_frame(&m, capture_path);
             InterlockedExchange((LONG *)&capture_wanted, 0);

@@ -58,6 +58,11 @@ int  modern_key_physical(int code);            // key_to_ascii: the physical key
 void modern_mouse_button(int button, bool down);   // mouse_msg_handler: a button through its binding
 void modern_key_mark_raw(int code, int down);  // a game key code, not remapped (agent mode, the controller)
 void modern_keys_agent_speed(bool on);         // agent mode's speedkey: as if the speed key were pressed
+float modern_keys_speed_active();              // the speed factor while fast mode is on, else 0
+
+// ---- gamma.cpp ----
+void modern_brightness(HWND wnd, int cw, int ch);   // modern_swap_buffers: the options screen's brightness (K90)
+void modern_speed_badge(HDC dc, int cw, int ch, int off_x, int off_y, double scale);   // "FAST xN" in play
 
 // ---- agent.cpp ----
 void modern_agent_init();                      // after the main window exists (os_init)

@@ -176,7 +176,13 @@ static volatile UINT config_vk, speed_vk;
 static volatile int speed_toggle = 1;   // SpeedMode: 1 Toggle, 0 Hold
 static volatile float speed_factor = 3.0f;
 static volatile int editor_scan;        // [Debug] ScriptEditorKey, 0 = off
+static volatile int speed_on;          // fast mode active (the badge, modern/gamma.cpp)
 static volatile int agent_speed_req;    // agent mode's speedkey: 1 = fast mode off, 2 = on
+
+float modern_keys_speed_active()
+{
+    return speed_on ? speed_factor : 0.0f;
+}
 
 void modern_keys_agent_speed(bool on)
 {
@@ -288,6 +294,7 @@ static DWORD WINAPI poll_hotkeys(LPVOID)
             applied = want;
             modern_log("fast mode %s", on ? "on" : "off");
         }
+        speed_on = on;
     }
     return 0;
 }
