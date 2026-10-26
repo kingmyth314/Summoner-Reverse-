@@ -23,6 +23,9 @@
 #include "vsdk/os/key.h"
 #include "vsdk/os/os.h"
 #include "vsdk/os/timer.h"
+#ifdef MODERN_BUILD
+#include "modern/modern.h"
+#endif
 
 // ---- .data (0x5a64bc-0x5a6cbf) -------------------------------------------------------------------------
 bool key_repeat_enabled = true;                      // 0x5a64bc held keys repeat in the queue (key_init sets it; name ours)
@@ -138,6 +141,9 @@ void key_mark(int code, int state, int latency)
     unsigned int event_time;
 
     code = key_remap_layout(code);
+#ifdef MODERN_BUILD
+    code = modern_key_bind(code);   // [KeyBindings] (modern/keys.cpp); unchanged without the host
+#endif
     if (code == 0xc5 && key_numlock_fix_enabled == true)
         key_numlock_off();
     if (!key_inited)
@@ -472,6 +478,9 @@ int key_to_ascii(int key)
         return 0xff;
     shifted = key & KEY_SHIFTED;
     key &= 0xff;
+#ifdef MODERN_BUILD
+    key = modern_key_physical(key);   // typing gives the keys pressed, not the bound ones (modern/keys.cpp)
+#endif
     if (key >= 0x7f)
         return 0xff;
     if (shifted)

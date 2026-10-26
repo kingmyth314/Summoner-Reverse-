@@ -34,6 +34,9 @@
 #include "vsdk/os/key.h"
 #include "vsdk/os/os.h"
 #include "summoner/summoner.h"
+#ifdef MODERN_BUILD
+#include "modern/modern.h"
+#endif
 
 extern int key_layout;                  // 0x25daa50 (vsdk/unnamed_key_0x5093a0.cpp; 1-4 = key_remap_layout's swaps)
 
@@ -274,7 +277,11 @@ static void send(int input, bool down)
     } else {
         layout = key_layout;
         key_layout = 0;
+#ifdef MODERN_BUILD
+        modern_key_mark_raw(t, down ? 1 : 0);   // a game key code: not through [KeyBindings]
+#else
         key_mark(t, down ? 1 : 0, 0);
+#endif
         key_layout = layout;
     }
 }

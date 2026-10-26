@@ -243,6 +243,11 @@ int mouse_di_init()
     return 0;
 }
 
+#ifdef MODERN_BUILD
+// The buttons go through [KeyBindings] (modern/keys.cpp), which calls mouse_mark_button itself.
+#define mouse_mark_button modern_mouse_button
+#endif
+
 // 0x500f60  Confidence: exact (switch on msg - WM_LBUTTONDOWN through a 10-entry jump table at 0x500fec;
 // the double-click messages 0x203 / 0x206 / 0x209 go to the default). The wheel delta is the signed
 // high word of wparam. WM_XBUTTON* (0x20b-0x20d) are outside the table.
@@ -274,6 +279,9 @@ void mouse_msg_handler(UINT msg, WPARAM wparam, LPARAM lparam)
         break;
     }
 }
+#ifdef MODERN_BUILD
+#undef mouse_mark_button
+#endif
 
 // 0x501020  Confidence: exact. Registered with atexit by mouse_init.
 void mouse_close()

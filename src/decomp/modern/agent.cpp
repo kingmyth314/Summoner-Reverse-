@@ -8,7 +8,7 @@
 //
 // The commands are SummonerFix's. Characters are reached through their members (the layouts differ in a 64-bit
 // build); peek, poke, count, dumpdata and the call commands take Sum.exe addresses, translated through the address
-// table (modern_sum_va). Not here: pad (the controller), speedkey, hybridcov, k310 and pokecode, which belong to
+// table (modern_sum_va). Not here: pad (the controller), hybridcov, k310 and pokecode, which belong to
 // SummonerFix's own features.
 #include <windows.h>
 #include <stdio.h>
@@ -345,12 +345,12 @@ static void run_line(char *line)
         int code = argc > 1 ? KeyParse(argv[1]) : -1;
         if (code < 0 || code >= 256) { out("%s: unknown key", c); return; }
         if (!_stricmp(c, "keyup")) {
-            key_mark(code, 0, 0);
+            modern_key_mark_raw(code, 0);
         } else {
-            key_mark(code, 1, 0);
+            modern_key_mark_raw(code, 1);
             if (!_stricmp(c, "key")) {
                 Sleep(argc > 2 ? (DWORD)atoi(argv[2]) : 80);
-                key_mark(code, 0, 0);
+                modern_key_mark_raw(code, 0);
             }
         }
         out("%s %s: ok", c, argv[1]);
@@ -520,6 +520,9 @@ static void run_line(char *line)
             ch->pos = pos;
             out("navgoto %s: %.2f %.2f %.2f", argv[1], pos.x, pos.y, pos.z);
         }
+    } else if (!_stricmp(c, "speedkey") && argc >= 2) {
+        modern_keys_agent_speed(atoi(argv[1]) != 0);
+        out("speedkey %s: ok", argv[1]);
     } else if (!_stricmp(c, "shop") && argc >= 2) {
         join_words(shop_name, sizeof shop_name, argv, 1, argc);
         out("shop %s: %s", shop_name, run_sync(shop_body, NULL) ? "requested" : "no window");

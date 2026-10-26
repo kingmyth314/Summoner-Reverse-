@@ -341,6 +341,7 @@ void LoadSettings()
     os_init("Volition", "Summoner");
 #ifdef MODERN_BUILD
     modern_agent_init();   // the in-source agent mode, when SummonerFix is not there (modern/agent.cpp)
+    modern_keys_init();    // key bindings, console keys, the speed key, when SummonerFix is not there (modern/keys.cpp)
 #endif
     os_registry_set_app_key("Volition", "Summoner");
     cmdline_read_params();

@@ -127,6 +127,7 @@ void modern_host_init()
 
 bool modern_host() { return host_on; }
 const char *modern_dir() { return host_dir; }
+const char *modern_ini_path() { return host_ini; }
 // "savetest" with [Debug] TestSaves=1 without SummonerFix, else NULL: the caller keeps the original's "savegame"
 // literal, the one string SummonerFix's TestSaves finds and changes when it is loaded (a second copy in this unit
 // took its search away).

@@ -33,6 +33,7 @@ bool modern_host();                            // the services are on (SummonerF
 int  modern_ini_int(const char *section, const char *key, int def);
 void modern_ini_str(const char *section, const char *key, const char *def, char *out, int size);
 const char *modern_dir();                      // the exe's folder, no trailing backslash
+const char *modern_ini_path();                 // summonerfix.ini beside the exe
 const char *modern_save_folder();              // "savetest" with [Debug] TestSaves=1, else NULL (the original's)
 void *modern_sum_va(unsigned int sum_addr);    // a Sum.exe address in this exe (the address table), NULL if unknown
 void modern_log(const char *fmt, ...);         // summonerfix.log beside the exe (the test tools read it)
@@ -49,6 +50,14 @@ void modern_request_capture(const char *path);
 bool modern_capture_pending();
 void modern_set_agent_cursor(int client_x, int client_y);
 void modern_get_agent_cursor(int *client_x, int *client_y);
+
+// ---- keys.cpp ----
+void modern_keys_init();                       // after os_init: [KeyBindings], [ConsoleKeys], the [Game] hotkeys
+int  modern_key_bind(int code);                // key_mark, after the layout swap: the bound game key
+int  modern_key_physical(int code);            // key_to_ascii: the physical key that produced a game key
+void modern_mouse_button(int button, bool down);   // mouse_msg_handler: a button through its binding
+void modern_key_mark_raw(int code, int down);  // a game key code, not remapped (agent mode, the controller)
+void modern_keys_agent_speed(bool on);         // agent mode's speedkey: as if the speed key were pressed
 
 // ---- agent.cpp ----
 void modern_agent_init();                      // after the main window exists (os_init)
