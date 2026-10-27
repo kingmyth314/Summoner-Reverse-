@@ -51,6 +51,8 @@ BOOL modern_screen_to_client(HWND hwnd, POINT *p);    // the mouse poll: window 
 BOOL modern_client_to_screen(HWND hwnd, POINT *p);    // the mouse warp: game pixels -> screen
 void modern_request_capture(const char *path);
 bool modern_capture_pending();
+bool modern_capture_wanted();                  // a capture is requested (the Vulkan back end takes it)
+void modern_capture_bgra(const unsigned char *bgra, int w, int h);   // the window's pixels, top row first
 void modern_set_agent_cursor(int client_x, int client_y);
 void modern_get_agent_cursor(int *client_x, int *client_y);
 

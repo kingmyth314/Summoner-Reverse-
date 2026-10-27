@@ -254,6 +254,34 @@ static void save_frame(const display_map *m, const char *path)
     free(full);
 }
 
+// The Vulkan back end's frame (modern/vk_device.cpp): the window's pixels top row first as B, G, R, A, written as
+// save_frame writes the OpenGL back buffer.
+bool modern_capture_wanted() { return capture_wanted != 0; }
+
+void modern_capture_bgra(const unsigned char *bgra, int w, int h)
+{
+    int ow = w / 2, oh = h / 2, ostride = (ow * 3 + 3) & ~3;
+    unsigned char *half = (unsigned char *)calloc((size_t)ostride * oh, 1);
+    if (half) {
+        for (int y = 0; y < oh; y++)   // bottom-up rows
+            for (int x = 0; x < ow; x++)
+                memcpy(half + y * ostride + x * 3, bgra + ((size_t)(h - 1 - y * 2) * w + x * 2) * 4, 3);
+        BITMAPFILEHEADER fh = { 0x4D42, 0, 0, 0, sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) };
+        BITMAPINFOHEADER ih = { sizeof ih, ow, oh, 1, 24, BI_RGB, (DWORD)(ostride * oh), 0, 0, 0, 0 };
+        fh.bfSize = fh.bfOffBits + ih.biSizeImage;
+        HANDLE f = CreateFileA(capture_path, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+        if (f != INVALID_HANDLE_VALUE) {
+            DWORD wr;
+            WriteFile(f, &fh, sizeof fh, &wr, NULL);
+            WriteFile(f, &ih, sizeof ih, &wr, NULL);
+            WriteFile(f, half, ih.biSizeImage, &wr, NULL);
+            CloseHandle(f);
+        }
+        free(half);
+    }
+    InterlockedExchange((LONG *)&capture_wanted, 0);
+}
+
 static void clear_rect(int x, int y, int w, int h)
 {
     if (w <= 0 || h <= 0)
