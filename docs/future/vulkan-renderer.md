@@ -6,9 +6,10 @@ nav_order: 1.5
 
 # The Vulkan renderer (rung L4, started 2026-10-26)
 
-> **State on 2026-10-26:** M0 (the build wiring) done on the branch `l4-renderer`. The 64-bit build selects Vulkan
-> with `[Display] Renderer=Vulkan`, finds the GPU, and falls back to OpenGL, since nothing draws through Vulkan yet.
-> Next: M1, a device, a swapchain and a frame.
+> **State on 2026-10-26:** on the branch `l4-renderer`, the game plays under Vulkan (`[Display] Renderer=Vulkan`):
+> menus, levels, characters, effects, saves with thumbnails, brightness and the FAST badge, with no validation errors.
+> The main menu, the load screen and the brightness pass are pixel-identical to OpenGL. M0-M4 done; M5 (the parity
+> run over every level, frame times) next.
 
 The first module of L4, the idiomatic rewrite ([modern port](modern-port.md)). The 64-bit player build gets a
 Vulkan renderer beside the game's own OpenGL one. OpenGL stays the reference: every milestone is compared with it.
@@ -85,10 +86,10 @@ a frame suspend the rendering pass, copy, and resume, so they are ordered with t
 | | Milestone | Done when | State |
 |---|---|---|---|
 | M0 | Build wiring: the SDK through `VULKAN_SDK`, shaders compiled by `glslc` and embedded, `Renderer=Vulkan`, the redirect | it builds; the VC6 sweep keeps 5,613; OpenGL plays as before | **done 2026-10-26** |
-| M1 | Device, swapchain, frame, resize; validation in test runs | a window clears with no validation errors | |
-| M2 | 2D: bitmaps, lines, colours, tint, texture cache | the menus and the interface match OpenGL (image comparison with a tolerance) | |
-| M3 | 3D: polygons, depth, fog, blend modes, two texture stages, level geometry, characters | levels match OpenGL per level | |
-| M4 | Movies, read-back (thumbnails, screenshots, captures), brightness, widescreen, hi-res, the FAST badge | everything the 64-bit build does under OpenGL | |
+| M1 | Device, swapchain, frame, resize; validation in test runs | a window clears with no validation errors | **done 2026-10-26** |
+| M2 | 2D: bitmaps, lines, colours, tint, texture cache | the menus and the interface match OpenGL (image comparison with a tolerance) | **done 2026-10-26**: identical |
+| M3 | 3D: polygons, depth, fog, blend modes, two texture stages, level geometry, characters | levels match OpenGL per level | **drawn 2026-10-26**; still parts match within one-pixel edges, moving parts need a frozen frame (M5) |
+| M4 | Movies, read-back (thumbnails, screenshots, captures), brightness, widescreen, hi-res, the FAST badge | everything the 64-bit build does under OpenGL | **done 2026-10-26** except widescreen and hi-res, untested |
 | M5 | Parity: the 48-level soak and the save check under Vulkan, frame times, a clean validation log | merge into `main` | |
 
 After M5: present-mode options for variable refresh, an off-screen image for upscaling (FSR 1 first), full-colour
@@ -99,7 +100,7 @@ textures as an option.
 | Key | Values | Meaning |
 |---|---|---|
 | `[Display] Renderer` | `OpenGL` (default), `Vulkan` | the back end; Vulkan falls back to OpenGL when it cannot start |
-| `[Display] VulkanPresent` | `Fifo` (default, vsync), `Mailbox`, `Immediate` | the swapchain's present mode (from M1) |
+| `[Display] VulkanPresent` | `Auto` (default), `Fifo`, `Mailbox`, `Immediate` | the swapchain's present mode. `Auto` follows `[Experimental] VSync` as the OpenGL build does: Fifo with vsync, else Mailbox, or Immediate where Mailbox is not offered (this PC, 2026-10-26) |
 | `[Debug] VulkanValidation` | `0` (default), `1` | the Khronos validation layer (Vulkan SDK), its messages in `summonerfix.log` |
 
 ## Build
@@ -134,3 +135,49 @@ Observed:
   OpenGL`, and the main menu at 120 fps.
 - With `Renderer=OpenGL`, through the redirect: `link-soak --only Wolong,sewer,masad` 3 of 3 levels in play (level,
   characters, golem and firewall drawn), 82-120 fps.
+
+### M1-M4, 2026-10-26: the game under Vulkan
+
+The units (`src/decomp/modern/`, listed in `vk_internal.h`):
+- `vk_device.cpp`: the loader, instance (validation with `[Debug] VulkanValidation=1`), device (Vulkan 1.3), swapchain,
+  depth buffer, two frames in flight, resize, read-back, transfers outside the rendering pass.
+- `vk_draw.cpp`: `gr_opengl_set_mode`'s state replicated switch by switch (a value a switch does not list keeps the
+  previous state, as under OpenGL), 12 pipelines (6 blend pairs by triangles / lines), the clip rectangle's projection
+  taken at `set_viewport` as OpenGL takes it, bitmaps, lines, polygons, clears.
+- `vk_tcache.cpp`: the texture cache with OpenGL's bookkeeping, including what OpenGL keeps per texture object (the
+  binding of each stage across frames, each texture's wrap mode); images in 32 MB blocks; replaced textures freed
+  once no frame in flight uses them.
+- `vk_scene_level.cpp`, `vk_scene_mesh.cpp`: `levelrender_draw_list_opengl` and `gr_opengl_render_character_mesh`
+  followed statement by statement, writing the same arrays and drawing them through Vulkan (written by two agents,
+  reviewed and merged).
+- `vk_post.cpp`: brightness (the frame copied and drawn back through `pow(c, 1/gamma)`) and the FAST badge.
+- `tools/imgdiff.mjs`: the image comparison ([Tools](../tools.md)).
+
+Observed (this PC: Intel Arc 140V, driver 101.8331, 2560x1440 window, game 1024x768):
+- **Textures as OpenGL stores them:** `gl_packed_pixels_supported` reads 0 in the running OpenGL build (the version
+  string has no "1.2"), so OpenGL uploads 8 bits per channel; the Vulkan cache does the same.
+- **Pixel-identical:** main menu, load screen with a save's thumbnail, and the menu at gamma 2.0: `imgdiff` maximum
+  difference 0 against OpenGL. Each pair was checked to differ from the other screens (55-74%).
+- **Levels:** Wolong, sewer and masad in play under Vulkan (`link-soak`), level, characters, golem, firewall and
+  effects drawn, 0 validation errors. Against the OpenGL captures: masad (paused by its tutorial) 0.8% beyond a
+  one-pixel shift, all of it moving parts (the selection ring, the PAUSED sign, a sparkle trail); sewer 11% and
+  Wolong 20%, where fire and fog move between captures. The still geometry differs only at edges.
+- **Read-back:** a save made under Vulkan shows the right thumbnail; agent captures come from the Vulkan frame.
+- **The badge** ("FAST x3") and **the movies** (the intro's frames through `gr_bitmap`) draw.
+- **Frame rate:** 120 fps (the game's cap), with `VulkanPresent=Auto` choosing Immediate; the soak's minimum was 43 fps
+  with the validation layer on (OpenGL 82). Timing without the layer is M5's.
+
+Bugs found and fixed on the way:
+- The pipelines were made before the swapchain's format was known; the validation layer reported every draw.
+- A combined depth-stencil format needs both aspects in barriers; a depth-only format is used now.
+- The texture cache was not set up: OpenGL's `init_context` does it the first time, and the Vulkan one did not.
+- A texture freed between frames went with the next frame slot and was destroyed while the frame just submitted
+  could still read it (the validation layer caught it when the intro movie was skipped).
+- With Fifo (vsync) the game ran at 60 fps where the OpenGL build runs at 120, so the menus reacted more slowly.
+
+Found while porting (Inferred from the code, not run; to check before they are called bugs):
+- `gr_opengl_render_character_mesh` writes 3 indices per visible triangle into `ca_mesh_indices` (2,000 entries), so
+  a sub-mesh with more than 666 visible triangles runs past it. In Sum.exe the next variable is unused; in the 64-bit
+  build the layout differs, so the OpenGL path could overwrite live data. The Vulkan port keeps its own larger list.
+- `levelrender_draw_list_opengl`'s plain path lets its vertex count grow over all groups of an object, and checks only
+  `n < 3` after clipping (a 9-sided result would read past `levelrender_fan_tables`).
