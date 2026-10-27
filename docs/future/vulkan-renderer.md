@@ -346,6 +346,9 @@ the time from one present to the next (`[Debug] VulkanTiming=1`, the `present:` 
   with `[Experimental] VSync=1` ran at 28.8 fps in the same session, and `Mode=Window` changed nothing, so it is not
   the Vulkan code. On 2026-10-26 Fifo had run at 60 fps on this PC. Unknown why; Inferred, a guess only: the
   monitor was asleep while nobody was at the PC (the tests ran unattended), and Windows paced vsync without it.
+  **Correction, 2026-10-27 evening:** the owner then set the monitor never to turn off, and the same test gave
+  Fifo 16.68 ms per frame (60.0 fps, sd 0.2-0.9 ms) on the menu and in play, and OpenGL with `VSync=1` 59.9 fps
+  (Observed). So vsync runs at the display's rate; the half rate of the morning came with the monitor asleep.
 - The monitor (a Dell S2721DGF) ran at 59 Hz, while Windows lists modes up to 143 Hz (WMI, Observed). At 59 Hz a
   variable refresh window would be about 48-59 Hz, below the game's 120, so whether the display follows the game
   stays **Unknown** until the monitor runs at its full rate and something outside the game reads the presents
