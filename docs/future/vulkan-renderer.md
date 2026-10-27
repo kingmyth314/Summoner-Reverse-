@@ -6,13 +6,13 @@ nav_order: 1.5
 
 # The Vulkan renderer (rung L4, started 2026-10-26)
 
-> **State on 2026-10-27:** on the branch `l4-renderer`, the game plays under Vulkan (`[Display] Renderer=Vulkan`):
+> **State on 2026-10-27:** in `main` (merged from the branch `l4-renderer` on 2026-10-27), the game plays under Vulkan (`[Display] Renderer=Vulkan`):
 > menus, levels, characters, effects, saves with thumbnails, brightness and the FAST badge, with no validation errors.
 > The main menu, the load screen and the brightness pass match OpenGL exactly in agent captures (half size: every second
 > pixel each way), at 1024x768 and at 1366x768; levels match within the run-to-run noise of OpenGL itself. M0-M5 done:
 > all 48 levels of the soak behave as under OpenGL (the original's three crashes), with 0 validation errors and frame
-> rates at least as good; saves are unaffected; minimise, focus loss, window resizing and the intro movie work. Waiting
-> to be merged into `main`.
+> rates at least as good; saves are unaffected; minimise, focus loss, window resizing and the intro movie work. Merged
+> into `main` on 2026-10-27 (the earlier `main` is tagged `main-before-l4`).
 
 The first module of L4, the idiomatic rewrite ([modern port](modern-port.md)). The 64-bit player build gets a
 Vulkan renderer beside the game's own OpenGL one. OpenGL stays the reference: every milestone is compared with it.

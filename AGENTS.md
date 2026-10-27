@@ -28,7 +28,7 @@ No game files, compilers or third-party DLLs are in the repository; the game goe
 | `symbols/sum.symbols` | every Sum.exe name: the source of truth for names (`node tools/symbols.mjs`) |
 | `docs/sum-exe/` | one page per game system; `game-bugs.md` = the 355 bugs with ids (C/G/K + number) |
 | `docs/future/modern-port.md` | the clang / 64-bit port (rungs L1-L4), with a summary at the top |
-| `docs/future/vulkan-renderer.md` | L4's first module, the Vulkan renderer (branch `l4-renderer`): design, milestones M0-M5 |
+| `docs/future/vulkan-renderer.md` | L4's first module, the Vulkan renderer (in `main` since 2026-10-27): design, milestones M0-M5 |
 
 ## Build configurations
 
