@@ -360,6 +360,24 @@ the time from one present to the next (`[Debug] VulkanTiming=1`, the `present:` 
   `PresentMon-2.6.0-x64.exe --process_name Sum-exp-clang-x64.exe --timed 10 --terminate_after_timed --output_file pm.csv`;
   its `PresentMode` column says whether the window got independent flip ("Hardware: Independent Flip"), which
   variable refresh in a borderless window needs.
+- **At 143 Hz with PresentMon, 2026-10-27 evening** (the owner set the monitor to 143 Hz and ran PresentMon elevated;
+  2560x1440 full screen; about 2,400-5,300 presents per run, all Observed):
+
+  | Run | PresentMode | SyncInterval, tearing | Between presents | Between display changes |
+  |---|---|---|---|---|
+  | Immediate, cap 55 | Hardware: Legacy Flip | 0, allowed | 18.19 ms median | 18.20 ms median, p1-p99 16.5-19.9 |
+  | Immediate, cap 90 | Hardware: Legacy Flip | 0, allowed | 11.12 ms | 11.12 ms, p1-p99 9.8-12.4 |
+  | Fifo, uncapped (game's 120) | Hardware: Legacy Flip | 1, not allowed | 8.33 ms | **6.95 ms (4,231) or 13.94 ms (1,049)**, one or two 143 Hz refreshes |
+  | Immediate, uncapped (120) | Hardware: Legacy Flip | 0, allowed | 8.33 ms | 8.16 ms, spread 6-11 ms |
+
+  - The Vulkan swapchain gets a hardware flip ("Legacy Flip", the full-screen path), not composition.
+  - **Variable refresh did not engage.** Under Fifo the game's steady 120 fps reached the screen on a fixed 143 Hz
+    grid: 6.95 ms and 13.94 ms, the judder variable refresh exists to remove. With it, those frames would have shown
+    every 8.33 ms.
+  - The Immediate runs show display changes at the game's own rate, but with tearing allowed that is what tearing
+    gives as well, so they do not show variable refresh (Inferred).
+  - Unknown: which link is off. It could be FreeSync in the monitor's menu, Adaptive Sync in Intel Graphics Software,
+    or this driver's Vulkan support for variable refresh. None of these was checked.
 
 ### RenderScale, 2026-10-27: FSR 1 and supersampling
 
