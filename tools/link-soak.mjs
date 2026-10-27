@@ -111,7 +111,10 @@ try {
       kill();
       continue;
     }
-    note(`${level}: ok (${secs} s, in play after ${toPlay + 8} s), fps ${fps || "?"}`);
+    // Under [Display] Renderer=Vulkan with [Debug] VulkanValidation=1, the validation layer's messages in the log.
+    const vkErrors = (text.match(/vulkan: ERROR/g) || []).length, vkWarnings = (text.match(/vulkan: warning/g) || []).length;
+    const vk = vkErrors || vkWarnings ? `, vulkan ${vkErrors} errors ${vkWarnings} warnings` : "";
+    note(`${level}: ok (${secs} s, in play after ${toPlay + 8} s), fps ${fps || "?"}${vk}`);
   }
 } finally {
   agent("quit", 20000);

@@ -43,6 +43,19 @@ static bool vk_context_initialized;          // vk_init_context has run once (th
 
 static void vk_destroy_transfer();
 
+vk_frame_stats vk_stats;
+bool vk_timing;
+
+double vk_now_ms()
+{
+    static LARGE_INTEGER freq;
+    LARGE_INTEGER t;
+    if (!freq.QuadPart)
+        QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&t);
+    return (double)t.QuadPart * 1000.0 / (double)freq.QuadPart;
+}
+
 #define VK_VERTEX_RING (8u << 20)
 #define VK_INDEX_RING (2u << 20)
 
@@ -95,9 +108,15 @@ bool vk_create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, bool host_vis
     VkMemoryAllocateInfo ai = {};
     ai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     ai.allocationSize = req.size;
-    ai.memoryTypeIndex = vk_memory_type(req.memoryTypeBits, host_visible
-        ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-        : VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    ai.memoryTypeIndex = UINT32_MAX;
+    // A buffer the CPU reads back (a copy's destination) wants cached memory: reading uncached memory is slow.
+    if (host_visible && (usage & VK_BUFFER_USAGE_TRANSFER_DST_BIT))
+        ai.memoryTypeIndex = vk_memory_type(req.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+    if (ai.memoryTypeIndex == UINT32_MAX)
+        ai.memoryTypeIndex = vk_memory_type(req.memoryTypeBits, host_visible
+            ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+            : VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     if (ai.memoryTypeIndex == UINT32_MAX || vkAllocateMemory(vkc.device, &ai, NULL, &out->memory) != VK_SUCCESS) {
         vkDestroyBuffer(vkc.device, out->buffer, NULL);
         out->buffer = VK_NULL_HANDLE;
@@ -568,6 +587,7 @@ bool vk_init(HWND hwnd)
 {
     if (!vk_load_loader() || !vk_create_instance())
         return false;
+    vk_timing = modern_ini_int("Debug", "VulkanTiming", 0) != 0;
     vkc.hwnd = hwnd;
     VkWin32SurfaceCreateInfoKHR si = {};
     si.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
@@ -764,10 +784,13 @@ void vk_wait_idle()
             vkDeviceWaitIdle(vkc.device);
         return;
     }
+    double t0 = vk_now_ms();
     vk_suspend_rendering();
     vk_frame *f = &vk_frames[vk_frame_index];
     vk_submit(false);
     vkWaitForFences(vkc.device, 1, &f->done, VK_TRUE, UINT64_MAX);
+    vk_stats.stalls++;
+    vk_stats.stall_ms += vk_now_ms() - t0;
     vk_tcache_frame_done(-1);   // everything submitted has finished
     vkResetFences(vkc.device, 1, &f->done);
     vkResetCommandPool(vkc.device, f->pool, 0);
@@ -925,6 +948,17 @@ void vk_end_frame()
         vkc.extent.width = 0;   // recreated at the next frame
     vk_recording = false;
     vk_frame_index = (vk_frame_index + 1) % VK_FRAMES;
+    if (vk_timing) {
+        static double last;
+        static int logged;
+        double now = vk_now_ms();
+        if (last && now - last > 25.0 && logged++ < 500)
+            vk_log("slow frame %.1f ms: %d textures (%u KB) in %.1f ms, %d stalls in %.1f ms", now - last,
+                   vk_stats.textures, (unsigned)(vk_stats.upload_bytes >> 10), vk_stats.texture_ms, vk_stats.stalls,
+                   vk_stats.stall_ms);
+        last = now;
+        memset(&vk_stats, 0, sizeof vk_stats);
+    }
 }
 
 void vk_game_to_window(float *scale, float *off_x, float *off_y)

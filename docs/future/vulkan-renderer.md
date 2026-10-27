@@ -6,11 +6,13 @@ nav_order: 1.5
 
 # The Vulkan renderer (rung L4, started 2026-10-26)
 
-> **State on 2026-10-26:** on the branch `l4-renderer`, the game plays under Vulkan (`[Display] Renderer=Vulkan`):
+> **State on 2026-10-27:** on the branch `l4-renderer`, the game plays under Vulkan (`[Display] Renderer=Vulkan`):
 > menus, levels, characters, effects, saves with thumbnails, brightness and the FAST badge, with no validation errors.
 > The main menu, the load screen and the brightness pass match OpenGL exactly in agent captures (half size: every second
-> pixel each way), at 1024x768 and at 1366x768; levels match within the run-to-run noise of OpenGL itself. M0-M4 done; M5 (the parity
-> run over every level, frame times) next.
+> pixel each way), at 1024x768 and at 1366x768; levels match within the run-to-run noise of OpenGL itself. M0-M5 done:
+> all 48 levels of the soak behave as under OpenGL (the original's three crashes), with 0 validation errors and frame
+> rates at least as good; saves are unaffected; minimise, focus loss, window resizing and the intro movie work. Waiting
+> to be merged into `main`.
 
 The first module of L4, the idiomatic rewrite ([modern port](modern-port.md)). The 64-bit player build gets a
 Vulkan renderer beside the game's own OpenGL one. OpenGL stays the reference: every milestone is compared with it.
@@ -91,7 +93,7 @@ a frame suspend the rendering pass, copy, and resume, so they are ordered with t
 | M2 | 2D: bitmaps, lines, colours, tint, texture cache | the menus and the interface match OpenGL (image comparison with a tolerance) | **done 2026-10-26**: identical in half-size captures |
 | M3 | 3D: polygons, depth, fog, blend modes, two texture stages, level geometry, characters | levels match OpenGL per level | **done 2026-10-26** for 3 levels: within OpenGL's own run-to-run noise; every level in M5 |
 | M4 | Movies, read-back (thumbnails, screenshots, captures), brightness, widescreen, hi-res, the FAST badge | everything the 64-bit build does under OpenGL | **done 2026-10-26** (widescreen: 1366x768 with centred menus and the hi-res interface switch; no texture pack tried) |
-| M5 | Parity: the 48-level soak and the save check under Vulkan, frame times, a clean validation log | merge into `main` | |
+| M5 | Parity: the 48-level soak and the save check under Vulkan, frame times, a clean validation log | merge into `main` | **done 2026-10-27**: 45 of 48 levels (the original's three crashes), 0 validation errors, saves unaffected, minimise / focus / resize / movies |
 
 After M5: present-mode options for variable refresh, an off-screen image for upscaling (FSR 1 first), full-colour
 textures as an option.
@@ -103,6 +105,7 @@ textures as an option.
 | `[Display] Renderer` | `OpenGL` (default), `Vulkan` | the back end; Vulkan falls back to OpenGL when it cannot start |
 | `[Display] VulkanPresent` | `Auto` (default), `Fifo`, `Mailbox`, `Immediate` | the swapchain's present mode. `Auto` follows `[Experimental] VSync` as the OpenGL build does: Fifo with vsync, else Mailbox, or Immediate where Mailbox is not offered (this PC, 2026-10-26) |
 | `[Debug] VulkanValidation` | `0` (default), `1` | the Khronos validation layer (Vulkan SDK), its messages in `summonerfix.log` |
+| `[Debug] VulkanTiming` | `0` (default), `1` | each frame slower than 25 ms in `summonerfix.log`: the textures made in it (count, size, time) and the waits for the GPU (count, time); M5, 2026-10-26 |
 
 ## Build
 
@@ -168,7 +171,8 @@ Observed (this PC: Intel Arc 140V, driver 101.8331, 2560x1440 window, game 1024x
 - **Read-back:** a save made under Vulkan shows the right thumbnail; agent captures come from the Vulkan frame.
 - **The badge** ("FAST x3") and **the movies** (the intro's frames through `gr_bitmap`) draw.
 - **Frame rate:** 120 fps (the game's cap), with `VulkanPresent=Auto` choosing Immediate; the soak's minimum was 43 fps
-  with the validation layer on (OpenGL 82). Timing without the layer is M5's.
+  with the validation layer on (OpenGL 82). Timing without the layer is M5's. *(Corrected in M5, below: the 43 fps
+  was the soak's own capture, a read-back of 1.5 s, not the level; fixed.)*
 
 Bugs found and fixed on the way:
 - The pipelines were made before the swapchain's format was known; the validation layer reported every draw.
@@ -210,3 +214,72 @@ reaches live data (`ca_gl_mesh_texcoords`) only past 3,333 visible triangles in 
 the installed build; it depends on the link order, so it stays on the list.
 
 Also on 2026-10-26: VC6 sweep 5,613 matched, 0 lost; the 32-bit clang experimental build links (6 known warnings).
+
+### M5, 2026-10-26: every level, and the slow read-back
+
+**The soak under Vulkan** (`link-soak`, 48 levels in one session each, the 64-bit experimental build at 1366 wide,
+2560x1440 window). Observed:
+
+| | validation layer on | validation layer off (after the fix below) |
+|---|---|---|
+| Levels played through | 45 | 45 |
+| Failed | IonaExt, LPalaceInt, tancredhouse | the same three |
+| Validation errors / warnings | 0 / 0 in every level | (layer off) |
+| fps after the summon, walls of fire and capture | 35.4-42.7 | 108.7-120 |
+
+- The three failures are the soak's known crash, which the original has in the same three levels
+  ([modern port](modern-port.md)): all three `errorlog.txt` entries are the same access violation at
+  `character_instance::get_anim_length` + 0xc (a read of address 0x64).
+- Under OpenGL the same point read 82-113 fps (the M0 soak of the same exe through the redirect, 3 levels; an earlier
+  OpenGL soak of the 64-bit exe, 8 levels: 85-110). Not the same session, so a rough comparison.
+
+**The slow read-back.** Every level read 42.7 fps after the capture. The game's `fps` averages 16 frames and caps a
+frame at 0.25 s, so 15/120 s + 0.25 s over 16 frames is 42.7 fps: one frame of at least 0.25 s. `[Debug] VulkanTiming=1`
+(new, the table above) showed the capture's frame at **1,496 ms**, of which 5.6 ms was the wait for the GPU. The rest
+was the CPU reading the read-back buffer, which was in host-visible, coherent and **uncached** memory: reading
+uncached memory is slow. `vk_create_buffer` now picks a cached type (`HOST_CACHED`) for a buffer that is a copy's
+destination, where the GPU offers one. After the fix: the capture's frame **28.5 ms** (half size); a full-size
+capture does not reach the 25 ms log threshold. The save thumbnail goes through the same read-back (`vk_read_window`)
+and gains the same way (Inferred).
+
+Also seen with `VulkanTiming`: at a level start, frames of 31, 80 and 210 ms, the first two making 36 textures
+(3 MB) in about 11 ms in all, the 210 ms one with no texture and no wait: the game's own work after a load (Inferred:
+the same frames under OpenGL are not timed yet).
+
+**`capturefull NAME`** (agent mode, the in-source host): every pixel of the window, where `capture` keeps every second
+one. Observed: 2560x1440 against 1280x720.
+
+**The save check under Vulkan, 2026-10-27** (`link-savecheck --exe Sum-fixed-clang-x64.exe --fixes --runs 2
+--rebuilt-runs 2`, Wolong, masad, sewer and Catacombs; once with `Renderer=Vulkan`, once with `Renderer=OpenGL`; the
+original runs under SummonerFix, which reads anything but Direct3D and Glide as OpenGL). Observed, dwords beyond the
+original runs' spread:
+
+| | Wolong | masad | sewer | Catacombs |
+|---|---|---|---|---|
+| 64-bit exe under Vulkan | 19 | 97 | 155 | 36 |
+| 64-bit exe under OpenGL | 162 | 110 | 17 | 178 |
+
+Neither renderer is ahead: these are the known NPC-goal differences of the clang builds ([modern
+port](modern-port.md)), which move from run to run. Taken directly, each Vulkan save against all six non-Vulkan saves
+of its level (the original's four, OpenGL's two): 2 and 0, 37 and 0, 0 and 2, 0 and 1 dwords beyond their spread; an
+OpenGL save against the other five, the same way: 0, 3, 108, 0. The renderer leaves no trace in the saves.
+
+**Robustness, 2026-10-27**, with the validation layer on, Observed:
+- **Minimise and restore** (`ShowWindow` from outside, in play): nothing is drawn while minimised; after the restore
+  the game draws at 120 fps. 0 validation errors.
+- **Focus lost and back** (`WM_ACTIVATEAPP` and `WM_ACTIVATE` posted, as Alt+Tab sends them): the game sees itself in
+  the background and back in front, and draws on. 0 errors.
+- **`Mode=Window` resized** (1600x1200, then client areas 1184x1421, 2184x1421 and maximised 2560x1369): the
+  swapchain is recreated at each size and the menu stays centred and letterboxed. 0 errors.
+- **The intro movie played to the end** (`SkipIntroMovies=0`): `vlogo.bik`, 416 of 416 frames, 13.85 s of wall time for
+  13.83 s of video, then the main menu; 0 errors. Under OpenGL the same exe: 13.84 s, and the same "latest frame
+  496 ms late" in the movie log (Vulkan 492 ms), so that figure is the movie player's, not the renderer's.
+
+**On other GPUs** (Inferred, not run; only this PC's Intel Arc 140V has been tried):
+- `GL_CLAMP` clamps to the border colour by the OpenGL specification, and the Vulkan sampler does the same
+  (transparent black). Some OpenGL drivers, NVIDIA's among them by reputation, clamp to the edge instead, so on such a
+  card an OpenGL capture can differ from a Vulkan one along clamped texture edges, and Vulkan is the one that follows
+  the specification.
+- The depth buffer is `X8_D24_UNORM_PACK32` where the GPU offers it, else `D32_SFLOAT` (AMD offers no 24-bit
+  depth-only format, as far as known). With 32-bit float depth, depth ties between coplanar polygons can resolve
+  differently from OpenGL's 24-bit buffer.

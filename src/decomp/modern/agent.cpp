@@ -402,12 +402,13 @@ static void run_line(char *line)
         out("drag: ok");
     } else if (!_stricmp(c, "wait") && argc >= 2) {
         Sleep((DWORD)atoi(argv[1]));
-    } else if (!_stricmp(c, "capture") && argc >= 2) {
+    } else if ((!_stricmp(c, "capture") || !_stricmp(c, "capturefull")) && argc >= 2) {
+        // capturefull: every pixel of the window (capture keeps every second one, the size of agent coordinates).
         char path[MAX_PATH], file[MAX_PATH];
         _snprintf(file, sizeof file, "%s.bmp", argv[1]);
         file[sizeof file - 1] = 0;
         path_of(path, file);
-        modern_request_capture(path);
+        modern_request_capture(path, !_stricmp(c, "capturefull"));
         for (int i = 0; i < 200 && modern_capture_pending(); i++)
             Sleep(10);
         out(modern_capture_pending() ? "capture %s: timed out (is the game drawing?)" : "capture %s: ok", file);

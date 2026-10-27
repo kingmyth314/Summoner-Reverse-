@@ -353,6 +353,7 @@ static void vk_upload_levels(vk_texture *t, const ubyte *data, VkDeviceSize size
         return;
     }
     memcpy((ubyte *)stage->mapped + at, data, (size_t)size);
+    vk_stats.upload_bytes += size;
 
     VkImageMemoryBarrier2 b = {};
     b.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
@@ -423,7 +424,17 @@ static void vk_rgb_to_rgba(const ubyte *src, ubyte *dst, int pixels)
 // gr_opengl_create_texture: the bitmap's levels at power-of-two sizes, converted as the OpenGL back end converts
 // them without packed pixels. update: the bitmap changed (a movie frame); the image is rewritten in place when its
 // size is the same.
+static void vk_create_texture_timed(int bm, vk_entry *e, int update);
+
 static void vk_create_texture(int bm, vk_entry *e, int update)
+{
+    double t0 = vk_now_ms();
+    vk_create_texture_timed(bm, e, update);
+    vk_stats.textures++;
+    vk_stats.texture_ms += vk_now_ms() - t0;
+}
+
+static void vk_create_texture_timed(int bm, vk_entry *e, int update)
 {
     int w, h, num_pixels, levels;
     ubyte *data, *palette;

@@ -193,11 +193,13 @@ void modern_gl_read_pixels(int x, int y, int w, int h, unsigned format, unsigned
 // ---- agent mode: captures and the agent's cursor ----
 static char capture_path[MAX_PATH];
 static volatile LONG capture_wanted;
+static int capture_step = 2;                           // 2: half size (agent coordinates); 1: full size
 static volatile LONG agent_cursor, agent_x, agent_y;   // client pixels
 
-void modern_request_capture(const char *path)
+void modern_request_capture(const char *path, bool full)
 {
     lstrcpynA(capture_path, path, MAX_PATH);
+    capture_step = full ? 1 : 2;
     InterlockedExchange((LONG *)&capture_wanted, 1);
 }
 
@@ -216,7 +218,7 @@ void modern_get_agent_cursor(int *client_x, int *client_y)
     *client_y = agent_y;
 }
 
-// The back buffer at half size as a bottom-up 24-bit BMP (the size agent coordinates are in).
+// The back buffer at half size as a bottom-up 24-bit BMP (the size agent coordinates are in), or at full size.
 static void save_frame(const display_map *m, const char *path)
 {
     int w = m->cw, h = m->ch, stride = (w * 3 + 3) & ~3;
@@ -232,12 +234,12 @@ static void save_frame(const display_map *m, const char *path)
     glReadBuffer((GLenum)old_read);
     glPixelStorei(GL_PACK_ALIGNMENT, old_align);
 
-    int ow = w / 2, oh = h / 2, ostride = (ow * 3 + 3) & ~3;
+    int s = capture_step, ow = w / s, oh = h / s, ostride = (ow * 3 + 3) & ~3;
     unsigned char *half = (unsigned char *)calloc((size_t)ostride * oh, 1);
     if (half) {
         for (int y = 0; y < oh; y++)
             for (int x = 0; x < ow; x++)
-                memcpy(half + y * ostride + x * 3, full + (y * 2) * stride + (x * 2) * 3, 3);
+                memcpy(half + y * ostride + x * 3, full + (y * s) * stride + (x * s) * 3, 3);
         BITMAPFILEHEADER fh = { 0x4D42, 0, 0, 0, sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) };
         BITMAPINFOHEADER ih = { sizeof ih, ow, oh, 1, 24, BI_RGB, (DWORD)(ostride * oh), 0, 0, 0, 0 };
         fh.bfSize = fh.bfOffBits + ih.biSizeImage;
@@ -260,12 +262,12 @@ bool modern_capture_wanted() { return capture_wanted != 0; }
 
 void modern_capture_bgra(const unsigned char *bgra, int w, int h)
 {
-    int ow = w / 2, oh = h / 2, ostride = (ow * 3 + 3) & ~3;
+    int s = capture_step, ow = w / s, oh = h / s, ostride = (ow * 3 + 3) & ~3;
     unsigned char *half = (unsigned char *)calloc((size_t)ostride * oh, 1);
     if (half) {
         for (int y = 0; y < oh; y++)   // bottom-up rows
             for (int x = 0; x < ow; x++)
-                memcpy(half + y * ostride + x * 3, bgra + ((size_t)(h - 1 - y * 2) * w + x * 2) * 4, 3);
+                memcpy(half + y * ostride + x * 3, bgra + ((size_t)(h - 1 - y * s) * w + x * s) * 4, 3);
         BITMAPFILEHEADER fh = { 0x4D42, 0, 0, 0, sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) };
         BITMAPINFOHEADER ih = { sizeof ih, ow, oh, 1, 24, BI_RGB, (DWORD)(ostride * oh), 0, 0, 0, 0 };
         fh.bfSize = fh.bfOffBits + ih.biSizeImage;

@@ -49,7 +49,7 @@ void modern_gl_read_pixels(int x, int y, int w, int h, unsigned format, unsigned
 BOOL modern_swap_buffers(HDC dc);              // bars, capture, then SwapBuffers
 BOOL modern_screen_to_client(HWND hwnd, POINT *p);    // the mouse poll: window pixels -> game pixels
 BOOL modern_client_to_screen(HWND hwnd, POINT *p);    // the mouse warp: game pixels -> screen
-void modern_request_capture(const char *path);
+void modern_request_capture(const char *path, bool full = false);
 bool modern_capture_pending();
 bool modern_capture_wanted();                  // a capture is requested (the Vulkan back end takes it)
 void modern_capture_bgra(const unsigned char *bgra, int w, int h);   // the window's pixels, top row first

@@ -18,7 +18,7 @@ how to reproduce each line: [Reproduce and play](quickstart.md).
 | Experimental (VC6) | `link-build --config experimental` | `Sum-exp.exe` | controller, autosave, frame cap, Tentacle grab, hi-res interface, widescreen in source | vsync and the autosave skip rules untested ([experimental build](experimental-build.md)) |
 | 32-bit clang (L1, L2) | `--compiler clang` | `*-clang.exe` | plays; warning-clean except 6 known; NPC goal parity fixed | test timing only ([modern port](future/modern-port.md)) |
 | **64-bit player build** (L3) | `--config experimental --compiler clang --arch x64` | `Sum-exp-clang-x64.exe` | runs without SummonerFix; movies (FFmpeg); 45 of 48 levels as the original; saves match within float rounding and load across exes; the shop, a six-minute fight, conversations, world map | slider, ramp, mouse bindings, controller untested in 64-bit |
-| Vulkan renderer (L4, branch `l4-renderer`) | the player build with `VULKAN_SDK` set; `[Display] Renderer=Vulkan` | the same exe | M0-M4: the game plays under Vulkan; menus and brightness identical to OpenGL in captures; levels within OpenGL's run-to-run noise; 1366 wide checked | M5: every level, frame times, robustness (Alt-Tab, minimise, resize) ([Vulkan renderer](future/vulkan-renderer.md)) |
+| Vulkan renderer (L4, branch `l4-renderer`) | the player build with `VULKAN_SDK` set; `[Display] Renderer=Vulkan` | the same exe | M0-M5: the game plays under Vulkan; menus and brightness identical to OpenGL in captures; levels within OpenGL's run-to-run noise; all 48 soak levels as under OpenGL, 0 validation errors; saves unaffected; minimise, focus, resize and movies checked | merge into `main` (owner's decision); then variable refresh and upscaling ([Vulkan renderer](future/vulkan-renderer.md)) |
 
 ## Other parts
 
@@ -33,4 +33,4 @@ how to reproduce each line: [Reproduce and play](quickstart.md).
 ## Next
 
 1. A player's test of the 64-bit build.
-2. L4, the idiomatic rewrite: the Vulkan renderer, M5 (parity over every level) next ([Vulkan renderer](future/vulkan-renderer.md)).
+2. L4, the idiomatic rewrite: the Vulkan renderer, M0-M5 done on its branch, waiting to be merged ([Vulkan renderer](future/vulkan-renderer.md)).

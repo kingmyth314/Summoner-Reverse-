@@ -107,6 +107,18 @@ extern uint32_t vk_image_index;                // its swapchain image
 extern bool vk_recording;                      // between vk_begin_frame and the flip
 extern VkSemaphore vk_render_done[8];          // per swapchain image: drawing finished, present may start
 
+// [Debug] VulkanTiming=1: a frame slower than 25 ms is logged with what the back end did in it.
+struct vk_frame_stats {
+    int textures;                              // textures made or re-uploaded
+    VkDeviceSize upload_bytes;
+    double texture_ms;                         // converting and uploading them (CPU, with the waits it caused)
+    int stalls;                                // vk_wait_idle inside the frame (staging or ring full, read-back)
+    double stall_ms;
+};
+extern vk_frame_stats vk_stats;
+extern bool vk_timing;
+double vk_now_ms();
+
 bool vk_create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, bool host_visible, vk_buffer *out);
 void vk_destroy_buffer(vk_buffer *b);
 uint32_t vk_memory_type(uint32_t type_bits, VkMemoryPropertyFlags flags);
