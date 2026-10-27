@@ -9,6 +9,7 @@
 #include "vsdk/vsdk.h"
 #include "vsdk/gr/gr.h"
 #include "vsdk/gr/opengl/gl_min.h"
+#include "modern/gl_redirect.h"   // 64-bit MODERN_BUILD: VK_REDIRECT, the Vulkan back end (L4); empty otherwise
 
 // One texture cache slot per bitmap entry (MAX_BITMAPS of them in gl_tcache_entries, 0x13240 bytes, indexed
 // by bm_get_current_frame). Layout from gr_opengl_texture_init / create_texture / tcache_set; names ours.

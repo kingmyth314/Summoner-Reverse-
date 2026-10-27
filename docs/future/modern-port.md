@@ -17,7 +17,8 @@ nav_order: 1
 >   - Its saves match the original's within float rounding (`-ffp-eval-method=double`) and load across the two exes.
 >   - Built from the experimental configuration it is the **player build**: SummonerFix's keys, brightness, registry
 >     settings and centred menus are in its source ([the player build](#the-player-build-the-64-bit-experimental-exe-2026-10-26)).
-> - **L4 (an idiomatic rewrite) not started;** the renderer comes first ([recommendation](#recommendation)).
+> - **L4 (an idiomatic rewrite) started 2026-10-26** with the renderer: a Vulkan back end, on the branch
+>   `l4-renderer` ([Vulkan renderer](vulkan-renderer.md)).
 > - How to build and install it: [Reproduce and play](../quickstart.md).
 
 **Summary of the research (2026-10-23):**

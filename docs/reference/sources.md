@@ -49,6 +49,15 @@ nav_order: 2
   differs). LGPL build, shared DLLs: `FFMPEG_DIR` names the extracted folder, and `avformat-63`, `avcodec-63`,
   `avutil-61`, `swscale-10` and `swresample-7` go beside the 64-bit exe. Kept outside the repository.
 
+## Vulkan SDK (the Vulkan renderer)
+
+- [LunarG Vulkan SDK](https://vulkan.lunarg.com/sdk/home) for Windows, 1.4.363.0 - `vulkansdk-windows-X64-1.4.363.0.exe`,
+  downloaded and installed by the owner on 2026-10-26 (303,082,720 bytes, SHA-256
+  94a82d378f7a5e3e54c9db7d2fb7016af136e14ac0a18dbf0f2f67a36352d141; installed to `C:\VulkanSDK\1.4.363.0`, which
+  the installer names in `VULKAN_SDK`). The build uses its headers and `glslc`; test runs can load its validation
+  layer. Only for building the Vulkan renderer of the 64-bit exe ([Vulkan renderer](../future/vulkan-renderer.md));
+  players need only a graphics driver with Vulkan.
+
 ## dgVoodoo 2 (the Glide and Direct3D renderers)
 
 - [dgVoodoo2 v2.87.5 on GitHub (dege-diosg/dgVoodoo2, the author's releases)](https://github.com/dege-diosg/dgVoodoo2/releases/tag/v2.87.5)

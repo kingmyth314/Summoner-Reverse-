@@ -25,6 +25,7 @@ Nothing below is in the repository: no game files, compilers or third-party DLLs
 | **Visual C++ 6.0 + Service Pack 5** | `c2.dll` 12.00.8966 | anywhere outside the repository; `VC6_DIR` = its `VC98` folder | the byte match, the 32-bit VC6 builds; also the VC6 headers and libraries the 32-bit clang build links against ([Setup](setup.md), [Sources](reference/sources.md)) |
 | **llvm-mingw** (UCRT, x86_64 host) | 20260908 (clang 23.1.1); LLVM 16 or later needed (`-ffp-eval-method`) | `CLANG_DIR` = its `bin` folder | the clang builds, 32 and 64-bit; SummonerFix |
 | **FFmpeg**, LGPL shared build | n9.0 (BtbN) | `FFMPEG_DIR` = the extracted folder (headers in `include\`); its five DLLs beside the 64-bit exe | movies in the 64-bit build (without it they are skipped) |
+| **Vulkan SDK** (LunarG, optional) | 1.4.363.0 | its installer sets `VULKAN_SDK` | the Vulkan renderer in the 64-bit build (without it, `Renderer=Vulkan` falls back to OpenGL) |
 | libjpeg 6b source (optional) | `jpegsrc.v6b.tar.gz` | `third_party\jpeg6b\jpeg-6b` | JPEG screenshots in the rebuilt exes (without it a stub is linked and says so) |
 
 The downloads, with URLs and checksums, are in [Sources](reference/sources.md). The analysis tools (REA, Ghidra,

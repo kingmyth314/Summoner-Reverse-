@@ -1267,6 +1267,11 @@ void levelrender_draw_list_d3d(lobj *l, int alpha, unsigned int num_lights, atta
 // 0x4914f0 atexit_nop_4914f0: the empty atexit destructors of the Direct3D draw list's two function-local
 //          statics (guard 0x23d3600). Confidence: exact (compiler-generated, bare rets).
 
+#ifdef VK_REDIRECT
+// The Vulkan back end (L4): this definition becomes levelrender_draw_list_opengl_gl; modern/vk_dispatch.cpp defines
+// levelrender_draw_list_opengl and calls it or the Vulkan version (include/modern/gl_redirect.h).
+#define levelrender_draw_list_opengl levelrender_draw_list_opengl_gl
+#endif
 // 0x491500  Confidence: likely (unsure for the function-local statics, D5803). The OpenGL client arrays
 // (vertex, colour, texture coordinates 0 and 1, projective: s * w, t * w, 0, w) are set up first.
 // Lightmapped: as the Direct3D list, batches of triangles drawn with glDrawArrays when the lightmap
@@ -1652,6 +1657,9 @@ void levelrender_draw_list_opengl(lobj *l, int alpha, unsigned int num_lights, a
         glDrawElements(GL_TRIANGLES, num_idx, GL_UNSIGNED_SHORT, levelrender_gl_indices);
     }
 }
+#ifdef VK_REDIRECT
+#undef levelrender_draw_list_opengl
+#endif
 
 // 0x492ae0 atexit_nop_492ae0 and
 // 0x492af0 atexit_nop_492af0: the same for the OpenGL draw list (guard 0x23c5b38). Confidence: exact

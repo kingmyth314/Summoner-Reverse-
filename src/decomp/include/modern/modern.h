@@ -42,6 +42,9 @@ void modern_log(const char *fmt, ...);         // summonerfix.log beside the exe
 void modern_window_setup(HWND hwnd);           // gr_init's windowed branch: the output window
 bool modern_window_activate(HWND hwnd, bool active);   // os_wndproc's WM_ACTIVATE: true = handled
 void modern_gl_viewport(int x, int y, int w, int h);
+// Game pixels -> window pixels (client size, scale, offset of the game's (0, 0), the 1024-wide menu centred); false
+// before the window exists or while SummonerFix is loaded.
+bool modern_display_map(int *cw, int *ch, double *scale, int *off_x, int *off_y, bool *menu_shift);
 void modern_gl_read_pixels(int x, int y, int w, int h, unsigned format, unsigned type, void *data);
 BOOL modern_swap_buffers(HDC dc);              // bars, capture, then SwapBuffers
 BOOL modern_screen_to_client(HWND hwnd, POINT *p);    // the mouse poll: window pixels -> game pixels

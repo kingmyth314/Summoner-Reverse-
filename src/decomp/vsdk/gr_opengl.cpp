@@ -16,6 +16,14 @@
 // Not source: 0x5504f0 is the linker's import thunk for glFinish (jmp [0x57e318], module "-"); only
 // gr_finish in gr.cpp reaches it, this unit calls the import directly.
 
+#if defined(MODERN_BUILD) && defined(_WIN64)
+// The Vulkan back end (L4): the entry points defined here become <name>_gl; modern/vk_dispatch.cpp defines the
+// original names and calls these or the Vulkan ones (include/modern/gl_redirect.h). Before every other include, so
+// that the declarations in gr_opengl.h are renamed too.
+#define GL_REDIRECT_RENAME
+#include "modern/gl_redirect.h"
+#endif
+
 #include <string.h>
 #include <stdio.h>
 #include "vsdk/os/debug.h"

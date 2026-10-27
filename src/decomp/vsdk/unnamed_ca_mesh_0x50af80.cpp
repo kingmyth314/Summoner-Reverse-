@@ -601,6 +601,11 @@ void gr_d3d_render_character_mesh(vim *mesh, vector3 *pos, matrix *orient, gr_li
     gr_stop_instance();
 }
 
+#ifdef VK_REDIRECT
+// The Vulkan back end (L4): this definition becomes gr_opengl_render_character_mesh_gl; modern/vk_dispatch.cpp defines
+// gr_opengl_render_character_mesh and calls it or the Vulkan version (include/modern/gl_redirect.h).
+#define gr_opengl_render_character_mesh gr_opengl_render_character_mesh_gl
+#endif
 // 0x50cd00  Confidence: unsure (as the Glide back end). No screen bounds test (only w), no additive tint
 // pass; the vertices go to the card as arrays (positions, colours, s / t / r / q with q = 1 / z).
 void gr_opengl_render_character_mesh(vim *mesh, vector3 *pos, matrix *orient, gr_light_desc *light,
@@ -798,6 +803,9 @@ void gr_opengl_render_character_mesh(vim *mesh, vector3 *pos, matrix *orient, gr
     lights_pop_selection();
     gr_stop_instance();
 }
+#ifdef VK_REDIRECT
+#undef gr_opengl_render_character_mesh
+#endif
 
 // 0x50d6c0  Confidence: exact.
 void ca_render_set_instance(ca_character *character, character_instance *instance)

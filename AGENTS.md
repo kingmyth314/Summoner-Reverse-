@@ -21,13 +21,14 @@ No game files, compilers or third-party DLLs are in the repository; the game goe
 | `src/decomp/game/`, `src/decomp/vsdk/` | the game and the Volition engine (VSDK), C++ |
 | `src/decomp/include/` | headers; `DECISIONS.md` = numbered decisions (`D1234`) referenced from comments |
 | `src/decomp/experimental/` | the experimental build's features (`EXPERIMENTAL_BUILD`) |
-| `src/decomp/modern/` | the in-source host for clang builds (`MODERN_BUILD`): display, keys, brightness, registry, agent mode, Bink via FFmpeg |
+| `src/decomp/modern/` | the in-source host for clang builds (`MODERN_BUILD`): display, keys, brightness, registry, agent mode, Bink via FFmpeg, the Vulkan renderer (`vk_*.cpp`, `shaders/`) |
 | `src/decomp/vc6-matches.txt` | the functions that match byte for byte; the sweep checks against it |
 | `src/link/` | link support for the standalone exes (stubs, no original code) |
 | `src/summonerfix/`, `src/summonerfix-config/` | SummonerFix and its config app (C, llvm-mingw) |
 | `symbols/sum.symbols` | every Sum.exe name: the source of truth for names (`node tools/symbols.mjs`) |
 | `docs/sum-exe/` | one page per game system; `game-bugs.md` = the 355 bugs with ids (C/G/K + number) |
 | `docs/future/modern-port.md` | the clang / 64-bit port (rungs L1-L4), with a summary at the top |
+| `docs/future/vulkan-renderer.md` | L4's first module, the Vulkan renderer (branch `l4-renderer`): design, milestones M0-M5 |
 
 ## Build configurations
 
@@ -50,6 +51,7 @@ The 64-bit **player build** is `--config experimental --compiler clang --arch x6
 | `VC6_DIR` | the `VC98` folder of VC6 with SP5's compiler (`c2.dll` 8966) | every VC6 build, the sweep, the 32-bit clang build (headers, libs) |
 | `CLANG_DIR` | llvm-mingw's `bin` (LLVM 16+; 20260908 used) | clang builds, SummonerFix |
 | `FFMPEG_DIR` | FFmpeg n9.0 LGPL shared, extracted | 64-bit movies |
+| `VULKAN_SDK` | the LunarG Vulkan SDK (1.4.363.0 used; its installer sets it) | the Vulkan renderer of the 64-bit build (headers, `glslc`, validation layer) |
 | `SUMMONER_GAME`, `SUMMONER_EXE` | a test folder and the exe in it | `tools/agent.mjs` and the check tools |
 | `VC6_STRICT=1` | | the sweep's exact mode (use it) |
 

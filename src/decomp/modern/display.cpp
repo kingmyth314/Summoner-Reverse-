@@ -66,6 +66,21 @@ static bool get_map(display_map *m)
     return true;
 }
 
+// The same map for the Vulkan back end (modern/vk_device.cpp), which draws into the window itself.
+bool modern_display_map(int *cw, int *ch, double *scale, int *off_x, int *off_y, bool *menu_shift)
+{
+    display_map m;
+    if (!get_map(&m))
+        return false;
+    *cw = m.cw;
+    *ch = m.ch;
+    *scale = m.scale;
+    *off_x = m.off_x;
+    *off_y = m.off_y;
+    *menu_shift = m.menu_shift;
+    return true;
+}
+
 static int round_int(double v) { return (int)(v < 0 ? v - 0.5 : v + 0.5); }
 
 // The window's rectangle: the primary screen (borderless) or the configured client size, centred in the work area.
