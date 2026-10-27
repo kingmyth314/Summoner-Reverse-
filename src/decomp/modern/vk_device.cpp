@@ -14,6 +14,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <math.h>
 #include "vsdk/vsdk.h"
 #include "modern/modern.h"
 #include "modern/vk.h"
@@ -703,10 +704,16 @@ void vk_begin_frame()
             return;
     }
     vk_frame *f = &vk_frames[vk_frame_index];
+    double t0 = vk_timing ? vk_now_ms() : 0;
     vkWaitForFences(vkc.device, 1, &f->done, VK_TRUE, UINT64_MAX);
+    double t1 = vk_timing ? vk_now_ms() : 0;
     vk_tcache_frame_done(vk_frame_index);
     VkResult r = vkAcquireNextImageKHR(vkc.device, vkc.swapchain, UINT64_MAX, f->acquired, VK_NULL_HANDLE,
                                        &vk_image_index);
+    if (vk_timing) {
+        vk_stats.fence_ms += t1 - t0;
+        vk_stats.acquire_ms += vk_now_ms() - t1;
+    }
     if (r == VK_ERROR_OUT_OF_DATE_KHR) {
         vkDeviceWaitIdle(vkc.device);
         if (!vk_create_swapchain())
@@ -943,7 +950,10 @@ void vk_end_frame()
     pi.swapchainCount = 1;
     pi.pSwapchains = &vkc.swapchain;
     pi.pImageIndices = &vk_image_index;
+    double t0 = vk_timing ? vk_now_ms() : 0;
     VkResult r = vkQueuePresentKHR(vkc.queue, &pi);
+    if (vk_timing)
+        vk_stats.present_ms += vk_now_ms() - t0;
     if (r == VK_ERROR_OUT_OF_DATE_KHR || r == VK_SUBOPTIMAL_KHR)
         vkc.extent.width = 0;   // recreated at the next frame
     vk_recording = false;
@@ -953,12 +963,44 @@ void vk_end_frame()
         static int logged;
         double now = vk_now_ms();
         if (last && now - last > 25.0 && logged++ < 500)
-            vk_log("slow frame %.1f ms: %d textures (%u KB) in %.1f ms, %d stalls in %.1f ms", now - last,
-                   vk_stats.textures, (unsigned)(vk_stats.upload_bytes >> 10), vk_stats.texture_ms, vk_stats.stalls,
-                   vk_stats.stall_ms);
+            vk_log("slow frame %.1f ms: %d textures (%u KB) in %.1f ms, %d stalls in %.1f ms; waits: fence %.1f, "
+                   "acquire %.1f, present %.1f ms", now - last, vk_stats.textures,
+                   (unsigned)(vk_stats.upload_bytes >> 10), vk_stats.texture_ms, vk_stats.stalls, vk_stats.stall_ms,
+                   vk_stats.fence_ms, vk_stats.acquire_ms, vk_stats.present_ms);
         last = now;
         memset(&vk_stats, 0, sizeof vk_stats);
+        vk_present_intervals(now);
     }
+}
+
+// Under [Debug] VulkanTiming, the time from one present to the next (the CPU's side: this driver offers no
+// VK_KHR_present_wait or present timing to say when the display showed a frame), summed up every 240 frames.
+// Fifo should follow the display's refresh, Mailbox and Immediate the frame-rate cap.
+void vk_present_intervals(double now)
+{
+    enum { N = 240 };
+    static double last, ms[N];
+    static int n, logged;
+    if (last)
+        ms[n++] = now - last;
+    last = now;
+    if (n < N)
+        return;
+    n = 0;
+    double sum = 0, sq = 0, lo = ms[0], hi = ms[0];
+    for (int i = 0; i < N; i++) {
+        sum += ms[i];
+        sq += ms[i] * ms[i];
+        lo = ms[i] < lo ? ms[i] : lo;
+        hi = ms[i] > hi ? ms[i] : hi;
+    }
+    double mean = sum / N, var = sq / N - mean * mean;
+    int over = 0;   // frames more than half again as long as the mean (a missed refresh or a hitch)
+    for (int i = 0; i < N; i++)
+        over += ms[i] > mean * 1.5;
+    if (logged++ < 200)
+        vk_log("present: %d frames, mode %d, %.2f ms mean (%.1f fps), sd %.2f, min %.2f, max %.2f, %d over 1.5x mean",
+               N, (int)vkc.present_mode, mean, 1000.0 / mean, var > 0 ? sqrt(var) : 0.0, lo, hi, over);
 }
 
 void vk_game_to_window(float *scale, float *off_x, float *off_y)

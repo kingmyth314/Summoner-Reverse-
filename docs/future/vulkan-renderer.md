@@ -105,7 +105,7 @@ textures as an option.
 | `[Display] Renderer` | `OpenGL` (default), `Vulkan` | the back end; Vulkan falls back to OpenGL when it cannot start |
 | `[Display] VulkanPresent` | `Auto` (default), `Fifo`, `Mailbox`, `Immediate` | the swapchain's present mode. `Auto` follows `[Experimental] VSync` as the OpenGL build does: Fifo with vsync, else Mailbox, or Immediate where Mailbox is not offered (this PC, 2026-10-26) |
 | `[Debug] VulkanValidation` | `0` (default), `1` | the Khronos validation layer (Vulkan SDK), its messages in `summonerfix.log` |
-| `[Debug] VulkanTiming` | `0` (default), `1` | each frame slower than 25 ms in `summonerfix.log`: the textures made in it (count, size, time) and the waits for the GPU (count, time); M5, 2026-10-26 |
+| `[Debug] VulkanTiming` | `0` (default), `1` | each frame slower than 25 ms in `summonerfix.log`: the textures made in it (count, size, time) and the waits for the GPU (count, time); M5, 2026-10-26. Since 2026-10-27 also the waits for the frame slot's fence, the swapchain image and the present, and every 240 frames a `present:` line: the time between presents (mean, sd, min, max, frames over 1.5 times the mean) |
 
 ## Build
 
@@ -313,3 +313,36 @@ shift. Observed:
 - The depth buffer is `X8_D24_UNORM_PACK32` where the GPU offers it, else `D32_SFLOAT` (AMD offers no 24-bit
   depth-only format, as far as known). With 32-bit float depth, depth ties between coplanar polygons can resolve
   differently from OpenGL's 24-bit buffer.
+
+### Variable refresh, 2026-10-27: frame pacing
+
+Variable refresh needs nothing new from the renderer: `[Display] VulkanPresent` already offers Fifo, Mailbox and
+Immediate, and `[Experimental] FrameRateCap` caps the frame rate (the usual recipe is vsync on with a cap a few
+frames below the display's maximum, or vsync off). What decides whether the display actually follows the game is the
+driver and Windows (independent flip for a borderless window, the Windows "variable refresh rate" setting, the
+monitor's own setting), and nothing in Vulkan reports it. This PC's driver offers neither `VK_KHR_present_wait` nor a
+present-timing extension, only `VK_EXT_full_screen_exclusive` (vulkaninfo, Observed), so the measurement is the CPU's:
+the time from one present to the next (`[Debug] VulkanTiming=1`, the `present:` lines), on the main menu and then
+20-50 s in play from a test save, 2560x1440 borderless. Observed:
+
+| Present mode | FrameRateCap | Present-to-present | sd | Frames over 1.5x the mean |
+|---|---|---|---|---|
+| Immediate | 0 (the game's 120) | 8.33 ms (120.0 fps) | 0.1-0.4 ms | 0-1 per 240, except the level start |
+| Immediate | 55 | 18.18 ms (55.0 fps) | 0.2-0.7 ms | 0 |
+| Immediate | 144 | 6.94 ms (144.0 fps) | 0.1-0.6 ms | 0-1 |
+| Fifo | 0 | 31.7 ms (31.5 fps) | 0.4-3 ms | 0-2 |
+| Fifo | 55 | 31.9 ms (31.4 fps) | 1-3 ms | 0-4 |
+
+- **The cap is kept to a fraction of a millisecond** without vsync: the fixed build's frame limiter (G1, a
+  high-resolution wait) paces the frames, and the Vulkan back end adds no jitter. This is what variable refresh needs
+  from the game: an even frame time below the display's maximum.
+- **Fifo ran at half the display's rate:** Windows reported 59.95 Hz (DWM's composition timing), yet each frame
+  waited about 31 ms in `vkAcquireNextImageKHR` (the fence and the present took under 0.1 ms). The OpenGL renderer
+  with `[Experimental] VSync=1` ran at 28.8 fps in the same session, and `Mode=Window` changed nothing, so it is not
+  the Vulkan code. On 2026-10-26 Fifo had run at 60 fps on this PC. Unknown why; Inferred, a guess only: the
+  monitor was asleep while nobody was at the PC (the tests ran unattended), and Windows paced vsync without it.
+- The monitor (a Dell S2721DGF) ran at 59 Hz, while Windows lists modes up to 143 Hz (WMI, Observed). At 59 Hz a
+  variable refresh window would be about 48-59 Hz, below the game's 120, so whether the display follows the game
+  stays **Unknown** until the monitor runs at its full rate and something outside the game reads the presents
+  (PresentMon, or the monitor's own refresh readout).
+- Level starts show single long frames (330-830 ms) in every mode: the level's loading, not the presents.

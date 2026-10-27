@@ -114,10 +114,12 @@ struct vk_frame_stats {
     double texture_ms;                         // converting and uploading them (CPU, with the waits it caused)
     int stalls;                                // vk_wait_idle inside the frame (staging or ring full, read-back)
     double stall_ms;
+    double fence_ms, acquire_ms, present_ms;   // waits at the frame's start (its slot's fence, the image) and end
 };
 extern vk_frame_stats vk_stats;
 extern bool vk_timing;
 double vk_now_ms();
+void vk_present_intervals(double now_ms);   // [Debug] VulkanTiming: present-to-present times in the log
 
 bool vk_create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, bool host_visible, vk_buffer *out);
 void vk_destroy_buffer(vk_buffer *b);
