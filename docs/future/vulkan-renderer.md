@@ -91,9 +91,9 @@ a frame suspend the rendering pass, copy, and resume, so they are ordered with t
 | M0 | Build wiring: the SDK through `VULKAN_SDK`, shaders compiled by `glslc` and embedded, `Renderer=Vulkan`, the redirect | it builds; the VC6 sweep keeps 5,613; OpenGL plays as before | **done 2026-10-26** |
 | M1 | Device, swapchain, frame, resize; validation in test runs | a window clears with no validation errors | **done 2026-10-26** |
 | M2 | 2D: bitmaps, lines, colours, tint, texture cache | the menus and the interface match OpenGL (image comparison with a tolerance) | **done 2026-10-26**: identical in half-size captures |
-| M3 | 3D: polygons, depth, fog, blend modes, two texture stages, level geometry, characters | levels match OpenGL per level | **done 2026-10-26** for 3 levels: within OpenGL's own run-to-run noise; every level in M5 |
+| M3 | 3D: polygons, depth, fog, blend modes, two texture stages, level geometry, characters | levels match OpenGL per level | **done 2026-10-26** for 3 levels: within OpenGL's own run-to-run noise; every level 2026-10-27 (M5): within the noise on 38 of 47, the rest explained or marginal |
 | M4 | Movies, read-back (thumbnails, screenshots, captures), brightness, widescreen, hi-res, the FAST badge | everything the 64-bit build does under OpenGL | **done 2026-10-26** (widescreen: 1366x768 with centred menus and the hi-res interface switch; no texture pack tried) |
-| M5 | Parity: the 48-level soak and the save check under Vulkan, frame times, a clean validation log | merge into `main` | **done 2026-10-27**: 45 of 48 levels (the original's three crashes), 0 validation errors, saves unaffected, minimise / focus / resize / movies |
+| M5 | Parity: the 48-level soak and the save check under Vulkan, frame times, a clean validation log | merge into `main` | **done 2026-10-27**: 45 of 48 levels (the original's three crashes), 0 validation errors, every level's picture within OpenGL's run-to-run noise, full-size menus identical, saves unaffected, minimise / focus / resize / movies |
 
 After M5: present-mode options for variable refresh, an off-screen image for upscaling (FSR 1 first), full-colour
 textures as an option.
@@ -234,7 +234,7 @@ Also on 2026-10-26: VC6 sweep 5,613 matched, 0 lost; the 32-bit clang experiment
   OpenGL soak of the 64-bit exe, 8 levels: 85-110). Not the same session, so a rough comparison.
 
 **The slow read-back.** Every level read 42.7 fps after the capture. The game's `fps` averages 16 frames and caps a
-frame at 0.25 s, so 15/120 s + 0.25 s over 16 frames is 42.7 fps: one frame of at least 0.25 s. `[Debug] VulkanTiming=1`
+frame at 0.25 s (`max_reported_frametime`, 0x5a5750, in `vsdk/frametime.cpp`), so 15/120 s + 0.25 s over 16 frames is 42.7 fps: one frame of at least 0.25 s. `[Debug] VulkanTiming=1`
 (new, the table above) showed the capture's frame at **1,496 ms**, of which 5.6 ms was the wait for the GPU. The rest
 was the CPU reading the read-back buffer, which was in host-visible, coherent and **uncached** memory: reading
 uncached memory is slow. `vk_create_buffer` now picks a cached type (`HOST_CACHED`) for a buffer that is a copy's
@@ -271,9 +271,39 @@ OpenGL save against the other five, the same way: 0, 3, 108, 0. The renderer lea
   the background and back in front, and draws on. 0 errors.
 - **`Mode=Window` resized** (1600x1200, then client areas 1184x1421, 2184x1421 and maximised 2560x1369): the
   swapchain is recreated at each size and the menu stays centred and letterboxed. 0 errors.
-- **The intro movie played to the end** (`SkipIntroMovies=0`): `vlogo.bik`, 416 of 416 frames, 13.85 s of wall time for
+- **The same in a level** (Lenele, a golem summoned; client areas 1284x1421, 2184x1421, maximised 2560x1369, then
+  minimised and restored): the swapchain and depth buffer are remade each time, the picture is letterboxed and the
+  golem hides what is behind it; 108-115 fps, 0 errors. A first attempt also cast walls of fire, and the game crashed
+  4 s after them at `character_instance::get_anim_length` + 0xc, the soak's known crash of the original (a
+  townsperson dying in the fire), not the resize; without the fire, no crash.
+- **The intro movie played to the end** (`SkipIntroMovies=0`; the main menu plays `vlogo.bik`, and `eaxlogo.bik` only
+  with EAX sound, off here): `vlogo.bik`, 416 of 416 frames, 13.85 s of wall time for
   13.83 s of video, then the main menu; 0 errors. Under OpenGL the same exe: 13.84 s, and the same "latest frame
   496 ms late" in the movie log (Vulkan 492 ms), so that figure is the movie player's, not the renderer's.
+
+**Full-size captures, 2026-10-27** (`capturefull`, 2560x1440, 1366 wide with centred menus): the main menu and the
+load screen with a save's thumbnail are **identical to OpenGL at every pixel** (`imgdiff` maximum difference 0); the
+menu against the load screen, as a control, differs in 56% of pixels. Observed.
+
+**Every level's picture against OpenGL, 2026-10-27.** The same exe soaked twice under OpenGL (validation off), and
+each level's soak capture (after the golem and the walls of fire) compared with `imgdiff`, % of pixels beyond a 1-px
+shift. Observed:
+- **The noise is large:** OpenGL run 1 against run 2 differs by 0.9% (masad, paused by its tutorial) to 67%
+  (IkaemosBottomInt2), median about 22%: the golem, the fire, weather and the camera differ from run to run.
+- **Vulkan sits inside it:** on 38 of 47 levels the nearer of the two OpenGL runs is closer to Vulkan than the
+  OpenGL runs are to each other. Were Vulkan just a third OpenGL run, about a third of the levels would come out above
+  (by symmetry); 9 do, 7 of them by 0.5-6 points (Catacombs, IkaemosExt, KhosaniLab, Liangshan, Rand-IcelandNite01,
+  WolongCaverns, lenele2aa).
+- **lenele3a** (64% between the OpenGL runs, 82-85% for Vulkan): the Vulkan capture had the camera inside a wall,
+  in combat. Run twice more under Vulkan: one capture is within 8.8% of OpenGL run 2, the other within 20.8% of
+  OpenGL run 1, and the two Vulkan runs 64% apart. The camera's place, not the renderer.
+- **masad** (paused by its tutorial, so the scene is still): each renderer repeats itself (Vulkan against Vulkan
+  0.93%, OpenGL against OpenGL 0.86%) but Vulkan against OpenGL is 1.8-4.3% in all four pairs. The differing pixels
+  are an animated effect (a line of glints on the ground), the selection ring and polygon edges; zoomed side by side,
+  the still textures look the same and the glints sit at other places along their path. Inferred: the pause comes
+  at a slightly different moment of the effects' animation under each renderer (the frame times of the level start
+  differ), and each renderer is repeatable. Unknown whether part of it is rasterization (the edges); a frozen-frame
+  comparison would separate the two.
 
 **On other GPUs** (Inferred, not run; only this PC's Intel Arc 140V has been tried):
 - `GL_CLAMP` clamps to the border colour by the OpenGL specification, and the Vulkan sampler does the same
