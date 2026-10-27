@@ -12,7 +12,9 @@ nav_order: 1.5
 > pixel each way), at 1024x768 and at 1366x768; levels match within the run-to-run noise of OpenGL itself. M0-M5 done:
 > all 48 levels of the soak behave as under OpenGL (the original's three crashes), with 0 validation errors and frame
 > rates at least as good; saves are unaffected; minimise, focus loss, window resizing and the intro movie work. Merged
-> into `main` on 2026-10-27 (the earlier `main` is tagged `main-before-l4`).
+> into `main` on 2026-10-27 (the earlier `main` is tagged `main-before-l4`). After it, on 2026-10-27:
+> `[Display] RenderScale` (0.5-2: below 1 the game draws smaller and AMD's FSR 1 upscales it, above 1 it draws larger
+> and is scaled down), and frame-pacing measurements for variable refresh.
 
 The first module of L4, the idiomatic rewrite ([modern port](modern-port.md)). The 64-bit player build gets a
 Vulkan renderer beside the game's own OpenGL one. OpenGL stays the reference: every milestone is compared with it.
@@ -96,7 +98,8 @@ a frame suspend the rendering pass, copy, and resume, so they are ordered with t
 | M5 | Parity: the 48-level soak and the save check under Vulkan, frame times, a clean validation log | merge into `main` | **done 2026-10-27**: 45 of 48 levels (the original's three crashes), 0 validation errors, every level's picture within OpenGL's run-to-run noise, full-size menus identical, saves unaffected, minimise / focus / resize / movies |
 
 After M5: present-mode options for variable refresh, an off-screen image for upscaling (FSR 1 first), full-colour
-textures as an option.
+textures as an option. Since 2026-10-27: frame pacing measured ([Variable refresh](#variable-refresh-2026-10-27-frame-pacing)),
+RenderScale with FSR 1 done ([RenderScale](#renderscale-2026-10-27-fsr-1-and-supersampling)); full-colour textures open.
 
 ## Settings
 
@@ -104,6 +107,8 @@ textures as an option.
 |---|---|---|
 | `[Display] Renderer` | `OpenGL` (default), `Vulkan` | the back end; Vulkan falls back to OpenGL when it cannot start |
 | `[Display] VulkanPresent` | `Auto` (default), `Fifo`, `Mailbox`, `Immediate` | the swapchain's present mode. `Auto` follows `[Experimental] VSync` as the OpenGL build does: Fifo with vsync, else Mailbox, or Immediate where Mailbox is not offered (this PC, 2026-10-26) |
+| `[Display] RenderScale` | `1` (default), `0.5` to `2` | the game draws into an image of the window's size times this, then it is scaled into the window: below 1 with FSR 1 (EASU, then RCAS sharpening), above 1 with a box filter (supersampling, smoother edges). 1, or within 1% of it, draws into the window as before. The interface is scaled with the rest, so below 1 the menus are softer. Vulkan only (OpenGL ignores it); 2026-10-27 |
+| `[Display] FsrSharpness` | `0.2` (default), `0` to `2` | RCAS's sharpening below RenderScale 1, in stops: 0 the strongest, each stop half as strong |
 | `[Debug] VulkanValidation` | `0` (default), `1` | the Khronos validation layer (Vulkan SDK), its messages in `summonerfix.log` |
 | `[Debug] VulkanTiming` | `0` (default), `1` | each frame slower than 25 ms in `summonerfix.log`: the textures made in it (count, size, time) and the waits for the GPU (count, time); M5, 2026-10-26. Since 2026-10-27 also the waits for the frame slot's fence, the swapchain image and the present, and every 240 frames a `present:` line: the time between presents (mean, sd, min, max, frames over 1.5 times the mean) |
 
@@ -346,3 +351,42 @@ the time from one present to the next (`[Debug] VulkanTiming=1`, the `present:` 
   stays **Unknown** until the monitor runs at its full rate and something outside the game reads the presents
   (PresentMon, or the monitor's own refresh readout).
 - Level starts show single long frames (330-830 ms) in every mode: the level's loading, not the presents.
+- PresentMon 2.6.0 ([Sources](../reference/sources.md)) was downloaded to read the presents from outside, but it needs
+  administrator rights to trace another process (exit code 6 unelevated, Observed), and granting them is the owner's
+  decision. The command, from an elevated prompt while the game runs:
+  `PresentMon-2.6.0-x64.exe --process_name Sum-exp-clang-x64.exe --timed 10 --terminate_after_timed --output_file pm.csv`;
+  its `PresentMode` column says whether the window got independent flip ("Hardware: Independent Flip"), which
+  variable refresh in a borderless window needs.
+
+### RenderScale, 2026-10-27: FSR 1 and supersampling
+
+The owner's choice on 2026-10-27, from four options (a RenderScale knob, sharpening only, MSAA, none): the renderer
+already draws the 3D at the window's resolution, so FSR 1 has something to upscale only when the game draws smaller.
+
+How it works (`vk_post.cpp`, `vk_device.cpp`):
+- At a RenderScale other than 1 the game draws into the **scene image**, the window's size times the scale, with the
+  depth buffer at that size; `vk_game_to_window` multiplies the map by the scale, so every draw, clip rectangle and
+  read-back follows. At 1 there is no scene image and nothing else changes.
+- Brightness is applied to the scene image as before; then the **scale pass**: below 1, EASU into an intermediate
+  image of the window's size and RCAS into the swapchain image (`fsr_easu.frag`, `fsr_rcas.frag`, AMD's headers in
+  `shaders/fsr/`, the constants computed in the shader from the two sizes); above 1, `downscale.frag`, the mean of
+  n x n filtered samples per window pixel (n = the scale rounded up). These pipelines have no depth attachment.
+- The FAST badge is drawn after the scale pass, at window pixels, so it stays sharp. Save thumbnails read the scene
+  image; agent captures read the swapchain image (the picture as shown).
+- A third sampler (clamp to the edge) for the scale pass, so EASU's gathers at the border repeat the last texels.
+
+Checked (Observed, 2560x1440 borderless unless said):
+- **RenderScale 1 is unchanged:** full-size captures of the main menu and the load screen, the exe before the change
+  against the new one, identical at every pixel (one run of the old exe differed in one load-screen pixel by 15; its
+  second run matched the new exe exactly, and the new exe matched itself).
+- **0.5, 0.75, 1.5, 2** with the validation layer: 0 errors, 0 warnings from the main menu through a save's loading
+  into play with the badge on; scene images 1280x720, 1920x1080, 3840x2160 and 5120x2880; 120 fps in all four (the
+  game's cap; this GPU had room even at 2).
+- Against RenderScale 1, pixels beyond a 1-px shift: menu 2.8% (0.5), 2.0% (0.75), 0.76% (1.5), 1.05% (2); in play
+  more, as play differs from run to run anyway. Side by side: 0.5 is visibly softer, 0.75 a little, 1.5 and 2 smooth
+  the character's and the sword's edges; the badge is sharp at every scale.
+- At 0.75 in a window: two resizes on the menu and one in play (the scene image remade each time, 813x1066 to
+  1200x1066), minimise and restore, the brightness pass (`gr_gamma` poked from 1.0 to 1.5: brighter), and `savenow`
+  (the thumbnail's read-back of the scene image; the save written): 0 validation errors.
+- Not done: the 48-level soak at a RenderScale other than 1 (the default path is the one that was soaked), other GPUs.
+  Inferred: at 2 the GPU fills four times the pixels, which a weaker GPU may not do at 120 fps.

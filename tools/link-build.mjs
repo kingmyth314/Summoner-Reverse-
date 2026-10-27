@@ -155,7 +155,8 @@ if (x64) console.log(ffmpegInclude ? `movies: FFmpeg headers from ${ffmpegInclud
 // VULKAN_SDK (x64): the LunarG Vulkan SDK (docs/future/vulkan-renderer.md, rung L4). Its Include\ is used by the
 // Vulkan back end (modern/vk_*.cpp, MODERN_VULKAN) and its glslc compiles modern/shaders/* to SPIR-V, embedded in the
 // exe through <obj>/gen/vk_shaders.h. vulkan-1.dll comes with the graphics driver and is loaded at run time. Without
-// the SDK the back end is not built and [Display] Renderer=Vulkan falls back to OpenGL.
+// the SDK the back end is not built and [Display] Renderer=Vulkan falls back to OpenGL. The shaders' #include files
+// (modern/shaders/fsr/, AMD's FSR 1) are not tracked here: after changing one, build with --recompile.
 const genDir = join(objDir, "gen");
 let shadersNewest = 0;
 if (x64) console.log(vulkanSdk ? `Vulkan: SDK ${vulkanSdk}` : "Vulkan: no VULKAN_SDK, so no Vulkan renderer in the 64-bit build");

@@ -7,14 +7,16 @@
 // pass, record their copy and resume it, so they are ordered with the draws as under OpenGL.
 //
 // Settings (summonerfix.ini): [Display] Renderer=Vulkan selects this back end; [Display] VulkanPresent = Auto (the
-// default: the game's vsync setting), Fifo, Mailbox or Immediate; [Debug] VulkanValidation=1 loads the Khronos validation layer (the Vulkan
-// SDK) and logs its messages to summonerfix.log.
+// default: the game's vsync setting), Fifo, Mailbox or Immediate; [Display] RenderScale (0.5-2, default 1) draws the
+// game at that multiple of the window's size and scales it into the window (modern/vk_post.cpp); [Debug]
+// VulkanValidation=1 loads the Khronos validation layer (the Vulkan SDK) and logs its messages to summonerfix.log.
 
 #ifdef _WIN64
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <math.h>
+#include <stdlib.h>
 #include "vsdk/vsdk.h"
 #include "modern/modern.h"
 #include "modern/vk.h"
@@ -467,13 +469,19 @@ static bool vk_create_swapchain()
         }
     }
 
-    // The depth buffer, at the window's size like the colour (OpenGL's default framebuffer has both).
+    // The scene image at a render scale, then the depth buffer at the size of what the game draws into, like the
+    // colour (OpenGL's default framebuffer has both).
+    if (!vk_post_resize()) {
+        vk_log("the scene image for RenderScale %.2f could not be made; drawing at the window's size", vkc.render_scale);
+        vkc.render_scale = 1.0f;
+        vk_post_resize();
+    }
     VkImageCreateInfo ii = {};
     ii.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     ii.imageType = VK_IMAGE_TYPE_2D;
     ii.format = vkc.depth_format;
-    ii.extent.width = extent.width;
-    ii.extent.height = extent.height;
+    ii.extent.width = vkc.target_extent.width;
+    ii.extent.height = vkc.target_extent.height;
     ii.extent.depth = 1;
     ii.mipLevels = 1;
     ii.arrayLayers = 1;
@@ -492,6 +500,9 @@ static bool vk_create_swapchain()
     vkc.depth_view = vk_make_view(vkc.depth_image, vkc.depth_format, VK_IMAGE_ASPECT_DEPTH_BIT);
     vk_log("swapchain %ux%u, %u images, present mode %d", extent.width, extent.height, vkc.image_count,
            (int)vkc.present_mode);
+    if (vkc.scene_image)
+        vk_log("scene image %ux%u (RenderScale %.2f)", vkc.target_extent.width, vkc.target_extent.height,
+               vkc.render_scale);
     return true;
 }
 
@@ -590,6 +601,13 @@ bool vk_init(HWND hwnd)
         return false;
     vk_timing = modern_ini_int("Debug", "VulkanTiming", 0) != 0;
     vkc.hwnd = hwnd;
+    // [Display] RenderScale: 0.5 to 2; 1, an unreadable value or one within 1% of 1 draws into the swapchain image.
+    char rs[32];
+    modern_ini_str("Display", "RenderScale", "1", rs, sizeof rs);
+    vkc.render_scale = (float)atof(rs);
+    if (!(vkc.render_scale > 0.0f) || fabs(vkc.render_scale - 1.0f) < 0.01)
+        vkc.render_scale = 1.0f;
+    vkc.render_scale = vkc.render_scale < 0.5f ? 0.5f : vkc.render_scale > 2.0f ? 2.0f : vkc.render_scale;
     VkWin32SurfaceCreateInfoKHR si = {};
     si.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
     si.hinstance = GetModuleHandleA(NULL);
@@ -647,7 +665,7 @@ void vk_resume_rendering()
     vk_frame *f = &vk_frames[vk_frame_index];
     VkRenderingAttachmentInfo color = {};
     color.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-    color.imageView = vkc.views[vk_image_index];
+    color.imageView = vk_target_view();
     color.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     color.loadOp = vk_frame_cleared ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_CLEAR;
     color.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -661,7 +679,7 @@ void vk_resume_rendering()
     depth.clearValue.depthStencil.depth = 1.0f;
     VkRenderingInfo ri = {};
     ri.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
-    ri.renderArea.extent = vkc.extent;
+    ri.renderArea.extent = vkc.target_extent;
     ri.layerCount = 1;
     ri.colorAttachmentCount = 1;
     ri.pColorAttachments = &color;
@@ -670,6 +688,16 @@ void vk_resume_rendering()
     vk_frame_cleared = true;
     vk_rendering = true;
     vk_draw_frame_start();
+}
+
+VkImage vk_target_image()
+{
+    return vkc.scene_image ? vkc.scene_image : vkc.images[vk_image_index];
+}
+
+VkImageView vk_target_view()
+{
+    return vkc.scene_view ? vkc.scene_view : vkc.views[vk_image_index];
 }
 
 void vk_suspend_rendering()
@@ -733,6 +761,11 @@ void vk_begin_frame()
     vk_image_barrier(f->cmd, vkc.images[vk_image_index], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
                      VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, 0,
                      VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
+    // The scene image was read by the last frame's scale pass.
+    if (vkc.scene_image)
+        vk_image_barrier(f->cmd, vkc.scene_image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
+                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, 0,
+                         VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
     vk_image_barrier(f->cmd, vkc.depth_image, VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
                      VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
                      VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT,
@@ -874,15 +907,16 @@ static void vk_destroy_transfer()
     vk_transfer_cmd = VK_NULL_HANDLE;
 }
 
-void vk_read_window(int x, int y, int w, int h, ubyte *bgra)
+// A rectangle of the image (in the colour attachment layout, extent w_max x h_max) read back.
+static void vk_read_image(VkImage image, uint32_t w_max, uint32_t h_max, int x, int y, int w, int h, ubyte *bgra)
 {
     memset(bgra, 0, (size_t)w * h * 4);
     if (!vk_recording || w <= 0 || h <= 0)
         return;
     // Inside the image only; the rest stays black.
     int x0 = x < 0 ? 0 : x, y0 = y < 0 ? 0 : y;
-    int x1 = x + w > (int)vkc.extent.width ? (int)vkc.extent.width : x + w;
-    int y1 = y + h > (int)vkc.extent.height ? (int)vkc.extent.height : y + h;
+    int x1 = x + w > (int)w_max ? (int)w_max : x + w;
+    int y1 = y + h > (int)h_max ? (int)h_max : y + h;
     if (x1 <= x0 || y1 <= y0)
         return;
     vk_buffer buf;
@@ -890,7 +924,6 @@ void vk_read_window(int x, int y, int w, int h, ubyte *bgra)
         return;
     vk_suspend_rendering();
     VkCommandBuffer cmd = vk_frames[vk_frame_index].cmd;
-    VkImage image = vkc.images[vk_image_index];
     vk_image_barrier(cmd, image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                      VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
                      VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_READ_BIT);
@@ -923,6 +956,16 @@ void vk_read_window(int x, int y, int w, int h, ubyte *bgra)
     vk_destroy_buffer(&buf);
 }
 
+void vk_read_window(int x, int y, int w, int h, ubyte *bgra)
+{
+    vk_read_image(vk_target_image(), vkc.target_extent.width, vkc.target_extent.height, x, y, w, h, bgra);
+}
+
+void vk_read_swapchain(int x, int y, int w, int h, ubyte *bgra)
+{
+    vk_read_image(vkc.images[vk_image_index], vkc.extent.width, vkc.extent.height, x, y, w, h, bgra);
+}
+
 void vk_end_frame()
 {
     if (!vk_recording)
@@ -932,7 +975,7 @@ void vk_end_frame()
         // Agent mode's capture (modern/display.cpp) of the finished picture.
         int w = (int)vkc.extent.width, h = (int)vkc.extent.height;
         ubyte *pixels = new ubyte[(size_t)w * h * 4];
-        vk_read_window(0, 0, w, h, pixels);
+        vk_read_swapchain(0, 0, w, h, pixels);
         modern_capture_bgra(pixels, w, h);
         delete[] pixels;
     }
@@ -1009,9 +1052,10 @@ void vk_game_to_window(float *scale, float *off_x, float *off_y)
     double s;
     bool menu_shift;
     if (modern_display_map(&cw, &ch, &s, &ox, &oy, &menu_shift)) {
-        *scale = (float)s;
-        *off_x = (float)ox;
-        *off_y = (float)oy;
+        float r = vkc.render_scale;
+        *scale = (float)s * r;
+        *off_x = (float)ox * r;
+        *off_y = (float)oy * r;
     } else {
         *scale = 1.0f;
         *off_x = 0.0f;

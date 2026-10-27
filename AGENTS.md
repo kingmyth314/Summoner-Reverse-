@@ -12,7 +12,8 @@ A reverse engineering of **Summoner** (Volition, 2000), PC v1.40 `Sum.exe` (32-b
 - `docs/`: everything found, as a GitHub Pages site (Jekyll, Just the Docs).
 - `tools/`: Node.js 24 scripts (`.mjs`) and PowerShell scripts that build, compare and play-test.
 
-No game files, compilers or third-party DLLs are in the repository; the game goes in `Summoner/` (git-ignored).
+No game files, compilers or third-party DLLs are in the repository; the game goes in `Summoner/` (git-ignored). The
+only third-party source is AMD's FidelityFX Super Resolution 1 shader headers (MIT), in `src/decomp/modern/shaders/fsr/`.
 
 ## Layout
 

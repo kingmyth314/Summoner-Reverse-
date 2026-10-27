@@ -58,6 +58,25 @@ nav_order: 2
   layer. Only for building the Vulkan renderer of the 64-bit exe ([Vulkan renderer](../future/vulkan-renderer.md));
   players need only a graphics driver with Vulkan.
 
+## AMD FidelityFX Super Resolution 1 (RenderScale below 1)
+
+- [GPUOpen-Effects/FidelityFX-FSR](https://github.com/GPUOpen-Effects/FidelityFX-FSR), commit
+  a21ffb8f6c13233ba336352bdff293894c706575 (master on 2026-10-27; its last change is from 2021): `ffx-fsr/ffx_a.h`
+  (181,915 bytes, SHA-256 f60e2722fcd13989523b9164d776ab382b3692791767f3bf8bb19967f763f3fb), `ffx-fsr/ffx_fsr1.h`
+  (60,310 bytes, 93c3922362ea7fc99cbcc698ca30c98de4f8c246d1fbb0b09e015ddef38ce3a5) and `license.txt` (MIT, 1,094 bytes,
+  db089274ce766da70f5b7d791029c3486f9f9e27c8c79c652689603d3192e802), downloaded 2026-10-27 with the owner's approval and
+  kept unchanged in `src/decomp/modern/shaders/fsr/` (the checksums are of the downloaded bytes, which the repository
+  stores; a Windows checkout may have CRLF line ends). The only third-party source in the repository. Used by
+  `fsr_easu.frag` and `fsr_rcas.frag` ([Vulkan renderer](../future/vulkan-renderer.md)).
+
+## PresentMon (frame presentation measurements)
+
+- [GameTechDev/PresentMon](https://github.com/GameTechDev/PresentMon/releases/tag/v2.6.0) v2.6.0 -
+  `PresentMon-2.6.0-x64.exe`, the console tool, downloaded 2026-10-27 with the owner's approval (980,320 bytes, SHA-256
+  b2a706bc6ad475749e3b7e3409263aa1e6906d45bdcf993f6dbc0f660188f1af; Authenticode signature by Intel Corporation,
+  valid). Kept outside the repository. It needs administrator rights (or the Performance Log Users group) to trace
+  another process, so an unelevated run exits with code 6.
+
 ## dgVoodoo 2 (the Glide and Direct3D renderers)
 
 - [dgVoodoo2 v2.87.5 on GitHub (dege-diosg/dgVoodoo2, the author's releases)](https://github.com/dege-diosg/dgVoodoo2/releases/tag/v2.87.5)

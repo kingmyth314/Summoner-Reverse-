@@ -20,7 +20,8 @@ void gr_opengl_apply_tint_gl(ubyte *rgb);   // vsdk/gr_opengl.cpp: CPU only, sha
 VkDescriptorSetLayout vk_texture_layout;
 VkDescriptorSet vk_texture_set;
 static VkDescriptorPool vk_descriptor_pool;
-static VkSampler vk_samplers[2];               // 0 repeat, 1 clamp to a transparent black border (GL_CLAMP)
+static VkSampler vk_samplers[3];               // 0 repeat, 1 clamp to a transparent black border (GL_CLAMP),
+                                               // 2 clamp to the edge (vk_post.cpp's scale pass)
 static VkPipelineLayout vk_pipeline_layout;
 // [blend pair][0 triangles, 1 lines]
 #define VK_BLEND_PAIRS 6
@@ -208,6 +209,9 @@ bool vk_draw_init()
     si.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
     if (vkCreateSampler(vkc.device, &si, NULL, &vk_samplers[1]) != VK_SUCCESS)
         return false;
+    si.addressModeU = si.addressModeV = si.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    if (vkCreateSampler(vkc.device, &si, NULL, &vk_samplers[2]) != VK_SUCCESS)
+        return false;
 
     VkDescriptorSetLayoutBinding b[2] = {};
     b[0].binding = 0;
@@ -216,7 +220,7 @@ bool vk_draw_init()
     b[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     b[1].binding = 1;
     b[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-    b[1].descriptorCount = 2;
+    b[1].descriptorCount = 3;
     b[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     b[1].pImmutableSamplers = vk_samplers;
     VkDescriptorBindingFlags bf[2] = { VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT |
@@ -235,7 +239,7 @@ bool vk_draw_init()
     if (vkCreateDescriptorSetLayout(vkc.device, &li, NULL, &vk_texture_layout) != VK_SUCCESS)
         return false;
     VkDescriptorPoolSize sizes[2] = { { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_MAX_TEXTURES },
-                                      { VK_DESCRIPTOR_TYPE_SAMPLER, 2 } };
+                                      { VK_DESCRIPTOR_TYPE_SAMPLER, 3 } };
     VkDescriptorPoolCreateInfo pi = {};
     pi.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     pi.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
@@ -284,7 +288,7 @@ void vk_draw_close()
         vkDestroyDescriptorPool(vkc.device, vk_descriptor_pool, NULL);
     if (vk_texture_layout)
         vkDestroyDescriptorSetLayout(vkc.device, vk_texture_layout, NULL);
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < 3; i++)
         if (vk_samplers[i])
             vkDestroySampler(vkc.device, vk_samplers[i], NULL);
     vk_pipeline_layout = VK_NULL_HANDLE;
@@ -366,8 +370,8 @@ void vk_draw(vk_primitive prim, const vk_vertex *v, int nv, const unsigned short
         // OpenGL clips to the viewport; the scissor does that for lines and points outside it.
         float x0 = vs.view_x < 0 ? 0 : vs.view_x, y0 = vs.view_y < 0 ? 0 : vs.view_y;
         float x1 = vs.view_x + vs.view_w, y1 = vs.view_y + vs.view_h;
-        if (x1 > (float)vkc.extent.width) x1 = (float)vkc.extent.width;
-        if (y1 > (float)vkc.extent.height) y1 = (float)vkc.extent.height;
+        if (x1 > (float)vkc.target_extent.width) x1 = (float)vkc.target_extent.width;
+        if (y1 > (float)vkc.target_extent.height) y1 = (float)vkc.target_extent.height;
         VkRect2D sc = { { (int32_t)x0, (int32_t)y0 },
                         { x1 > x0 ? (uint32_t)(x1 - x0) : 0u, y1 > y0 ? (uint32_t)(y1 - y0) : 0u } };
         vkCmdSetScissor(cmd, 0, 1, &sc);
@@ -561,7 +565,7 @@ void vk_gr_opengl_set_viewport()
     int gl_y = gr_screen.max_h - h - y;
     float x0 = ox + floorf(x * s + 0.5f), x1 = ox + floorf((x + w) * s + 0.5f);
     float by0 = oy + floorf(gl_y * s + 0.5f), by1 = oy + floorf((gl_y + h) * s + 0.5f);
-    float ch = vkc.extent.height ? (float)vkc.extent.height : (float)gr_screen.max_h;
+    float ch = vkc.target_extent.height ? (float)vkc.target_extent.height : (float)gr_screen.max_h;
     if (s == 1.0f && ox == 0.0f && oy == 0.0f)
         ch = (float)gr_screen.max_h;   // no host map: the window is the game's size
     vs.view_x = x0;
@@ -648,7 +652,7 @@ void vk_gr_opengl_zbuffer_clear()
     ca.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
     ca.clearValue.depthStencil.depth = 1.0f;
     VkClearRect r = {};
-    r.rect.extent = vkc.extent;
+    r.rect.extent = vkc.target_extent;
     r.layerCount = 1;
     vkCmdClearAttachments(cmd, 1, &ca, 1, &r);
 }

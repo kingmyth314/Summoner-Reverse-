@@ -7,9 +7,12 @@
 //   vk_tcache.cpp  the texture cache: bitmaps to images, as gr_opengl_create_texture converts them
 //   vk_scene_level.cpp, vk_scene_mesh.cpp  the level and character mesh draw lists (levelrender_draw_list_opengl,
 //                  gr_opengl_render_character_mesh) in Vulkan
-//   vk_post.cpp    the end of a frame: brightness, the FAST badge
+//   vk_post.cpp    the end of a frame: brightness, the FAST badge, [Display] RenderScale's scene image and its pass
+//                  into the window
 // The game draws in its own pixels (gr_screen.max_w x max_h); the frame maps them into the window the way
-// modern/display.cpp maps the OpenGL viewport (modern_display_map), so the output is the same.
+// modern/display.cpp maps the OpenGL viewport (modern_display_map), so the output is the same. It draws into the
+// target: the swapchain image itself, or with a RenderScale other than 1 the scene image, the window's size times the
+// scale, which vk_post_frame then scales into the swapchain image.
 #ifndef MODERN_VK_INTERNAL_H
 #define MODERN_VK_INTERNAL_H
 
@@ -75,7 +78,11 @@ struct vk_context {
     HWND hwnd;
     VkSwapchainKHR swapchain;
     VkFormat swap_format;
-    VkExtent2D extent;                         // the window's client size
+    VkExtent2D extent;                         // the window's client size (the swapchain's)
+    float render_scale;                        // [Display] RenderScale, 1 = draw into the swapchain image
+    VkExtent2D target_extent;                  // what the game draws into: extent, or extent x render_scale
+    VkImage scene_image;                       // the scene image when render_scale != 1 (owned by vk_post.cpp)
+    VkImageView scene_view;
     uint32_t image_count;
     VkImage images[8];
     VkImageView views[8];
@@ -130,9 +137,14 @@ void vk_end_frame();                           // gr_opengl_flip: submit and pre
 void vk_suspend_rendering();                   // ends the rendering pass (for transfers inside a frame)
 void vk_resume_rendering();                    // starts it again, keeping the contents
 void vk_wait_idle();                           // glFinish's place: the GPU has finished everything submitted
-// Reads a rectangle of the frame being drawn (window pixels, top row first) as B, G, R, A bytes; black when no frame
+// Reads a rectangle of the frame being drawn (target pixels, top row first) as B, G, R, A bytes; black when no frame
 // is being drawn. Suspends the rendering pass and waits for the GPU.
 void vk_read_window(int x, int y, int w, int h, ubyte *bgra);
+// The same from the swapchain image (window pixels), for the finished picture after vk_post_frame.
+void vk_read_swapchain(int x, int y, int w, int h, ubyte *bgra);
+// The image the game draws into and its view (the scene image, else the frame's swapchain image).
+VkImage vk_target_image();
+VkImageView vk_target_view();
 // Records commands outside the rendering pass (texture uploads): the frame's command buffer when a frame is being
 // recorded, else a one-time command buffer that vk_end_transfer submits and waits for.
 VkCommandBuffer vk_begin_transfer();
@@ -140,7 +152,8 @@ void vk_image_barrier(VkCommandBuffer cmd, VkImage image, VkImageAspectFlags asp
                       VkImageLayout to, VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
                       VkPipelineStageFlags2 dst_stage, VkAccessFlags2 dst_access);
 void vk_end_transfer();
-// The game's pixels in the window: scale and offset, as modern/display.cpp maps the OpenGL viewport.
+// The game's pixels in the target: scale and offset, as modern/display.cpp maps the OpenGL viewport into the window,
+// times the render scale.
 void vk_game_to_window(float *scale, float *off_x, float *off_y);
 
 // ---- vk_draw.cpp ----
@@ -177,10 +190,14 @@ void vk_tcache_free_slot(int slot);            // only once no frame in flight u
 
 // ---- vk_post.cpp ----
 // The end of a frame, before the capture and the present: the brightness pass and the fast-mode badge, as
-// modern_swap_buffers draws them for OpenGL. Outside the rendering pass.
+// modern_swap_buffers draws them for OpenGL, and with a render scale the pass from the scene image into the swapchain
+// image. Outside the rendering pass.
 bool vk_post_init();
 void vk_post_close();
 void vk_post_frame(VkCommandBuffer cmd);
+// After the swapchain is made: the scene image (and FSR's intermediate image) for the window's size, or none at a
+// render scale of 1. Sets vkc.target_extent, scene_image, scene_view. The GPU is idle.
+bool vk_post_resize();
 VkPipelineLayout vk_draw_pipeline_layout();
 extern VkDescriptorSetLayout vk_texture_layout;
 extern VkDescriptorSet vk_texture_set;
