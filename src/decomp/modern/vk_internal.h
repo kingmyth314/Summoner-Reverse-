@@ -5,8 +5,9 @@
 //   vk_device.cpp  loader, instance, device, swapchain, the frame (acquire, record, submit, present), read-back
 //   vk_draw.cpp    the OpenGL back end's state (gr::Mode), pipelines, and the drawing entry points
 //   vk_tcache.cpp  the texture cache: bitmaps to images, as gr_opengl_create_texture converts them
-//   vk_scene.cpp   the level and character mesh draw lists (levelrender_draw_list_opengl, gr_opengl_render_
-//                  character_mesh) in Vulkan
+//   vk_scene_level.cpp, vk_scene_mesh.cpp  the level and character mesh draw lists (levelrender_draw_list_opengl,
+//                  gr_opengl_render_character_mesh) in Vulkan
+//   vk_post.cpp    the end of a frame: brightness, the FAST badge
 // The game draws in its own pixels (gr_screen.max_w x max_h); the frame maps them into the window the way
 // modern/display.cpp maps the OpenGL viewport (modern_display_map), so the output is the same.
 #ifndef MODERN_VK_INTERNAL_H
