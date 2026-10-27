@@ -79,6 +79,8 @@ LONG WINAPI modern_RegCloseKey(HKEY h);
 // ---- gamma.cpp ----
 void modern_brightness(HWND wnd, int cw, int ch);   // modern_swap_buffers: the options screen's brightness (K90)
 void modern_speed_badge(HDC dc, int cw, int ch, int off_x, int off_y, double scale);   // "FAST xN" in play
+float modern_brightness_pass_gamma(HWND wnd);  // the Vulkan back end: the ramp applied, or the gamma for its pass (0: none)
+float modern_speed_badge_factor();             // the badge's factor while it is shown, else 0
 
 // ---- agent.cpp ----
 void modern_agent_init();                      // after the main window exists (os_init)

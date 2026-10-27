@@ -38,7 +38,7 @@
     X(vkUnmapMemory) X(vkCreateCommandPool) X(vkDestroyCommandPool) X(vkAllocateCommandBuffers) \
     X(vkResetCommandPool) X(vkBeginCommandBuffer) X(vkEndCommandBuffer) X(vkCreateFence) X(vkDestroyFence) \
     X(vkWaitForFences) X(vkResetFences) X(vkCreateSemaphore) X(vkDestroySemaphore) X(vkCmdPipelineBarrier2) \
-    X(vkCmdBeginRendering) X(vkCmdEndRendering) X(vkCmdCopyBufferToImage) X(vkCmdCopyImageToBuffer) \
+    X(vkCmdBeginRendering) X(vkCmdEndRendering) X(vkCmdCopyBufferToImage) X(vkCmdCopyImageToBuffer) X(vkCmdCopyImage) \
     X(vkCmdClearAttachments) X(vkCreateShaderModule) X(vkDestroyShaderModule) X(vkCreatePipelineLayout) \
     X(vkDestroyPipelineLayout) X(vkCreateGraphicsPipelines) X(vkDestroyPipeline) X(vkCreateDescriptorSetLayout) \
     X(vkDestroyDescriptorSetLayout) X(vkCreateDescriptorPool) X(vkDestroyDescriptorPool) \
@@ -156,6 +156,17 @@ int vk_tcache_bound(int stage);                // the descriptor slot of the tex
 bool vk_tcache_clamps(int stage);              // its wrap mode: GL_CLAMP (true) or GL_REPEAT
 void vk_tcache_set_clamp(int stage, bool clamp);
 void vk_tcache_frame_done(int frame);          // the frame's GPU work finished: free what it still used
+// Descriptor slots for the back end's own images (modern/vk_post.cpp).
+int vk_tcache_alloc_slot(VkImageView view);   // -1 when none is free
+void vk_tcache_free_slot(int slot);            // only once no frame in flight uses it
+
+// ---- vk_post.cpp ----
+// The end of a frame, before the capture and the present: the brightness pass and the fast-mode badge, as
+// modern_swap_buffers draws them for OpenGL. Outside the rendering pass.
+bool vk_post_init();
+void vk_post_close();
+void vk_post_frame(VkCommandBuffer cmd);
+VkPipelineLayout vk_draw_pipeline_layout();
 extern VkDescriptorSetLayout vk_texture_layout;
 extern VkDescriptorSet vk_texture_set;
 #define VK_MAX_TEXTURES 4096                   // descriptor slots, more than MAX_BITMAPS (2800)

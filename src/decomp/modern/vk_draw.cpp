@@ -184,6 +184,11 @@ static bool vk_create_pipelines()
     return ok;
 }
 
+VkPipelineLayout vk_draw_pipeline_layout()
+{
+    return vk_pipeline_layout;
+}
+
 bool vk_draw_init()
 {
     VkSamplerCreateInfo si = {};

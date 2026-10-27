@@ -170,8 +170,8 @@ static void vk_destroy_texture_now(vk_texture *t)
     t->mem.block = -1;
 }
 
-// The texture may still be read by the frame being recorded and the one before it: freed when this frame slot
-// comes round again (vk_tcache_frame_done).
+// The texture may still be read by the frames in flight: freed when the frame slot it is listed with comes round
+// again and its fence has been waited for (vk_tcache_frame_done).
 static void vk_retire_texture(vk_texture *t)
 {
     if (!t->image) {
@@ -180,7 +180,10 @@ static void vk_retire_texture(vk_texture *t)
         t->mem.block = -1;
         return;
     }
-    vk_garbage *g = &vk_garbage_lists[vk_frame_index];
+    // While a frame is recorded, with that frame (its slot's fence covers it and the frame before). Between frames
+    // vk_frame_index already names the next slot, whose fence is two frames old: the texture goes with the frame just
+    // submitted instead.
+    vk_garbage *g = &vk_garbage_lists[vk_recording ? vk_frame_index : (vk_frame_index + VK_FRAMES - 1) % VK_FRAMES];
     if (g->count == g->cap) {
         g->cap = g->cap ? g->cap * 2 : 64;
         vk_texture *n = new vk_texture[g->cap];
@@ -561,6 +564,32 @@ static void vk_create_texture(int bm, vk_entry *e, int update)
     e->bitmap = bm;
     e->created = true;
     set_current_mempool(old_pool);
+}
+
+int vk_tcache_alloc_slot(VkImageView view)
+{
+    if (!vk_free_slot_count)
+        return -1;
+    int slot = vk_free_slots[--vk_free_slot_count];
+    VkDescriptorImageInfo di = {};
+    di.imageView = view;
+    di.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    VkWriteDescriptorSet wr = {};
+    wr.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    wr.dstSet = vk_texture_set;
+    wr.dstBinding = 0;
+    wr.dstArrayElement = (uint32_t)slot;
+    wr.descriptorCount = 1;
+    wr.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    wr.pImageInfo = &di;
+    vkUpdateDescriptorSets(vkc.device, 1, &wr, 0, NULL);
+    return slot;
+}
+
+void vk_tcache_free_slot(int slot)
+{
+    if (slot >= 0)
+        vk_free_slots[vk_free_slot_count++] = slot;
 }
 
 // ---- the entry points ----

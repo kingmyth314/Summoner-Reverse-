@@ -6,8 +6,8 @@
 // OpenGL viewport. One command buffer per frame; texture uploads and read-backs inside a frame suspend the rendering
 // pass, record their copy and resume it, so they are ordered with the draws as under OpenGL.
 //
-// Settings (summonerfix.ini): [Display] Renderer=Vulkan selects this back end; [Display] VulkanPresent = Fifo (the
-// default: vsync), Mailbox or Immediate; [Debug] VulkanValidation=1 loads the Khronos validation layer (the Vulkan
+// Settings (summonerfix.ini): [Display] Renderer=Vulkan selects this back end; [Display] VulkanPresent = Auto (the
+// default: the game's vsync setting), Fifo, Mailbox or Immediate; [Debug] VulkanValidation=1 loads the Khronos validation layer (the Vulkan
 // SDK) and logs its messages to summonerfix.log.
 
 #ifdef _WIN64
@@ -337,24 +337,36 @@ static VkImageView vk_make_view(VkImage image, VkFormat format, VkImageAspectFla
     return view;
 }
 
+// [Display] VulkanPresent: Auto (the default) follows the game's vsync setting as the OpenGL build does: Fifo with
+// [Experimental] VSync=1, else Mailbox (not capped by the display, no tearing) or, without it, Immediate. Fifo,
+// Mailbox or Immediate pick one; a mode the display does not offer falls back to Fifo, which every display has.
 static VkPresentModeKHR vk_choose_present_mode()
 {
     char want[32];
-    modern_ini_str("Display", "VulkanPresent", "Fifo", want, sizeof want);
-    VkPresentModeKHR wanted = !_stricmp(want, "Immediate") ? VK_PRESENT_MODE_IMMEDIATE_KHR
-                            : !_stricmp(want, "Mailbox")   ? VK_PRESENT_MODE_MAILBOX_KHR
-                                                           : VK_PRESENT_MODE_FIFO_KHR;
+    modern_ini_str("Display", "VulkanPresent", "Auto", want, sizeof want);
     uint32_t n = 0;
     vkGetPhysicalDeviceSurfacePresentModesKHR(vkc.gpu, vkc.surface, &n, NULL);
     VkPresentModeKHR modes[16];
     if (n > 16)
         n = 16;
     vkGetPhysicalDeviceSurfacePresentModesKHR(vkc.gpu, vkc.surface, &n, modes);
+    bool has[4] = { false, false, false, false };   // immediate, mailbox, fifo, fifo relaxed
     for (uint32_t i = 0; i < n; i++)
-        if (modes[i] == wanted)
-            return wanted;
+        if ((int)modes[i] >= 0 && (int)modes[i] < 4)
+            has[(int)modes[i]] = true;
+    if (!_stricmp(want, "Auto")) {
+        if (modern_ini_int("Experimental", "VSync", 0))
+            return VK_PRESENT_MODE_FIFO_KHR;
+        return has[VK_PRESENT_MODE_MAILBOX_KHR] ? VK_PRESENT_MODE_MAILBOX_KHR
+             : has[VK_PRESENT_MODE_IMMEDIATE_KHR] ? VK_PRESENT_MODE_IMMEDIATE_KHR : VK_PRESENT_MODE_FIFO_KHR;
+    }
+    VkPresentModeKHR wanted = !_stricmp(want, "Immediate") ? VK_PRESENT_MODE_IMMEDIATE_KHR
+                            : !_stricmp(want, "Mailbox")   ? VK_PRESENT_MODE_MAILBOX_KHR
+                                                           : VK_PRESENT_MODE_FIFO_KHR;
+    if (has[wanted])
+        return wanted;
     vk_log("present mode %s is not available; using Fifo (vsync)", want);
-    return VK_PRESENT_MODE_FIFO_KHR;   // always available
+    return VK_PRESENT_MODE_FIFO_KHR;
 }
 
 // The swapchain's format (the pipelines are made for it) and present mode, once.
@@ -514,6 +526,7 @@ static void vk_shutdown()
         for (int i = 0; i < VK_FRAMES; i++)
             if (vk_frames[i].pool)
                 vkResetCommandPool(vkc.device, vk_frames[i].pool, 0);
+        vk_post_close();
         vk_tcache_close_all();
         vk_draw_close();
         vk_destroy_transfer();
@@ -571,7 +584,7 @@ bool vk_init(HWND hwnd)
     }
     vkc.depth_format = vk_choose_depth_format();
     vk_choose_surface_format();
-    if (!vk_create_frames() || !vk_draw_init() || !vk_tcache_init()) {
+    if (!vk_create_frames() || !vk_draw_init() || !vk_tcache_init() || !vk_post_init()) {
         vk_log("setting up the frames, textures or pipelines failed");
         vk_shutdown();
         return false;
@@ -884,6 +897,7 @@ void vk_end_frame()
 {
     if (!vk_recording)
         return;
+    vk_post_frame(vk_frames[vk_frame_index].cmd);   // brightness, the badge (as modern_swap_buffers before a capture)
     if (modern_capture_wanted()) {
         // Agent mode's capture (modern/display.cpp) of the finished picture.
         int w = (int)vkc.extent.width, h = (int)vkc.extent.height;

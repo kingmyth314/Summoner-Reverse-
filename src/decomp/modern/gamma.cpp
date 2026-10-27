@@ -239,6 +239,38 @@ void modern_brightness(HWND wnd, int cw, int ch)
     ramp_apply(wnd, gamma);
 }
 
+// The Vulkan back end's brightness (modern/vk_post.cpp): the same choice as modern_brightness, with Vulkan's pass in
+// place of the OpenGL shader (always available there). The monitor ramp is applied here; returns the gamma for the
+// caller's pass, 0 for none.
+float modern_brightness_pass_gamma(HWND wnd)
+{
+    if (bright_mode < 0) {
+        char mode[16];
+        modern_ini_str("Display", "Brightness", "Auto", mode, sizeof mode);
+        bright_mode = !_stricmp(mode, "Off") ? MODE_OFF : !_stricmp(mode, "Ramp") ? MODE_RAMP
+                    : !_stricmp(mode, "Shader") ? MODE_SHADER : MODE_AUTO;
+        atexit(ramp_at_exit);
+    }
+    float gamma = gr_gamma;
+    if (bright_mode == MODE_OFF || !(gamma > 0.0f) || fabsf(gamma - 1.0f) < 0.005f) {
+        ramp_restore();
+        return 0.0f;
+    }
+    if (bright_mode != MODE_RAMP) {
+        ramp_restore();
+        return gamma;
+    }
+    ramp_apply(wnd, gamma);
+    return 0.0f;
+}
+
+// The badge's factor while it is shown (fast mode on, in play), else 0.
+float modern_speed_badge_factor()
+{
+    float factor = modern_keys_speed_active();
+    return factor > 0.0f && gameseq_state_cur == 4 ? factor : 0.0f;
+}
+
 // ---- the fast-mode badge ----
 
 static int font_height;
