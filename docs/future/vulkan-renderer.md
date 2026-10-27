@@ -371,8 +371,10 @@ How it works (`vk_post.cpp`, `vk_device.cpp`):
   image of the window's size and RCAS into the swapchain image (`fsr_easu.frag`, `fsr_rcas.frag`, AMD's headers in
   `shaders/fsr/`, the constants computed in the shader from the two sizes); above 1, `downscale.frag`, the mean of
   n x n filtered samples per window pixel (n = the scale rounded up). These pipelines have no depth attachment.
-- The FAST badge is drawn after the scale pass, at window pixels, so it stays sharp. Save thumbnails read the scene
-  image; agent captures read the swapchain image (the picture as shown).
+- The FAST badge is drawn after the scale pass, at window pixels, so it stays sharp. The game's own read-backs (the
+  save thumbnail, screenshots) read the scene image at its resolution, so below 1 they are made from fewer pixels
+  (box-filtered from a smaller area; where that area is smaller than the picture asked for, each pixel takes the
+  nearest one, read in bounds); agent captures read the swapchain image (the picture as shown).
 - A third sampler (clamp to the edge) for the scale pass, so EASU's gathers at the border repeat the last texels.
 
 Checked (Observed, 2560x1440 borderless unless said):
@@ -387,6 +389,15 @@ Checked (Observed, 2560x1440 borderless unless said):
   the character's and the sword's edges; the badge is sharp at every scale.
 - At 0.75 in a window: two resizes on the menu and one in play (the scene image remade each time, 813x1066 to
   1200x1066), minimise and restore, the brightness pass (`gr_gamma` poked from 1.0 to 1.5: brighter), and `savenow`
-  (the thumbnail's read-back of the scene image; the save written): 0 validation errors.
-- Not done: the 48-level soak at a RenderScale other than 1 (the default path is the one that was soaked), other GPUs.
-  Inferred: at 2 the GPU fills four times the pixels, which a weaker GPU may not do at 120 fps.
+  (the thumbnail's read-back of the scene image; the save written): 0 validation errors. RenderScale 1 with the
+  validation layer, menu to play with the badge: 0 errors.
+- **The save thumbnail at a game width of 1366 is wrong, at any RenderScale and under OpenGL too:** saves made in
+  play at 1366 wide show a thumbnail that is black (Vulkan) or a stretched patch of sky (OpenGL) except for a strip
+  at its right edge, which holds the scene. At `GameWidth=1024` the same save under Vulkan has a correct thumbnail.
+  RenderScale 1 and 0.75, window and full screen, gave the same picture, so RenderScale is not the cause. Inferred:
+  `saveload_capture_thumbnail` renders the level into a 201x151 clip at the top-left and reads it back, and the
+  widescreen code's projection for a 1366-wide screen does not fit that clip; to look into separately (the
+  experimental build's widescreen, not the renderer).
+- Not done: the 48-level soak at a RenderScale other than 1, nor again at 1 after this change (the soak of M5 ran on
+  the exe before it; at 1 the menus are pixel-identical to that exe); other GPUs. Inferred: at 2 the GPU fills four
+  times the pixels, which a weaker GPU may not do at 120 fps.
