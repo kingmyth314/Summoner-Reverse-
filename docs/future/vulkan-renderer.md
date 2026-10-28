@@ -378,6 +378,15 @@ the time from one present to the next (`[Debug] VulkanTiming=1`, the `present:` 
     gives as well, so they do not show variable refresh (Inferred).
   - Unknown: which link is off. It could be FreeSync in the monitor's menu, Adaptive Sync in Intel Graphics Software,
     or this driver's Vulkan support for variable refresh. None of these was checked.
+  - **Cause, 2026-10-28: the cable.** The owner found no Adaptive Sync setting to turn on. Windows reports the
+    monitor connected over HDMI (`WmiMonitorConnectionParams` output technology 5, Observed).
+    - The monitor's EDID offers variable refresh over HDMI only in AMD's form: an AMD vendor block (OUI 00001A,
+      FreeSync 48-144 Hz). Its HDMI Forum block has no VRR range (HDMI 2.0, 600 MHz); Observed, from the registry's
+      EDID.
+    - Intel's GPUs do variable refresh over DisplayPort Adaptive-Sync and HDMI 2.1 VRR, not over AMD's HDMI
+      extension (Inferred, from Intel's published support). So over this cable there is no variable refresh to engage.
+    - The monitor has a DisplayPort input. Untested: the same runs over a DisplayPort connection, or USB-C to
+      DisplayPort if the PC's USB-C port carries video.
 
 ### RenderScale, 2026-10-27: FSR 1 and supersampling
 
