@@ -22,6 +22,20 @@ confirmed 120 FPS at 1:1 game speed.
 
 **Windows 11 Smart App Control.** When Smart App Control is on (Windows Security, App & browser control), Windows refuses to load unsigned DLLs such as SummonerFix's `dinput.dll`, and may refuse to start freshly built or downloaded programs such as the [save editor](../save-editor.md) (a fresh build was refused on 2026-10-21, while the config app ran). The DLL is refused **silently**: the game starts, but without SummonerFix (original speed, no OpenGL fix, no fixes). The Code Integrity event log shows the block (event 3077, error 4551 for `LoadLibrary`). Seen on the development PC on 2026-10-21, when Smart App Control left its evaluation mode by itself. The choices are the player's: turn Smart App Control off (Windows cannot turn it back on without a reset) or play without SummonerFix. A release signed with a code-signing certificate from a trusted authority would avoid it (a self-signed one does not). Since 2026-10-21 `SummonerFixConfig.exe` checks for it at start-up (`HKLM\SYSTEM\CurrentControlSet\Control\CI\Policy`, `VerifiedAndReputablePolicyState` = 1) and says so in a warning, tested on a PC where it was on.
 
+**Signing options (researched 2026-11-01, undecided).** Only a signature that chains to a trusted certificate
+authority gets past Smart App Control; a self-signed certificate does not. The candidates, for SummonerFix's own files
+only (`dinput.dll`, `SummonerFixConfig.exe`, the save editor; never the rebuilt game exes, see
+[Public release](../public-release.md)):
+- **SignPath Foundation:** free for open-source projects with an OSI licence and a public repository. The releases
+  must be built by CI (GitHub Actions) so the signed file can be traced to a commit; the publisher shown is SignPath
+  Foundation.
+- **Azure Artifact Signing** (formerly Trusted Signing): about $10 a month; individuals only in the US and Canada, and
+  onboarding was restricted at times in 2026 (**Unknown**: the current price; Microsoft's pages disagree).
+- **A traditional code-signing certificate** from a certificate authority: a few hundred dollars a year, on a hardware
+  key or a cloud service.
+
+Even when signed, SmartScreen may warn on downloads for a few weeks while the files gain a reputation.
+
 Source: `src/summonerfix/`. Build: `tools/build-summonerfix.ps1 [-Install]` (LLVM-MinGW,
 `i686-w64-mingw32-gcc`). Test harness: `tools/test-run.ps1`.
 
