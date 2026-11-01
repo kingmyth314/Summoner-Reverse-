@@ -20,7 +20,7 @@
 #include "vsdk/gr/gr.h"
 #include "modern/modern.h"
 #include "summoner/summoner.h"
-#ifdef EXPERIMENTAL_BUILD
+#ifdef FIXED_BUILD
 #include "experimental/experimental.h"
 #endif
 
@@ -56,7 +56,7 @@ static bool get_map(display_map *m)
     if (display_center_menus < 0)
         display_center_menus = modern_ini_int("Display", "CenterMenus", 1);
     bool full_panel = false;
-#ifdef EXPERIMENTAL_BUILD
+#ifdef FIXED_BUILD
     full_panel = gameseq_state_cur == 4 && exp_ws_full_panel();
 #endif
     if (display_center_menus && gr_screen.max_w > 1024 && (gameseq_state_cur != 4 || full_panel)) {

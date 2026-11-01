@@ -6,7 +6,7 @@
 #include <string.h>
 #include "experimental/experimental.h"
 
-#ifdef EXPERIMENTAL_BUILD
+#ifdef FIXED_BUILD
 
 // <exe folder>\<name>
 static void exp_path(const char *name, char *out, int n)
@@ -67,4 +67,4 @@ void exp_log(const char *fmt, ...)
     }
 }
 
-#endif // EXPERIMENTAL_BUILD
+#endif // FIXED_BUILD

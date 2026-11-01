@@ -39,7 +39,7 @@ static bool Frametime_initialized;            // 0x257f0a0  (dword slot)
 static int Frametime_paused;                  // 0x257f0a4
 static int Animation_timer_paused;            // 0x257f0a8
 
-#ifdef EXPERIMENTAL_BUILD
+#ifdef FIXED_BUILD
 // experimental/display.cpp: nonzero while [Experimental] FrameRateCap is set (declared here until
 // include/experimental/experimental.h has it).
 extern int exp_display_exact_ms;
@@ -193,7 +193,7 @@ void FrameDone()
         reported_frametime /= frametime_divisor;
         frames_rendered++;
 
-#ifdef EXPERIMENTAL_BUILD
+#ifdef FIXED_BUILD
         // Experimental FrameRateCap (experimental/display.cpp). The game truncates each frame to whole milliseconds
         // for the tickers, so they run slower than the frame time by up to a millisecond per frame (at 144 frames a
         // second, 6.94 ms count as 6). With a cap set, the fraction is carried to the next frame.

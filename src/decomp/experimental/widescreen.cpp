@@ -26,11 +26,11 @@
 //    ([Display] SidePanelsOverWorld, default 1).
 //  - Everything else (the HUD alone, pickup, play menu, conversation, assess): call shifting.
 // [Display] CenterHud (default 1) switches it off, as in SummonerFix.
-// EXPERIMENTAL_BUILD: Widescreen CenterHud
+// FIXED_BUILD: Widescreen CenterHud
 #include <string.h>
 #include "experimental/experimental.h"
 
-#ifdef EXPERIMENTAL_BUILD
+#ifdef FIXED_BUILD
 
 #include "vsdk/vsdk.h"
 #include "vsdk/gr/gr.h"
@@ -208,4 +208,4 @@ int exp_ws_panel_width(int width)
     return (ws_panels_over_world && ws_get_shift() > 0 && ws_in_game()) ? 0 : width;
 }
 
-#endif // EXPERIMENTAL_BUILD
+#endif // FIXED_BUILD

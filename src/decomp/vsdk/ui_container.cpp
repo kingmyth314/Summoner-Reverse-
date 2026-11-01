@@ -13,8 +13,8 @@
 #include "vsdk/os/debug.h"
 #include "vsdk/bmpman/bmpman.h"
 #include "vsdk/ui/ui_container.h"
-#include "experimental/experimental.h"   // EXPERIMENTAL_BUILD only (HiResInterface)
-#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
+#include "experimental/experimental.h"   // FIXED_BUILD only (HiResInterface)
+#include "experimental/ui_shift.h"   // FIXED_BUILD only (widescreen); keep it the last include
 
 // Original __FILE__ of this unit (pushed by load_mask_bitmap, 0x5ad9f8).
 #define UI_CONTAINER_CPP "D:\\projects\\Summoner\\pccode\\vsdk\\ui\\ui_container.cpp"
@@ -132,8 +132,8 @@ int ui_container::get_mask_pixel(int x, int y)
         x -= get_screen_x(0);
         y -= get_screen_y(0);
         if (x >= 0 && y >= 0 && x < w && y < h) {
-#ifdef EXPERIMENTAL_BUILD
-            // experimental build: HiResInterface. An upscaled mask is read at the matching point of the real image.
+#ifdef FIXED_BUILD
+            // fixed build: HiResInterface. An upscaled mask is read at the matching point of the real image.
             int stride = exp_bm_real_point(mask_bm, &x, &y, w);
             return mask_data[y * stride + x];
 #else

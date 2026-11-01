@@ -795,7 +795,8 @@ static void OpenPadWindow(void)
     ShowWindow(g_padWnd, SW_SHOW);
 }
 
-// The "Experimental build" window: the switches only the experimental builds (Sum-exp.exe, Sum-exp-clang-x64.exe) read
+// The "Rebuilt exe features" window: the switches only the rebuilt fixed and experimental exes (Sum-fixed*.exe, Sum-exp*.exe)
+// read; autosave only the experimental ones
 // ([Experimental] Autosave..., FrameRateCap, HiResInterface, VSync, LevelReverb; [Debug] ExperimentalLog; docs/experimental-build.md). Saved with its own Save button.
 typedef struct { const char *section, *iniKey, *label; int def, lo, hi; } ExpNumber;
 static const ExpNumber k_expNumbers[] = {
@@ -806,8 +807,8 @@ static const ExpNumber k_expNumbers[] = {
 #define EXP_NUMBER_COUNT (int)(sizeof k_expNumbers / sizeof k_expNumbers[0])
 typedef struct { const char *section, *iniKey, *label; int def, id; } ExpCheck;
 static const ExpCheck k_expChecks[] = {
-    {"Experimental", "Autosave", "Autosave (autosave1.sav ..., never your own saves)", 0, ID_EXPAUTOSAVE},
-    {"Experimental", "AutosaveOnLevelChange", "Also autosave after entering a new level", 1, ID_EXPLEVEL},
+    {"Experimental", "Autosave", "Autosave (autosave1.sav ..., never your own saves; experimental build only)", 0, ID_EXPAUTOSAVE},
+    {"Experimental", "AutosaveOnLevelChange", "Also autosave after entering a new level (experimental build only)", 1, ID_EXPLEVEL},
     {"Experimental", "VSync", "VSync (OpenGL and Vulkan renderers)", 0, ID_EXPVSYNC},
     {"Experimental", "HiResInterface", "Upscaled interface images at their original size (OpenGL)", 0, ID_EXPHIRES},
     {"Experimental", "LevelReverb", "Each level's own reverb (heard only with EAX sound)", 0, ID_EXPREVERB},
@@ -859,7 +860,7 @@ static LRESULT CALLBACK ExpWndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
 {
     switch (msg) {
     case WM_CREATE: {
-        Label(w, "Read only by the experimental builds (Sum-exp.exe, Sum-exp-clang-x64.exe), when the game starts.", 10, 10, EXP_WND_W - 20);
+        Label(w, "Read only by the rebuilt fixed and experimental exes (Sum-fixed*.exe, Sum-exp*.exe), at start.", 10, 10, EXP_WND_W - 20);
         Label(w, "The original Sum.exe with SummonerFix ignores them. Every feature is off by default.", 10, 26, EXP_WND_W - 20);
         int y = 52;
         for (int i = 0; i < EXP_CHECK_COUNT; i++, y += 24) {
@@ -882,7 +883,7 @@ static LRESULT CALLBACK ExpWndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
     case WM_COMMAND:
         if (LOWORD(wp) == ID_EXPSAVE) {
             if (ExpSave(w)) {
-                SetStatus("Experimental build settings saved. They apply the next time an experimental build starts.");
+                SetStatus("Rebuilt exe settings saved. They apply the next time a fixed or experimental exe starts.");
                 DestroyWindow(w);
             }
         } else if (LOWORD(wp) == ID_EXPRESET) {
@@ -909,7 +910,7 @@ static void OpenExpWindow(void)
     AdjustWindowRect(&r, style, FALSE);
     RECT m;
     GetWindowRect(g_wnd, &m);
-    g_expWnd = CreateWindowExA(WS_EX_TOPMOST, "SummonerFixExp", "SummonerFix - Experimental build", style, m.left + 60, m.top + 60,
+    g_expWnd = CreateWindowExA(WS_EX_TOPMOST, "SummonerFixExp", "SummonerFix - Rebuilt exe features", style, m.left + 60, m.top + 60,
                                r.right - r.left, r.bottom - r.top, g_wnd, NULL, GetModuleHandleA(NULL), NULL);
     ShowWindow(g_expWnd, SW_SHOW);
 }
@@ -1181,7 +1182,7 @@ static LRESULT CALLBACK DispWndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         Label(w, "Renderer:", 10, 40, 130);
         HWND r = DispCombo(w, ID_DISPRENDER, 150, 37, 390);
         SendMessageA(r, CB_ADDSTRING, 0, (LPARAM) "OpenGL (recommended)");
-        SendMessageA(r, CB_ADDSTRING, 0, (LPARAM) "Vulkan (64-bit build only; the others use OpenGL)");
+        SendMessageA(r, CB_ADDSTRING, 0, (LPARAM) "Vulkan (64-bit builds only; the others use OpenGL)");
         SendMessageA(r, CB_ADDSTRING, 0, (LPARAM) "Direct3D (needs dgVoodoo 2)");
         SendMessageA(r, CB_ADDSTRING, 0, (LPARAM) "Glide (needs dgVoodoo 2)");
         Label(w, "Show the game:", 10, 72, 130);
@@ -1198,7 +1199,7 @@ static LRESULT CALLBACK DispWndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         DispCheck(w, ID_DISPMENUS, "Centre the menus on wide screens", 202);
         DispCheck(w, ID_DISPHUD, "Centre the HUD and in-game screens on wide screens", 224);
         DispCheck(w, ID_DISPPANELS, "Keep the world full width behind the map, spells and skills panels", 246);
-        Label(w, "Vulkan renderer only (Sum-exp-clang-x64.exe):", 10, 280, DISP_WND_W - 20);
+        Label(w, "Vulkan renderer only (the 64-bit builds):", 10, 280, DISP_WND_W - 20);
         Label(w, "Render scale:", 10, 304, 130);
         DispCombo(w, ID_DISPSCALE, 150, 301, 220);
         Label(w, "FSR sharpening:", 10, 336, 130);
@@ -1317,8 +1318,8 @@ static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         Button(w, ID_CONSOLE_BIND, "&Bind key...", 540, 418, 120);
         Label(w, "Controller (next game start):", 770, 372, 230);
         Button(w, ID_PADOPEN, "Co&ntroller...", 770, 390, 120);
-        Label(w, "Experimental build (Sum-exp.exe):", 770, 424, 230);
-        Button(w, ID_EXPOPEN, "E&xperimental...", 770, 442, 120);
+        Label(w, "Rebuilt exes (Sum-fixed, Sum-exp):", 770, 424, 230);
+        Button(w, ID_EXPOPEN, "Fe&atures...", 770, 442, 120);
         Button(w, ID_CLOSE, "Close", 540, 472, 120);
         Button(w, ID_DISPOPEN, "&Display / resolution...", 770, 472, 170);
         g_status = CreateWindowA("STATIC", "", WS_CHILD | WS_VISIBLE, 10, 510, 990, 20, w, (HMENU)ID_STATUS, NULL, NULL);

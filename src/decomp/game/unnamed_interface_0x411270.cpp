@@ -64,8 +64,8 @@
 #include "summoner/interface/new_spell.h"
 #include "summoner/interface/new_status.h"
 #include "summoner/interface/new_tutorial.h"
-#include "experimental/experimental.h"   // EXPERIMENTAL_BUILD only (widescreen: side panels, the 3D view)
-#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
+#include "experimental/experimental.h"   // FIXED_BUILD only (widescreen: side panels, the 3D view)
+#include "experimental/ui_shift.h"   // FIXED_BUILD only (widescreen); keep it the last include
 
 #define NUM_SCREENS            23
 #define UI_TOOLTIP_TEXT_LEN    64
@@ -445,8 +445,8 @@ int interface_frame(int key)
         if (hud_target_mode == 1 && ui_pending_use_skill >= 0x26 && ui_pending_use_skill <= 0x35 && cur_summon)
             hud_target_mode = -1;
     }
-#ifdef EXPERIMENTAL_BUILD
-    int ws_undo = exp_ws_side_panel_begin(true);    // experimental build: widescreen (side panels: raw cursor)
+#ifdef FIXED_BUILD
+    int ws_undo = exp_ws_side_panel_begin(true);    // fixed build: widescreen (side panels: raw cursor)
 #endif
     switch (interface_cur_screen) {
     case 1:  key = inventory_frame(key); break;
@@ -472,7 +472,7 @@ int interface_frame(int key)
     case 21: key = credits_frame(key); break;
     case 22: key = help_frame(key); break;
     }
-#ifdef EXPERIMENTAL_BUILD
+#ifdef FIXED_BUILD
     exp_ws_side_panel_end(ws_undo);
 #endif
     if (!interface_screen_is_fullscreen())
@@ -514,8 +514,8 @@ void interface_draw()
         if (!fullscreen)
             hud_draw();
     }
-#ifdef EXPERIMENTAL_BUILD
-    int ws_undo = exp_ws_side_panel_begin(false);   // experimental build: widescreen (side panels stay left)
+#ifdef FIXED_BUILD
+    int ws_undo = exp_ws_side_panel_begin(false);   // fixed build: widescreen (side panels stay left)
 #endif
     switch (interface_cur_screen) {
     case 1:  inventory_draw(); break;
@@ -541,7 +541,7 @@ void interface_draw()
     case 21: credits_draw(); break;
     case 22: help_draw(); break;
     }
-#ifdef EXPERIMENTAL_BUILD
+#ifdef FIXED_BUILD
     exp_ws_side_panel_end(ws_undo);
 #endif
     ui_message_box_draw();
@@ -636,8 +636,8 @@ void interface_pulse_update(float frametime)
     ui_pulse_rgb_phase = (sinf(interface_pulse_time * 9.424778f) + 1.0f) * 0.5f;
 }
 
-#ifdef EXPERIMENTAL_BUILD
-// experimental build: widescreen. This function sizes the 3D view, so it is not interface drawing: the real screen
+#ifdef FIXED_BUILD
+// fixed build: widescreen. This function sizes the 3D view, so it is not interface drawing: the real screen
 // width (the 1024 layout width while a full-screen panel is open), an unshifted clip, and with SidePanelsOverWorld
 // the world kept full width behind a side panel. ui_shift.h's names are restored after the function.
 #undef set_clip
@@ -735,7 +735,7 @@ void interface_set_view_clip()
     if (!(game_flags & GF_CUTSCENE))
         camera_fov = gr_fov_to_vertical(interface_view_fov);
 }
-#ifdef EXPERIMENTAL_BUILD
+#ifdef FIXED_BUILD
 #undef gr_screen_width
 #undef automap_get_panel_width
 #undef spells_get_panel_width

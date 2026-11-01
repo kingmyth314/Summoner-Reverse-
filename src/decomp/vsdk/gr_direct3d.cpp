@@ -1608,8 +1608,8 @@ void gr_d3d_init_device()
         }
     }
 
-#ifdef EXPERIMENTAL_BUILD
-    // Experimental build: dgVoodoo 2's adapter ("dgVoodoo DX API Layer", whatever card it emulates) is no 3dfx card
+#ifdef FIXED_BUILD
+    // Fixed build: dgVoodoo 2's adapter ("dgVoodoo DX API Layer", whatever card it emulates) is no 3dfx card
     // (docs/future/dgvoodoo.md; SummonerFix patches the same test in the shipped exe).
     if (stristr(id.szDriver, "3dfx") || (_strnicmp(id.szDescription, "dgVoodoo", 8) && stristr(id.szDescription, "Voodoo"))
         || stristr(id.szDescription, "Banshee")) {

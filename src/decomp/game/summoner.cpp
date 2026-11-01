@@ -58,7 +58,7 @@
 #include "summoner/multi/multisave.h"     // pxo_cfg_flags
 #include "summoner/interface/interface.h"
 #include "summoner/interface/new_pxochat.h"   // pxo_run_updater_on_exit
-#include "experimental/experimental.h"   // EXPERIMENTAL_BUILD only (the renderer's window mode)
+#include "experimental/experimental.h"   // FIXED_BUILD only (the renderer's window mode)
 #include "modern/modern.h"               // MODERN_BUILD only (the in-source host, L3b)
 
 void console_sound_stop();            // 0x43d710 (defined after its first caller)
@@ -437,8 +437,8 @@ void LoadSettings()
     if (cmdline_param_direct3d.found())
         renderer = GR_DIRECT3D;
 
-#if defined(REBUILT_OPENGL) && defined(EXPERIMENTAL_BUILD)
-    // Experimental build: the renderer SummonerFix's [Display] Renderer selects through the registry answer
+#if defined(REBUILT_OPENGL) && defined(FIXED_BUILD)
+    // Fixed build: the renderer SummonerFix's [Display] Renderer selects through the registry answer
     // (OpenGL, or Direct3D / Glide, e.g. through dgVoodoo 2: docs/future/dgvoodoo.md). OpenGL runs in a window
     // (SummonerFix's output window); Direct3D and Glide fullscreen (201, which Glide requires) unless
     // [Display] Windowed=1.
@@ -542,8 +542,8 @@ void GameInit()
     int start;
     const char *font_name;
 
-#ifdef EXPERIMENTAL_BUILD
-    exp_game_options_init();   // experimental build: SummonerFix's [Game] options (before the main menu)
+#ifdef FIXED_BUILD
+    exp_game_options_init();   // fixed build: SummonerFix's [Game] options (before the main menu)
 #endif
     os_seed_random(-1);
     switch (resolution_index) {

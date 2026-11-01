@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include "experimental/experimental.h"
 
-#ifdef EXPERIMENTAL_BUILD
+#ifdef FIXED_BUILD
 
 #include "vsdk/vsdk.h"
 #include "engine/camera/camera.h"
@@ -56,4 +56,4 @@ void exp_game_options_init()
     }
 }
 
-#endif // EXPERIMENTAL_BUILD
+#endif // FIXED_BUILD

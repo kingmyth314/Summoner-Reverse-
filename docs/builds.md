@@ -36,6 +36,11 @@ The alternative, long-lived `fixed` and `experimental` git branches, keeps the r
 Its cost: every later decompilation fix on main has to be merged into both branches by hand, and the byte-match
 proof cannot check them.
 
+**1a. Features in the fixed build (2026-11-01, the owner's decision).** The experimental features that do not change how
+the game plays moved to `FIXED_BUILD` (widescreen interface, game options, controller, frame-rate cap and vsync,
+upscaled interface, level reverb, dgVoodoo 2); autosave and the Tentacle Beast grab stay `EXPERIMENTAL_BUILD`
+([Fixed build changes](fixed-build.md#features-from-the-experimental-build-2026-11-01)).
+
 **2. Compiler: stay on VC6 SP5 (recommended) for now.** The 5,613 proven functions are proven only under that
 compiler; a modern compiler changes float precision, struct layout and every matching device at once. A port to a
 current compiler (and later 64-bit or other platforms) is listed as an experimental item, not a prerequisite.

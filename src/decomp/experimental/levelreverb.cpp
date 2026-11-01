@@ -15,7 +15,7 @@
 #include <string.h>
 #include "experimental/experimental.h"
 
-#ifdef EXPERIMENTAL_BUILD
+#ifdef FIXED_BUILD
 
 #include "vsdk/vsdk.h"
 #include "vsdk/vfile/file.h"
@@ -63,4 +63,4 @@ void exp_level_reverb(const char *name)
         eax_set_listener_props(&p);
 }
 
-#endif // EXPERIMENTAL_BUILD
+#endif // FIXED_BUILD

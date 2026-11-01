@@ -18,7 +18,7 @@
 #include <string.h>
 #include "experimental/experimental.h"
 
-#ifdef EXPERIMENTAL_BUILD
+#ifdef FIXED_BUILD
 
 #include "vsdk/vsdk.h"
 #include "vsdk/bmpman/bmpman.h"
@@ -157,4 +157,4 @@ int exp_bm_real_point(int bm, int *x, int *y, int nominal_w)
     return bm_bitmaps[index].width;
 }
 
-#endif // EXPERIMENTAL_BUILD
+#endif // FIXED_BUILD

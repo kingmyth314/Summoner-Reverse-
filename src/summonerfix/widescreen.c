@@ -238,7 +238,7 @@ void WidescreenInstall(void)
         // WidescreenFullPanel, which needs g_shift. No call is patched. Other rebuilt exes: nothing.
         if (RebuiltFixInSource("CenterHud")) {
             g_shift = (g_cfg.width - LAYOUT_WIDTH) / 2;
-            Log("widescreen UI: in this exe's source (EXPERIMENTAL_BUILD); full-screen panels shifted here (%d px)", g_shift);
+            Log("widescreen UI: in this exe's source; full-screen panels shifted here (%d px)", g_shift);
         } else {
             Log("widescreen UI: not in this rebuilt exe; the interface stays at the left");
         }

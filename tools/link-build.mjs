@@ -132,9 +132,9 @@ for (const u of units) {
   compiled++;
   if (/error C\d+|error:|\(exit/.test(text)) { failed++; console.log(`compile failed: ${u}\n${text.split("\n").filter((x) => /error/.test(x)).slice(0, 5).join("\n")}`); }
 }
-// The experimental build's own units (src/decomp/experimental/*.cpp, docs/experimental-build.md): not part of
-// Sum.exe, so not in vc6-matches.txt; compiled only with EXPERIMENTAL_BUILD.
-if (defines.includes("EXPERIMENTAL_BUILD")) {
+// The fixed and experimental builds' feature units (src/decomp/experimental/*.cpp, docs/experimental-build.md): not
+// part of Sum.exe, so not in vc6-matches.txt; compiled with FIXED_BUILD (autosave.cpp's body is EXPERIMENTAL_BUILD only).
+if (defines.includes("FIXED_BUILD")) {
   const xdir = join(src, "experimental");
   for (const f of existsSync(xdir) ? readdirSync(xdir).filter((n) => n.endsWith(".cpp")).sort() : []) {
     const cpp = join(xdir, f), obj = join(objDir, "experimental_" + f.replace(/\.cpp$/, ".obj"));

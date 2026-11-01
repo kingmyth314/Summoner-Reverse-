@@ -26,9 +26,9 @@
 #include <stdlib.h>
 #include "experimental/experimental.h"
 
-#ifdef EXPERIMENTAL_BUILD
+#ifdef FIXED_BUILD
 
-// EXPERIMENTAL_BUILD: controller Controller
+// FIXED_BUILD: controller Controller
 
 #include "vsdk/os/mouse.h"
 #include "vsdk/os/key.h"
@@ -528,4 +528,4 @@ extern "C" __declspec(dllexport) int __cdecl ExpControllerSyntheticDone()
     return pad_inited && *(volatile LONG *)&pad_synth_done != 0;
 }
 
-#endif // EXPERIMENTAL_BUILD
+#endif // FIXED_BUILD

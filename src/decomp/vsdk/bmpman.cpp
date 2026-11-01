@@ -26,7 +26,7 @@
 #include "vsdk/gr/gr.h"
 #include "vsdk/bmpman/bmpman.h"
 #include "vsdk/bmpman/targautils.h"
-#include "experimental/experimental.h"   // EXPERIMENTAL_BUILD only (HiResInterface)
+#include "experimental/experimental.h"   // FIXED_BUILD only (HiResInterface)
 
 // Original __FILE__ of this unit (0x5a58f0 and its copies; string pooling is off).
 #define BMPMAN_CPP "D:\\projects\\Summoner\\pccode\\vsdk\\bmpman\\bmpman.cpp"
@@ -609,8 +609,8 @@ int bm_load_internal(const char *name, int path_id, int force_new)
                 frame->total_bytes = bm_bytes_per_pixel(format) * num_pixels;
         }
     }
-#ifdef EXPERIMENTAL_BUILD
-    // experimental build: HiResInterface (experimental/hires.cpp) notes an upscaled loose file's original size.
+#ifdef FIXED_BUILD
+    // fixed build: HiResInterface (experimental/hires.cpp) notes an upscaled loose file's original size.
     exp_bm_loaded(index, num_frames > 1 ? num_frames + 1 : 1, filename, w, h, reduced);
 #endif
     return index;
@@ -746,8 +746,8 @@ bitmap_entry *bm_alloc_entry()
     e->next = next;
     next->prev = e;
     e->prev = &bm_used_list;
-#ifdef EXPERIMENTAL_BUILD
-    exp_bm_entries_allocated(e - bm_bitmaps, 1);   // experimental build: HiResInterface
+#ifdef FIXED_BUILD
+    exp_bm_entries_allocated(e - bm_bitmaps, 1);   // fixed build: HiResInterface
 #endif
     return e;
 }
@@ -772,8 +772,8 @@ bitmap_entry *bm_alloc_entries(int count)
                 list_remove(&bm_bitmaps[j]);
                 list_append(&bm_used_list, &bm_bitmaps[j]);
             }
-#ifdef EXPERIMENTAL_BUILD
-            exp_bm_entries_allocated(start, count);   // experimental build: HiResInterface
+#ifdef FIXED_BUILD
+            exp_bm_entries_allocated(start, count);   // fixed build: HiResInterface
 #endif
             return &bm_bitmaps[start];
         }
@@ -951,8 +951,8 @@ void bm_get_dimensions(int bm, int *w, int *h)
         *w = *h = 0;
         return;
     }
-#ifdef EXPERIMENTAL_BUILD
-    // experimental build: HiResInterface. An upscaled loose file reports the size the game was made for; the
+#ifdef FIXED_BUILD
+    // fixed build: HiResInterface. An upscaled loose file reports the size the game was made for; the
     // texture upload (bm_get_mipmap_info) keeps the real size.
     if (exp_bm_nominal_size(i, w, h))
         return;

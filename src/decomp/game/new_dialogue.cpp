@@ -18,7 +18,7 @@
 #include "engine/gamesound/gamesound.h"
 #include "levelscripts/conversation.h"
 #include "summoner/interface/new_dialogue.h"
-#include "experimental/ui_shift.h"   // EXPERIMENTAL_BUILD only (widescreen); keep it the last include
+#include "experimental/ui_shift.h"   // FIXED_BUILD only (widescreen); keep it the last include
 
 #define DIALOGUE_NUM_BUTTONS 2
 

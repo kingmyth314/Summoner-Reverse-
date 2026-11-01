@@ -28,10 +28,10 @@
 #include "summoner/interface/interface.h"
 #include "engine/camera/camera.h"
 #include "levelscripts/level_scripts.h"
-#include "experimental/experimental.h"   // EXPERIMENTAL_BUILD only (widescreen)
+#include "experimental/experimental.h"   // FIXED_BUILD only (widescreen)
 
-#ifdef EXPERIMENTAL_BUILD
-// experimental build: widescreen. This unit's reads of the cursor (the mouse record for world clicks, the camera's
+#ifdef FIXED_BUILD
+// fixed build: widescreen. This unit's reads of the cursor (the mouse record for world clicks, the camera's
 // edge turn) are world code: the raw position, not the interface's shifted one.
 #define game_mouse_x exp_mouse_raw_x
 #define game_mouse_y exp_mouse_raw_y

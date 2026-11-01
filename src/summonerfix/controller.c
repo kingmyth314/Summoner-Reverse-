@@ -47,8 +47,8 @@ static PadGamepad g_synth;
 static DWORD g_synthStart, g_synthMs;
 static volatile LONG g_synthActive; // 1 while the synthetic state applies
 static volatile LONG g_synthDone = 1; // 1 once a frame after the synthetic state has released its inputs
-// The experimental exe reads the controller itself (src/decomp/experimental/controller.cpp, [Controller] key in
-// Sum-exp.fixes): SummonerFix then does nothing per frame and forwards agent mode's pad to the exe's exports.
+// The fixed and experimental exes read the controller themselves (src/decomp/experimental/controller.cpp, [Controller] key in
+// their .fixes): SummonerFix then does nothing per frame and forwards agent mode's pad to the exe's exports.
 typedef void(__cdecl *PFN_ExpSetSynth)(int, int, int, int, unsigned, unsigned long);
 typedef int(__cdecl *PFN_ExpSynthDone)(void);
 static PFN_ExpSetSynth g_expSetSynth;
@@ -292,7 +292,7 @@ void ControllerInstall(void)
         g_expSynthDone = (PFN_ExpSynthDone)GetProcAddress(exe, "ExpControllerSyntheticDone");
         g_inSource = 1;
         g_enabled = 0;
-        Log("controller: in this exe's source (EXPERIMENTAL_BUILD), not driven by SummonerFix; agent pad %s",
+        Log("controller: in this exe's source, not driven by SummonerFix; agent pad %s",
             g_expSetSynth && g_expSynthDone ? "forwarded to the exe" : "not available (exports missing)");
         return;
     }

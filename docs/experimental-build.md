@@ -5,6 +5,9 @@ nav_order: 6.48
 
 # Experimental build: new features in the source
 
+**2026-11-01:** every feature here except autosave and the Tentacle Beast grab is in the [fixed build](fixed-build.md#features-from-the-experimental-build-2026-11-01)
+too (their gates are `FIXED_BUILD`); the experimental build is the fixed build plus those two.
+
 **Status (2026-10-21):** the framework and four features are written (controller, tentacle grab, autosave, frame-rate
 cap and vsync) and smoke-tested in the game the same evening (agent mode, test saves); see "In-game tests" below.
 **2026-10-24/25:** upscaled interface and fonts (`HiResInterface`), the widescreen interface and the game options in the
@@ -40,14 +43,14 @@ decided (2026-10-21) on one tree with three configurations, so the features are 
 ## Features
 
 All are written, compile, and keep the shipped build unchanged.
-Switches are in the config app: **Experimental...** (autosave, frame-rate cap, vsync, upscaled interface, the log), **Controller...**,
+Switches are in the config app: **Features...** (named **Experimental...** until 2026-11-01: autosave, frame-rate cap, vsync, upscaled interface, level reverb, the log), **Controller...**,
 and the Tentacle Beast box on the main window.
 
 | Feature | Switches | Spec / where | Status |
 |---|---|---|---|
 | Controller, tier 1 | `[Controller] Enabled` and the mapping keys | SummonerFix `controller.c` (the user's test: Xbox-style controllers work, a PS5 DualSense does not); `experimental/controller.cpp` on the game's own input (`mouse_set_pos`, `key_mark`, `mouse_mark_button`), any renderer | cursor tested |
 | Tentacle Beast grab and throw (G250, G251) | `[Experimental] TentacleGrab`, `TentacleGrabChance`; `[Debug] TraceTentacle` | SummonerFix `tentacle.c`, [Tentacle grab](future/tentacle-grab.md); in `game/unnamed_tentacle_beast_0x4c6480.cpp` | tested 2026-10-25: grab, hold, throw, landing and a second grab seen in the sewer boss arena |
-| Level reverb (K261) | `[Experimental] LevelReverb` | new; `experimental/levelreverb.cpp`, one call in `game/level_scripts_common.cpp`: without a loose `data\internal\<level>.eax`, the level's own file from `tables.vpp` through the game's `File` (49 levels), its 14 values parsed as `eax_load_props` does, the flags field (K261's 0xC0A00000) replaced by EAX 2's default 0x3f; logged to `experimental.log` | 2026-11-01: read and parsed in Catacombs, Liangshan and masad (for example Catacombs: room -1000, decay 2.70 s, environment 13, size 13.5). Not heard: it only sounds with EAX (`Soundcard=EAX` on a DirectSound with EAX), which this PC and the 64-bit build lack. A checkbox in `SummonerFixConfig.exe`'s **Experimental build...** window since 2026-11-01 (observed: ticking it and Save writes `LevelReverb=1`) |
+| Level reverb (K261) | `[Experimental] LevelReverb` | new; `experimental/levelreverb.cpp`, one call in `game/level_scripts_common.cpp`: without a loose `data\internal\<level>.eax`, the level's own file from `tables.vpp` through the game's `File` (49 levels), its 14 values parsed as `eax_load_props` does, the flags field (K261's 0xC0A00000) replaced by EAX 2's default 0x3f; logged to `experimental.log` | 2026-11-01: read and parsed in Catacombs, Liangshan and masad (for example Catacombs: room -1000, decay 2.70 s, environment 13, size 13.5). Not heard: it only sounds with EAX (`Soundcard=EAX` on a DirectSound with EAX), which this PC and the 64-bit build lack. A checkbox in `SummonerFixConfig.exe`'s **Features...** window (then **Experimental build...**) since 2026-11-01 (observed: ticking it and Save writes `LevelReverb=1`) |
 | Autosave | `[Experimental] Autosave`, `AutosaveMinutes` (5), `AutosaveOnLevelChange` (1), `AutosaveSlots` (3) | new; `experimental/autosave.cpp`, two small changes in `game/new_saveload.cpp` | tested |
 | Frame-rate cap and vsync | `[Experimental] FrameRateCap` (0 = the game's 120; 30-240), `VSync` (OpenGL) | new; `experimental/display.cpp`, one block in `vsdk/frametime.cpp` | cap tested; vsync not yet |
 | Upscaled interface images | `[Experimental] HiResInterface` (OpenGL) | new; `experimental/hires.cpp`, hooks in `vsdk/bmpman.cpp`, `vsdk/ui_container.cpp`, `vsdk/unnamed_lights_0x51e070.cpp`; [Texture upscaling](future/texture-upscale.md#the-interface-code-change) | tested 2026-10-23: a 2x main-menu background drawn whole, menu clicks work; 2026-10-24 also the fonts (`exp_font_hires`, from `gr_font_create`) and the upscaled VBMs, with the full pack |

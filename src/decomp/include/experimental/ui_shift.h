@@ -2,7 +2,7 @@
 // source files (after every other header): it points their 2D drawing, clip, screen width and mouse calls at the
 // ui_* wrappers, which centre the 1024-wide layout on a wider screen during gameplay. Empty in the shipped and fixed
 // builds.
-#ifdef EXPERIMENTAL_BUILD
+#ifdef FIXED_BUILD
 #ifndef EXPERIMENTAL_UI_SHIFT_H
 #define EXPERIMENTAL_UI_SHIFT_H
 
@@ -40,4 +40,4 @@ int ui_mouse_get_pos(int *x, int *y, int *z);
 #define gr_screen_width ui_gr_screen_width
 #define mouse_get_pos ui_mouse_get_pos
 
-#endif // EXPERIMENTAL_BUILD
+#endif // FIXED_BUILD

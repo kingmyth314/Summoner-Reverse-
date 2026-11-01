@@ -1,16 +1,19 @@
-// The experimental build's additions (docs/experimental-build.md). Everything here exists only when
-// EXPERIMENTAL_BUILD is defined (tools/link-build.mjs --config experimental); the shipped and fixed builds never see
-// it. The code lives in src/decomp/experimental/, one file per feature, which link-build compiles only for that
-// configuration; the byte matching (vc6-compare, vc6-sweep) never reads that folder.
+// The features of the fixed and experimental builds (docs/experimental-build.md). Since 2026-11-01 most exist with
+// FIXED_BUILD (the fixed and experimental configurations): the controller, the widescreen interface, the game options,
+// the frame-rate cap and vsync, the upscaled interface, the level reverb and the dgVoodoo 2 renderers. Autosave and
+// the Tentacle Beast grab change how the game plays and stay EXPERIMENTAL_BUILD only. The shipped build never sees
+// any of it. The code lives in src/decomp/experimental/ (the folder keeps its name), one file per feature, which
+// link-build compiles for both configurations; the byte matching (vc6-compare, vc6-sweep) never reads that folder.
 //
 // Switches: every feature has an ini key in summonerfix.ini next to the exe (the file SummonerFixConfig.exe edits),
 // off by default, so a problem can be ruled out by turning it off. A feature that SummonerFix also provides marks its
-// code with `// EXPERIMENTAL_BUILD: <feature> <Key>`; link-build writes those keys into Sum-exp.fixes, and SummonerFix
+// code with `// FIXED_BUILD: <feature> <Key>` (`EXPERIMENTAL_BUILD:` for the experimental-only ones); link-build
+// writes those keys into the exe's .fixes, and SummonerFix
 // (RebuiltFixInSource) then leaves its own version out, so the two never drive the same thing twice.
 #ifndef EXPERIMENTAL_EXPERIMENTAL_H
 #define EXPERIMENTAL_EXPERIMENTAL_H
 
-#ifdef EXPERIMENTAL_BUILD
+#ifdef FIXED_BUILD
 
 // ---- exp_config.cpp: switches and log ---------------------------------------------------------------------------
 // summonerfix.ini next to the exe; def when the file or the key is missing.
@@ -21,7 +24,7 @@ int  exp_ini_string(const char *section, const char *key, const char *def, char 
 // ExperimentalLog=0 (the default): nothing is written.
 void exp_log(const char *fmt, ...);
 
-// ---- exp_hooks.cpp: the calls from the game's code (each under #ifdef EXPERIMENTAL_BUILD at its call site) ------
+// ---- exp_hooks.cpp: the calls from the game's code (each under #ifdef FIXED_BUILD at its call site) ------------
 // GameTick (0x401070), after mouse_get_pos and before the multiplayer frame and the state's frame handler: the
 // place to feed input for this frame.
 void exp_frame_begin();
@@ -34,11 +37,13 @@ void exp_level_loaded(bool ok);
 // controller.cpp: [Controller] (tier 1, the SummonerFix controller in the source)
 void exp_controller_init();
 void exp_controller_frame();
-// autosave.cpp: [Experimental] Autosave
+#ifdef EXPERIMENTAL_BUILD
+// autosave.cpp: [Experimental] Autosave (experimental build only)
 void exp_autosave_init();
 void exp_autosave_frame();
 void exp_autosave_level_loaded(bool ok);
 bool exp_autosave_enabled();      // [Experimental] Autosave is on (read at the first frame, before any screen opens)
+#endif
 // display.cpp: [Experimental] display options (frame-rate cap, vsync, field of view)
 void exp_display_init();
 void exp_display_frame();
@@ -71,5 +76,5 @@ void exp_level_reverb(const char *name);                 // level_parse_table, w
 // The Tentacle Beast grab is written inside game/unnamed_tentacle_beast_0x4c6480.cpp under EXPERIMENTAL_BUILD
 // ([Experimental] TentacleGrab); it needs no hook here.
 
-#endif // EXPERIMENTAL_BUILD
+#endif // FIXED_BUILD
 #endif

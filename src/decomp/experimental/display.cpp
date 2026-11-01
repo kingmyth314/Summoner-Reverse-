@@ -21,7 +21,7 @@
 #include <windows.h>
 #include "experimental/experimental.h"
 
-#ifdef EXPERIMENTAL_BUILD
+#ifdef FIXED_BUILD
 
 #include "vsdk/vsdk.h"
 #include "vsdk/os/frametime.h"
@@ -175,4 +175,4 @@ void exp_display_frame()
     }
 }
 
-#endif // EXPERIMENTAL_BUILD
+#endif // FIXED_BUILD

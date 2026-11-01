@@ -5,6 +5,11 @@ nav_order: 6.475
 
 # Fixed build: the source fixes
 
+**Status (2026-11-01):** the fixed build also has the experimental build's features that do not change how the game
+plays: the widescreen interface, the game options, the controller, the frame-rate cap and vsync, the upscaled
+interface, the level reverb and dgVoodoo 2 (see "Features from the experimental build" below). Autosave and the
+Tentacle Beast grab stay in the experimental build.
+
 **Status (2026-10-26):** 53 fixes, the keys of `Sum-fixed.fixes`: 46 game bugs, 4 timing and start-up bugs (G1-G3,
 C1), 2 launcher settings (`CustomResolution`, `ResolutionDefault`) and the movies under OpenGL (`MoviesOpenGL`).
 
@@ -53,6 +58,45 @@ Where each one stands in the fixed build:
 
 The rest is a larger piece of work: a native display layer for the fixed build (an OpenGL path that scales and
 centres the 1024x768 picture itself) would replace most of the open rows at once.
+
+## Features from the experimental build (2026-11-01)
+
+The owner asked for the experimental build's features that do not change how the game plays to be in the fixed build
+too. Before, the fixed build lacked things the original game gets from SummonerFix: `Sum-fixed.exe` with SummonerFix
+logged "widescreen UI: not in this rebuilt exe; the interface stays at the left", and the 64-bit fixed build, which
+runs without SummonerFix, had no controller and no game options either.
+
+| Feature | Switches | In the fixed build since 2026-11-01 |
+|---|---|---|
+| Widescreen interface | `[Display] CenterHud`, `SidePanelsOverWorld` (on) | yes |
+| Game options | `[Game] CameraZoomMax`, `SkipIntroMovies`, `InteractRange`, `ContainerRange` | yes |
+| Controller | `[Controller] Enabled` | yes |
+| Frame-rate cap and vsync | `[Experimental] FrameRateCap`, `VSync` | yes |
+| Upscaled interface images | `[Experimental] HiResInterface` | yes |
+| Level reverb (K261, a bug of the original) | `[Experimental] LevelReverb` | yes |
+| dgVoodoo 2 (Direct3D and Glide) | `[Display] Renderer`, `Windowed` | yes |
+| Autosave | `[Experimental] Autosave` ... | no: a new feature, experimental only |
+| Tentacle Beast grab and throw | `[Experimental] TentacleGrab` | no: changes a boss fight, experimental only |
+
+How: the moved features' gates are `FIXED_BUILD` instead of `EXPERIMENTAL_BUILD` (the experimental configuration
+defines both, so it is unchanged), `link-build` compiles `src/decomp/experimental/` for both configurations, and
+autosave and the tentacle grab keep `EXPERIMENTAL_BUILD`. The folder, the `exp_` names, the `[Experimental]` ini
+section and `experimental.log` keep their names, so existing settings files still work. The markers of the features
+SummonerFix also has are `// FIXED_BUILD: <feature> <Key>`, so `Sum-fixed.fixes` now lists `CenterHud`,
+`Controller` and `LevelReverb` (K261) and SummonerFix stands down for them. The level reverb's marker had been
+written so that link-build read the key as `reverb`; it is `K261 LevelReverb` now. `SummonerFixConfig.exe`'s
+**Experimental...** button became **Features...** ("Rebuilt exe features"), with autosave marked experimental only.
+
+Tested 2026-11-01 (test saves, 1366x768, `FrameRateCap=60`, `LevelReverb=1`, `ExperimentalLog=1`):
+- **Observed:** `Sum-fixed.exe` (VC6) and `Sum-fixed-clang-x64.exe` each play Wolong and the sewer with a summon and
+  walls of fire (`link-soak --only Wolong,sewer`) at 60 fps. `experimental.log` shows "fixed build: started", the game
+  options, "widescreen: width 1366, interface shift 171", the cap and each level's reverb file read (not set: no EAX).
+  The captures show the HUD centred. SummonerFix's log for `Sum-fixed.exe`: "controller: in this exe's source" and
+  "widescreen UI: in this exe's source; full-screen panels shifted here (171 px)".
+- **Observed:** the sweep keeps 5,613 matches with 0 lost; the shipped, fixed and experimental configurations link
+  under VC6, clang 32-bit and clang 64-bit with no unresolved or duplicate symbols.
+- **Not tested** in the fixed build: a real controller, vsync, dgVoodoo 2, the upscaled interface (tested before in the
+  experimental build, from the same code).
 
 ## How a fix is written
 
