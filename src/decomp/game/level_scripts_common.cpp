@@ -53,6 +53,7 @@
 #include "levelscripts/savegame.h"
 #include "levelscripts/conversation.h"
 #include "levelscripts/script_internal.h"
+#include "experimental/experimental.h"
 
 #define LEVEL_SCRIPTS_COMMON_FILE "D:\\projects\\Summoner\\pccode\\levelscripts\\Scripts\\level_scripts_common.cpp"
 
@@ -711,7 +712,13 @@ void level_parse_table()
         snd_set_eax_environment("generic");
         sprintf(eax_name, "%s.eax", level_filename);
         file_make_path(path_internal_copy, eax_name, eax_path);
+#ifdef EXPERIMENTAL_BUILD
+        // EXPERIMENTAL_BUILD: level reverb LevelReverb: without a loose file, the level's own .eax from the packfiles.
+        if (!eax_load_props(eax_path))
+            exp_level_reverb(eax_name);
+#else
         eax_load_props(eax_path);
+#endif
     }
     level_create_world_effects();
 }

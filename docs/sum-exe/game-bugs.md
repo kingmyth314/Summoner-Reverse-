@@ -2625,7 +2625,9 @@ size 0x38, `0x522596`). All 49 `.eax` files in `tables.vpp` end in `-5.000000` a
 runtime `fopen` (`0x52243e`), which does not see packfiles; the retail install has no `data\internal` directory, and every
 level keeps the environment "generic" set just before (`0x4cbf75`). `cmd_eax_save_props` (`0x4ca970`) is a console
 command, and v1.40 has no console. *Inferred:* loaded, the flags `0xC0A00000` clear the six EAX scale and clip flags
-and set reserved bits; a driver may also reject the whole set.
+and set reserved bits; a driver may also reject the whole set. Since 2026-11-01 the experimental build's
+`[Experimental] LevelReverb` reads the files from the packfile and replaces such flags with 0x3f
+([experimental build](../experimental-build.md)); the shipped and fixed builds are unchanged.
 
 **K262. m[0][1] read for m[0][0].** For a negative trace with `m[2][2]` the chosen diagonal,
 `quaternion__set_from_matrix_b` computes `sqrt(m[2][2] - (m[0][1] + m[1][1]) + 1)` (`fld [ecx+0x4]; fadd [ecx+0x10];

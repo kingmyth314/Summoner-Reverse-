@@ -243,7 +243,17 @@ another writer shows up.
 
 **Decisions** (the user, 2026-10-25):
 1. **Renderer:** the 64-bit build has the OpenGL renderer only, the one the fixed build already uses, and DirectSound
-   without EAX. The 32-bit builds keep everything.
+   without EAX. The 32-bit builds keep everything. *(Later: Vulkan joined OpenGL in L4, 2026-10-26.)*
+   **Sound, revisited 2026-11-01:** the sound code was surveyed for an L4 module. Every `snd_*` call goes through
+   the `ds_*` / `ds3d_*` / `snd_stream_*` / `acm_*` units of `vsdk`, which are a clean seam (`docs/sum-exe/sound.md`).
+   Two replacements were offered:
+   - XAudio2, in Windows, with an I3DL2 reverb close to EAX 2;
+   - OpenAL Soft, an LGPL DLL that emulates EAX and adds HRTF.
+
+   The owner chose to **keep DirectSound**: sound already works through Windows' own DirectSound, and only EAX
+   reverb is missing. A DirectSound-with-EAX wrapper would supply the EAX property set the game asks for (not tried).
+   The per-level reverb files the original never read are now read by the experimental build
+   ([experimental build](../experimental-build.md), `LevelReverb`).
 2. **Movies:** decoded with FFmpeg's libavcodec, which reads Bink 1 (LGPL, loaded as DLLs, never committed; the
    download is asked for first).
 3. **Testing:** agent mode, and the test-save, dump and key hooks the checks use, move from SummonerFix (a 32-bit DLL)

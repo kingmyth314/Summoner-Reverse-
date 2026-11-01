@@ -66,6 +66,8 @@ void exp_ws_side_panel_end(int undo);
 bool exp_ws_full_panel();                                // a full-screen panel in play, centred like a menu
 int  exp_ws_view_width();                                // interface_set_view_clip's gr_screen_width
 int  exp_ws_panel_width(int width);                      // interface_set_view_clip's side-panel widths
+// levelreverb.cpp: [Experimental] LevelReverb, the level's <level>.eax read from the packfiles (game-bugs K261)
+void exp_level_reverb(const char *name);                 // level_parse_table, when no loose file was found
 // The Tentacle Beast grab is written inside game/unnamed_tentacle_beast_0x4c6480.cpp under EXPERIMENTAL_BUILD
 // ([Experimental] TentacleGrab); it needs no hook here.
 
