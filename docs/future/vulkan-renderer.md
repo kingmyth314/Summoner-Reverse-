@@ -70,7 +70,10 @@ places draw with OpenGL themselves, so redirecting is smaller than a fourth mode
 - Two texture stages: stage 0 modulated, or `GL_DECAL` under stage 1 (modulated) for lightmapped surfaces.
 - Textures clamp with `GL_CLAMP` (the border colour shows at the edges under linear filtering), and the packed 16-bit
   formats (RGBA 4444, 5551) for 8888, 4444, 1555 and 888 bitmaps: the Vulkan cache quantises the same way, so
-  the pictures can be compared.
+  the pictures can be compared. *Correction (written 2026-10-26, corrected 2026-11-01):* the game takes the packed
+  formats only when the OpenGL version string contains "1.2". On this PC it does not, so OpenGL uploads 8 bits per
+  channel, and the Vulkan cache as built does the same (`vk_tcache.cpp` sets `gl_packed_pixels_supported` false).
+  Neither renderer quantises.
 - `GL_POLYGON` fans of up to 30 vertices; lines as `GL_LINE_STRIP`.
 - The read-back flips rows (OpenGL's origin is the bottom left); Vulkan's is the top left, so no flip.
 
@@ -100,6 +103,8 @@ a frame suspend the rendering pass, copy, and resume, so they are ordered with t
 After M5: present-mode options for variable refresh, an off-screen image for upscaling (FSR 1 first), full-colour
 textures as an option. Since 2026-10-27: frame pacing measured ([Variable refresh](#variable-refresh-2026-10-27-frame-pacing)),
 RenderScale with FSR 1 done ([RenderScale](#renderscale-2026-10-27-fsr-1-and-supersampling)); full-colour textures open.
+**2026-11-01:** the textures turned out to be full colour already; the movies were the one 16-bit path, now 24-bit
+([Full colour](#full-colour-2026-11-01-textures-already-movies-now)).
 
 ## Settings
 
@@ -431,3 +436,48 @@ Checked (Observed, 2560x1440 borderless unless said):
 - Not done: the 48-level soak at a RenderScale other than 1, nor again at 1 after this change (the soak of M5 ran on
   the exe before it; at 1 the menus are pixel-identical to that exe); other GPUs. Inferred: at 2 the GPU fills four
   times the pixels, which a weaker GPU may not do at 120 fps.
+- **The soak at 0.75 and 1.5, 2026-11-01** (`link-soak`, 48 levels each, the validation layer on, the 64-bit
+  experimental build of `main` with the save-thumbnail fix, 2560x1440 full screen at 1366 wide; scene images
+  1920x1080 and 3840x2160). Observed:
+  - Both runs: 45 of 48 levels played through, and the same three failed as at 1 (IonaExt, LPalaceInt,
+    tancredhouse). In both, `errorlog.txt` shows the soak's known crash: a read of address 0x64.
+  - 0 validation errors and 0 warnings in every level.
+  - After the summon, the walls of fire and the capture: 69-120 fps at 0.75, 71-120 fps at 1.5. Most levels showed
+    105-120.
+  - Still not done: RenderScale 2 over the whole game, and other GPUs.
+
+### Full colour, 2026-11-01: textures already, movies now
+
+The plan listed "full-colour textures" as open. It turned out to be mostly done already.
+- **Textures are already full colour (Observed in code):**
+  - Of the game's 8,461 images, 7,106 are 24-bit and 1,246 are 32-bit TGAs ([Texture upscaling](texture-upscale.md)).
+  - `bm_read_header` loads them as `BM_FORMAT_888` and `8888`.
+  - The Vulkan cache uploads every bitmap as RGBA8 (`vk_tcache.cpp`), as OpenGL does on this PC (the correction
+    under "The interface to reproduce").
+- **The rest of the 16-bit content is the data's own:**
+  - The 104 VBMs are 16-bit in their files.
+  - The level lightmaps are 16-bit texels in the level files (`s3d_load_lightmap`, format 1555).
+  - The fonts are 4444 atlases built from the font files.
+  - Nothing more is there to recover.
+- **The save thumbnail** is RGB565 in the save file; left as it is, so saves keep their format.
+- **The movies were the one path that cut colour.**
+  - The FIXED_BUILD movie path (`vsdk/unnamed_movie_0x5172f0.cpp`) asks Bink for RGB565 into a 640x480 bitmap.
+  - In the 64-bit build the Bink calls are FFmpeg's (`modern/bink.cpp`), which decode to full colour, so the 16 bits
+    were a loss with no reason left.
+  - Under `MODERN_BUILD` on 64-bit, the bitmap is now `BM_FORMAT_888` and Bink's surface type 1 (24-bit, BGR bytes),
+    which `BinkCopyToBuffer` converts with `AV_PIX_FMT_BGR24`.
+  - That conversion also interpolates the chroma (`SWS_BILINEAR | SWS_FULL_CHR_H_INT | SWS_ACCURATE_RND`, where
+    565 used `SWS_POINT`), so the picture also differs slightly beyond bit depth.
+  - The 32-bit builds keep RGB565 through the real `binkw32.dll`.
+
+**Checked** (Observed, 2026-11-01): `vlogo.bik` captured at 4, 6.5 and 9 s into the intro, 1:1 in a 1024x768
+window at game width 1024, under both renderers, against the exe before the change.
+
+| | Levels per channel (R, G, B) | Distinct colours in the lit pixels |
+|---|---|---|
+| Before (RGB565), Vulkan and OpenGL | 32, 64, 32 | about 2,070 |
+| After (24-bit), Vulkan and OpenGL | 256, 256, 256 | about 15,800 |
+
+- Mean colours agree within the frame-to-frame difference (for example 147.6/148.4/151.8 against
+  150.5/149.1/154.6), and the red underline of the THQ logo stays red. So red and blue are not swapped.
+- The dark box around the logo shows visible steps at 565 and smooth edges at 24 bits.

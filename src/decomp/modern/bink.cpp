@@ -5,7 +5,8 @@
 // The game uses eight Bink calls (vsdk/unnamed_movie_0x5172f0.cpp). Built with FFmpeg's headers (link-build with
 // FFMPEG_DIR), they decode the movie with FFmpeg, whose libavcodec reads Bink 1 video and audio: the DLLs
 // (avformat-63, avcodec-63, avutil-61, swscale-10, swresample-7) are loaded at run time from the exe's folder, so the
-// game starts without them and then plays no movies. Video becomes RGB565 for BinkCopyToBuffer, paced by the clock in
+// game starts without them and then plays no movies. Video becomes RGB565 or 24-bit BGR (the surface type the caller
+// asks for) in BinkCopyToBuffer, paced by the clock in
 // BinkWait; audio becomes 16-bit stereo through waveOut. Without FFmpeg's headers, BinkOpen fails and the game skips
 // the movie, as it does without binkw32.
 #if defined(MODERN_BUILD) && defined(_WIN64)
@@ -234,16 +235,20 @@ extern "C" int WINAPI BinkCopyToBuffer(void *bink, void *dest, int destpitch, un
                                        unsigned int destx, unsigned int desty, unsigned int flags)
 {
     (void)destheight;
-    (void)flags;   // always BINKSURFACE565 | BINKCOPYALL in this game
     bink_movie *m = (bink_movie *)bink;
     if (!m->have_frame)
         return 1;   // nothing new: skipped
+    // The surface type is the flags' low bits: BINKSURFACE565 (0xa) as the game passes it, or BINKSURFACE24 (1, BGR
+    // bytes) from the 64-bit build's movie bitmap; 24 bits also interpolates the chroma.
+    bool rgb24 = (flags & 0xf) == 1;
     m->sws = (SwsContext *)p_sws_getContext(m->frame->width, m->frame->height, (AVPixelFormat)m->frame->format,
-                                            m->frame->width, m->frame->height, AV_PIX_FMT_RGB565LE, SWS_POINT, NULL,
-                                            NULL, NULL);
+                                            m->frame->width, m->frame->height,
+                                            rgb24 ? AV_PIX_FMT_BGR24 : AV_PIX_FMT_RGB565LE,
+                                            rgb24 ? SWS_BILINEAR | SWS_FULL_CHR_H_INT | SWS_ACCURATE_RND : SWS_POINT,
+                                            NULL, NULL, NULL);
     if (!m->sws)
         return 1;
-    uint8_t *dst[4] = { (uint8_t *)dest + (size_t)desty * destpitch + (size_t)destx * 2, NULL, NULL, NULL };
+    uint8_t *dst[4] = { (uint8_t *)dest + (size_t)desty * destpitch + (size_t)destx * (rgb24 ? 3 : 2), NULL, NULL, NULL };
     int dst_pitch[4] = { destpitch, 0, 0, 0 };
     p_sws_scale(m->sws, m->frame->data, m->frame->linesize, 0, m->frame->height, dst, dst_pitch);
     p_sws_freeContext(m->sws);

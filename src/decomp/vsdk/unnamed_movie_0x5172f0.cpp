@@ -65,7 +65,19 @@ HBINK movie_bink_handle;                             // 0x26b63e4
 // buffer of Glide or Direct3D only; under OpenGL (SummonerFix's renderer and the rebuilt builds' only one) every
 // movie ended at once without a picture. Here the frame goes into a 640x480 RGB565 user bitmap that is drawn
 // centred like any interface bitmap, so the output window's scaling applies to it too.
-static unsigned short *movie_gl_pixels;
+#if defined(MODERN_BUILD) && defined(_WIN64)
+// MODERN_BUILD: the 64-bit build's Bink calls are FFmpeg's (modern/bink.cpp), which decode to full colour, so the
+// frame is kept at 24 bits (BGR, BM_FORMAT_888) rather than cut to RGB565: no banding in the movies' gradients.
+#define BINKSURFACE24    0x00000001
+#define MOVIE_GL_FORMAT  BM_FORMAT_888
+#define MOVIE_GL_BPP     3
+#define MOVIE_GL_SURFACE BINKSURFACE24
+#else
+#define MOVIE_GL_FORMAT  BM_FORMAT_565
+#define MOVIE_GL_BPP     2
+#define MOVIE_GL_SURFACE BINKSURFACE565
+#endif
+static unsigned char *movie_gl_pixels;
 static int movie_gl_bitmap = -1;
 
 static void movie_gl_release()
@@ -159,11 +171,11 @@ int movie_blit_frame(HBINK bink)
 #ifdef FIXED_BUILD
     case GR_OPENGL:
         if (movie_gl_pixels == NULL) {
-            movie_gl_pixels = new unsigned short[640 * 480];
-            memset(movie_gl_pixels, 0, 640 * 480 * sizeof(unsigned short));
-            movie_gl_bitmap = bm_create(BM_FORMAT_565, 640, 480, movie_gl_pixels, NULL, -1);
+            movie_gl_pixels = new unsigned char[640 * 480 * MOVIE_GL_BPP];
+            memset(movie_gl_pixels, 0, 640 * 480 * MOVIE_GL_BPP);
+            movie_gl_bitmap = bm_create(MOVIE_GL_FORMAT, 640, 480, movie_gl_pixels, NULL, -1);
         }
-        skipped = BinkCopyToBuffer(bink, movie_gl_pixels, 640 * 2, 480, 0, 0, BINKSURFACE565 | BINKCOPYALL);
+        skipped = BinkCopyToBuffer(bink, movie_gl_pixels, 640 * MOVIE_GL_BPP, 480, 0, 0, MOVIE_GL_SURFACE | BINKCOPYALL);
         if (!skipped && movie_gl_bitmap >= 0) {
             gr_mark_texture_dirty(movie_gl_bitmap);
             gr_set_color(0, 0, 0, 255);
