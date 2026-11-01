@@ -24,7 +24,7 @@ how to reproduce each line: [Reproduce and play](quickstart.md).
 
 | Part | State | Page |
 |---|---|---|
-| SummonerFix (`dinput.dll` for the original game) | Windows 10/11, OpenGL, widescreen, key rebinding, controller, 40+ bug fixes with switches | [SummonerFix](summonerfix/index.md) |
+| SummonerFix (`dinput.dll` for the original game) | Windows 10/11, OpenGL, widescreen, key rebinding, controller, 40+ bug fixes with switches; since 2026-11-01 the config app sets the 64-bit build's Vulkan, RenderScale and FSR keys and LevelReverb, and window sizes larger than the screen are shrunk to fit | [SummonerFix](summonerfix/index.md) |
 | Game documentation | 35 topic pages on Sum.exe; 355 bugs checked in the code | [Sum.exe](sum-exe/index.md), [bugs](sum-exe/game-bugs.md) |
 | Save editor | `SummonerSaveEditor.exe`, writes new saves only | [Save editor](save-editor.md) |
 | Texture pack | made from your own install with Real-ESRGAN, never distributed | [Texture upscaling](future/texture-upscale.md) |

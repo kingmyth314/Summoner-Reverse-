@@ -92,11 +92,24 @@ static void window_rect(HWND, RECT *out)
         SetRect(out, 0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
         return;
     }
-    RECT r = { 0, 0, display_window_w, display_window_h };
-    AdjustWindowRect(&r, WS_OVERLAPPEDWINDOW, FALSE);
-    int w = r.right - r.left, h = r.bottom - r.top;
     RECT wa;
     SystemParametersInfoA(SPI_GETWORKAREA, 0, &wa, 0);
+    // A client size larger than the work area is shrunk, keeping its shape, so the window fits (the default
+    // 1600x1200 is taller than a 1080p screen).
+    RECT r = { 0, 0, display_window_w, display_window_h };
+    AdjustWindowRect(&r, WS_OVERLAPPEDWINDOW, FALSE);
+    int fw = (r.right - r.left) - display_window_w, fh = (r.bottom - r.top) - display_window_h;
+    double fit = 1.0;
+    if (display_window_w > 0 && display_window_h > 0) {
+        double fx = (double)((wa.right - wa.left) - fw) / display_window_w;
+        double fy = (double)((wa.bottom - wa.top) - fh) / display_window_h;
+        fit = fx < fy ? fx : fy;
+    }
+    if (fit < 1.0 && fit > 0.0) {
+        SetRect(&r, 0, 0, round_int(display_window_w * fit), round_int(display_window_h * fit));
+        AdjustWindowRect(&r, WS_OVERLAPPEDWINDOW, FALSE);
+    }
+    int w = r.right - r.left, h = r.bottom - r.top;
     int x = wa.left + ((wa.right - wa.left) - w) / 2, y = wa.top + ((wa.bottom - wa.top) - h) / 2;
     if (x < wa.left) x = wa.left;
     if (y < wa.top) y = wa.top;

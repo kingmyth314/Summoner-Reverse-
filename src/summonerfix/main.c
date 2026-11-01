@@ -27,7 +27,7 @@ static void LoadConfig(void)
     lstrcpynA(g_cfg.installPath, dir, MAX_PATH);
 
     // GameWidth=Auto (the default): the interface's 1024x768 layout at the screen's shape, 768 high and as wide as
-    // the desktop's aspect gives (1366x768 at 16:9, 1228x768 at 16:10, 1792x768 at 21:9; never narrower than 1024).
+    // the desktop's aspect gives (1366x768 at 16:9, 1228x768 at 16:10, 1834x768 at 3440x1440; never narrower than 1024).
     // The 3D world is drawn at the screen's own resolution whatever this is; the size only sets how the interface
     // is laid out, so a 768 height keeps it full size (docs/summonerfix/index.md).
     char gw[16];

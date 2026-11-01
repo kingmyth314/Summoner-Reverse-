@@ -289,6 +289,30 @@ Tested 2026-10-24 (2560x1440 screen): the window lists the six sizes with **Matc
 ini's size selected, and Save writes `GameWidth=Auto`; with it the original game and `Sum-exp.exe` both start at
 1366x768 with the widescreen HUD.
 
+**2026-11-01: the 64-bit build's settings, and sizes by screen.** A review of `main` found the config app behind the
+64-bit build. Changed:
+- The renderer list has **Vulkan** (64-bit build only; every other exe treats it as OpenGL, `main.c`). Before, the
+  window knew only OpenGL, Direct3D and Glide, so Save turned `Renderer=Vulkan` back into `OpenGL`.
+- New lists for the Vulkan renderer's `RenderScale` (1; FSR 1's 0.77, 0.67, 0.59 and 0.5; 1.5 and 2) and
+  `FsrSharpness` (0 to 2). A value in the ini that no row has is listed as "as set in summonerfix.ini" and kept.
+- The game resolution rows are computed as `Auto` computes them (`DisplaySizeForAspect`) and named by the screens
+  of that shape in the Steam hardware survey: 16:10 (1920x1200, 2560x1600, 1280x800), 16:9 (1920x1080, 2560x1440,
+  3840x2160), the ultrawides 2560x1080 (1820x768) and 3440x1440 (1834x768), 32:9 (2730x768). The old 21:9 row
+  (1792x768) and 32:9 row (2732x768) matched no real screen's `Auto` size; a saved 1792 or 2732 is listed as
+  "as set in summonerfix.ini".
+- When the display reports no modes, the window sizes fall back to the survey's common sizes (3840x2160 down to
+  1280x720), no larger than the desktop when its size is known. Before, the list held only the ini's own size.
+- In the game itself (SummonerFix's `SetWindowPos` hook and the 64-bit build's host), a window size larger than
+  the work area is shrunk, keeping its shape. Before, the default 1600x1200 ran off a 1080p screen.
+
+Tested 2026-11-01 (2560x1440 screen, work area 2560x1392):
+- **Observed:** the Display window, driven by window messages on a copy of the ini with `Renderer=Vulkan` and
+  `RenderScale=0.75`, shows Vulkan selected, the seven game resolution rows above, the display's 27 modes and
+  "0.75 (as set in summonerfix.ini)". Save keeps `Renderer=Vulkan` and `RenderScale=0.75`.
+- **Observed:** with `Mode=Window` and 2000x1600, both the original game with SummonerFix and the 64-bit build open
+  a 1707x1392 window at 426,0; Vulkan's swapchain is 1691x1353, which is 2000x1600 times 0.846. The main menu is drawn whole.
+- **Inferred, not run:** the common-size fallback. Every display tried reports its modes.
+
 `SummonerFixConfig.exe` (source: `src/summonerfix-config/config.c`) is installed next to `Sum.exe`. It lists the game's keyboard actions, including the four chain-attack slots (held modifier keys) and SummonerFix's own speed-up and open-this-window hotkeys, with their default keys and any extra keys bound to them:
 
 1. Select an action and click **Change key...** (or double-click it).
@@ -400,10 +424,10 @@ Examples: `pad 32767 0 0 0 0 500` (cursor right for half a second), `pad 0 0 0 0
 
 | Key | Default | Meaning |
 |---|---|---|
-| `[Display] Renderer` | `OpenGL` | `OpenGL`, `Direct3D` or `Glide` |
+| `[Display] Renderer` | `OpenGL` | `OpenGL`, `Direct3D` or `Glide`; the 64-bit build also `Vulkan` (others treat it as `OpenGL`) |
 | `[Display] Mode` | `Fullscreen` | OpenGL output: `Fullscreen` (borderless, monitor size) or `Window` |
-| `[Display] WindowWidth`, `WindowHeight` | 1600, 1200 | Client size for `Mode=Window` (resizable) |
-| `[Display] GameWidth`, `GameHeight` | `Auto`, 768 | The game's internal layout resolution. `Auto` (since 2026-10-24): 768 high and as wide as the primary screen's aspect (1366x768 at 16:9, 1228x768 at 16:10, 1792x768 at 21:9, 1024x768 at 4:3); or two numbers, e.g. 1366 and 768. Set in the config app with **Display / resolution...** |
+| `[Display] WindowWidth`, `WindowHeight` | 1600, 1200 | Client size for `Mode=Window` (resizable); shrunk to fit the work area, keeping its shape (2026-11-01) |
+| `[Display] GameWidth`, `GameHeight` | `Auto`, 768 | The game's internal layout resolution. `Auto` (since 2026-10-24): 768 high and as wide as the primary screen's aspect (1366x768 at 16:9, 1228x768 at 16:10, 1834x768 at 3440x1440, 1024x768 at 4:3); or two numbers, e.g. 1366 and 768. Set in the config app with **Display / resolution...** |
 | `[Display] CenterMenus` | 1 | With a wider `GameWidth`, centre the 1024-wide menus |
 | `[Display] SidePanelsOverWorld` | 1 | Wide screens: the 3D view stays full width behind the map/spells/skills panels |
 | `[Display] CenterHud` | 1 | With a wider `GameWidth`, centre the HUD and in-game screens (OpenGL) |

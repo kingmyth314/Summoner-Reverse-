@@ -496,10 +496,22 @@ static BOOL WINAPI Hook_SetWindowPos(HWND w, HWND after, int x, int y, int cx, i
             x = r.left; y = r.top; cx = r.right - r.left; cy = r.bottom - r.top;
             after = HWND_TOP;
         } else {
+            RECT wa = mi.rcWork;
+            // A client size larger than the work area is shrunk, keeping its shape, so the window fits (the
+            // default 1600x1200 is taller than a 1080p screen).
             RECT r = {0, 0, g_cfg.windowWidth, g_cfg.windowHeight};
             AdjustWindowRect(&r, WS_OVERLAPPEDWINDOW, FALSE);
+            int fw = (r.right - r.left) - g_cfg.windowWidth, fh = (r.bottom - r.top) - g_cfg.windowHeight;
+            if (g_cfg.windowWidth > 0 && g_cfg.windowHeight > 0) {
+                double fx = (double)((wa.right - wa.left) - fw) / g_cfg.windowWidth;
+                double fy = (double)((wa.bottom - wa.top) - fh) / g_cfg.windowHeight;
+                double fit = fx < fy ? fx : fy;
+                if (fit < 1.0 && fit > 0.0) {
+                    SetRect(&r, 0, 0, (int)(g_cfg.windowWidth * fit + 0.5), (int)(g_cfg.windowHeight * fit + 0.5));
+                    AdjustWindowRect(&r, WS_OVERLAPPEDWINDOW, FALSE);
+                }
+            }
             cx = r.right - r.left; cy = r.bottom - r.top;
-            RECT wa = mi.rcWork;
             x = wa.left + ((wa.right - wa.left) - cx) / 2;
             y = wa.top + ((wa.bottom - wa.top) - cy) / 2;
             if (y < wa.top) y = wa.top;

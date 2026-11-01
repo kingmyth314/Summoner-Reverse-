@@ -49,9 +49,9 @@ static const Hotkey k_hotkeys[] = {
 enum { ID_LIST = 100, ID_CHANGE, ID_CLEAR, ID_RESET, ID_CLOSE, ID_STATUS, ID_SKIPMOVIES, ID_ZOOM, ID_INTERACT, ID_CONTAINER, ID_APPLY, ID_SPEEDTOGGLE,
        ID_CONSOLE_CMD, ID_CONSOLE_BIND, ID_FIXALL, ID_FIXLIST, ID_FIXSAVE, ID_FIXCLOSE, ID_TENTACLE, ID_TENTCHANCE,
        ID_PADOPEN, ID_PADENABLED, ID_PADSAVE, ID_PADRESET, ID_PADCLOSE,
-       ID_EXPOPEN, ID_EXPAUTOSAVE, ID_EXPLEVEL, ID_EXPVSYNC, ID_EXPHIRES, ID_EXPLOG, ID_EXPSAVE, ID_EXPRESET, ID_EXPCLOSE,
+       ID_EXPOPEN, ID_EXPAUTOSAVE, ID_EXPLEVEL, ID_EXPVSYNC, ID_EXPHIRES, ID_EXPREVERB, ID_EXPLOG, ID_EXPSAVE, ID_EXPRESET, ID_EXPCLOSE,
        ID_DISPOPEN, ID_DISPRENDER, ID_DISPOUTPUT, ID_DISPSIZE, ID_DISPWIN, ID_DISPMENUS, ID_DISPHUD, ID_DISPPANELS,
-       ID_DISPSAVE, ID_DISPRESET, ID_DISPCLOSE };
+       ID_DISPSCALE, ID_DISPSHARP, ID_DISPSAVE, ID_DISPRESET, ID_DISPCLOSE };
 
 // [ConsoleKeys] Key=command entries (keys that run a developer console command). Shown as list rows after the
 // hotkeys; Change key / Clear work on them, and "Bind key..." adds one for the command typed in the box.
@@ -795,8 +795,8 @@ static void OpenPadWindow(void)
     ShowWindow(g_padWnd, SW_SHOW);
 }
 
-// The "Experimental build" window: the switches only Sum-exp.exe reads ([Experimental] Autosave..., FrameRateCap, HiResInterface,
-// VSync; [Debug] ExperimentalLog; docs/experimental-build.md). Saved with its own Save button.
+// The "Experimental build" window: the switches only the experimental builds (Sum-exp.exe, Sum-exp-clang-x64.exe) read
+// ([Experimental] Autosave..., FrameRateCap, HiResInterface, VSync, LevelReverb; [Debug] ExperimentalLog; docs/experimental-build.md). Saved with its own Save button.
 typedef struct { const char *section, *iniKey, *label; int def, lo, hi; } ExpNumber;
 static const ExpNumber k_expNumbers[] = {
     {"Experimental", "AutosaveMinutes", "Minutes of play between autosaves (0 = level changes only):", 5, 0, 600},
@@ -808,8 +808,9 @@ typedef struct { const char *section, *iniKey, *label; int def, id; } ExpCheck;
 static const ExpCheck k_expChecks[] = {
     {"Experimental", "Autosave", "Autosave (autosave1.sav ..., never your own saves)", 0, ID_EXPAUTOSAVE},
     {"Experimental", "AutosaveOnLevelChange", "Also autosave after entering a new level", 1, ID_EXPLEVEL},
-    {"Experimental", "VSync", "VSync (OpenGL renderer)", 0, ID_EXPVSYNC},
+    {"Experimental", "VSync", "VSync (OpenGL and Vulkan renderers)", 0, ID_EXPVSYNC},
     {"Experimental", "HiResInterface", "Upscaled interface images at their original size (OpenGL)", 0, ID_EXPHIRES},
+    {"Experimental", "LevelReverb", "Each level's own reverb (heard only with EAX sound)", 0, ID_EXPREVERB},
     {"Debug", "ExperimentalLog", "Write experimental.log (for testing)", 0, ID_EXPLOG},
 };
 #define EXP_CHECK_COUNT (int)(sizeof k_expChecks / sizeof k_expChecks[0])
@@ -858,7 +859,7 @@ static LRESULT CALLBACK ExpWndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
 {
     switch (msg) {
     case WM_CREATE: {
-        Label(w, "These switches are read only by the experimental build (Sum-exp.exe), when the game starts.", 10, 10, EXP_WND_W - 20);
+        Label(w, "Read only by the experimental builds (Sum-exp.exe, Sum-exp-clang-x64.exe), when the game starts.", 10, 10, EXP_WND_W - 20);
         Label(w, "The original Sum.exe with SummonerFix ignores them. Every feature is off by default.", 10, 26, EXP_WND_W - 20);
         int y = 52;
         for (int i = 0; i < EXP_CHECK_COUNT; i++, y += 24) {
@@ -881,7 +882,7 @@ static LRESULT CALLBACK ExpWndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
     case WM_COMMAND:
         if (LOWORD(wp) == ID_EXPSAVE) {
             if (ExpSave(w)) {
-                SetStatus("Experimental build settings saved. They apply the next time Sum-exp.exe starts.");
+                SetStatus("Experimental build settings saved. They apply the next time an experimental build starts.");
                 DestroyWindow(w);
             }
         } else if (LOWORD(wp) == ID_EXPRESET) {
@@ -913,22 +914,49 @@ static void OpenExpWindow(void)
     ShowWindow(g_expWnd, SW_SHOW);
 }
 
-// The "Display" window: [Display] Renderer, Mode, GameWidth / GameHeight, WindowWidth / WindowHeight and the three
-// wide-screen switches, so a player never edits summonerfix.ini for them. The game size list: "Match my screen"
-// (GameWidth=Auto, screensize.h) and the 768-high size of each common screen shape; the interface is laid out for
-// 768 lines, and the 3D world is drawn at the screen's own resolution in any case. The window sizes are the modes the
-// primary display reports (EnumDisplaySettings), up to the desktop's size.
+// The "Display" window: [Display] Renderer, Mode, GameWidth / GameHeight, WindowWidth / WindowHeight, the three
+// wide-screen switches and the Vulkan renderer's RenderScale / FsrSharpness, so a player never edits summonerfix.ini
+// for them. The game size list: "Match my screen" (GameWidth=Auto, screensize.h) and the 768-high size for each
+// common screen shape, computed as Auto computes it, named by the screens of that shape in the Steam hardware survey
+// (2026); the interface is laid out for 768 lines, and the 3D world is drawn at the screen's own resolution in any
+// case. The window sizes are the modes the primary display reports (EnumDisplaySettings), up to the desktop's size,
+// or the survey's common sizes when it reports none.
 static HWND g_dispWnd;
 #define DISP_WND_W 560
-#define DISP_WND_H 330
-typedef struct { int w, h; const char *shape; } DispSize;
+#define DISP_WND_H 400
+typedef struct { int sw, sh; const char *shape; } DispSize;
 static const DispSize k_dispSizes[] = {
-    {1024, 768, "4:3, the original layout"}, {1228, 768, "16:10"}, {1366, 768, "16:9"}, {1792, 768, "21:9"}, {2732, 768, "32:9"},
+    {4, 3, "4:3, the original layout"},
+    {16, 10, "16:10: 1920 x 1200, 2560 x 1600, 1280 x 800"},
+    {16, 9, "16:9: 1920 x 1080, 2560 x 1440, 3840 x 2160"},
+    {2560, 1080, "ultrawide 2560 x 1080"},
+    {3440, 1440, "ultrawide 3440 x 1440"},
+    {5120, 1440, "32:9: 5120 x 1440, 3840 x 1080"},
 };
 #define DISP_SIZE_COUNT (int)(sizeof k_dispSizes / sizeof k_dispSizes[0])
-static const char *const k_renderers[] = {"OpenGL", "Direct3D", "Glide"};
+// The window sizes offered when the display reports no modes: the most common screens of the Steam hardware survey.
+static const int k_commonWinSizes[][2] = {
+    {3840, 2160}, {3440, 1440}, {2560, 1600}, {2560, 1440}, {2560, 1080}, {1920, 1200}, {1920, 1080},
+    {1680, 1050}, {1600, 900}, {1440, 900}, {1366, 768}, {1280, 800}, {1280, 720},
+};
+static const char *const k_renderers[] = {"OpenGL", "Vulkan", "Direct3D", "Glide"};
+#define RENDERER_COUNT (int)(sizeof k_renderers / sizeof k_renderers[0])
+// [Display] RenderScale rows (Vulkan only): FSR 1's quality modes below 1, supersampling above.
+typedef struct { const char *value, *label; } DispChoice;
+static const DispChoice k_renderScales[] = {
+    {"1", "1 (native)"}, {"0.77", "0.77 (FSR 1 Ultra Quality)"}, {"0.67", "0.67 (FSR 1 Quality)"},
+    {"0.59", "0.59 (FSR 1 Balanced)"}, {"0.5", "0.5 (FSR 1 Performance)"}, {"1.5", "1.5 (supersampling)"},
+    {"2", "2 (supersampling)"},
+};
+#define RENDER_SCALE_COUNT (int)(sizeof k_renderScales / sizeof k_renderScales[0])
+// [Display] FsrSharpness rows, in stops: 0 the strongest, each stop half as strong.
+static const DispChoice k_fsrSharpness[] = {
+    {"0", "0 (strongest)"}, {"0.2", "0.2 (default)"}, {"0.5", "0.5"}, {"1", "1"}, {"2", "2 (softest)"},
+};
+#define FSR_SHARP_COUNT (int)(sizeof k_fsrSharpness / sizeof k_fsrSharpness[0])
 static int g_dispSizeW[DISP_SIZE_COUNT + 2], g_dispSizeH[DISP_SIZE_COUNT + 2]; // per list row; 0 x 0 = Auto
 static int g_dispWinW[64], g_dispWinH[64], g_dispWinCount;
+static char g_dispScaleIni[16], g_dispSharpIni[16]; // the ini's own value when no row matches it, else ""
 
 static HWND DispCombo(HWND parent, int id, int x, int y, int w)
 {
@@ -946,20 +974,36 @@ static HWND DispCheck(HWND parent, int id, const char *text, int y)
     return cb;
 }
 
-// The window sizes: the display's modes, unique, no larger than the desktop, largest first.
+// The window sizes: the display's modes, unique, no larger than the desktop, largest first; when it reports none, the
+// common sizes (no larger than the desktop if its size is known).
 static void DispListWindowSizes(void)
 {
     int dw, dh;
     DisplayDesktopSize(&dw, &dh);
     g_dispWinCount = 0;
     DEVMODEA dm;
+    int common = 0;
     for (DWORD i = 0;; i++) {
-        ZeroMemory(&dm, sizeof dm);
-        dm.dmSize = sizeof dm;
-        if (!EnumDisplaySettingsA(NULL, i, &dm))
-            break;
-        int w = (int)dm.dmPelsWidth, h = (int)dm.dmPelsHeight, seen = 0;
-        if (w < 640 || h < 480 || w > dw || h > dh)
+        int w, h, seen = 0;
+        if (!common) {
+            ZeroMemory(&dm, sizeof dm);
+            dm.dmSize = sizeof dm;
+            if (!EnumDisplaySettingsA(NULL, i, &dm)) {
+                if (g_dispWinCount)
+                    break;
+                common = 1; // no modes reported: fall back to the common sizes
+                i = (DWORD)-1;
+                continue;
+            }
+            w = (int)dm.dmPelsWidth;
+            h = (int)dm.dmPelsHeight;
+        } else {
+            if (i >= sizeof k_commonWinSizes / sizeof k_commonWinSizes[0])
+                break;
+            w = k_commonWinSizes[i][0];
+            h = k_commonWinSizes[i][1];
+        }
+        if (w < 640 || h < 480 || (dw > 0 && dh > 0 && (w > dw || h > dh)))
             continue;
         for (int k = 0; k < g_dispWinCount; k++)
             if (g_dispWinW[k] == w && g_dispWinH[k] == h)
@@ -977,7 +1021,45 @@ static void DispListWindowSizes(void)
     }
 }
 
-// Fills the controls from the ini (or with the defaults: OpenGL, fullscreen, Auto, 1600x1200, all three on).
+// A RenderScale / FsrSharpness list: its rows, plus the ini's own value as a last row when no row has it (kept in
+// iniOwn, so Save writes it back unchanged). Row 0 of the table is never the default for FsrSharpness, so the default
+// is looked up by value.
+static void DispFillChoice(HWND c, const char *key, const DispChoice *rows, int count, char *iniOwn, BOOL defaults)
+{
+    char buf[16];
+    SendMessageA(c, CB_RESETCONTENT, 0, 0);
+    for (int i = 0; i < count; i++)
+        SendMessageA(c, CB_ADDSTRING, 0, (LPARAM)rows[i].label);
+    const char *def = !strcmp(key, "FsrSharpness") ? "0.2" : "1";
+    GetPrivateProfileStringA("Display", key, def, buf, sizeof buf, g_ini);
+    if (defaults)
+        lstrcpynA(buf, def, sizeof buf);
+    int sel = -1;
+    for (int i = 0; i < count; i++)
+        if (atof(buf) == atof(rows[i].value))
+            sel = i;
+    iniOwn[0] = 0;
+    if (sel < 0) {
+        char row[48];
+        lstrcpynA(iniOwn, buf, 16);
+        snprintf(row, sizeof row, "%s (as set in summonerfix.ini)", buf);
+        SendMessageA(c, CB_ADDSTRING, 0, (LPARAM)row);
+        sel = count;
+    }
+    SendMessageA(c, CB_SETCURSEL, sel, 0);
+}
+
+static void DispSaveChoice(HWND c, const char *key, const DispChoice *rows, int count, const char *iniOwn)
+{
+    int i = (int)SendMessageA(c, CB_GETCURSEL, 0, 0);
+    if (i >= 0 && i < count)
+        WritePrivateProfileStringA("Display", key, rows[i].value, g_ini);
+    else if (i == count && iniOwn[0])
+        WritePrivateProfileStringA("Display", key, iniOwn, g_ini);
+}
+
+// Fills the controls from the ini (or with the defaults: OpenGL, fullscreen, Auto, 1600x1200, all three on, scale 1,
+// sharpness 0.2).
 static void DispFill(HWND w, BOOL defaults)
 {
     char buf[32];
@@ -988,7 +1070,7 @@ static void DispFill(HWND w, BOOL defaults)
     HWND r = GetDlgItem(w, ID_DISPRENDER);
     GetPrivateProfileStringA("Display", "Renderer", "OpenGL", buf, sizeof buf, g_ini);
     int ri = 0;
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < RENDERER_COUNT; i++)
         if (!defaults && !lstrcmpiA(buf, k_renderers[i]))
             ri = i;
     SendMessageA(r, CB_SETCURSEL, ri, 0);
@@ -1005,10 +1087,9 @@ static void DispFill(HWND w, BOOL defaults)
     g_dispSizeW[0] = g_dispSizeH[0] = 0;
     int rows = 1;
     for (int i = 0; i < DISP_SIZE_COUNT; i++, rows++) {
-        snprintf(row, sizeof row, "%d x %d (%s)", k_dispSizes[i].w, k_dispSizes[i].h, k_dispSizes[i].shape);
+        DisplaySizeForAspect(k_dispSizes[i].sw, k_dispSizes[i].sh, &g_dispSizeW[rows], &g_dispSizeH[rows]);
+        snprintf(row, sizeof row, "%d x %d (%s)", g_dispSizeW[rows], g_dispSizeH[rows], k_dispSizes[i].shape);
         SendMessageA(s, CB_ADDSTRING, 0, (LPARAM)row);
-        g_dispSizeW[rows] = k_dispSizes[i].w;
-        g_dispSizeH[rows] = k_dispSizes[i].h;
     }
     int sel = 0;
     GetPrivateProfileStringA("Display", "GameWidth", "Auto", buf, sizeof buf, g_ini);
@@ -1048,6 +1129,9 @@ static void DispFill(HWND w, BOOL defaults)
     }
     SendMessageA(ws, CB_SETCURSEL, found, 0);
 
+    DispFillChoice(GetDlgItem(w, ID_DISPSCALE), "RenderScale", k_renderScales, RENDER_SCALE_COUNT, g_dispScaleIni, defaults);
+    DispFillChoice(GetDlgItem(w, ID_DISPSHARP), "FsrSharpness", k_fsrSharpness, FSR_SHARP_COUNT, g_dispSharpIni, defaults);
+
     CheckDlgButton(w, ID_DISPMENUS, (defaults || GetPrivateProfileIntA("Display", "CenterMenus", 1, g_ini)) ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(w, ID_DISPHUD, (defaults || GetPrivateProfileIntA("Display", "CenterHud", 1, g_ini)) ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(w, ID_DISPPANELS,
@@ -1081,6 +1165,8 @@ static void DispSave(HWND w)
     WritePrivateProfileStringA("Display", "CenterMenus", IsDlgButtonChecked(w, ID_DISPMENUS) ? "1" : "0", g_ini);
     WritePrivateProfileStringA("Display", "CenterHud", IsDlgButtonChecked(w, ID_DISPHUD) ? "1" : "0", g_ini);
     WritePrivateProfileStringA("Display", "SidePanelsOverWorld", IsDlgButtonChecked(w, ID_DISPPANELS) ? "1" : "0", g_ini);
+    DispSaveChoice(GetDlgItem(w, ID_DISPSCALE), "RenderScale", k_renderScales, RENDER_SCALE_COUNT, g_dispScaleIni);
+    DispSaveChoice(GetDlgItem(w, ID_DISPSHARP), "FsrSharpness", k_fsrSharpness, FSR_SHARP_COUNT, g_dispSharpIni);
 }
 
 static LRESULT CALLBACK DispWndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
@@ -1090,11 +1176,12 @@ static LRESULT CALLBACK DispWndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         int sw, sh;
         DisplayDesktopSize(&sw, &sh);
         char line[160];
-        snprintf(line, sizeof line, "Your screen: %d x %d. Changes apply the next time the game starts (Sum.exe and Sum-exp.exe).", sw, sh);
+        snprintf(line, sizeof line, "Your screen: %d x %d. Changes apply the next time the game starts (every Sum*.exe).", sw, sh);
         Label(w, line, 10, 10, DISP_WND_W - 20);
         Label(w, "Renderer:", 10, 40, 130);
-        HWND r = DispCombo(w, ID_DISPRENDER, 150, 37, 200);
+        HWND r = DispCombo(w, ID_DISPRENDER, 150, 37, 390);
         SendMessageA(r, CB_ADDSTRING, 0, (LPARAM) "OpenGL (recommended)");
+        SendMessageA(r, CB_ADDSTRING, 0, (LPARAM) "Vulkan (64-bit build only; the others use OpenGL)");
         SendMessageA(r, CB_ADDSTRING, 0, (LPARAM) "Direct3D (needs dgVoodoo 2)");
         SendMessageA(r, CB_ADDSTRING, 0, (LPARAM) "Glide (needs dgVoodoo 2)");
         Label(w, "Show the game:", 10, 72, 130);
@@ -1111,9 +1198,15 @@ static LRESULT CALLBACK DispWndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         DispCheck(w, ID_DISPMENUS, "Centre the menus on wide screens", 202);
         DispCheck(w, ID_DISPHUD, "Centre the HUD and in-game screens on wide screens", 224);
         DispCheck(w, ID_DISPPANELS, "Keep the world full width behind the map, spells and skills panels", 246);
-        Button(w, ID_DISPSAVE, "&Save", 10, 284, 100);
-        Button(w, ID_DISPRESET, "&Defaults", 120, 284, 100);
-        Button(w, ID_DISPCLOSE, "Close", 230, 284, 100);
+        Label(w, "Vulkan renderer only (Sum-exp-clang-x64.exe):", 10, 280, DISP_WND_W - 20);
+        Label(w, "Render scale:", 10, 304, 130);
+        DispCombo(w, ID_DISPSCALE, 150, 301, 220);
+        Label(w, "FSR sharpening:", 10, 336, 130);
+        DispCombo(w, ID_DISPSHARP, 150, 333, 220);
+        Label(w, "(below scale 1 only)", 380, 336, 170);
+        Button(w, ID_DISPSAVE, "&Save", 10, 366, 100);
+        Button(w, ID_DISPRESET, "&Defaults", 120, 366, 100);
+        Button(w, ID_DISPCLOSE, "Close", 230, 366, 100);
         DispFill(w, FALSE);
         return 0;
     }
