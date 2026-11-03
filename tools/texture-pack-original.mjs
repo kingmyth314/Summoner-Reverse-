@@ -4,14 +4,14 @@
 // usage: node tools/texture-pack-original.mjs --game <install dir> --pack <full pack dir> --out <new pack dir> [--list]
 //
 // The original game cannot use upscaled images it draws by pixel rectangle (menus, HUD, icons, maps, cursors) or
-// reads as click masks: they show partly and clicks land in the wrong place. Only the experimental build's
-// HiResInterface handles those. Images the game draws as textures in 3D (levels, characters, items, effects) work in
+// reads as click masks: they show partly and clicks land in the wrong place. Only the rebuilt fixed and
+// experimental builds' HiResInterface handles those. Images the game draws as textures in 3D (levels, characters, items, effects) work in
 // the original as they are. So this pack is the full pack without:
 //   - every image of summoner.vpp (the interface art: menus, HUD, icons, the automap images, cursors, loading
 //     screens, popups);
 //   - the images the tables name as icons or automaps ($Icon, $Automap... in the .tbl files);
 //   - cutscene.vpp images that no 3D asset names (drawn as 2D stills);
-//   - <font>-hires.tga, which only the experimental build reads.
+//   - <font>-hires.tga, which only the rebuilt fixed and experimental builds read.
 // The files are hard links to the full pack's (no extra space), in the same two folders, with their mip levels.
 import { readdirSync, mkdirSync, linkSync, existsSync, unlinkSync, openSync, readSync, closeSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -64,7 +64,7 @@ let kept = 0, skipped = 0;
 for (const d of FOLDERS) mkdirSync(join(out, d), { recursive: true });
 const report = [];
 for (const n of files) {
-  const reason = /-hires\.tga$/i.test(n) ? "experimental build only (font)" : excluded.get(stem(n));
+  const reason = /-hires\.tga$/i.test(n) ? "rebuilt fixed and experimental builds only (font)" : excluded.get(stem(n));
   if (reason) { skipped++; report.push(`skip ${n}: ${reason}`); continue; }
   for (const d of FOLDERS) {
     const t = join(out, d, n);

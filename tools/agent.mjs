@@ -1,4 +1,5 @@
-// Drive Sum.exe through SummonerFix's agent mode ([Debug] Agent=1, src/summonerfix/agent.c).
+// Drive Sum.exe through SummonerFix's agent mode ([Debug] Agent=1, src/summonerfix/agent.c), or a clang build through
+// the in-source host's (src/decomp/modern/agent.cpp, same protocol; docs/tools.md lists the commands each one has).
 // usage:
 //   node tools/agent.mjs start [--width 1024] [--wait 60]   enable agent mode in the game's ini and launch Sum.exe
 //   node tools/agent.mjs run "info; key Esc; wait 500; capture menu"   run commands, print the result

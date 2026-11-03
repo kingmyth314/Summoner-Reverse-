@@ -1,6 +1,7 @@
 // Upscale Summoner's textures from the player's own install into a loose-file texture pack (docs/future/texture-upscale.md).
 // The game reads a loose file before its packfile copy, so the pack is plain TGAs in the data folders; the original
-// game uses them for 3D surfaces, and the experimental build's [Experimental] HiResInterface also for the interface.
+// game uses them for 3D surfaces, and the rebuilt fixed and experimental builds' [Experimental] HiResInterface also for
+// the interface.
 //
 // usage: node tools/texture-upscale.mjs --game <install dir> --out <pack dir> --esrgan <realesrgan-ncnn-vulkan.exe>
 //          [--model realesrgan-x4plus] [--only <substring or glob>] [--vpp chars,levelt,...] [--limit N]
@@ -266,7 +267,7 @@ function vbmFactor(v) {
 // offset (ints), kerning entry, user data (shorts); the pixel data; for the palette format 256 palette ints.
 // gr_font_create packs the characters left to right, row by row, into a 64, 128 or 256-pixel square of 4444 pixels
 // (alpha in the top nibble). The pack here is the same, so <font>-hires.tga lines up with the game's own atlas at
-// 2x or 4x, and the experimental build draws from it at the original size (HiResInterface; experimental/hires.cpp).
+// 2x or 4x, and the fixed and experimental builds draw from it at the original size (HiResInterface; experimental/hires.cpp).
 const FONT_RGB16 = 0x0f0f0f0f, FONT_ALPHA4 = 0xf, FONT_PAL8 = -0x10;
 function readVf(b) {
   let p = 0; const i32 = () => { const v = b.readInt32LE(p); p += 4; return v; };

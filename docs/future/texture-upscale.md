@@ -213,7 +213,8 @@ The original Sum.exe cannot use upscaled images it draws by pixel rectangle or r
 - every image of `summoner.vpp`: all the interface art (menus, HUD, skill and spell icons, the automap images,
   cursors, loading screens, popups). The tables' `$Icon` and `$Automap...` fields name only images in it;
 - the 11 `cutscene.vpp` images no 3D asset names (the cutscene stills the 3D cutscene files do name stay);
-- the `-hires.tga` fonts, which only the experimental build reads.
+- the `-hires.tga` fonts, which only the experimental build reads (the fixed build too since 2026-11-01:
+  [Fixed build](../fixed-build.md#features-from-the-experimental-build-2026-11-01)).
 
 What stays is what the game draws as textures in 3D: levels, characters, equipment, items and effects. Of the full
 pack's 10,692 files, 9,429 stay and 1,263 are left out.
