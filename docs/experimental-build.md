@@ -92,8 +92,10 @@ made from the Save screen does not go through the shift (a full-screen panel tur
 run). The earlier guess (the widescreen projection) was wrong.
 
 *2026-11-03:* this fix and SummonerFix's (below) had stayed on a side branch; they are in `main` since 2026-11-03,
-with the gate `FIXED_BUILD` now that the widescreen interface is in the fixed build too, and **Observed** in
-`Sum-fixed.exe` at 1366: the Load screen's thumbnail of a `savenow` save shows the whole scene.
+this one with the gate `FIXED_BUILD` now that the widescreen interface is in the fixed build too. **Observed**
+2026-11-03 for this source fix in `Sum-fixed.exe` at 1366 (SummonerFix stands down there for `CenterHud`): the Load
+screen's thumbnail of a `savenow` save shows the whole scene. SummonerFix's fix was observed on 2026-10-27 with the
+original exe (below) and not run again.
 
 **The fix (`EXPERIMENTAL_BUILD: Widescreen CenterHud`):** `saveload_capture_thumbnail` sets and reads its clip
 unshifted (`gr::set_clip`, `gr_get_clip`; ui_shift.h's names are undefined around the function and restored after

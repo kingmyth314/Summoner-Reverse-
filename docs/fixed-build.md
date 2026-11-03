@@ -120,7 +120,8 @@ In the test folder at 1366x768 on a 143 Hz screen, with test saves. **Observed**
   the whole scene in `Sum-fixed.exe`.
 - On the way, a second agent `summon` with the full party stopped the game with its own "No more player slots"
   error (`player.cpp` line 421: five Player records, four heroes and one summon). A test-tool misuse, not a game bug
-  (**Inferred**: the game never makes a second summon while one is out); `summon` now refuses when no record is free.
+  (**Inferred**: the game never makes a second summon while one is out); `summon` now refuses when no record is free (observed in both agent hosts: `Sum-fixed.exe` under SummonerFix and the
+64-bit exe).
 
 ## How a fix is written
 

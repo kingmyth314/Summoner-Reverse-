@@ -30,7 +30,7 @@
 #include "levelscripts/savegame.h"
 #include "levelscripts/conversation.h"
 #include "summoner/interface/new_saveload.h"
-#include "experimental/experimental.h"   // EXPERIMENTAL_BUILD only (autosave rows)
+#include "experimental/experimental.h"   // FIXED_BUILD (exp_ws_clip_shifted, the thumbnail); EXPERIMENTAL_BUILD (autosave rows)
 #include "experimental/ui_shift.h"   // FIXED_BUILD only (widescreen); keep it the last include
 
 #define SAVELOAD_NUM_BUTTONS 23

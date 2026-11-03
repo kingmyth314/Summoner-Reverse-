@@ -5,7 +5,7 @@
 //
 // 1. docs: tools/docs-check.mjs (links, front matter).
 // 2. tools: every tools/**/*.mjs passes node --check; every tools/*.ps1 parses (Windows PowerShell).
-// 3. personal paths: no tracked text file names a user folder (C:\Users\..., C:/Users/...).
+// 3. personal paths: no tracked text file names a folder under the Windows Users folder (either slash).
 // 4. keys: the names in the `// FIXED_BUILD: <id> <Key>` / `// EXPERIMENTAL_BUILD: <id> <Key>` markers (the .fixes
 //    handshake), SummonerFix's FixOn / RebuiltFixInSource keys, the config app's fix list and the keys it writes, the
 //    keys the game and SummonerFix read, and src/summonerfix/summonerfix.ini. A marker key nobody reads is how

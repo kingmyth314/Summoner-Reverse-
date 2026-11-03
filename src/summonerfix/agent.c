@@ -783,7 +783,7 @@ static void RunLine(char *line)
         g_summonSpell = atoi(argv[1]);
         UINT_PTR freeList = (UINT_PTR)SumVa(VA_PLAYER_FREE_LIST);
         if (*(volatile UINT_PTR *)freeList == freeList)
-            Out("summon %d: refused, no free Player record (a summon is already out with the full party)", g_summonSpell);
+            Out("summon %d: refused, no free Player record (5: the party and one summon)", g_summonSpell);
         else
             Out("summon %d: %s", g_summonSpell, AgentRunSync(SummonOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "knock") && argc >= 2) {

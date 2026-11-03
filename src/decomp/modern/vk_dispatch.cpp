@@ -24,6 +24,15 @@ void levelrender_draw_list_opengl_gl(lobj *l, int alpha, unsigned int num_lights
 void gr_opengl_render_character_mesh_gl(vim *mesh, vector3 *pos, matrix *orient, gr_light_desc *light, int a5,
                                         int has_instance, int a7, int a8);
 
+// Without the Vulkan SDK (no MODERN_VULKAN) vk_init only says so and returns false, so modern_vk_active stays false;
+// the Vulkan entry points are not built then, and VK_CALL drops the calls to them (2026-11-03: a 64-bit build
+// without VULKAN_SDK, as in CI, failed to link).
+#ifdef MODERN_VULKAN
+#define VK_CALL(call) call
+#else
+#define VK_CALL(call) ((void)0)
+#endif
+
 bool modern_vk_active;
 static bool vk_decided;
 
@@ -45,7 +54,7 @@ void gr_opengl_init_context(HWND hwnd)
 {
     vk_decide(hwnd);
     if (modern_vk_active)
-        vk_init_context(hwnd);
+        VK_CALL(vk_init_context(hwnd));
     else
         gr_opengl_init_context_gl(hwnd);
 }
@@ -54,11 +63,12 @@ void gr_opengl_init(HWND hwnd)
 {
     vk_decide(hwnd);
     if (modern_vk_active)
-        vk_gr_init(hwnd);
+        VK_CALL(vk_gr_init(hwnd));
     else
         gr_opengl_init_gl(hwnd);
 }
 
+#ifdef MODERN_VULKAN
 #define DISPATCH(ret, name, params, args) \
     ret name params \
     { \
@@ -66,12 +76,19 @@ void gr_opengl_init(HWND hwnd)
             return vk_##name args; \
         return name##_gl args; \
     }
+#else
+#define DISPATCH(ret, name, params, args) \
+    ret name params \
+    { \
+        return name##_gl args; \
+    }
+#endif
 GL_REDIRECT_ENTRIES(DISPATCH)
 
 void levelrender_draw_list_opengl(lobj *l, int alpha, unsigned int num_lights, attached_light **lights)
 {
     if (modern_vk_active)
-        vk_levelrender_draw_list(l, alpha, num_lights, lights);
+        VK_CALL(vk_levelrender_draw_list(l, alpha, num_lights, lights));
     else
         levelrender_draw_list_opengl_gl(l, alpha, num_lights, lights);
 }
@@ -80,7 +97,7 @@ void gr_opengl_render_character_mesh(vim *mesh, vector3 *pos, matrix *orient, gr
                                      int has_instance, int a7, int a8)
 {
     if (modern_vk_active)
-        vk_render_character_mesh(mesh, pos, orient, light, a5, has_instance, a7, a8);
+        VK_CALL(vk_render_character_mesh(mesh, pos, orient, light, a5, has_instance, a7, a8));
     else
         gr_opengl_render_character_mesh_gl(mesh, pos, orient, light, a5, has_instance, a7, a8);
 }

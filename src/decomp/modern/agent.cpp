@@ -581,7 +581,7 @@ static void run_line(char *line)
         // 2026-11-03. Refused here instead.
         summon_spell = atoi(argv[1]);
         if (player_free_list.next == &player_free_list)
-            out("summon %d: refused, no free Player record (a summon is already out with the full party)", summon_spell);
+            out("summon %d: refused, no free Player record (5: the party and one summon)", summon_spell);
         else
             out("summon %d: %s", summon_spell, run_sync(summon_body, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "knock") && argc >= 2) {
