@@ -14,6 +14,9 @@
 //    (camera edge scroll, clicks into the world) at the raw position. The cursor itself is drawn by
 //    FrameEnd from the raw position, so it is unaffected.
 //  - interface_set_view_clip (0x412220), which sizes the 3D view, is excluded.
+//  - saveload_capture_thumbnail (0x427100) renders into a 201x151 clip at (0,0) and reads back (0,0,201,151)
+//    with gr_read_backbuffer, which is not shifted: its clip stays unshifted, and its closing set_clip puts back
+//    the shift flag of the clip it saved (docs/experimental-build.md, the save thumbnail, 2026-10-27).
 //
 // Three cases during gameplay, by interface screen (interface_cur_screen, 0x5bd814):
 //  - Full-screen panels (inventory, character, journal, options, save/load, ...): the world and HUD are
@@ -41,6 +44,9 @@
 #define VA_GR_SCREEN_WIDTH 0x506170u
 #define VA_MOUSE_GET_POS 0x5011e0u
 #define VA_GAMETICK_MOUSE_CALL 0x4010efu
+#define VA_THUMB_GET_CLIP_CALL 0x427119u     // saveload_capture_thumbnail: gr_get_clip (the clip to restore)
+#define VA_THUMB_SET_CLIP_CALL 0x42712cu     // gr__set_clip(0, 0, 201, 151)
+#define VA_THUMB_RESTORE_CLIP_CALL 0x42722eu // gr__set_clip back to the saved clip
 #define VA_INPUT_X 0x5fbfdcu
 #define VA_INPUT_Y 0x5fbfe0u
 #define LAYOUT_WIDTH 1024
@@ -133,6 +139,22 @@ static void __cdecl W_getClipUi(int *x, int *y, int *w, int *h)
     o_getClip(x, y, w, h);
     if (Active() && g_clipShifted && x)
         *x -= g_shift;
+}
+
+// saveload_capture_thumbnail: the clip it saves is read as it is (with X if UI code set it), and its flag kept for
+// the restore; the thumbnail's own clip goes through W_setClipOther.
+static int g_thumbClipShifted;
+
+static void __cdecl W_getClipThumb(int *x, int *y, int *w, int *h)
+{
+    o_getClip(x, y, w, h);
+    g_thumbClipShifted = g_clipShifted;
+}
+
+static int __cdecl W_setClipThumbRestore(ARGS)
+{
+    g_clipShifted = g_thumbClipShifted;
+    return o_setClip(PASS);
 }
 
 static int __cdecl W_screenWidthUi(void)
@@ -279,7 +301,8 @@ void WidescreenInstall(void)
         DWORD target;
         memcpy(&target, p + 1, 4);
         target += va + 5;
-        if (va == VA_GAMETICK_MOUSE_CALL)
+        if (va == VA_GAMETICK_MOUSE_CALL || va == VA_THUMB_GET_CLIP_CALL || va == VA_THUMB_SET_CLIP_CALL ||
+            va == VA_THUMB_RESTORE_CLIP_CALL)
             continue; // handled separately below
         for (size_t i = 0; i < sizeof k / sizeof k[0]; i++) {
             if (target != k[i].target)
@@ -295,6 +318,9 @@ void WidescreenInstall(void)
         }
     }
     PatchCall(VA_GAMETICK_MOUSE_CALL, VA_MOUSE_GET_POS, W_mouseGetPosTick);
+    int thumb = PatchCall(VA_THUMB_GET_CLIP_CALL, VA_GR_GET_CLIP, W_getClipThumb) +
+                PatchCall(VA_THUMB_SET_CLIP_CALL, VA_GR_SET_CLIP, W_setClipOther) +
+                PatchCall(VA_THUMB_RESTORE_CLIP_CALL, VA_GR_SET_CLIP, W_setClipThumbRestore);
 
     // interface_set_view_clip: 3D view width for full panels, world behind side panels.
     int view = 0;
@@ -343,7 +369,7 @@ void WidescreenInstall(void)
     }
     Log("widescreen UI: shift %d px; UI calls patched: bitmap %d, bitmap_ex %d, stretched %d, float %d, "
         "string %d, rect %d, line %d, set_clip %d (+%d other), get_clip %d, screen_width %d, mouse %d; "
-        "world mouse reads %d/9; side-panel calls %d/8; view-clip calls %d/11",
+        "world mouse reads %d/9; side-panel calls %d/8; view-clip calls %d/11; thumbnail clip calls %d/3",
         g_shift, counts[0], counts[1], counts[2], counts[3], counts[4], counts[5], counts[6], counts[7], other,
-        counts[8], counts[9], counts[10], raw, panels, view);
+        counts[8], counts[9], counts[10], raw, panels, view, thumb);
 }

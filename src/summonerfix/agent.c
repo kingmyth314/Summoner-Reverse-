@@ -327,6 +327,7 @@ static void CallStrOnGameThread(void *unused)
 // (hex address) with the current character as the source and source type 6, as combat_trigger_special_ability and
 // the self-cast abilities call it. Testing only (game-bugs G100: spell 0x3e "leech").
 #define VA_GET_HIT_BY_SPELL 0x45dea0u
+#define VA_PLAYER_FREE_LIST 0x5fc1c8u   // Player sentinel; its next (+0) points at itself when no record is free
 static DWORD g_hitTarget;
 static int g_hitSpell;
 static float g_hitPower;
@@ -776,8 +777,15 @@ static void RunLine(char *line)
     } else if (!_stricmp(c, "summon") && argc >= 2) {
         // summon SPELL: summon_create for the current character with spell index SPELL (decimal; 45 = summon mist
         // elemental in spells.tbl order), game thread, result in the log.
+        // A summon takes a Player record (5: the party's four and one summon): with none free, summon_create stops
+        // the game with "No more player slots" (player.cpp line 421), as a second summon of the full party did on
+        // 2026-11-03. Refused here instead.
         g_summonSpell = atoi(argv[1]);
-        Out("summon %d: %s", g_summonSpell, AgentRunSync(SummonOnGameThread, NULL) ? "requested" : "no window");
+        UINT_PTR freeList = (UINT_PTR)SumVa(VA_PLAYER_FREE_LIST);
+        if (*(volatile UINT_PTR *)freeList == freeList)
+            Out("summon %d: refused, no free Player record (a summon is already out with the full party)", g_summonSpell);
+        else
+            Out("summon %d: %s", g_summonSpell, AgentRunSync(SummonOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "knock") && argc >= 2) {
         // knock MS: knock the current character down for MS ms (game thread; mode and result in the log).
         g_knockMs = atoi(argv[1]);

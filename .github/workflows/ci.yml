@@ -1,0 +1,59 @@
+# Checks and builds on every push and pull request (docs/tools.md, "tools/check.mjs and CI"; 2026-11-03).
+# Needs no game files, no VC6 and no secrets: llvm-mingw builds SummonerFix, its config app, the save editor and the
+# 64-bit exe. Nothing is published: the build output is not uploaded (docs/public-release.md).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  LLVM_MINGW: llvm-mingw-20260908-ucrt-x86_64
+
+jobs:
+  check-and-build:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: llvm-mingw (the compiler of SummonerFix and the clang builds)
+        shell: pwsh
+        run: |
+          $zip = "$env:RUNNER_TEMP\$env:LLVM_MINGW.zip"
+          Invoke-WebRequest "https://github.com/mstorsjo/llvm-mingw/releases/download/20260908/$env:LLVM_MINGW.zip" -OutFile $zip
+          Expand-Archive $zip -DestinationPath $env:RUNNER_TEMP
+          $bin = "$env:RUNNER_TEMP\$env:LLVM_MINGW\bin"
+          $bin | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+          "CLANG_DIR=$bin" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+      - name: Repository checks (docs, tool syntax, personal paths, setting names)
+        run: node tools/check.mjs --no-sweep
+
+      - name: SummonerFix and its config app
+        shell: pwsh
+        run: .\tools\build-summonerfix.ps1
+
+      # Built only: its tests (app_test.exe, tools/saveedit-test.mjs) need the game's tables and saves.
+      - name: Save editor
+        shell: pwsh
+        run: .\tools\build-saveeditor.ps1
+
+      - name: 64-bit fixed and experimental builds (link check)
+        shell: pwsh
+        run: |
+          foreach ($c in 'fixed', 'experimental') {
+            $log = node tools/link-build.mjs --config $c --compiler clang --arch x64 2>&1 | ForEach-Object { "$_" }
+            $log | Select-Object -Last 15
+            $summary = $log | Where-Object { $_ -match 'units \(' } | Select-Object -Last 1
+            if ($summary -notmatch '0 failed\); unresolved 0; multiply defined 0') { throw "$c x64: $summary" }
+          }

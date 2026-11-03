@@ -125,7 +125,8 @@ void exp_display_init()
     // VSync (SummonerFix sets no swap interval; its SwapBuffers hook only draws).
     if (display_vsync) {
         if (gr_screen.mode == GR_OPENGL) {
-            exp_log("display: VSync on (OpenGL)");
+            // The Vulkan renderer runs behind the OpenGL mode too; it takes VSync through [Display] VulkanPresent=Auto.
+            exp_log("display: VSync on (OpenGL mode; under Vulkan through VulkanPresent=Auto)");
             display_vsync_apply();
         } else {
             exp_log("display: VSync is not supported on the %s renderer (only OpenGL); the game's own vsync setting "

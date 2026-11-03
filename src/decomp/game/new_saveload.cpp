@@ -1097,6 +1097,17 @@ void saveload_draw_scrollbar()
                      saveload_thumb_y - saveload_thumb_bm_h + saveload_thumb_h, gr_bitmap_wrap_mode);
 }
 
+#ifdef FIXED_BUILD
+// fixed build: widescreen (part of FIXED_BUILD Widescreen CenterHud). The thumbnail is read back from (0, 0)
+// of the back buffer, so its clip must not get the interface shift: through gr::ui_set_clip a game width of 1366 put
+// the scene at x = 171, and the read-back held only its first 30 columns, at the right edge (the rest black under
+// Vulkan, the previous frame's sky under OpenGL). The clip is set and read unshifted, and the shift flag of the clip
+// it replaces restored with it. ui_shift.h's names are restored after the function.
+#undef gr__set_clip
+#undef set_clip
+#undef gr_get_clip
+#define gr__set_clip gr::set_clip
+#endif
 // 0x427100  Confidence: exact (the fov passed through a float local: fld / fstp, D10307; the 32-bit conversion written with unsigned short parts, for the
 // movzx dx, dl; the row / column counters count down in the binary). The level is rendered into a
 // 201x151 clip with game_flags 0x20000 set and read back; any format but 3 (565) and 7 (32-bit) gives
@@ -1106,6 +1117,9 @@ void saveload_capture_thumbnail()
     int clip_x, clip_y, clip_w, clip_h;
     int format;
 
+#ifdef FIXED_BUILD
+    int clip_shifted = exp_ws_clip_shifted;
+#endif
     gr_get_clip(&clip_x, &clip_y, &clip_w, &clip_h);
     gr__set_clip(0, 0, SAVELOAD_THUMB_W, SAVELOAD_THUMB_H);
     float fov = camera_fov;
@@ -1139,4 +1153,13 @@ void saveload_capture_thumbnail()
 
     gr_mark_texture_dirty(saveload_thumbnail_bm);
     gr__set_clip(clip_x, clip_y, clip_w, clip_h);
+#ifdef FIXED_BUILD
+    exp_ws_clip_shifted = clip_shifted;
+#endif
 }
+#ifdef FIXED_BUILD
+#undef gr__set_clip
+#define gr__set_clip gr::ui_set_clip
+#define set_clip ui_set_clip
+#define gr_get_clip ui_gr_get_clip
+#endif

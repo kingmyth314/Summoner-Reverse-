@@ -98,6 +98,30 @@ Tested 2026-11-01 (test saves, 1366x768, `FrameRateCap=60`, `LevelReverb=1`, `Ex
 - **Not tested** in the fixed build: a real controller, vsync, dgVoodoo 2, the upscaled interface (tested before in the
   experimental build, from the same code).
 
+### Checked 2026-11-03
+
+In the test folder at 1366x768 on a 143 Hz screen, with test saves. **Observed** unless marked:
+- **Vsync** (`[Experimental] VSync=1`, `FrameRateCap=240`): 143.9 fps in play in `Sum-fixed.exe` (VC6, OpenGL) and in
+  the 64-bit experimental exe under OpenGL and under Vulkan; with `VSync=0` 240 fps (the cap). Under Vulkan the log
+  said "VSync on (OpenGL)", as the Vulkan renderer runs behind the OpenGL mode; it now names both.
+- **Controller code** through agent mode's `pad`: in `Sum-fixed.exe` SummonerFix forwards it to the exe ("agent pad
+  forwarded to the exe"), the stick moves the cursor; the 64-bit exe's in-source host has `pad` since this date, the
+  stick moves the cursor and A on Options opens the Options screen. No real controller yet.
+- **Brightness in the 64-bit exe:** dragging the options screen's gamma slider sets `gr_gamma` to 1.9 and brightens
+  the picture, identically under Vulkan and OpenGL (`Brightness=Shader`); with `Brightness=Ramp` the monitor's ramp
+  read back from Windows is the curve (entry 64: 16,448 before, 31,611 with gamma 1.9) and is linear again after exit.
+  Cancel leaves `summoner.cfg` at 1.0.
+- **Mouse bindings in the 64-bit exe:** `[KeyBindings] Mouse4=I`; side button 1 opens and closes the inventory.
+- **Autosave** (experimental build, 64-bit, `AutosaveMinutes=1`, `AutosaveSlots=2`): none after loading a save; one after
+  a minute of play; one 2 s after a level change; with both slots used, each replaces the older; with the Pyrul
+  fight's flag set in KhosaniLab2 it waits through "combat or scripted event", "cutscene" and "scripted sequence" and
+  writes the moment they end; at 32 savegames it is skipped ("the Load screen shows no more").
+- **The save thumbnail** at 1366 (the widescreen fix that had stayed on a side branch, [experimental build](experimental-build.md#the-save-thumbnail-at-a-wide-game-width-fixed-2026-10-27)):
+  the whole scene in `Sum-fixed.exe`.
+- On the way, a second agent `summon` with the full party stopped the game with its own "No more player slots"
+  error (`player.cpp` line 421: five Player records, four heroes and one summon). A test-tool misuse, not a game bug
+  (**Inferred**: the game never makes a second summon while one is out); `summon` now refuses when no record is free.
+
 ## How a fix is written
 
 ```cpp

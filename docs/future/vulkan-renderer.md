@@ -433,6 +433,9 @@ Checked (Observed, 2560x1440 borderless unless said):
   `saveload_capture_thumbnail` renders the level into a 201x151 clip at the top-left and reads it back, and the
   widescreen code's projection for a 1366-wide screen does not fit that clip; to look into separately (the
   experimental build's widescreen, not the renderer).
+  **Found and fixed later on 2026-10-27, the guess above was wrong:** not the projection but the clip. See
+  [experimental build, widescreen](../experimental-build.md#the-save-thumbnail-at-a-wide-game-width-fixed-2026-10-27):
+  the thumbnail's clip got the interface shift (171 pixels at 1366), its read-back did not.
 - Not done: the 48-level soak at a RenderScale other than 1, nor again at 1 after this change (the soak of M5 ran on
   the exe before it; at 1 the menus are pixel-identical to that exe); other GPUs. Inferred: at 2 the GPU fills four
   times the pixels, which a weaker GPU may not do at 120 fps.

@@ -54,7 +54,7 @@ and the Tentacle Beast box on the main window.
 | Autosave | `[Experimental] Autosave`, `AutosaveMinutes` (5), `AutosaveOnLevelChange` (1), `AutosaveSlots` (3) | new; `experimental/autosave.cpp`, two small changes in `game/new_saveload.cpp` | tested |
 | Frame-rate cap and vsync | `[Experimental] FrameRateCap` (0 = the game's 120; 30-240), `VSync` (OpenGL) | new; `experimental/display.cpp`, one block in `vsdk/frametime.cpp` | cap tested; vsync not yet |
 | Upscaled interface images | `[Experimental] HiResInterface` (OpenGL) | new; `experimental/hires.cpp`, hooks in `vsdk/bmpman.cpp`, `vsdk/ui_container.cpp`, `vsdk/unnamed_lights_0x51e070.cpp`; [Texture upscaling](future/texture-upscale.md#the-interface-code-change) | tested 2026-10-23: a 2x main-menu background drawn whole, menu clicks work; 2026-10-24 also the fonts (`exp_font_hires`, from `gr_font_create`) and the upscaled VBMs, with the full pack |
-| Widescreen interface | `[Display] CenterHud` (1), `SidePanelsOverWorld` (1), SummonerFix's | SummonerFix `widescreen.c` in the source: `experimental/widescreen.cpp`; the 37 interface units include `experimental/ui_shift.h` last, which points their 2D drawing, clip, screen width and mouse calls at wrappers; hooks in GameTick, `interface_draw` / `interface_frame` (side panels), `interface_set_view_clip`, `gr::set_clip` and the world's cursor reads. SummonerFix shifts the full-screen panels (the `CenterHud` key in `Sum-exp.fixes`) | tested 2026-10-24 at 1366x768: HUD, inventory, map |
+| Widescreen interface | `[Display] CenterHud` (1), `SidePanelsOverWorld` (1), SummonerFix's | SummonerFix `widescreen.c` in the source: `experimental/widescreen.cpp`; the 37 interface units include `experimental/ui_shift.h` last, which points their 2D drawing, clip, screen width and mouse calls at wrappers; hooks in GameTick, `interface_draw` / `interface_frame` (side panels), `interface_set_view_clip`, `gr::set_clip` and the world's cursor reads. SummonerFix shifts the full-screen panels (the `CenterHud` key in `Sum-exp.fixes`) | tested 2026-10-24 at 1366x768: HUD, inventory, map; the save thumbnail fixed 2026-10-27 ([below](#the-save-thumbnail-at-a-wide-game-width-fixed-2026-10-27)) |
 | Game options | `[Game] CameraZoomMax`, `SkipIntroMovies`, `InteractRange`, `ContainerRange` | SummonerFix `gameopts.c` in the source: `experimental/gameopts.cpp`, read at `GameInit`; Print Screen as Targa above 1024 lines (C290) | logged at start |
 | Field of view | none yet | the draw lists hold 500 entries with no bounds check; a wider view could overflow them | proposal only |
 | dgVoodoo 2 | `[Display] Renderer` (SummonerFix's), `[Display] Windowed` | `game/summoner.cpp` (Direct3D and Glide fullscreen, 201, instead of the rebuilt exe's fixed window mode 200) and `vsdk/gr_direct3d.cpp` (dgVoodoo's adapter passes the Voodoo-card test); [dgVoodoo 2](future/dgvoodoo.md) | tested: Glide and Direct3D load a save and play |
@@ -74,6 +74,49 @@ original exe, from the code, not tested). While a cap is set, `FrameDone` carrie
 next frame, so the game's millisecond timers do not run slow at caps that do not divide 1000 (4% at 120, 13.5% at
 144 in the original's truncation). Two frame-rate dependent truncations stay as in the original: the level fade
 (slower above 120) and the animation ticks (about 1% slow at 144).
+
+### The save thumbnail at a wide game width (fixed 2026-10-27)
+
+**The bug (Observed 2026-10-27, 64-bit experimental build, `GameWidth=1366`):** a save made in play (agent mode
+`savenow`, the same path as the quicksave and the autosave) got a thumbnail that was black under Vulkan, or a
+stretched patch of the previous frame's sky under OpenGL, except for a strip at its right edge that held the scene.
+At `GameWidth=1024` it was right; `[Display] RenderScale` made no difference.
+
+**The cause (Observed in the code and in the game):** `saveload_capture_thumbnail` (0x427100, `game/new_saveload.cpp`)
+sets a 201x151 clip at (0, 0), renders the level into it and reads back (0, 0, 201, 151) with `gr_read_backbuffer`.
+`new_saveload.cpp` is an interface unit, so `experimental/ui_shift.h` points its `gr__set_clip` at `gr::ui_set_clip`,
+which in play adds the interface shift, (1366 - 1024) / 2 = 171 pixels. The scene went to x = 171..371, while the
+read-back stayed at x = 0..200: only the scene's first 30 columns reached the thumbnail. In the save made with the
+unfixed exe under Vulkan the first non-black column is **171**; under OpenGL the same seam is at about 171. A save
+made from the Save screen does not go through the shift (a full-screen panel turns call shifting off; Inferred, not
+run). The earlier guess (the widescreen projection) was wrong.
+
+*2026-11-03:* this fix and SummonerFix's (below) had stayed on a side branch; they are in `main` since 2026-11-03,
+with the gate `FIXED_BUILD` now that the widescreen interface is in the fixed build too, and **Observed** in
+`Sum-fixed.exe` at 1366: the Load screen's thumbnail of a `savenow` save shows the whole scene.
+
+**The fix (`EXPERIMENTAL_BUILD: Widescreen CenterHud`):** `saveload_capture_thumbnail` sets and reads its clip
+unshifted (`gr::set_clip`, `gr_get_clip`; ui_shift.h's names are undefined around the function and restored after
+it, as for `interface_set_view_clip`), and puts back `exp_ws_clip_shifted` of the clip it replaces, so the HUD's
+clip keeps its shift. The projection needs no change: in `gr_setup_3d` the pixel proportions depend only on
+`gr_screen.aspect`, not on the clip's size (the y scale over the x scale is 1 / aspect), so the 201x151 view has the
+proportions of the full view, with the same horizontal field of view.
+
+**Checked (Observed, 2026-10-27, `link-build --config experimental --compiler clang --arch x64`, 2560x1440
+borderless, the newest test save):** at 1366 under Vulkan and under OpenGL the thumbnail shows the whole scene, the
+same picture under both (column means within 1 of each other); the HUD stays centred after the save. At 1024 under
+Vulkan the thumbnail is as before the fix. Not run: the Save screen's save at 1366, the autosave.
+
+**SummonerFix (Inferred at first, then fixed):** its `widescreen.c` picks the calls to shift by address, and 0x427100
+lies in its game-UI range (0x401000-0x430000), so the original exe with SummonerFix at a wide `GameWidth` should show
+the same thumbnail. Fixed the same day: the function's three clip calls get their own wrappers (0x427119
+`gr_get_clip` read as it is, keeping the shift flag; 0x42712c `gr__set_clip` unshifted; 0x42722e `gr__set_clip` back
+with the saved flag), logged as "thumbnail clip calls 3/3".
+Checked (Observed, 2026-10-27, the original Sum.exe v1.40 in a test folder of its own, OpenGL, `GameWidth=1366`,
+the newest test save, `savenow` in play): with the SummonerFix built before the fix the thumbnail is the stretched
+sky with the scene from about column 171, as in the experimental build; with the fixed DLL it shows the whole scene
+and the HUD stays centred. The log's UI counts drop by the three calls (set_clip 54 to 52, get_clip 24 to 23). At
+1024 SummonerFix patches nothing for widescreen, so nothing changes there (from the code).
 
 ## Parity with the original game and SummonerFix (2026-10-24)
 

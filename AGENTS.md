@@ -1,7 +1,7 @@
 # AGENTS.md - working in this repository
 
 For AI agents and anyone who wants the facts without the history. Humans: start at [README.md](README.md) and
-[docs/quickstart.md](docs/quickstart.md). State on 2026-10-26: [docs/status.md](docs/status.md).
+[docs/quickstart.md](docs/quickstart.md). State on 2026-11-03: [docs/status.md](docs/status.md).
 
 ## What this is
 
@@ -58,6 +58,10 @@ The 64-bit **player build** is `--config experimental --compiler clang --arch x6
 
 ## Invariants: check before every commit
 
+`node tools/check.mjs` runs 1 (when game, engine or header source changed), 3 and 4's path check, plus a
+cross-check of the setting names; GitHub Actions (`.github/workflows/ci.yml`) runs it without the sweep on every push
+and builds SummonerFix, the save editor and the 64-bit exes. 2 stays manual.
+
 1. `VC6_STRICT=1 node tools/vc6-sweep.mjs --check src/decomp/vc6-matches.txt` must end with `0 lost` (5,613).
    Code for the other builds goes under its define, so the shipped configuration's bytes never change.
 2. The configurations you touched build with `unresolved 0; multiply defined 0`.
@@ -91,7 +95,8 @@ Gotchas, each found the hard way:
 - `level` during a cutscene crashes even the original. Wait for state 4 with `game_flags` (0x5fbfd8) bit 0x20 clear.
 - Quicksave refuses in combat and in some areas. Use `savenow`.
 - Use test saves only (`[Debug] TestSaves=1`, folder `savetest\`), never the player's `savegame\`.
-- link-build recompiles when sources, defines or clang flags change. Otherwise use `--recompile`.
+- link-build recompiles when sources, the headers they include (since 2026-11-03), defines or clang flags change.
+  Shader changes need `--recompile`.
 - Git Bash's `sed -i` and `node -e` mangle backslashes and `\b` in replacement text. Edit files that contain them
   with an editor or a script file.
 - The "gamma" console command only stores the value; `gr_gamma` is 0x5a6064.

@@ -4,8 +4,8 @@
 //
 //   node tools/link-build.mjs [--config shipped|fixed|experimental] [--recompile] [--force] [--define NAME ...] [--out DIR]
 //
-// Objects are cached in DIR/obj and rebuilt when the source is newer (or with --recompile; a header change needs
-// --recompile). A build with other --define options than the last one (DIR/defines.txt) recompiles everything: a
+// Objects are cached in DIR/obj and rebuilt when the source or a header it includes is newer (or with --recompile;
+// shader files need it). A build with other --define options than the last one (DIR/defines.txt) recompiles everything: a
 // unit compiled without SHIPPED_NOCD asks for the CD. --force links even with unresolved symbols (/FORCE:UNRESOLVED), for inventories. --define adds
 // a /D to every game unit (for example SHIPPED_NOCD, the no-CD edit the shipped Sum.exe carries, D2600). Prints the
 // unresolved and multiply defined symbols. Needs VC6_DIR (the VC98 folder of Visual C++ 6.0 SP5).
@@ -54,8 +54,10 @@ if (x64 && !useClang) { console.error("--arch x64 needs --compiler clang"); proc
 // VULKAN_SDK: see the in-source host below (the Vulkan back end, L4).
 const vulkanSdk = x64 && process.env.VULKAN_SDK && existsSync(join(process.env.VULKAN_SDK, "Include", "vulkan", "vulkan.h")) ? process.env.VULKAN_SDK : null;
 const exeName = config.name + (useClang ? "-clang" : "") + (x64 ? "-x64" : "");
-const VC = process.env.VC6_DIR;
-if (!VC || !existsSync(join(VC, "BIN", "CL.EXE"))) {
+// VC6 is needed for every build but the 64-bit one, which uses llvm-mingw's headers and libraries only (so it builds
+// on a machine without VC6, such as CI; 2026-11-03).
+const VC = process.env.VC6_DIR || (x64 ? "" : undefined);
+if (!x64 && (!VC || !existsSync(join(VC, "BIN", "CL.EXE")))) {
   console.error("VC6_DIR is not set, or has no BIN\\CL.EXE: set it to the VC98 folder of Visual C++ 6.0.");
   process.exit(2);
 }
@@ -110,7 +112,24 @@ const definesFile = join(out, "defines.txt"),
   definesNow = defines.slice().sort().join(" ") + (useClang ? ` | ${clangFlags.join(" ")}` : "") + (vulkanSdk ? ` | Vulkan ${vulkanSdk}` : "");
 const definesChanged = !existsSync(definesFile) || readFileSync(definesFile, "latin1").trim() !== definesNow;
 if (definesChanged) console.log(`defines changed (now "${definesNow}"): recompiling every unit`);
-const fresh = (obj, source) => existsSync(obj) && !flag("--recompile") && !definesChanged && statSync(obj).mtimeMs >= statSync(source).mtimeMs;
+// A source counts with the headers it includes, directly or through other headers (2026-11-03; before, a header change
+// needed --recompile): each #include "x" / <x> is looked up next to the including file, then in the decomp include
+// folders; names found in neither (the compilers' own headers) are skipped. Conditional includes all count.
+const headerNewest = new Map();
+const newestWithIncludes = (file, visiting = new Set()) => {
+  if (headerNewest.has(file)) return headerNewest.get(file);
+  let newest = statSync(file).mtimeMs;
+  if (visiting.has(file)) return newest;
+  visiting.add(file);
+  for (const m of readFileSync(file, "latin1").matchAll(/^\s*#\s*include\s*[<"]([^>"]+)[>"]/gm)) {
+    const hit = [dirname(file), ...decompIncludes()].map((d) => join(d, m[1])).find((p) => existsSync(p));
+    if (hit) newest = Math.max(newest, newestWithIncludes(hit, visiting));
+  }
+  visiting.delete(file);
+  headerNewest.set(file, newest);
+  return newest;
+};
+const fresh = (obj, source) => existsSync(obj) && !flag("--recompile") && !definesChanged && statSync(obj).mtimeMs >= newestWithIncludes(source);
 // --mix FILE (clang builds, for bisecting a clang-only behaviour): only the units listed in FILE (one per line, as in
 // vc6-matches.txt) are clang's; every other unit links the VC6 object of the same configuration's VC6 build
 // (build/<folder>/obj, which must be built and current). Both follow the MSVC ABI with VC6's runtime, so they link.

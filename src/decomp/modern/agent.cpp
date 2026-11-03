@@ -8,8 +8,8 @@
 //
 // The commands are SummonerFix's. Characters are reached through their members (the layouts differ in a 64-bit
 // build); peek, poke, count, dumpdata and the call commands take Sum.exe addresses, translated through the address
-// table (modern_sum_va). Not here: pad (the controller), hybridcov, k310 and pokecode, which belong to
-// SummonerFix's own features.
+// table (modern_sum_va). pad drives the build's own controller code (experimental/controller.cpp, FIXED_BUILD;
+// since 2026-11-03). Not here: hybridcov, k310 and pokecode, which belong to SummonerFix's own features.
 #include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,6 +39,12 @@
 #define AGENT_THISCALL __attribute__((thiscall))
 #endif
 typedef size_t agent_word;   // one integer argument of a call command (a pointer below 2 GB fits in either build)
+
+#ifdef FIXED_BUILD
+// experimental/controller.cpp's synthetic pad state, the exports SummonerFix's pad forwards to.
+extern "C" void __cdecl ExpControllerSetSynthetic(int lx, int ly, int rx, int ry, unsigned buttons, unsigned long ms);
+extern "C" int __cdecl ExpControllerSyntheticDone();
+#endif
 
 static char agent_dir[MAX_PATH];
 static char agent_out[16384];
@@ -400,6 +406,23 @@ static void run_line(char *line)
         Sleep(60);
         mouse_mark_button(0, false);
         out("drag: ok");
+    } else if (!_stricmp(c, "pad") && argc >= 6) {
+        // pad LX LY RX RY BUTTONS [MS], as in SummonerFix (src/summonerfix/agent.c): the game thread reads the state
+        // once per frame (exp_controller_frame), with [Controller] Enabled=0 too.
+#ifdef FIXED_BUILD
+        DWORD ms = argc > 6 ? (DWORD)atoi(argv[6]) : 100;
+        ExpControllerSetSynthetic(atoi(argv[1]), atoi(argv[2]), atoi(argv[3]), atoi(argv[4]),
+                                  (unsigned)strtoul(argv[5], NULL, 16), ms);
+        Sleep(ms);
+        for (int i = 0; i < 100 && !ExpControllerSyntheticDone(); i++)
+            Sleep(10);
+        int cx, cy;
+        modern_get_agent_cursor(&cx, &cy);
+        out(ExpControllerSyntheticDone() ? "pad: ok (cursor %d,%d)" : "pad: not released after 1 s (is the game drawing?) (cursor %d,%d)",
+            cx / 2, cy / 2);
+#else
+        out("pad: no controller code in this build (fixed and experimental builds only)");
+#endif
     } else if (!_stricmp(c, "wait") && argc >= 2) {
         Sleep((DWORD)atoi(argv[1]));
     } else if ((!_stricmp(c, "capture") || !_stricmp(c, "capturefull")) && argc >= 2) {
@@ -553,8 +576,14 @@ static void run_line(char *line)
         lstrcpynA(level_script, argv[2], sizeof level_script);
         out("level %s %s: %s", argv[1], argv[2], run_sync(change_level, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "summon") && argc >= 2) {
+        // A summon takes a Player record (5: the party's four and one summon); with none free summon_create stops the
+        // game with "No more player slots" (player.cpp line 421), as a second summon of the full party did on
+        // 2026-11-03. Refused here instead.
         summon_spell = atoi(argv[1]);
-        out("summon %d: %s", summon_spell, run_sync(summon_body, NULL) ? "requested" : "no window");
+        if (player_free_list.next == &player_free_list)
+            out("summon %d: refused, no free Player record (a summon is already out with the full party)", summon_spell);
+        else
+            out("summon %d: %s", summon_spell, run_sync(summon_body, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "knock") && argc >= 2) {
         knock_ms = atoi(argv[1]);
         out("knock %d: %s", knock_ms, run_sync(knock_body, NULL) ? "requested" : "no window");

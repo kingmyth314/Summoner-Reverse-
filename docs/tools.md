@@ -68,6 +68,32 @@ under both GitHub's and kramdown's rules for heading ids. The two differ for hea
 contain underscores (function names such as `FUN_00501510`): such a heading is linked through an explicit
 `<a name="..."></a>` on the line before it. External links are not fetched. Exit code 1 when a problem is found.
 
+## `tools/check.mjs` and CI
+
+Added 2026-11-03. `node tools/check.mjs [--sweep|--no-sweep] [--quick]` runs the invariants of
+[AGENTS.md](https://github.com/kingmyth314/Summoner-Reverse-/blob/main/AGENTS.md) that need no game: `docs-check`, `node --check` on every tool, a
+parse of every `.ps1`, a search of the tracked files for user-folder paths, and the byte-match sweep when
+`src/decomp`'s game, engine or header source differs from `origin/main` (`--sweep` forces it; it needs `VC6_DIR`).
+It also cross-checks the setting names that tie the parts together:
+- every `// FIXED_BUILD: <id> <Key>` / `// EXPERIMENTAL_BUILD: <id> <Key>` marker names a setting some code reads; a key
+  that resembles one (`reverb` for `LevelReverb`, the slip of 2026-11-01) is an error, one that resembles none is a fix
+  with no switch, listed (three: `ResolutionDefault`, `CustomResolution`, `MoviesOpenGL`);
+- SummonerFix's `FixOn` keys and the config app's fix list are the same set;
+- every key SummonerFix stands down for (`RebuiltFixInSource`) has a marker;
+- every key the config app writes is read by SummonerFix or the game;
+- every non-debug key read is in `src/summonerfix/summonerfix.ini` (a warning).
+
+Exit 1 on an error. **Observed** 2026-11-03: its first run found `[Fixes] SummonStashNoMove` (C317) missing from
+`summonerfix.ini` (added); with the level reverb's marker set back to `K261 reverb` it reports "did it mean
+LevelReverb?".
+
+**CI** (`.github/workflows/ci.yml`, GitHub Actions, Windows): on every push to `main` and every pull request it
+downloads llvm-mingw 20260908, runs `check.mjs --no-sweep`, builds SummonerFix with its config app and the save
+editor (built only: its tests need the game's tables and saves), and builds the fixed and experimental 64-bit exes, failing unless
+link-build reports `0 failed; unresolved 0; multiply defined 0`. The 64-bit build needs no VC6 since 2026-11-03
+(`VC6_DIR` is only required for the other builds), so it runs there without FFmpeg or the Vulkan SDK (movies skipped,
+OpenGL only). No VC6, no game files and no secrets are involved, and nothing it builds is uploaded.
+
 ## `tools/symbols.mjs`
 
 Works with the symbol file `symbols/sum.symbols` (format described in its header).
@@ -289,7 +315,7 @@ experimental build also the `// EXPERIMENTAL_BUILD: <feature> <Key>` ones; Summo
 | `--arch x64` | clang build only: the x86_64 build ([L3](future/modern-port.md#the-64-bit-spike-2026-10-25)), with llvm-mingw's 64-bit headers, C runtime and import libraries (none of VC6's), debug information (`-g`), float expressions evaluated in double as on the original's x87 (`-ffp-eval-method=double`, 2026-10-26), a stand-in for EAX (`src/link/x64_stubs.c`) and the Bink calls through FFmpeg (`src/decomp/modern/bink.cpp`; set `FFMPEG_DIR` to an FFmpeg shared build for its headers, and put its five DLLs beside the exe; without it movies are skipped; with `VULKAN_SDK` set it also builds the Vulkan renderer and compiles `src/decomp/modern/shaders` with the SDK's `glslc`, selected by `[Display] Renderer=Vulkan`: [Vulkan renderer](future/vulkan-renderer.md#build)). Output: `build/<folder>-clang-x64`, `<exe>-clang-x64.exe` and its `.addr` (joined through demangled qualified names, rows against the base 0x400000; for the in-source agent mode). The game's OpenGL renderer, or Vulkan as above. Linked at 0x400000 without large-address awareness, so every address stays below 2 GB (the 4-byte `PTR32` fields of the relocated file formats rely on it). Runs without SummonerFix through the in-source host ([L3b](future/modern-port.md#l3b-the-in-source-host-2026-10-25)), so `tools/agent.mjs` and the check tools drive it as they drive the 32-bit builds |
 | (clang builds) | also compile `src/decomp/modern/*.cpp`, the in-source host: settings, the output window, agent mode. It stays off while SummonerFix is loaded |
 | `--force` | link with unresolved symbols (`/FORCE:UNRESOLVED`), to list what is missing |
-| `--recompile` | compile every unit again (objects are cached in `build/link/obj` by date; a header change needs this) |
+| `--recompile` | compile every unit again (objects are cached in `build/link/obj` by date; until 2026-11-03 a header change needed this, now a unit counts with every header it includes, directly or through other headers, found next to the including file or in the decomp include folders; the FSR shader headers still need it) |
 | `--out DIR` | output folder (default `build/link`) |
 
 `src/link` holds what Sum.exe takes from outside its own code: the three DirectX 7 GUIDs (from the DX7 SDK's
@@ -322,7 +348,7 @@ asks about the new exe); the clang builds answer it from `summonerfix.ini` thems
 | `tools/link-screencheck.mjs OUT [SCENARIO ...] [--runs 3]` | the same screens (16 scenarios: the main menu and its screens, the prologue at two moments, the village cinematic, the game view and its panels) in the original (`--runs` times) and the rebuilt exe, compared pixel by pixel; pixels that differ between the original runs are masked with a 6-pixel margin. Writes each capture as PNG, a `-diff.png` with the differing pixels in red, and `results.txt`. Walking characters move differently from run to run, so the game scenarios need three or more original runs |
 | `tools/crop-bmp.mjs IN.bmp OUT.png X Y W H [SCALE]` | cuts a rectangle out of a 24-bit agent-mode capture and enlarges it SCALE times (default 3) into a PNG, to look at small interface details (2026-10-16) |
 | `tools/imgdiff.mjs A B [--out DIFF.bmp] [--tolerance 8] [--max-percent 0.5] [--resize] [--json]` | two images of the same screen (2026-10-26, for the renderer parity tests: OpenGL against Vulkan), RGB only. Reads uncompressed 24- and 32-bit BMPs (bottom-up or top-down) and non-interlaced PNGs (8-bit grey, RGB, RGBA and palette; 16-bit, and 1/2/4-bit grey and palette, are decoded too but untested), so both of agent mode's capture formats. A pixel differs when a channel differs by more than the tolerance. One line (or `--json`): the size, the percent of pixels that differ, the percent **beyond a 1-px shift** (a differing pixel counts only when A's pixel matches none of the 3x3 pixels around the same position in B, or B's none of the 3x3 in A: an edge moved by one pixel does not count, a new detail one pixel wide does), the mean absolute difference per channel, the largest difference, the PSNR and the bounding box. Both percents are of all compared pixels. `--out` writes a 24-bit BMP: A darkened to grey, the pixels beyond a shift in red, the shift-only ones in yellow. Exit 0 when the beyond-shift percent is at most `--max-percent`, 1 above it, 2 on an error; different sizes are an error unless `--resize` (the overlapping top-left area, named in the output). Observed on 2026-10-26: synthetic 200x150 images (a 50x40 rectangle moved by one pixel: 0.27% differ, 0% beyond a shift, exit 0; moved by three: 0.79% beyond, exit 1; a 10x10 colour change and a 160-pixel line count in full; the same image as 24-bit BMP, top-down 32-bit BMP, RGB, RGBA and palette PNG: 0 differences); two 1280x720 soak captures, a PNG with itself: 0%, exit 0; Wolong against sewer: 59.08% differ, 56.96% beyond a shift, PSNR 13.32 dB, exit 1, in 0.2 s |
-| `tools/link-soak.mjs OUT [--exe EXE] [--game DIR] [--from LEVEL] [--only A,B]` | long play of one exe in its test folder (2026-10-25, for the [64-bit exe](future/modern-port.md)): from the newest test save, 48 levels in one session (all but the test level, the world map and `endgame`), each with `level NAME NAME` and the full party; it waits until the game is in play with no cutscene running (Esc skips one), then summons a golem, casts three walls of fire, captures (`OUT/<level>.png`) and waits out cutscenes again before the next level. A crash, an error dialog, a hang or never reaching play is noted and the exe restarted from the save. Run it for `Sum-orig.exe` too: three levels crash in the original as well, and only the differences count. Under the [Vulkan renderer](future/vulkan-renderer.md) with `[Debug] VulkanValidation=1`, each level's line also counts the validation layer's errors and warnings in the log (2026-10-26; the layer logs its first 200 messages per run) |
+| `tools/link-soak.mjs OUT [--exe EXE] [--game DIR] [--from LEVEL] [--only A,B]` | long play of one exe in its test folder (2026-10-25, for the [64-bit exe](future/modern-port.md)): `--exe` defaults to the player build `Sum-exp-clang-x64.exe` (until 2026-11-03 `Sum-fixed-clang-x64.exe`); from the newest test save, 48 levels in one session (all but the test level, the world map and `endgame`), each with `level NAME NAME` and the full party; it waits until the game is in play with no cutscene running (Esc skips one), then summons a golem, casts three walls of fire, captures (`OUT/<level>.png`) and waits out cutscenes again before the next level. A crash, an error dialog, a hang or never reaching play is noted and the exe restarted from the save. Run it for `Sum-orig.exe` too: three levels crash in the original as well, and only the differences count. Under the [Vulkan renderer](future/vulkan-renderer.md) with `[Debug] VulkanValidation=1`, each level's line also counts the validation layer's errors and warnings in the log (2026-10-26; the layer logs its first 200 messages per run) |
 | `tools/link-savecheck.mjs OUT LEVEL:SCRIPT ... [--runs 3]` | the level save check of the hybrid, for the standalone exe in its test folder: per level, the original `--runs` times and the rebuilt exe once, each from the newest test save (`[Debug] TestSaves=1`, the test folder's `savetest/`), `level` with the full party, a wait until play with no cutscene running (Esc skips one), a `dumpdata` and a save with `savenow` (since 2026-10-25: the quicksave refused in combat and in some areas, so the original made no save on about half the levels); then the save comparison (`tools/save-compare.mjs`, shared with `hybrid-test.mjs`) and `link-memcheck.mjs --also`. Results go to `OUT/results.txt` level by level. The save shows game state, the dump the globals no save holds; neither sees rendering or timing (the prologue camera effect, D9815, and the Create Game centring, D9817, would pass) |
 | `tools/standalone-probe.ps1 -Exe EXE -Map MAP [-Load] [-Lldb FILE]` | runs a rebuilt exe without SummonerFix (its `dinput.dll` moved aside and put back) and reads the game's state from outside every 3 s with `ReadProcessMemory`: sequence state, interface screen, fps, the real-time clock, level time, mouse position. MAP is a 64-bit exe's link map (plus its load address) or a 32-bit rebuilt exe's `.addr` table. `-Load` clicks Load Saved Game and the newest save with real mouse input (it takes the foreground for a moment); `-Lldb FILE` attaches llvm-mingw's lldb (`CLANG_DIR`) and writes the backtrace if the game crashes. The 64-bit harness until agent mode is in the source ([L3](future/modern-port.md#l3-64-bit-2026-10-25-the-64-bit-exe-plays)); screen captures of the OpenGL window come back black |
 | `--exe NAME --fixes` (both checks) | `--exe` tests another exe than `Sum-rebuilt.exe` (its `.addr` next to it), for example `Sum-fixed.exe`; `--fixes` runs both exes with SummonerFix's fixes on (`[Fixes] Enabled=1`), the comparison for the fixed build ([Fixed and experimental builds](builds.md)) |
@@ -475,14 +501,15 @@ intro movies (2026-10-25). The main menu sets state 1 before it plays them, and 
   `skeleton_read_tag_record` (2026-10-17);
 - `goldpile N` leaves a loose gold pile of N gold 2 units beside the current character (`item_create_by_name("Gold")`,
   `item_obj_spawn`, on the game thread; the object's address is in the log). For G40;
-- `pad LX LY RX RY BUTTONS [MS]` feeds a synthetic XInput controller state through SummonerFix's controller code for MS ms (default 100): sticks -32768..32767, BUTTONS the XINPUT_GAMEPAD mask in hex plus 10000 for LT and 20000 for RT. Works with `[Controller] Enabled=0`; see [SummonerFix](summonerfix/index.md#controller-gamepad-support-controller) (2026-10-21, not yet run). SummonerFix's agent mode only, and it drives SummonerFix's controller code, which stands
-  down in every rebuilt exe (their `.fixes` list `Controller`): no rebuilt exe's own controller (`experimental/controller.cpp`,
-  the experimental build since 2026-10-21, the fixed build since 2026-11-01) can be driven from a script yet, and the
-  in-source host of the clang builds has no `pad` at all (checked 2026-11-03);
+- `pad LX LY RX RY BUTTONS [MS]` feeds a synthetic XInput controller state through SummonerFix's controller code for MS ms (default 100): sticks -32768..32767, BUTTONS the XINPUT_GAMEPAD mask in hex plus 10000 for LT and 20000 for RT. Works with `[Controller] Enabled=0`; see [SummonerFix](summonerfix/index.md#controller-gamepad-support-controller) (2026-10-21, not yet run). In a rebuilt exe (its `.fixes` lists `Controller`) SummonerFix forwards `pad` to the
+  exe's own controller code (`experimental/controller.cpp`, exports `ExpControllerSetSynthetic` /
+  `ExpControllerSyntheticDone`), and since 2026-11-03 the in-source host of the clang builds has `pad` too, calling the
+  same code (fixed and experimental configurations only). *Correction, 2026-11-03:* an earlier note of the same day
+  said no rebuilt exe's controller could be driven from a script; that missed the forwarding in `controller.c`;
 - `summon SPELL` raises a summon for the current character, 2 units beside it, as the summon spells do
   (`summon_create(cur_character, pos, layer, SPELL, -1)`, game thread; `cur_summon` is in the log). SPELL is the
   decimal index in `spells.tbl` order (38 golem ... 45 mist elemental ... 53 forest dragon). The summon then waits
-  for its appearance effect before it emerges, as after a cast. Used to reproduce C317 (2026-10-20);
+  for its appearance effect before it emerges, as after a cast. Used to reproduce C317 (2026-10-20). Since 2026-11-03 it refuses when no Player record is free (five: four heroes and a summon), where the game itself would stop with "No more player slots";
 - `npchp FRACTION NAME` damages a level script character (a boss, by its script object name, e.g. `Giant Salamanka`)
   down to FRACTION of its base max HP, through `character_add_hp` as `npckill` does, so a boss passes its HP stages one
   at a time and its stage checks and transition cutscenes run as after real damage (game thread; HP before and after in
@@ -508,7 +535,7 @@ intro movies (2026-10-25). The main menu sets state 1 before it plays them, and 
   puzzle-flippers31` (the Khosani lab's use hook) or `callstr 4773d0 puzzle-flippers32 0.01`
   (`door_is_open_by_name`). The caller must know the function's arguments;
 - `pokecode ADDR BYTE` writes one byte of game code (the page is made writable around the write), to switch a fix on
-  and off in a running game for before / after captures; `k310` prints the `[Debug] TraceGlLights` counters (both SummonerFix's agent mode only, like `pad` and
+  and off in a running game for before / after captures; `k310` prints the `[Debug] TraceGlLights` counters (both SummonerFix's agent mode only, like
   `hybridcov`; `capturefull` is the in-source host's only, checked 2026-11-03);
 - Commands that run on the game thread (`level`, `calli`, `callt`, `bag`, `knock` ...) now wait until it has run them
   (up to 10 s), so the next command cannot change their arguments first (a `calli` straight after a `callt` used to

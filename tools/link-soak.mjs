@@ -2,7 +2,7 @@
 // the full party (`level NAME NAME`), a summon raised and walls of fire cast in each, a capture per level. The game
 // keeps running from level to level; after a crash or hang it is restarted from the save. Results go to
 // OUT/results.txt, captures to OUT/<level>.png.
-// usage: node tools/link-soak.mjs OUT [--exe Sum-fixed-clang-x64.exe] [--game DIR] [--from LEVEL] [--only A,B]
+// usage: node tools/link-soak.mjs OUT [--exe Sum-exp-clang-x64.exe] [--game DIR] [--from LEVEL] [--only A,B]
 import { spawnSync, execFileSync } from "node:child_process";
 import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -22,7 +22,7 @@ if (!opt("--game") && !process.env.SUMMONER_GAME) {
   process.exit(2);
 }
 const game = resolve(opt("--game", process.env.SUMMONER_GAME));
-const exe = opt("--exe", "Sum-fixed-clang-x64.exe");
+const exe = opt("--exe", "Sum-exp-clang-x64.exe");   // the player build (until 2026-11-03 the fixed 64-bit exe)
 const ini = join(game, "summonerfix.ini"), backup = join(out, "summonerfix.ini.bak"), log = join(game, "summonerfix.log");
 // Not levels to play: the developers' test level, the world map (no party to place) and endgame (the `level` warp
 // crashes the original's load of it in File::sync_float, 2026-10-25).
