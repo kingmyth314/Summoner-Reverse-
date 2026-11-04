@@ -66,7 +66,8 @@ and builds SummonerFix, the save editor and the 64-bit exes. 2 stays manual.
    Code for the other builds goes under its define, so the shipped configuration's bytes never change.
 2. The configurations you touched build with `unresolved 0; multiply defined 0`.
 3. `node tools/docs-check.mjs` reports no broken link or missing front matter.
-4. Never commit game files, binaries, compilers, DLLs, saves or the texture pack; never personal paths or names.
+4. Never commit game files, binaries, compilers, DLLs, a player's saves or the texture pack; never personal paths or names.
+   The one kind of save allowed (owner's decision, 2026-11-03): the purpose-made test saves in `testsaves/`.
 
 ## Writing documentation
 

@@ -68,6 +68,32 @@ under both GitHub's and kramdown's rules for heading ids. The two differ for hea
 contain underscores (function names such as `FUN_00501510`): such a heading is linked through an explicit
 `<a name="..."></a>` on the line before it. External links are not fetched. Exit code 1 when a problem is found.
 
+## `tools/testsaves/testsaves.mjs` (the test saves)
+
+Added 2026-11-03. Makes the saves in `testsaves/` (see its README): one save just before each fight of the boss list,
+from a new game, in agent mode, with the original `Sum.exe` and SummonerFix in a test folder (`SUMMONER_GAME`).
+`base` saves a new game; `build ID|all` loads it, sets the recipe's story flags (`flagl`), changes level (`level`),
+skips the cutscenes, raises Joseph and adds the other heroes (`xpto`, `join`), places the party outside the fight's
+trigger and saves (`savenow`); `finish` writes `testsaves/ID.sav` with `savedit`: the tier's gear (`--equip`), healing
+and AP items, summoning rings, gold, the flags and a description; `verify` loads each save, starts the fight as a
+tester would, fights 25 s and compares the party's HP. The recipes are `tools/testsaves/recipes.json`.
+
+Lessons from building them (**Observed** 2026-11-03):
+- a boss's intro cutscene sends its "go" once: when the intro played during the build, the boss in the save waited
+  for a "go" that never came. The build therefore never lets an intro play: the party stands outside the trigger
+  (for Luminar and Pijian, outside the 20 and 15 units of their proximity intros), and for a fight whose intro
+  plays on arrival (Titus) the intro flag is set before arriving and cleared in the finished save;
+- fights started by a conversation choice (Lord Korel, Zane, Azha the Archlich) need that conversation, and Korel
+  stayed hidden even with `unhide_korel` set; they belong to the play-through set;
+- `join` crashes in masad; the heroes join after the first level change;
+- skipping Titus's intro with Esc right after loading left him at his start point for good; letting it play, he
+  fought. The check therefore lets every cutscene play (up to 70 s) before pressing Esc. Why the skip loses the
+  intro's end handler there is not known (the riders' intros skipped with Esc did start their fights).
+
+Results of `verify all` on 2026-11-03 (19 saves, the original `Sum.exe` with SummonerFix): the party took damage
+within 35 s in 15; the Undead Rider killed the party (Game Over); Titus and Luminar were in combat with no damage
+yet; the quest Fire Salamanka is passive. Details in `testsaves/README.md`.
+
 ## `tools/check.mjs` and CI
 
 Added 2026-11-03. `node tools/check.mjs [--sweep|--no-sweep] [--quick]` runs the invariants of
@@ -551,6 +577,11 @@ intro movies (2026-10-25). The main menu sets state 1 before it plays them, and 
   bit of MASK set, for example `count 2f077b8 74 128 1` for the used `sound_emitters` (K110);
 - `shop NAME` opens the shop of a level script character as a click on a shopkeeper does (`shop_set_shopkeeper_from_char`, then screen 7, on the game thread); the log says whether NAME is one of the level's shopkeepers (`level_shopkeeper_find`). For example `shop Arms Merchant` on the test save's level (2026-10-26);
 - `savenow` writes `quicksave.sav` as the quicksave does once its checks pass (the thumbnail, the conversation state, `savegame::write`), without `savegame_location_allowed`, so combat and the area rules ("Cannot save in this area") do not refuse it. Used by `link-savecheck.mjs` (2026-10-25);
+- `join NAME LEVEL` adds a hero to the party at LEVEL through `party_member_join` (`0x439ba0`), which above level 1
+  awards `xp_for_level(LEVEL)` through `character_add_xp` with quiet set, as for a hero joining in the story (HP, AP and
+  skills as from play); `xpto NAME LEVEL` raises a party member, Joseph included, to LEVEL the same way. Not in masad,
+  the prologue level: `join` crashed there (2026-11-03, a NULL read at `0x51b262`), as the other heroes' files are not
+  loaded; join after the next level change. SummonerFix's agent mode only (2026-11-03, for the test saves);
 - `bag N [ITEM]` leaves an unlocked loot bag with N items (default Health Tonic, `~` for spaces) beside the current
   character, built as `monster_drop_loot` builds one; the log gives the container address. Open it with
   `interface_set_screen(4, &container)`: write the address into `pickup_container` (`0x5c3b6c`) with `poke` and run

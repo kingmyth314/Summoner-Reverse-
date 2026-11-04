@@ -41,6 +41,9 @@ Checked, and clean:
 
 - **Tracked files:** only `src/`, `docs/`, `tools/`, `symbols/`, `README.md`, `LICENSE`, `.gitignore`. No
   executables, DLLs, archives, game data (`.vpp`, `.tbl`, saves, bitmaps, sounds), compilers or third-party sources.
+  *Changed 2026-11-03 (the owner's decision):* `testsaves/` holds purpose-made test saves, made from a new game with
+  the agent tools, never a player's; a save holds story flags, the party's stats, item names and one small thumbnail
+  rendered by the game, no game asset files. `docs/assets/screens/` holds a few screenshots.
   `.gitignore` keeps out `Summoner/`, `extracted/`, `reference/`, `third_party/` and `build/`.
 - **History (474 commits):** no such file was ever committed; the largest objects are versions of `sum.symbols`.
 - **Secrets:** the x32dbg bearer token appears only as a placeholder (`<token from mcp_config.json>`), now and in

@@ -189,6 +189,34 @@ static void SummonOnGameThread(void *unused)
         *(DWORD volatile *)(UINT_PTR)SumVa(VA_CUR_SUMMON));
 }
 
+// join NAME LEVEL / xpto NAME LEVEL (2026-11-03, for the test saves): party_member_join (0x439ba0, cdecl (name, level,
+// leader, place at start, char_infos index -1)) adds a hero, and above level 1 awards xp_for_level(level) through
+// character_add_xp with quiet set, as the game does for a joining hero: HP, AP and skills as from play. A hero already in
+// the party is returned as he is, so xpto awards the difference to LEVEL the same way (Joseph included).
+#define VA_PARTY_MEMBER_JOIN 0x439ba0u
+#define VA_CHARACTER_ADD_XP 0x44fab0u // thiscall (xp, quiet, from_net)
+#define VA_XP_FOR_LEVEL 0x489a60u // cdecl (level) -> experience needed
+static char g_joinName[32];
+static volatile int g_joinLevel, g_joinXpOnly;
+
+static void JoinOnGameThread(void *unused)
+{
+    (void)unused;
+    BYTE *c = ((BYTE * (__cdecl *)(const char *, int, int, int, int))(UINT_PTR)SumVa(VA_PARTY_MEMBER_JOIN))(
+        g_joinName, g_joinXpOnly ? 1 : g_joinLevel, 0, 1, -1);
+    if (!c) {
+        Log("agent: join %s: party_member_join returned NULL (unknown name, a load pending, or no Player record free)", g_joinName);
+        return;
+    }
+    if (g_joinXpOnly) {
+        int want = ((int(__cdecl *)(int))(UINT_PTR)SumVa(VA_XP_FOR_LEVEL))(g_joinLevel), have = *(int *)(c + 0x604);
+        if (want > have)
+            ((void(__thiscall *)(void *, int, int, int))(UINT_PTR)SumVa(VA_CHARACTER_ADD_XP))(c, want - have, 1, 0);
+    }
+    Log("agent: %s %s: level %d, xp %d, HP %.0f, AP %d", g_joinXpOnly ? "xpto" : "join", g_joinName, *(short *)(c + 0x600),
+        *(int *)(c + 0x604), (double)*(float *)(c + 0x5f8), *(short *)(c + 0x5fe));
+}
+
 // A loot bag with N items 2 units beside the current character, built as monster_drop_loot builds one: item objects
 // from item_obj_spawn, then container_obj_create (unlocked) and container_add_item (game-bugs K12).
 #define VA_CONTAINER_OBJ_CREATE 0x4897f0u // cdecl (pos, lock) -> container
@@ -786,6 +814,13 @@ static void RunLine(char *line)
             Out("summon %d: refused, no free Player record (5: the party and one summon)", g_summonSpell);
         else
             Out("summon %d: %s", g_summonSpell, AgentRunSync(SummonOnGameThread, NULL) ? "requested" : "no window");
+    } else if ((!_stricmp(c, "join") || !_stricmp(c, "xpto")) && argc >= 3) {
+        // join NAME LEVEL: the hero joins the party at LEVEL; xpto NAME LEVEL: a party member gets the experience up to
+        // LEVEL (game thread; the result is in the log).
+        lstrcpynA(g_joinName, argv[1], sizeof g_joinName);
+        g_joinLevel = atoi(argv[2]);
+        g_joinXpOnly = !_stricmp(c, "xpto");
+        Out("%s %s %d: %s", c, g_joinName, g_joinLevel, AgentRunSync(JoinOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "knock") && argc >= 2) {
         // knock MS: knock the current character down for MS ms (game thread; mode and result in the log).
         g_knockMs = atoi(argv[1]);

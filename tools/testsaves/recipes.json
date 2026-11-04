@@ -1,0 +1,239 @@
+[
+ {
+  "id": "01-barbarian-fighter",
+  "level": "masad",
+  "script": "masad",
+  "party": "Joseph:3",
+  "place": "nav",
+  "at": "$cuttrig",
+  "nudge": "0 -6",
+  "go": "$cuttrig",
+  "boss": "Barbarian Fighter#$npc037",
+  "tier": 0,
+  "flags": [
+   "masad:masad_talked_to_nath=1"
+  ]
+ },
+ {
+  "id": "02-iron-golem",
+  "level": "sewerboss",
+  "script": "sewerboss",
+  "party": "Joseph:9,Flece:8",
+  "place": "npc",
+  "at": "Iron Golem#boss",
+  "nudge": "0 -14",
+  "go": "$tbintro",
+  "boss": "Iron Golem#boss",
+  "tier": 0
+ },
+ {
+  "id": "03-carados",
+  "level": "Catacombs",
+  "script": "catacombs",
+  "party": "Joseph:11,Flece:10",
+  "place": "npc",
+  "at": "Carados",
+  "nudge": "0 -14",
+  "go": "$ctrigger",
+  "boss": "Carados",
+  "tier": 0,
+  "flags": [
+   "Catacombs:maindoor_open=1"
+  ]
+ },
+ {
+  "id": "04-undead-rider",
+  "level": "rand-forestnite1",
+  "script": "Rand-Forestnite1_v2",
+  "party": "Joseph:13,Flece:12,Rosalind:12",
+  "place": "arrive",
+  "replay": "rand-forestnite1:ghost_intro_played",
+  "boss": "Ghost Rider",
+  "tier": 1
+ },
+ {
+  "id": "07-fire-salamanka",
+  "level": "rand-hills01",
+  "script": "rand-hills01",
+  "party": "Joseph:15,Flece:15,Rosalind:14,Jekhar:15",
+  "place": "npc",
+  "at": "Fire Salamanka",
+  "nudge": "0 -14",
+  "go": "npc",
+  "boss": "Fire Salamanka",
+  "tier": 1,
+  "flags": [
+   "lenele1b:lenele_slums_got_salamanka_quest=1"
+  ]
+ },
+ {
+  "id": "08-giant-salamanka",
+  "level": "KhosaniLab",
+  "script": "khosanilab",
+  "party": "Joseph:16,Flece:16,Rosalind:15,Jekhar:16",
+  "place": "nav",
+  "at": "$salstart",
+  "nudge": "0 -10",
+  "go": "$salstart",
+  "boss": "Giant Salamanka",
+  "tier": 1
+ },
+ {
+  "id": "09-phoenix-rider",
+  "level": "rand-hills01",
+  "script": "rand-hills01_v2",
+  "party": "Joseph:17,Flece:17,Rosalind:16,Jekhar:17",
+  "place": "arrive",
+  "replay": "rand-hills01:phoenix_intro_played",
+  "boss": "Phoenix Rider",
+  "tier": 1
+ },
+ {
+  "id": "10-ikaemos-priest-king",
+  "level": "IkaemosTopInt",
+  "script": "IkaemosTopInt",
+  "party": "Joseph:17,Flece:17,Rosalind:16,Jekhar:17",
+  "place": "nav",
+  "at": "$ipktrigger",
+  "nudge": "0 -10",
+  "go": "$ipktrigger",
+  "boss": "Ikaemos Priest King",
+  "tier": 1,
+  "flags": [
+   "IkaemosTopInt:ikaemos_main_door=1"
+  ]
+ },
+ {
+  "id": "11-serpent-rider",
+  "level": "rand-forest01",
+  "script": "Rand-Forest01_v2",
+  "party": "Joseph:18,Flece:18,Rosalind:17,Jekhar:18",
+  "place": "arrive",
+  "replay": "rand-forest01:serpent_intro_played",
+  "boss": "Serpent Rider",
+  "tier": 2
+ },
+ {
+  "id": "12-tiger-rider",
+  "level": "TempleInt",
+  "script": "TempleInt_v2",
+  "party": "Joseph:18,Flece:18",
+  "place": "nav",
+  "at": "$tigertrigger",
+  "nudge": "0 -10",
+  "go": "$tigertrigger",
+  "boss": "Tiger Rider#1",
+  "tier": 2
+ },
+ {
+  "id": "14-general-pijian",
+  "level": "Wolong2",
+  "script": "Wolong2",
+  "party": "Joseph:20,Flece:19,Rosalind:19,Jekhar:20",
+  "place": "nav",
+  "at": "$npc001",
+  "nudge": "0 -14",
+  "go": "npc",
+  "boss": "Pijian",
+  "tier": 2
+ },
+ {
+  "id": "15-serpent-and-phoenix-riders",
+  "level": "Liangshan",
+  "script": "Liangshan",
+  "party": "Joseph:20,Flece:20,Rosalind:19,Jekhar:20",
+  "place": "nav",
+  "at": "$sptrigger",
+  "nudge": "0 -10",
+  "go": "$sptrigger",
+  "boss": "Phoenix Rider#1",
+  "tier": 2
+ },
+ {
+  "id": "16-general-wentao",
+  "level": "Liangshan",
+  "script": "Liangshan",
+  "party": "Joseph:21,Flece:20,Rosalind:20,Jekhar:21",
+  "place": "npc",
+  "at": "General Wentao#w4",
+  "nudge": "0 -14",
+  "go": "npc",
+  "boss": "General Wentao#w4",
+  "tier": 2
+ },
+ {
+  "id": "17-undead-and-tiger-riders",
+  "level": "jadetemple",
+  "script": "jadetemple",
+  "party": "Joseph:21,Flece:21,Rosalind:20,Jekhar:21",
+  "place": "nav",
+  "at": "$tgtrigger",
+  "nudge": "0 -30",
+  "go": "$tgtrigger",
+  "boss": "Tiger Rider",
+  "tier": 2
+ },
+ {
+  "id": "18-murod",
+  "level": "jadetemple",
+  "script": "jadetemple",
+  "party": "Joseph:22,Flece:21,Rosalind:21,Jekhar:22",
+  "place": "nav",
+  "at": "$murodtrigger",
+  "nudge": "0 -14",
+  "go": "$murodtrigger",
+  "boss": "Murod",
+  "tier": 3
+ },
+ {
+  "id": "19-pyrul",
+  "level": "KhosaniLab2",
+  "script": "khosanilab2",
+  "party": "Joseph:22,Flece:22,Rosalind:21,Jekhar:22",
+  "place": "nav",
+  "at": "$salstart",
+  "nudge": "0 -10",
+  "go": "$salstart",
+  "boss": "Pyrul",
+  "tier": 3
+ },
+ {
+  "id": "20-luminar",
+  "level": "IonaExt02",
+  "script": "IonaExt02_v2",
+  "party": "Joseph:23,Flece:22,Rosalind:22,Jekhar:23",
+  "place": "arrive",
+  "at": "$npc035",
+  "nudge": "0 -24",
+  "go": "npc",
+  "boss": "Luminar",
+  "tier": 3,
+  "preflags": [
+   "IonaExt02:luminar_intro=1"
+  ],
+  "replay": "IonaExt02:luminar_intro"
+ },
+ {
+  "id": "21-titus",
+  "level": "IkaemosBottomInt2",
+  "script": "IkaemosBottomInt2",
+  "party": "Joseph:23,Flece:23,Rosalind:22,Jekhar:23",
+  "place": "arrive",
+  "replay": "IkaemosBottomInt2:titus_intro",
+  "boss": "Titus",
+  "tier": 3,
+  "preflags": [
+   "IkaemosBottomInt2:titus_intro=1"
+  ]
+ },
+ {
+  "id": "22-evil-urath-and-the-demon",
+  "level": "TempleInt2",
+  "script": "TempleInt2",
+  "party": "Joseph:24,Flece:24,Rosalind:23,Jekhar:24",
+  "place": "arrive",
+  "replay": "TempleInt2:mach_intro",
+  "boss": "Evil Urath",
+  "tier": 3
+ }
+]

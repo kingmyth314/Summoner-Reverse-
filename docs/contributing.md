@@ -39,6 +39,7 @@ be pushed to GitHub and published with GitHub Pages at any time.
 ## What never goes in the repository
 
 - Game files: executables, DLLs, `.vpp`, `.bik` (enforced by `.gitignore`).
+- A player's saves. Only the purpose-made test saves in `testsaves/` are allowed (2026-11-03), built as its README says.
 - Third-party binaries such as patch DLLs. Record source, size and SHA-256 instead.
 - Credentials or personal paths beyond what is needed to reproduce the setup.
 
