@@ -577,6 +577,12 @@ intro movies (2026-10-25). The main menu sets state 1 before it plays them, and 
   bit of MASK set, for example `count 2f077b8 74 128 1` for the used `sound_emitters` (K110);
 - `shop NAME` opens the shop of a level script character as a click on a shopkeeper does (`shop_set_shopkeeper_from_char`, then screen 7, on the game thread); the log says whether NAME is one of the level's shopkeepers (`level_shopkeeper_find`). For example `shop Arms Merchant` on the test save's level (2026-10-26);
 - `savenow` writes `quicksave.sav` as the quicksave does once its checks pass (the thumbnail, the conversation state, `savegame::write`), without `savegame_location_allowed`, so combat and the area rules ("Cannot save in this area") do not refuse it. Used by `link-savecheck.mjs` (2026-10-25);
+- `exitto LEVEL SCRIPT [ENTRY]` leaves the level as a level exit or a story cutscene does (the end of
+  Nar-Leaving-Masad: the level and script names, `level_entry_point`, `gameseq_set_state(4)`), keeping the game state.
+  `level` instead goes through `game_change_level`, whose state 2 (`state_title_enter`) resets the party inventory and
+  rebuilds the save layout: **Observed** 2026-11-03, the journal's "Find Yago" was gone after `level sewer sewer` and
+  after `level lenele1b lenele1b`, and kept after `exitto lenele1b lenele1b 1`. Use `exitto` for anything that
+  should keep the story; `level` is a new game started in that level. SummonerFix's agent mode only;
 - `join NAME LEVEL` adds a hero to the party at LEVEL through `party_member_join` (`0x439ba0`), which above level 1
   awards `xp_for_level(LEVEL)` through `character_add_xp` with quiet set, as for a hero joining in the story (HP, AP and
   skills as from play); `xpto NAME LEVEL` raises a party member, Joseph included, to LEVEL the same way. Not in masad,

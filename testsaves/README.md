@@ -60,7 +60,9 @@ starts, not whether it can be won. **Observed** 2026-11-03:
   within 35 seconds; Titus moved from his start point, which he does only after his intro;
 - 07 Fire Salamanka: present next to the party, and it does not attack first (as intended for this quest monster).
 
-These saves skip the story before the fight: only the flags a fight needs are set (for example `masad_talked_to_nath`
+They were made with the agent's `level` command, which enters a level as a new game would (state 2 resets the party
+inventory and the journal; see `exitto` in `docs/tools.md`): their journal is empty, and the inventory is the kit the
+finishing step adds. These saves skip the story before the fight: only the flags a fight needs are set (for example `masad_talked_to_nath`
 for the Barbarian, `maindoor_open` for Carados, `ikaemos_main_door` for the Priest King). Quests, doors and NPCs
 elsewhere in the level may not match a real play-through.
 
@@ -73,9 +75,10 @@ function, levels raised to what the walkthroughs suggest. A pilot on 2026-11-03 
 - Masad: Nath's conversation (driven by clicking each page's first line and END; the window's X does not answer
   agent clicks), "Find Yago" in the journal, the Barbarian's intro and his death, the boat to the world map;
 - the world map: a random encounter interrupted the walk to Lenele twice;
-- Lenele's outskirts, reached with the agent's `level` (the level change the world map makes). Here the journal read
-  back empty, although nothing in `events.tbl` removes "Find Yago": either that shortcut skips something a real
-  arrival does, or the journal reading is wrong. This has to be settled before shortcuts are trusted.
+- Lenele's outskirts, first reached with the agent's `level`: the journal read back empty. The cause: `level` calls
+  `game_change_level`, which goes through the title state (state 2) and resets the inventory and the journal. A new
+  agent command, `exitto`, leaves a level as the game's own exits do; with it "Find Yago" stayed in the journal. The
+  play-through uses only `exitto`.
 
 The opening (one conversation, one boss, one exit) took about 45 minutes of agent work; Lenele alone has fifteen
 quests and several districts. The full set is a job of several sessions, kept out of the repository until each save

@@ -149,6 +149,30 @@ static void ChangeLevelOnGameThread(void *unused)
     ((void(__cdecl *)(const char *, const char *))(UINT_PTR)SumVa(VA_GAME_CHANGE_LEVEL))(g_level, g_script);
 }
 
+// exitto LEVEL SCRIPT [ENTRY] (2026-11-03): leave the level as a level exit or a story cutscene does (the end of
+// Nar-Leaving-Masad, ls_masad_leaving_cs_end 0x4fdd30: level_prev_filename = level_filename, the new level and
+// script names, level_entry_point, gameseq_set_state(4)), so the game state goes along. "level" instead goes
+// through game_change_level, whose state 2 (state_title_enter) resets the party inventory and rebuilds the save
+// layout: the journal and the identified items were lost (2026-11-03).
+#define VA_LEVEL_FILENAME 0x60a2c8u      // char[32]
+#define VA_LEVEL_SCRIPT_NAME 0x60a2e8u   // char[32]
+#define VA_LEVEL_PREV_FILENAME 0x60a308u // char[32]
+#define VA_LEVEL_ENTRY_POINT 0x60a33cu   // int
+#define VA_GAMESEQ_SET_STATE 0x401020u   // cdecl (state)
+static volatile int g_exitEntry;
+
+static void ExitToOnGameThread(void *unused)
+{
+    (void)unused;
+    char *cur = (char *)(UINT_PTR)SumVa(VA_LEVEL_FILENAME);
+    lstrcpynA((char *)(UINT_PTR)SumVa(VA_LEVEL_PREV_FILENAME), cur, 32);
+    lstrcpynA(cur, g_level, 32);
+    lstrcpynA((char *)(UINT_PTR)SumVa(VA_LEVEL_SCRIPT_NAME), g_script, 32);
+    *(int *)(UINT_PTR)SumVa(VA_LEVEL_ENTRY_POINT) = g_exitEntry;
+    ((void(__cdecl *)(int))(UINT_PTR)SumVa(VA_GAMESEQ_SET_STATE))(4);
+    Log("agent: exitto %s %s entry %d", g_level, g_script, g_exitEntry);
+}
+
 // A loose gold pile 2 units beside the current character, as monster_drop_loot leaves one (game-bugs G40).
 static void GoldPileOnGameThread(void *unused)
 {
@@ -758,6 +782,12 @@ static void RunLine(char *line)
             pos[0] += 4.0f;
             memcpy(ch + 0x10, pos, sizeof pos);
         }
+    } else if (!_stricmp(c, "exitto") && argc >= 3) {
+        // exitto LEVEL SCRIPT [ENTRY]: change level as a level exit does, keeping the game state (ExitToOnGameThread).
+        lstrcpynA(g_level, argv[1], sizeof g_level);
+        lstrcpynA(g_script, argv[2], sizeof g_script);
+        g_exitEntry = argc > 3 ? atoi(argv[3]) : 1;
+        Out("exitto %s %s %d: %s", argv[1], argv[2], g_exitEntry, AgentRunSync(ExitToOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "level") && argc >= 3) {
         // level NAME SCRIPT: change level as a level exit does (game_change_level), e.g.
         // "level IonaEXT02 IonaEXT02_v2". Loads the level's own script objects, which the
