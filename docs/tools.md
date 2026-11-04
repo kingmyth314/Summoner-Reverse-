@@ -623,6 +623,16 @@ points of the skipped levels. Only party members (record type 7, which dead hero
 type 8 is a dying summon, with no level, XP or skill block. The chunks are found from the size table, not by a tag
 search (fixed 2026-10-15). Tested 2026-10-14: an edited copy (5000 gold, 10 skill points) loaded and showed both values.
 
+**Equipment (2026-11-03).** `--equip POS=Name` (repeatable, for the member selected by `--member`) puts a new item
+in one of the nine positions of the member's record: `neck`, `finger1`, `finger2`, `hands`, `feet`, `weapon`,
+`shield`, `torso`, `legs`; `--unequip POS` empties one. The item's `+Slot:` in `items.tbl` (a `$Type: "Weapon"`
+without one is a weapon) must fit the position, as on the inventory screen: heavy armour goes to `torso` and empties
+`legs`, a two-handed weapon empties `shield`. The hero's skill requirements are not checked. The loader equips
+through `character_equip_item`, which refuses an unidentified item, so the item's type is also marked identified.
+**Observed** 2026-11-03: Joseph with Summoner Platemail, Gauntlets and Sabaton, Decapitator, Guardian Kite Shield,
+Battle Torque and Ring of Power, loaded in the original `Sum.exe`, shows all seven on the inventory screen; before the
+identification step the torque and the ring were missing.
+
 Options are applied in command-line order (2026-10-16). `--skill`, `--add-item`, `--remove-item`, `--set-item-count`
 and `--flag` may be repeated. `--member I` (an index from 0, or `Joseph`, `Flece`, `Jekhar`, `Rosalind`) selects the
 party member for the field options after it, and may be given again for the next member. A field given twice for
@@ -657,6 +667,7 @@ The same table options as savinfo (`--tables`, `--tables-dir`, `--items-tbl`, `-
 ```
 node tools/savedit.mjs Summoner/savegame/summoner7.sav edited.sav --gold 5000 --skillpoints 10 --desc "edited"
 node tools/savedit.mjs in.sav out.sav --member Rosalind --skill 20=100 --skill 21=90 --member Joseph --hp 500
+node tools/savedit.mjs in.sav out.sav --member Joseph --equip "torso=Summoner Platemail" --equip "finger1=Ring of Power"
 node tools/savedit.mjs in.sav out.sav --add-item "Healing Draught=5" --remove-item "Ring of Light" --flag masad:masad_flag_run_away=1
 ```
 

@@ -69,16 +69,23 @@ function languageSection(toks, lang) {
   return i < 0 ? null : toks.slice(i + 1);
 }
 
-// items.tbl: the $Name: of every item type of the language section.
+// items.tbl: the $Name: of every item type of the language section, with where it is worn: its +Slot: (neck, finger,
+// hands, feet, shield, torso, legs, heavy, two-handed; item_slot_names 0x598fe8), "weapon" for a $Type: "Weapon"
+// without one (the parser's default, 4), else null (2026-11-03, for savedit --equip).
 function parseItems(text, lang) {
   const t = languageSection(tokens(text), lang);
   if (!t) return null;
-  const names = [];
+  const items = [];
   for (let i = 0; i < t.length; i++) {
     if (t[i].w === "#End") break;
-    if (t[i].w === "$Name:" && t[i + 1]?.s !== undefined) names.push(t[i + 1].s.trim());
+    if (t[i].w === "$Name:" && t[i + 1]?.s !== undefined) items.push({ name: t[i + 1].s.trim(), slot: null, weapon: false });
+    const cur = items[items.length - 1];
+    if (!cur) continue;
+    if (t[i].w === "$Type:" && t[i + 1]?.s?.toLowerCase() === "weapon") cur.weapon = true;
+    if (t[i].w === "+Slot:" && t[i + 1]?.s !== undefined) cur.slot = t[i + 1].s.trim().toLowerCase();
   }
-  return names;
+  for (const it of items) if (!it.slot && it.weapon) it.slot = "weapon";
+  return items;
 }
 
 // events.tbl as events_parse_table (0x4d39c0) reads it: $Level: blocks up to #End, then $Quest: blocks up to #End.
@@ -143,8 +150,12 @@ export function loadTables(opts = {}) {
   const tables = { lang, items: null, levels: null, quests: null, sources, warnings };
   const it = get("items.tbl");
   if (it) {
-    const names = parseItems(it.text, lang);
-    if (names) { tables.items = new Map(names.map((n) => [nameHash(n), n])); sources.items = it.from; }
+    const items = parseItems(it.text, lang);
+    if (items) {
+      tables.items = new Map(items.map((x) => [nameHash(x.name), x.name]));
+      tables.itemSlots = new Map(items.map((x) => [nameHash(x.name), x.slot]));
+      sources.items = it.from;
+    }
     else warnings.push(`items.tbl has no #${lang} section`);
   } else warnings.push("items.tbl not found: items are shown by hash");
   const ev = get("events.tbl");

@@ -14,6 +14,10 @@
 //   --level N  --xp N  --hp N  --maxhp N  --ap N  --maxap N  --skillpoints N    (once per member)
 //   --skill ID=VALUE           a skill byte (ids 0-35 are saved; 10 = level 1, see the skill table in
 //                              docs/sum-exe/characters.md)                                   (repeatable)
+//   --equip POS=Name           the member wears or wields the item (a new one; the party inventory is not changed).
+//                              POS: neck, finger1, finger2, hands, feet, weapon, shield, torso, legs. The item's
+//                              items.tbl +Slot: must fit POS, as the inventory screen's drag requires   (repeatable)
+//   --unequip POS              empty that position                                           (repeatable)
 //   table options (names of items and flags): --tables FILE.vpp (default Summoner/tables.vpp), --tables-dir DIR,
 //   --items-tbl FILE, --events-tbl FILE, --lang NAME (default english); see tools/savinfo.mjs.
 //
@@ -43,7 +47,7 @@ import {
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const fail = (msg) => { console.error(msg); process.exit(1); };
-const USAGE = "usage: node tools/savedit.mjs <in.sav> <out.sav> [--desc text] [--gold N] [--add-item Name[=N]] [--remove-item Name[=N]] [--set-item-count Name=N] [--flag LEVEL:NAME=0|1] [--member I|NAME] [--level N] [--xp N] [--hp N] [--maxhp N] [--ap N] [--maxap N] [--skillpoints N] [--skill ID=VALUE] [--tables FILE.vpp] [--tables-dir DIR] [--items-tbl FILE] [--events-tbl FILE] [--lang NAME]";
+const USAGE = "usage: node tools/savedit.mjs <in.sav> <out.sav> [--desc text] [--gold N] [--add-item Name[=N]] [--remove-item Name[=N]] [--set-item-count Name=N] [--flag LEVEL:NAME=0|1] [--member I|NAME] [--level N] [--xp N] [--hp N] [--maxhp N] [--ap N] [--maxap N] [--skillpoints N] [--skill ID=VALUE] [--equip POS=Name] [--unequip POS] [--tables FILE.vpp] [--tables-dir DIR] [--items-tbl FILE] [--events-tbl FILE] [--lang NAME]";
 
 const args = process.argv.slice(2);
 const [input, output] = args;
@@ -54,7 +58,7 @@ if (existsSync(output)) fail(`refusing: ${output} already exists (savedit never 
 // Options are kept in command-line order. Repeatable ones may appear any number of times; the others once
 // (per member for the member fields), so a value is never silently replaced by a later one.
 const FIELDS = ["level", "xp", "hp", "maxhp", "ap", "maxap", "skillpoints"];
-const ONCE = ["desc", "gold"], REPEAT = ["add-item", "remove-item", "set-item-count", "flag", "skill", "member"];
+const ONCE = ["desc", "gold"], REPEAT = ["add-item", "remove-item", "set-item-count", "flag", "skill", "member", "equip", "unequip"];
 const TABLE = ["tables", "tables-dir", "items-tbl", "events-tbl", "lang"];
 const ops = [], tableOpts = {}, seen = new Set();
 for (let i = 2; i < args.length; i++) {
@@ -192,6 +196,41 @@ for (const { k, v } of ops) {
       if (member < 0) fail(`--member: no party member named "${v}" in this save`);
     }
     memberRec();
+  } else if (k === "equip" || k === "unequip") {
+    // The record's nine equipment ints (+0x6c, Character.equipment +0x754): an index into the save's ITEM list, -1
+    // empty. Where each +Slot: may go is the inventory screen's (the switch before inventory_equip_item, 0x4174a0):
+    // neck 0; finger 1 or 2; hands 3; feet 4; weapon and two-handed 5; shield 6; torso and heavy 7 (heavy also covers
+    // the legs, so 8 is emptied); legs 8. A two-handed weapon leaves no shield (6 is emptied), and a shield is refused
+    // beside one. The hero's skills are not checked (the game checks them when dragging).
+    const POS = { neck: 0, finger1: 1, finger2: 2, hands: 3, feet: 4, weapon: 5, shield: 6, torso: 7, legs: 8 };
+    const FITS = { neck: [0], finger: [1, 2], hands: [3], feet: [4], weapon: [5], "two-handed": [5], shield: [6], torso: [7], heavy: [7], legs: [8] };
+    const r = memberRec().at + 4;
+    const eq = (i) => b.readInt32LE(r + 0x6c + 4 * i), setEq = (i, x) => b.writeInt32LE(x, r + 0x6c + 4 * i);
+    const slotOf = (i) => (eq(i) >= 0 ? tables.itemSlots?.get(types[eq(i)] >>> 0) ?? null : null);
+    const m = k === "equip" ? /^([a-z0-9]+)=(.+)$/i.exec(v) : /^([a-z0-9]+)$/i.exec(v);
+    if (!m || POS[m[1].toLowerCase()] === undefined)
+      fail(`--${k} needs ${k === "equip" ? "POS=Name" : "POS"} with POS one of ${Object.keys(POS).join(", ")}, not "${v}"`);
+    const pos = POS[m[1].toLowerCase()];
+    if (k === "unequip") {
+      setEq(pos, -1);
+      changes.push(`member ${member} ${m[1]} emptied`);
+    } else {
+      if (!tables.itemSlots) fail("--equip needs items.tbl (where each item is worn)");
+      const it = itemArg(k, m[2], false, 1), slot = tables.itemSlots.get(it.hash >>> 0);
+      if (!slot || !FITS[slot]?.includes(pos)) fail(`--equip: "${it.name}" is worn at ${slot ?? "no position"}, not ${m[1]}`);
+      if (slot === "shield" && slotOf(5) === "two-handed") fail(`--equip: "${it.name}" is a shield, and the weapon is two-handed`);
+      setEq(pos, types.indexOf(it.hash));
+      // character_equip_item (0x46c3b0) refuses an unidentified item for a party member, so the load would drop it: the
+      // type is marked identified, as identifying it in game does. In the ITEM chunk's bitmap (after the N hashes, bit
+      // i & 7 of byte i >> 3) a set bit is the type's flag bit 0, ITF_NOT_IDENTIFIED.
+      const ic = chunkAt(b, "ITEM"), ti = types.indexOf(it.hash), at = ic + 8 + 4 * b.readInt32LE(ic + 4) + (ti >> 3);
+      let note = b[at] & (1 << (ti & 7)) ? " (its type marked identified)" : "";
+      b[at] &= ~(1 << (ti & 7));
+      if (slot === "heavy") { setEq(8, -1); note += " (legs emptied: heavy armour covers them)"; }
+      if (slot === "two-handed") { setEq(6, -1); note += " (shield emptied: two-handed)"; }
+      if (slot === "legs" && slotOf(7) === "heavy") { setEq(7, -1); note += " (heavy armour removed)"; }
+      changes.push(`member ${member} ${m[1]} = "${it.name}"${note}`);
+    }
   } else if (k === "skill") {
     const r = memberRec().at + 4, m = /^(\d+)=(\d+)$/.exec(v);
     const id = m ? Number(m[1]) : -1, val = m ? Number(m[2]) : -1;

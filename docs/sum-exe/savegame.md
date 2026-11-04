@@ -248,7 +248,9 @@ can be lost this way across a save and load was not checked in game. The meaning
 | then | (N+7)/8 bytes | bit i = bit 0 of the flags (`+0x5c`) of the type with hash i |
 
 Flag bit 0 is the "identified" state of the item type (see [Shops and loot](shops-loot.md)), so the section
-saves which item types the party has identified. On load each hash is looked up (`item_type_find_by_hash`), so
+saves which item types the party has identified. *Correction, 2026-11-03:* a set bit means **not** identified
+(`ITF_NOT_IDENTIFIED`; `item_is_identified`, `0x44b690`, returns `!(flags & 1)`): in a test save the magic Battle Torque
+and Ring of Power have the bit set and plain weapons have it clear; the bits are in order, bit i & 7 of byte i >> 3. On load each hash is looked up (`item_type_find_by_hash`), so
 the bit goes to the right type even if the table order changed. Bit 2 of the same field is "cannot destroy"
 (`item_can_destroy`).
 
