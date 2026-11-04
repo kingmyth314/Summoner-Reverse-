@@ -1,4 +1,4 @@
-the act-4 cutscene and the intro play on loading; let them play
+# Test saves
 
 Saves placed just before the major fights of Summoner, for testing the game, SummonerFix and the rebuilt exes:
 combat, bosses, their stage changes and cutscenes. They were made on 2026-11-03 for this purpose, from a new game,
