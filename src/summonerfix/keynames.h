@@ -83,8 +83,8 @@ static inline void BindingsReset(Bindings *b)
         b->map[i] = (unsigned char)i;
         b->keyMouse[i] = -1;
     }
-    for (int i = 0; i < KEY_MOUSE_COUNT; i++)
-        b->mouseTo[i] = -1;
+    for (int j = 0; j < KEY_MOUSE_COUNT; j++)   // j: VC6 scopes a for variable to the function (cheats.cpp)
+        b->mouseTo[j] = -1;
 }
 
 // Apply one binding; FALSE if the combination is not supported.

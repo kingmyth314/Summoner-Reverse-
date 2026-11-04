@@ -22,6 +22,9 @@
 #include "vsdk/os/console.h"
 #include "vsdk/os/frametime.h"
 #include "summoner/summoner.h"
+#ifdef FIXED_BUILD
+#include "experimental/experimental.h"
+#endif
 
 #if defined(MODERN_BUILD)
 
@@ -314,6 +317,9 @@ static DWORD WINAPI watch_ini(LPVOID)
         load_bindings(false);
         load_game_keys();
         load_console_keys();
+#ifdef FIXED_BUILD
+        exp_cheats_load_keys();
+#endif
         if (!FindNextChangeNotification(h))
             break;
     }
@@ -331,6 +337,9 @@ static void keys_msg_handler(UINT msg, WPARAM wp, LPARAM lp)
             modern_log("script editor %s", (game_flags & 0x80) ? "on" : "off");
         }
         run_console_key(scan);
+#ifdef FIXED_BUILD
+        exp_cheat_key(scan);   // [Cheats] GoldKey, SkillPointKey (experimental/cheats.cpp)
+#endif
     }
     switch (msg) {
     case WM_XBUTTONDOWN:

@@ -98,6 +98,11 @@ Tested 2026-11-01 (test saves, 1366x768, `FrameRateCap=60`, `LevelReverb=1`, `Ex
 - **Not tested** in the fixed build: a real controller, vsync, dgVoodoo 2, the upscaled interface (tested before in the
   experimental build, from the same code).
 
+**Cheats (2026-11-03).** The owner chose to have the cheats (`[Cheats] XpMultiplier`, `GoldKey`, `SkillPointKey`) in
+every build, the fixed one included: they are off by default, so the fixed build plays as before unless a player
+turns them on. The one exception to "the fixed build does not change how the game plays". See
+[SummonerFix: Cheats](summonerfix/index.md#cheats-cheats-2026-11-03).
+
 ### Checked 2026-11-03
 
 In the test folder at 1366x768 on a 143 Hz screen, with test saves. **Observed** unless marked:

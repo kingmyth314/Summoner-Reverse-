@@ -73,6 +73,11 @@ void BugFixesInstall(void);
 // tentacle.c (experimental, [Experimental] TentacleGrab)
 void TentacleGrabInstall(void);
 
+// cheats.c: [Cheats] XpMultiplier, GoldKey, SkillPointKey (off by default)
+void CheatsInstall(void);
+void CheatsLoadKeys(void);
+void CheatsKey(int scan); // keys.c: a key press, on the game thread
+
 // hybrid.c (the link experiment, [Hybrid] Dll)
 void HybridInstall(void);
 int HybridWriteCoverage(const char *path); // [Hybrid] Coverage: the call counts of the replaced functions

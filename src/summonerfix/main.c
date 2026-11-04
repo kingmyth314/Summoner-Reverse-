@@ -175,6 +175,7 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID reserved)
         TimingFixInstall();
         TestSavesInstall();
         KeyBindInstall();
+        CheatsInstall();
         ControllerInstall();
         if (g_cfg.renderer == RENDERER_OPENGL)
             WidescreenInstall(); // rebuilt mode: only the handshake with an exe that centres its interface itself
@@ -204,6 +205,7 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID reserved)
     BugFixesInstall();
     TentacleGrabInstall();
     KeyBindInstall();
+    CheatsInstall();
     ControllerInstall(); // after KeyBindInstall: it injects through key_mark / mouse_mark_button
     if (g_cfg.renderer == RENDERER_OPENGL)
         WidescreenInstall();

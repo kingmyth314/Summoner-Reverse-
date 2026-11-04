@@ -200,6 +200,7 @@ static void __cdecl MsgHandler(UINT msg, WPARAM wp, LPARAM lp)
         if (g_editorScan && scan == g_editorScan)
             ToggleScriptEditor();
         RunConsoleKey(scan);
+        CheatsKey(scan);
     }
     switch (msg) {
     case WM_XBUTTONDOWN:
@@ -303,6 +304,7 @@ static DWORD WINAPI WatchIni(LPVOID unused)
         LoadBindings(FALSE);
         LoadGameKeys();
         LoadConsoleKeys();
+        CheatsLoadKeys();
         if (!FindNextChangeNotification(h))
             break;
     }

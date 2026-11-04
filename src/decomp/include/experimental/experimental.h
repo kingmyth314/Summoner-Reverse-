@@ -44,6 +44,11 @@ void exp_autosave_frame();
 void exp_autosave_level_loaded(bool ok);
 bool exp_autosave_enabled();      // [Experimental] Autosave is on (read at the first frame, before any screen opens)
 #endif
+// cheats.cpp: [Cheats] (off by default): XpMultiplier, GoldKey, SkillPointKey
+void exp_cheats_init();
+void exp_cheats_load_keys();      // the in-source host's key reload
+int  exp_cheat_scale_xp(int xp);  // Character::add_xp
+void exp_cheat_key(int scan);     // the in-source host's key handler (game thread)
 // display.cpp: [Experimental] display options (frame-rate cap, vsync, field of view)
 void exp_display_init();
 void exp_display_frame();

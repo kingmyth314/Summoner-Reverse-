@@ -434,6 +434,30 @@ Examples: `pad 32767 0 0 0 0 500` (cursor right for half a second), `pad 0 0 0 0
 `pad 0 0 0 0 12000 200` (LT+B: Shift + right click), `pad 0 0 -32768 0 0 400` (turn the camera left).
 
 
+## Cheats (`[Cheats]`, 2026-11-03)
+
+Added at the owner's request, for testing and for players who want a shorter game. **Off by default**; they change how
+the game plays. The original `Sum.exe` with SummonerFix (`cheats.c`) and every rebuilt exe, fixed, experimental and
+64-bit (`src/decomp/experimental/cheats.cpp`), read the same keys; the config app sets them under **Cheats...**.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `[Cheats] XpMultiplier` | 1 | Every experience award is multiplied (0.1-100): kills, quests and the `add_xp` console command all go through `character_add_xp` (`0x44fab0`). Read at game start. SummonerFix hooks the function's entry; a rebuilt exe does it in `Character::add_xp` (`.fixes` key `XpMultiplier`, so SummonerFix stands down) |
+| `[Cheats] GoldKey`, `GoldAmount` | none, 1000 | A key that adds gold to the party in play (`party_gold`, `0x971868`) |
+| `[Cheats] SkillPointKey`, `SkillPointAmount` | none, 1 | A key that gives the hero you control skill points to spend on the character screen (its Player record's `skill_points`, `+0x17c`), in play |
+
+Each key press shows a message at the top of the screen ("Cheat: +1000 gold (1030)") and a line in the log. The keys
+are re-read when the ini changes; the multiplier only at start. Gold and experience were already reachable through
+`[ConsoleKeys]` (`add_gold`, `add_xp`) and the save editor; the multiplier and in-game skill points are new.
+
+**Observed** 2026-11-03 (test saves; `XpMultiplier=10`, F7 gold 1000, F8 skill points 2, F6 `add_xp 100`; before and
+after compared with `savinfo.mjs` on a `savenow` save): in the original `Sum.exe` with SummonerFix, in
+`Sum-fixed.exe` and in the 64-bit experimental exe, gold +1000, the controlled hero +2 skill points, and `add_xp 100`
+gave 1000 experience (once: in `Sum-fixed.exe` SummonerFix logged "XpMultiplier 10.00 is in this exe's source; hook
+not applied"). The message shows at the top of the screen. The config app's window refuses a value that is not a key
+name and saves the rest. `add_xp` gave its experience to Jekhar while Rosalind was controlled: the console command
+picks its own "selected" character, not a cheats matter.
+
 ## Configuration (`summonerfix.ini`)
 
 | Key | Default | Meaning |

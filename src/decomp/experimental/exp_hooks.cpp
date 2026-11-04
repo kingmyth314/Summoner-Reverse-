@@ -15,6 +15,7 @@ static void exp_start()
     exp_log("fixed build: started");
 #endif
     exp_controller_init();
+    exp_cheats_init();
 #ifdef EXPERIMENTAL_BUILD
     exp_autosave_init();
 #endif

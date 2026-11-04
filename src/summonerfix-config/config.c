@@ -51,7 +51,7 @@ enum { ID_LIST = 100, ID_CHANGE, ID_CLEAR, ID_RESET, ID_CLOSE, ID_STATUS, ID_SKI
        ID_PADOPEN, ID_PADENABLED, ID_PADSAVE, ID_PADRESET, ID_PADCLOSE,
        ID_EXPOPEN, ID_EXPAUTOSAVE, ID_EXPLEVEL, ID_EXPVSYNC, ID_EXPHIRES, ID_EXPREVERB, ID_EXPLOG, ID_EXPSAVE, ID_EXPRESET, ID_EXPCLOSE,
        ID_DISPOPEN, ID_DISPRENDER, ID_DISPOUTPUT, ID_DISPSIZE, ID_DISPWIN, ID_DISPMENUS, ID_DISPHUD, ID_DISPPANELS,
-       ID_DISPSCALE, ID_DISPSHARP, ID_DISPSAVE, ID_DISPRESET, ID_DISPCLOSE };
+       ID_DISPSCALE, ID_DISPSHARP, ID_DISPSAVE, ID_DISPRESET, ID_DISPCLOSE, ID_CHEATOPEN };
 
 // [ConsoleKeys] Key=command entries (keys that run a developer console command). Shown as list rows after the
 // hotkeys; Change key / Clear work on them, and "Bind key..." adds one for the command typed in the box.
@@ -914,6 +914,113 @@ static void OpenExpWindow(void)
                                r.right - r.left, r.bottom - r.top, g_wnd, NULL, GetModuleHandleA(NULL), NULL);
     ShowWindow(g_expWnd, SW_SHOW);
 }
+// The "Cheats" window: [Cheats] (cheats.c in SummonerFix, experimental/cheats.cpp in the rebuilt exes; off by default):
+// the experience multiplier (read at game start) and two keys that add gold and skill points in play (read live).
+typedef struct { const char *iniKey, *label, *def; } CheatField;
+static const CheatField k_cheatFields[] = {
+    {"XpMultiplier", "Experience multiplier (0.1-100; 1 = off; at game start):", "1"},
+    {"GoldKey", "Key that adds gold in play (key name, e.g. F7; empty = none):", ""},
+    {"GoldAmount", "Gold per press (1-1000000):", "1000"},
+    {"SkillPointKey", "Key that adds skill points to the selected hero (e.g. F8):", ""},
+    {"SkillPointAmount", "Skill points per press (1-100):", "1"},
+};
+#define CHEAT_FIELD_COUNT (int)(sizeof k_cheatFields / sizeof k_cheatFields[0])
+#define ID_CHEATFIELD0 480
+#define CHEAT_WND_W 560
+#define CHEAT_WND_H (60 + CHEAT_FIELD_COUNT * 28 + 50)
+static HWND g_cheatWnd;
+
+static void CheatFill(HWND w, BOOL defaults)
+{
+    for (int i = 0; i < CHEAT_FIELD_COUNT; i++) {
+        char v[32];
+        if (defaults)
+            lstrcpynA(v, k_cheatFields[i].def, sizeof v);
+        else
+            GetPrivateProfileStringA("Cheats", k_cheatFields[i].iniKey, k_cheatFields[i].def, v, sizeof v, g_ini);
+        SetDlgItemTextA(w, ID_CHEATFIELD0 + i, v);
+    }
+}
+
+static BOOL CheatSave(HWND w)
+{
+    char v[CHEAT_FIELD_COUNT][32];
+    for (int i = 0; i < CHEAT_FIELD_COUNT; i++)
+        GetDlgItemTextA(w, ID_CHEATFIELD0 + i, v[i], sizeof v[i]);
+    double m = atof(v[0]);
+    int gold = atoi(v[2]), points = atoi(v[4]);
+    const char *bad = NULL;
+    if (m < 0.1 || m > 100.0)
+        bad = k_cheatFields[0].label;
+    else if (v[1][0] && _stricmp(v[1], "none") && KeyParse(v[1]) <= 0)
+        bad = k_cheatFields[1].label;
+    else if (gold < 1 || gold > 1000000)
+        bad = k_cheatFields[2].label;
+    else if (v[3][0] && _stricmp(v[3], "none") && KeyParse(v[3]) <= 0)
+        bad = k_cheatFields[3].label;
+    else if (points < 1 || points > 100)
+        bad = k_cheatFields[4].label;
+    if (bad) {
+        MessageBoxA(w, "A value is out of range or not a key name; nothing was saved.", bad, MB_OK | MB_ICONWARNING);
+        return FALSE;
+    }
+    for (int i = 0; i < CHEAT_FIELD_COUNT; i++)
+        WritePrivateProfileStringA("Cheats", k_cheatFields[i].iniKey, v[i], g_ini);
+    return TRUE;
+}
+
+static LRESULT CALLBACK CheatWndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
+{
+    switch (msg) {
+    case WM_CREATE: {
+        Label(w, "For the original game with SummonerFix and every rebuilt exe. Off by default; they change how", 10, 10, CHEAT_WND_W - 20);
+        Label(w, "the game plays. Keys work in play only and show a message at the top of the screen.", 10, 26, CHEAT_WND_W - 20);
+        int y = 52;
+        for (int i = 0; i < CHEAT_FIELD_COUNT; i++, y += 28) {
+            Label(w, k_cheatFields[i].label, 10, y + 3, 420);
+            PadEdit(w, ID_CHEATFIELD0 + i, 440, y, 100);
+        }
+        y += 8;
+        Button(w, ID_EXPSAVE, "&Save", 10, y, 100);
+        Button(w, ID_EXPRESET, "&Defaults", 120, y, 100);
+        Button(w, ID_EXPCLOSE, "Close", 230, y, 100);
+        CheatFill(w, FALSE);
+        return 0;
+    }
+    case WM_COMMAND:
+        if (LOWORD(wp) == ID_EXPSAVE) {
+            if (CheatSave(w)) {
+                SetStatus("Cheats saved. The keys apply at once; the experience multiplier at the next game start.");
+                DestroyWindow(w);
+            }
+        } else if (LOWORD(wp) == ID_EXPRESET) {
+            CheatFill(w, TRUE); // shown only; Save writes them
+        } else if (LOWORD(wp) == ID_EXPCLOSE) {
+            DestroyWindow(w);
+        }
+        return 0;
+    case WM_DESTROY:
+        g_cheatWnd = NULL;
+        return 0;
+    }
+    return DefWindowProcA(w, msg, wp, lp);
+}
+
+static void OpenCheatWindow(void)
+{
+    if (g_cheatWnd) {
+        SetForegroundWindow(g_cheatWnd);
+        return;
+    }
+    RECT r = {0, 0, CHEAT_WND_W, CHEAT_WND_H};
+    DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU;
+    AdjustWindowRect(&r, style, FALSE);
+    RECT m;
+    GetWindowRect(g_wnd, &m);
+    g_cheatWnd = CreateWindowExA(WS_EX_TOPMOST, "SummonerFixCheats", "SummonerFix - Cheats", style, m.left + 80, m.top + 80,
+                                 r.right - r.left, r.bottom - r.top, g_wnd, NULL, GetModuleHandleA(NULL), NULL);
+    ShowWindow(g_cheatWnd, SW_SHOW);
+}
 
 // The "Display" window: [Display] Renderer, Mode, GameWidth / GameHeight, WindowWidth / WindowHeight, the three
 // wide-screen switches and the Vulkan renderer's RenderScale / FsrSharpness, so a player never edits summonerfix.ini
@@ -1318,6 +1425,7 @@ static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         Button(w, ID_CONSOLE_BIND, "&Bind key...", 540, 418, 120);
         Label(w, "Controller (next game start):", 770, 372, 230);
         Button(w, ID_PADOPEN, "Co&ntroller...", 770, 390, 120);
+        Button(w, ID_CHEATOPEN, "Chea&ts...", 900, 390, 100);
         Label(w, "Rebuilt exes (Sum-fixed, Sum-exp):", 770, 424, 230);
         Button(w, ID_EXPOPEN, "Fe&atures...", 770, 442, 120);
         Button(w, ID_CLOSE, "Close", 540, 472, 120);
@@ -1348,6 +1456,7 @@ static LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         case ID_FIXLIST: OpenFixWindow(); break;
         case ID_PADOPEN: OpenPadWindow(); break;
         case ID_EXPOPEN: OpenExpWindow(); break;
+        case ID_CHEATOPEN: OpenCheatWindow(); break;
         case ID_DISPOPEN: OpenDispWindow(); break;
         case ID_CONSOLE_BIND: StartConsoleBind(); break;
         case ID_CLOSE: DestroyWindow(w); break;
@@ -1412,6 +1521,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show)
     RegisterClassA(&wc);
     wc.lpfnWndProc = DispWndProc;
     wc.lpszClassName = "SummonerFixDisplay";
+    RegisterClassA(&wc);
+    wc.lpfnWndProc = CheatWndProc;
+    wc.lpszClassName = "SummonerFixCheats";
     RegisterClassA(&wc);
     wc.lpszClassName = "SummonerFixConfig"; // the main window below is created by this name
     RECT r = {0, 0, 1010, 540};

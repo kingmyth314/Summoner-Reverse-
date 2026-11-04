@@ -69,6 +69,9 @@
 #include "levelscripts/level_scripts.h"
 #include "levelscripts/savegame.h"
 #include "levelscripts/conversation.h"
+#ifdef FIXED_BUILD
+#include "experimental/experimental.h"   // FIXED_BUILD only ([Cheats] XpMultiplier)
+#endif
 
 #undef XSTR
 #define XSTR(text, id) (0 ? (char *)(text) : localize_strings[id])
@@ -653,6 +656,10 @@ void Character::add_xp(int xp, bool quiet, bool from_net)
     int points;
     char msg[80];
 
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: cheats XpMultiplier. [Cheats] XpMultiplier (default 1) scales every award (experimental/cheats.cpp).
+    xp = exp_cheat_scale_xp(xp);
+#endif
     max_level = xp_max_level();
     if (level >= max_level)
         return;

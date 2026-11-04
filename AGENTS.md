@@ -38,7 +38,7 @@ only third-party source is AMD's FidelityFX Super Resolution 1 shader headers (M
 | Define | Set by | Meaning |
 |---|---|---|
 | (none) | `--config shipped` | the original code; the byte-match reference |
-| `FIXED_BUILD` | `fixed`, `experimental` | bug fixes, each marked `// FIXED_BUILD: <bug id> <[Fixes] key>`, and since 2026-11-01 the features that do not change how the game plays (widescreen, game options, controller, frame cap, vsync, hi-res interface, level reverb, dgVoodoo) |
+| `FIXED_BUILD` | `fixed`, `experimental` | bug fixes, each marked `// FIXED_BUILD: <bug id> <[Fixes] key>`, and since 2026-11-01 the features that do not change how the game plays (widescreen, game options, controller, frame cap, vsync, hi-res interface, level reverb, dgVoodoo), and the opt-in `[Cheats]` (2026-11-03) |
 | `EXPERIMENTAL_BUILD` | `experimental` | features that change the game: autosave and the Tentacle Beast grab, marked `// EXPERIMENTAL_BUILD: <feature> <Key>` |
 | `MODERN_BUILD` | `--compiler clang` | portable forms of VC6-only code, and the host in `src/decomp/modern/` |
 | `_WIN64` | `--arch x64` | 64-bit; `PTR32` pointer fields in relocated file formats, `POOL64` pools, `LAYOUT_CHECK_32` |
