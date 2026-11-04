@@ -42,6 +42,15 @@ be pushed to GitHub and published with GitHub Pages at any time.
 - Third-party binaries such as patch DLLs. Record source, size and SHA-256 instead.
 - Credentials or personal paths beyond what is needed to reproduce the setup.
 
+## Screenshots
+
+Allowed since 2026-11-03 (the owner's decision): pictures of our own tools' windows, and captures of the game running
+that show a change (before and after). They go in `docs/assets/screens/`, a few hundred KB at most (game captures
+960 wide as JPEG, windows as PNG), and each has a caption with the exe, the build or setting, and the date. Every
+byte stays in the history, so keep the set small (about 20). No personal paths or names in the picture: the save
+editor's first page shows the save's full path, so it is captured on another page. These are not the game's own
+image files, which stay out (above).
+
 ## Before a push
 
 1. `node tools/docs-check.mjs`: no missing front matter, no broken relative link or `#anchor`. A renamed heading

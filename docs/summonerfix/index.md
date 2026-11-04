@@ -20,6 +20,13 @@ widescreen (`GameWidth=1366`), shops, looting, and the optional zoom and range s
 "FAST x3" badge), the cutscene-uptime fix and the save-thumbnail fix were verified in agent mode. Earlier play-tests
 confirmed 120 FPS at 1:1 game speed.
 
+![The HUD at the left of a 1366-wide game](../assets/screens/widescreen-hud-off.jpg)
+*The original `Sum.exe` with SummonerFix at a game width of 1366, `CenterHud=0`: the interface stays in the left
+1024 pixels. 2026-11-03, OpenGL, a test save.*
+
+![The same scene with the HUD centred](../assets/screens/widescreen-hud-on.jpg)
+*The same with `CenterHud=1` (the default): the HUD centred, the 3D world full width. 2026-11-03.*
+
 **Windows 11 Smart App Control.** When Smart App Control is on (Windows Security, App & browser control), Windows refuses to load unsigned DLLs such as SummonerFix's `dinput.dll`, and may refuse to start freshly built or downloaded programs such as the [save editor](../save-editor.md) (a fresh build was refused on 2026-10-21, while the config app ran). The DLL is refused **silently**: the game starts, but without SummonerFix (original speed, no OpenGL fix, no fixes). The Code Integrity event log shows the block (event 3077, error 4551 for `LoadLibrary`). Seen on the development PC on 2026-10-21, when Smart App Control left its evaluation mode by itself. The choices are the player's: turn Smart App Control off (Windows cannot turn it back on without a reset) or play without SummonerFix. A release signed with a code-signing certificate from a trusted authority would avoid it (a self-signed one does not). Since 2026-10-21 `SummonerFixConfig.exe` checks for it at start-up (`HKLM\SYSTEM\CurrentControlSet\Control\CI\Policy`, `VerifiedAndReputablePolicyState` = 1) and says so in a warning, tested on a PC where it was on.
 
 **Signing options (researched 2026-11-01, undecided).** Only a signature that chains to a trusted certificate
@@ -150,6 +157,9 @@ to get the proxy loaded.
 | Diagnostics (optional) | Hooks `MessageBoxA`, `ExitProcess`, `HeapAlloc`, `VirtualAlloc`, `GlobalMemoryStatus`, `Sleep`; logs them with a heuristic stack trace; logs access violations (address, registers, stack; the CRT otherwise exits silently with code 0xC0000005); logs FPS, sleep and game-clock statistics every 5 s; optional frame captures from the back buffer | Tracing failures to game code |
 
 ### Switching original-game fixes off (`[Fixes]`)
+
+![The Choose fixes window](../assets/screens/config-fixes.png)
+*Choose fixes..., 2026-11-03: one switch per fix that changes how the game plays.*
 
 Added 2026-10-17 (owner's decision). Every fix in `bugfix.c` that changes how the game plays, sounds or looks
 has a line in `summonerfix.ini [Fixes]`: 1 (the default, also when the line or the section is missing) applies the
@@ -284,6 +294,18 @@ because `FrameTimer` has already overwritten its own timestamp), then sets the g
 The game clock (`FrameClockRead`) was checked against QPC: 5001.2 ms vs 5001.2 ms over 5 s.
 
 ## Key binding app (`SummonerFixConfig.exe`)
+
+![SummonerFixConfig's main window](../assets/screens/config-main.png)
+*SummonerFixConfig.exe, 2026-11-03: key bindings, game options and the buttons to the other windows.*
+
+![The Display window](../assets/screens/config-display.png)
+*Display / resolution..., 2026-11-03, on a 2560x1440 screen.*
+
+![The main menu at the left of a 1366-wide game](../assets/screens/menu-centred-off.jpg)
+*`CenterMenus=0`: the 1024-wide menus at the left of a 1366-wide game.*
+
+![The main menu centred](../assets/screens/menu-centred-on.jpg)
+*`CenterMenus=1` (the default): centred. Both 2026-11-03, the original `Sum.exe` with SummonerFix.*
 
 **Display / resolution...** (added 2026-10-24) sets the `[Display]` keys, so a player does not edit the ini: the
 renderer, fullscreen or window, the game resolution, the window size and the three wide-screen switches. The game
@@ -445,6 +467,12 @@ the game plays. The original `Sum.exe` with SummonerFix (`cheats.c`) and every r
 | `[Cheats] XpMultiplier` | 1 | Every experience award is multiplied (0.1-100): kills, quests and the `add_xp` console command all go through `character_add_xp` (`0x44fab0`). Read at game start. SummonerFix hooks the function's entry; a rebuilt exe does it in `Character::add_xp` (`.fixes` key `XpMultiplier`, so SummonerFix stands down) |
 | `[Cheats] GoldKey`, `GoldAmount` | none, 1000 | A key that adds gold to the party in play (`party_gold`, `0x971868`) |
 | `[Cheats] SkillPointKey`, `SkillPointAmount` | none, 1 | A key that gives the hero you control skill points to spend on the character screen (its Player record's `skill_points`, `+0x17c`), in play |
+
+![The Cheats window](../assets/screens/config-cheats.png)
+*Cheats..., 2026-11-03, with the defaults (all off).*
+
+![The message a cheat key shows](../assets/screens/cheat-message.jpg)
+*The gold key in play: "Cheat: +1000 gold (1030)" at the top. 2026-11-03, the original `Sum.exe` with SummonerFix.*
 
 Each key press shows a message at the top of the screen ("Cheat: +1000 gold (1030)") and a line in the log. The keys
 are re-read when the ini changes; the multiplier only at start. Gold and experience were already reachable through

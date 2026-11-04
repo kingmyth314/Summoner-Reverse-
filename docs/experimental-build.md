@@ -42,6 +42,9 @@ decided (2026-10-21) on one tree with three configurations, so the features are 
 
 ## Features
 
+![The Features window](assets/screens/config-features.png)
+*SummonerFixConfig's Features... window, 2026-11-03.*
+
 All are written, compile, and keep the shipped build unchanged.
 Switches are in the config app: **Features...** (named **Experimental...** until 2026-11-01: autosave, frame-rate cap, vsync, upscaled interface, level reverb, the log), **Controller...**,
 and the Tentacle Beast box on the main window.
@@ -96,6 +99,10 @@ this one with the gate `FIXED_BUILD` now that the widescreen interface is in the
 2026-11-03 for this source fix in `Sum-fixed.exe` at 1366 (SummonerFix stands down there for `CenterHud`): the Load
 screen's thumbnail of a `savenow` save shows the whole scene. SummonerFix's fix was observed on 2026-10-27 with the
 original exe (below) and not run again.
+
+![The Load screen's thumbnail of a save made at 1366](assets/screens/save-thumbnail-1366.jpg)
+*After the fix: the Load screen's thumbnail of a save made at a game width of 1366 shows the whole scene.
+`Sum-fixed.exe`, 2026-11-03.*
 
 **The fix (`EXPERIMENTAL_BUILD: Widescreen CenterHud`):** `saveload_capture_thumbnail` sets and reads its clip
 unshifted (`gr::set_clip`, `gr_get_clip`; ui_shift.h's names are undefined around the function and restored after

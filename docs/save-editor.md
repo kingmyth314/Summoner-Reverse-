@@ -24,6 +24,9 @@ design are in `src/saveeditor/NOTES.md`).
 
 ## Use
 
+![The save editor's Party page](assets/screens/save-editor.png)
+*SummonerSaveEditor.exe on a test save, the Party page, 2026-11-03.*
+
 Copy `SummonerSaveEditor.exe` into the game folder, next to `Sum.exe`. It uses:
 
 - `savegame\` in its folder: the Saves page lists every `*.sav` there, newest first (file, description,
