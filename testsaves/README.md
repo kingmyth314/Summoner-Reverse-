@@ -63,3 +63,20 @@ starts, not whether it can be won. **Observed** 2026-11-03:
 These saves skip the story before the fight: only the flags a fight needs are set (for example `masad_talked_to_nath`
 for the Barbarian, `maindoor_open` for Carados, `ikaemos_main_door` for the Priest King). Quests, doors and NPCs
 elsewhere in the level may not match a real play-through.
+
+## The play-through set (started 2026-11-03)
+
+The second set will follow the story in order, so that every save has the story state of a real game: quests,
+journal, doors, the heroes joining when they do. It is made by playing in agent mode, with shortcuts only where they
+do not change the story: walking inside a level by teleport, boss fights ended through the game's own damage
+function, levels raised to what the walkthroughs suggest. A pilot on 2026-11-03 played the opening (**Observed**):
+- Masad: Nath's conversation (driven by clicking each page's first line and END; the window's X does not answer
+  agent clicks), "Find Yago" in the journal, the Barbarian's intro and his death, the boat to the world map;
+- the world map: a random encounter interrupted the walk to Lenele twice;
+- Lenele's outskirts, reached with the agent's `level` (the level change the world map makes). Here the journal read
+  back empty, although nothing in `events.tbl` removes "Find Yago": either that shortcut skips something a real
+  arrival does, or the journal reading is wrong. This has to be settled before shortcuts are trusted.
+
+The opening (one conversation, one boss, one exit) took about 45 minutes of agent work; Lenele alone has fifteen
+quests and several districts. The full set is a job of several sessions, kept out of the repository until each save
+is checked like the fight saves.
