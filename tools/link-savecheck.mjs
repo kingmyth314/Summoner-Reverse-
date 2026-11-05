@@ -13,6 +13,12 @@
 // run with SummonerFix's fixes on ([Fixes] Enabled=1), the comparison for the fixed build (docs/builds.md); in the
 // fixed exe SummonerFix leaves out the fixes its source already has (<exe>.fixes).
 //
+// A .sav file in place of LEVEL:SCRIPT (2026-11-05, for testsaves/): each run loads that save instead of warping (it is
+// copied into savetest/ as summoner40.sav, the newest save), waits for play, plays on --play ms (default 5000) with no
+// input, then dumps and saves as above. The state compared is then the story state of a real game. --reuse-orig keeps
+// the original's runs already in <out dir>, so several exes can be compared with one set of original runs (the same
+// --fixes setting, the same --play).
+//
 // With --rebuilt-runs N the rebuilt exe also runs N times (reb.sav, reb1.sav ...; the first is the one compared), to see
 // whether a difference repeats.
 //
@@ -38,7 +44,9 @@ const ini = join(game, "summonerfix.ini");
 const backup = opt("--ini-backup", join(game, "summonerfix.ini.savecheck"));
 const quicksave = join(game, "savetest", "quicksave.sav");
 const OLD = new Date("2000-01-01T00:00:00");
-const optArgs = new Set(["--runs", "--rebuilt-runs", "--game", "--ini-backup", "--exe"]);
+const playMs = +opt("--play", 5000);
+const reuse = args.includes("--reuse-orig");
+const optArgs = new Set(["--runs", "--rebuilt-runs", "--game", "--ini-backup", "--exe", "--play"]);
 const positional = args.filter((a, i) => !a.startsWith("--") && !optArgs.has(args[i - 1]));
 const [out, ...levels] = positional;
 if (!out || !levels.length || /\s/.test(out)) {
@@ -86,11 +94,15 @@ function session(exe) {
 
 // One run: warp, dump, quicksave. Returns the problem or "".
 function runOnce(exe, level, sav, dump) {
-  const [name, script] = level.split(":");
+  const fromSave = /\.sav$/i.test(level);
   utimesSync(quicksave, OLD, OLD);
   const before = readFileSync(quicksave);
+  if (fromSave) copyFileSync(level, join(game, "savetest", "summoner40.sav")); // the copy's time is now: the newest save
   session(exe);
-  agent(exe, `poke 609fe0 1; level ${name} ${script}; wait 8000`);
+  if (!fromSave) {
+    const [name, script] = level.split(":");
+    agent(exe, `poke 609fe0 1; level ${name} ${script}; wait 8000`);
+  }
   // A level's opening cutscene refuses the quicksave: wait until play (state 4) with no cutscene (game_flags bit 0x20),
   // skipping one with Esc (2026-10-25: six levels made no save in the original without this).
   for (let t0 = Date.now(); Date.now() - t0 < 90000; ) {
@@ -99,7 +111,7 @@ function runOnce(exe, level, sav, dump) {
     if (state && state[1] === "4" && flags && !(parseInt(flags[1], 16) & 0x20)) break;
     agent(exe, "postkey Esc; wait 1500", 30000);
   }
-  const res = agent(exe, `wait 1500; dumpdata ${dump} ${table}; savenow; wait 3000; info`);
+  const res = agent(exe, `wait ${fromSave ? playMs : 1500}; dumpdata ${dump} ${table}; savenow; wait 3000; info`);
   kill(exe);
   const log = readFileSync(join(game, "summonerfix.log"), "latin1");
   const after = readFileSync(quicksave);
@@ -117,10 +129,11 @@ function runOnce(exe, level, sav, dump) {
 const note = (line) => { console.log(line); appendFileSync(results, line + "\n"); };
 try {
   for (const level of levels) {
-    const tag = level.split(":")[0].replace(/[^A-Za-z0-9_-]/g, "_");
+    const tag = (/\.sav$/i.test(level) ? level.replace(/^.*[\\/]/, "").replace(/\.sav$/i, "") : level.split(":")[0]).replace(/[^A-Za-z0-9_-]/g, "_");
     const p = (s) => join(out, `${tag}-${s}`);
     let problem = "";
     for (let i = 0; i < runs && !problem; i++) {
+      if (reuse && existsSync(p(`orig${i}.sav`)) && existsSync(p(`orig${i}.bin`))) continue;
       const why = runOnce("Sum-orig.exe", level, p(`orig${i}.sav`), p(`orig${i}.bin`));
       if (why) problem = `original run ${i}: ${why}`;
     }

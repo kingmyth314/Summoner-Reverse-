@@ -9,7 +9,8 @@
 // The commands are SummonerFix's. Characters are reached through their members (the layouts differ in a 64-bit
 // build); peek, poke, count, dumpdata and the call commands take Sum.exe addresses, translated through the address
 // table (modern_sum_va). pad drives the build's own controller code (experimental/controller.cpp, FIXED_BUILD;
-// since 2026-11-03). Not here: hybridcov, k310 and pokecode, which belong to SummonerFix's own features.
+// since 2026-11-03). Not here: hybridcov, k310 and pokecode, which belong to SummonerFix's own features. exitto,
+// join / xpto, dlg, items, talkto and open (the story commands of the test saves) since 2026-11-05.
 #include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,6 +33,16 @@
 #include "levelscripts/savegame.h"
 #include "levelscripts/script_internal.h"
 #include "summoner/interface/new_buysell.h"
+#include <math.h>
+#include "summoner/gameplay.h"
+#include "summoner/gametarget.h"
+#include "levelscripts/conversation.h"
+#include "engine/objects/objects.h"
+#include "engine/objects/items.h"
+#include "engine/characterinfo/characterinfo.h"
+
+extern int dialogue_mode;                // 0x5bc48c new_dialogue.cpp
+extern container *pickup_container;      // 0x5c3b6c new_pickup.cpp
 
 #ifdef _WIN64
 #define AGENT_THISCALL
@@ -308,6 +319,10 @@ static void npc_body(void *arg)
         if (npc->type == 4)
             npc->type = 5;
         npc->add_hp(-1000000.0f, -1, 0, false);
+        // Left "dying" mid-move (a Liangshan wave soldier killed while walking stayed so for good): no current
+        // move, so the death finishes (SummonerFix's npckill, 2026-11-04).
+        if ((npc->flags & (CF_HIDDEN | CF_DEAD)) == CF_HIDDEN)
+            npc->cur_anim = -1;
         modern_log("agent: npckill %s: hp %.0f, flags %08X", r->name, npc->hp, npc->flags);
     } else {
         float want = r->frac * npc->base_max_hp;
@@ -316,6 +331,50 @@ static void npc_body(void *arg)
         modern_log("agent: npchp %s %.2f: hp %.0f of %.0f", r->name, r->frac, npc->hp, npc->base_max_hp);
     }
     free(r);
+}
+
+// exitto LEVEL SCRIPT [ENTRY]: leave the level as the game's exits do (the names, the entry point, state 4), so the
+// inventory and the journal stay (level goes through the title state, which resets them).
+static int exit_entry;
+static void exitto_body(void *)
+{
+    lstrcpynA(level_info.prev_filename, level_info.filename, sizeof level_info.prev_filename);
+    lstrcpynA(level_info.filename, level_name, sizeof level_info.filename);
+    lstrcpynA(level_info.script_name, level_script, sizeof level_info.script_name);
+    level_info.entry_point = exit_entry;
+    gameseq_set_state(4);
+    modern_log("agent: exitto %s %s entry %d", level_name, level_script, exit_entry);
+}
+
+// join NAME LEVEL: the hero joins the party at LEVEL; xpto NAME LEVEL: a party member gets the experience up to LEVEL.
+static char join_name[32];
+static int join_level;
+static bool join_xp_only;
+static void join_body(void *)
+{
+    Character *c = party_member_join(join_name, join_xp_only ? 1 : join_level, false, true, -1);
+    if (!c) {
+        modern_log("agent: join %s: party_member_join returned NULL (unknown name, a load pending, or no Player record free)",
+                   join_name);
+        return;
+    }
+    if (join_xp_only) {
+        int want = xp_for_level(join_level);
+        if (want > c->xp)
+            c->add_xp(want - c->xp, true, false);
+    }
+    modern_log("agent: %s %s: level %d, xp %d, HP %.0f, AP %d", join_xp_only ? "xpto" : "join", join_name, c->level, c->xp,
+               c->hp, c->ap);
+}
+
+// talkto: player_talk_to on the character found (as a click on it); open: a container opened as a click on it.
+static Character *talk_target;
+static void talkto_body(void *) { player_talk_to(talk_target); }
+static container *open_target;
+static void open_body(void *)
+{
+    pickup_container = open_target;
+    interface_set_screen(4, &pickup_container);
 }
 
 static void join_words(char *dst, size_t size, char **argv, int from, int argc)
@@ -616,6 +675,94 @@ static void run_line(char *line)
         r->frac = kill ? -1.0f : (float)atof(argv[1]);
         join_words(r->name, sizeof r->name, argv, kill ? 1 : 2, argc);
         out("%s %s: %s", c, r->name, run_sync(npc_body, r) ? "requested" : "no window");
+    } else if (!_stricmp(c, "exitto") && argc >= 3) {
+        lstrcpynA(level_name, argv[1], sizeof level_name);
+        lstrcpynA(level_script, argv[2], sizeof level_script);
+        exit_entry = argc > 3 ? atoi(argv[3]) : 1;
+        out("exitto %s %s %d: %s", argv[1], argv[2], exit_entry, run_sync(exitto_body, NULL) ? "requested" : "no window");
+    } else if ((!_stricmp(c, "join") || !_stricmp(c, "xpto")) && argc >= 3) {
+        lstrcpynA(join_name, argv[1], sizeof join_name);
+        join_level = atoi(argv[2]);
+        join_xp_only = !_stricmp(c, "xpto");
+        out("%s %s %d: %s", c, join_name, join_level, run_sync(join_body, NULL) ? "requested" : "no window");
+    } else if (!_stricmp(c, "dlg")) {
+        // dlg [N]: the open conversation (dialogue_mode 0 closed, 1 text, 3 topics), the last N lines of the text box
+        // and the offered topics with the point to click (capture pixels). In text mode "more" sits at the topic box.
+        dialogue_box &tb = dialogue_text_box;
+        dialogue_topic_list &tp = dialogue_topic_box;
+        int want = argc > 1 ? atoi(argv[1]) : 8;
+        out("dlg: mode %d, state %d, speaker %s", dialogue_mode, conversation_active.state,
+            conversation_active.name ? conversation_active.name : "-");
+        for (int i = tb.count > want ? tb.count - want : 0; i < tb.count; i++) {
+            const dialogue_line &ln = tb.line[(tb.first + i) % 64];
+            if (ln.text)
+                out("  line %d: %.300s", ln.kind, ln.text);
+        }
+        out("  box %d %d (more / end here in text mode), %d topics", tp.x, tp.y, tp.count);
+        for (int i = 0; i < tp.count && i < 64; i++) {
+            const dialogue_topic_entry &e = tp.entry[i];
+            out("  topic %d at %d %d: %.200s", i, tp.x + 20, tp.y + e.top + (int)tp.scroll + e.height / 2,
+                e.topic && e.topic->text ? e.topic->text : "-");
+        }
+    } else if (!_stricmp(c, "items")) {
+        // items [R]: the item objects (type 3) and containers (type 11) within R (15) of the current character, for
+        // loot that is hard to see on screen; "open ADDR" opens a container.
+        Character *me = cur_character;
+        float r = argc > 1 ? (float)atof(argv[1]) : 15.0f;
+        int shown = 0;
+        for (obj *o = obj_active_list.next; me && o && o != &obj_active_list && shown < 40; o = o->next) {
+            if (o->type != 3 && o->type != 11)
+                continue;
+            float dx = o->pos.x - me->pos.x, dy = o->pos.y - me->pos.y, dz = o->pos.z - me->pos.z;
+            float d = sqrtf(dx * dx + dy * dy + dz * dz);
+            if (d > r)
+                continue;
+            char names[400];
+            int len = 0, n = o->type == 3 ? 1 : ((container *)o)->num_items;
+            names[0] = 0;
+            for (int i = 0; i < n && i < MAX_CONTAINER_ITEMS; i++) {
+                item_obj *it = o->type == 3 ? (item_obj *)o : ((container *)o)->items[i];
+                const char *nm = it && it->item && it->item->type ? it->item->type->name : NULL;
+                len += _snprintf(names + len, sizeof names - len - 1, "%s%s x%d", i ? ", " : "", nm ? nm : "?",
+                                 it ? it->count : 0);
+                if (len >= (int)sizeof names - 40)
+                    break;
+            }
+            out("items: %s %p at %.1f (flags %X): %s", o->type == 3 ? "item" : "container", (void *)o, d, o->obj_flags,
+                names);
+            shown++;
+        }
+        if (!shown)
+            out("items: none within %.1f", r);
+    } else if (!_stricmp(c, "talkto") && argc >= 2) {
+        // talkto NAME: the nearest living character whose name starts with NAME ('~' for spaces) is talked to as a
+        // click on it does (player_talk_to), also shopkeepers that npcgoto cannot find.
+        char want[64];
+        lstrcpynA(want, argv[1], sizeof want);
+        for (char *q = want; *q; q++)
+            if (*q == '~')
+                *q = ' ';
+        Character *me = cur_character, *best = NULL;
+        float bestd = 1e30f;
+        for (Character *o = living_list.live_next; me && o && o != &living_list; o = o->live_next) {
+            if (_strnicmp(o->name, want, strlen(want)))
+                continue;
+            float dx = o->pos.x - me->pos.x, dz = o->pos.z - me->pos.z;
+            if (dx * dx + dz * dz < bestd) {
+                bestd = dx * dx + dz * dz;
+                best = o;
+            }
+        }
+        if (!best) {
+            out("talkto %s: no such character", want);
+        } else {
+            talk_target = best;
+            out("talkto %s: %s at %.1f, %s", want, best->name, sqrtf(bestd), run_sync(talkto_body, NULL) ? "requested" : "no window");
+        }
+    } else if (!_stricmp(c, "open") && argc >= 2) {
+        // open ADDR: ADDR is the container's address in this process, as items prints it (below 2 GB in both builds).
+        open_target = (container *)(size_t)strtoul(argv[1], NULL, 16);
+        out("open %s: %s", argv[1], run_sync(open_body, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "npcdead") && argc >= 2) {
         char name[64];
         join_words(name, sizeof name, argv, 1, argc);
