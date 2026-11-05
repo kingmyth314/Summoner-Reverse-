@@ -1,7 +1,7 @@
 # AGENTS.md - working in this repository
 
 For AI agents and anyone who wants the facts without the history. Humans: start at [README.md](README.md) and
-[docs/quickstart.md](docs/quickstart.md). State on 2026-11-03: [docs/status.md](docs/status.md).
+[docs/quickstart.md](docs/quickstart.md). State on 2026-11-05: [docs/status.md](docs/status.md).
 
 ## What this is
 
@@ -26,6 +26,7 @@ only third-party source is AMD's FidelityFX Super Resolution 1 shader headers (M
 | `src/decomp/vc6-matches.txt` | the functions that match byte for byte; the sweep checks against it |
 | `src/link/` | link support for the standalone exes (stubs, no original code) |
 | `src/summonerfix/`, `src/summonerfix-config/` | SummonerFix and its config app (C, llvm-mingw) |
+| `testsaves/` | purpose-made test saves (README): fights from the boss list, and `playthrough/`, the main story in order |
 | `symbols/sum.symbols` | every Sum.exe name: the source of truth for names (`node tools/symbols.mjs`) |
 | `docs/sum-exe/` | one page per game system; `game-bugs.md` = the 355 bugs with ids (C/G/K + number) |
 | `docs/future/modern-port.md` | the clang / 64-bit port (rungs L1-L4), with a summary at the top |

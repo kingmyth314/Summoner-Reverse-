@@ -1,10 +1,13 @@
 # Test saves
 
-Saves placed just before the major fights of Summoner, for testing the game, SummonerFix and the rebuilt exes:
-combat, bosses, their stage changes and cutscenes. They were made on 2026-11-03 for this purpose, from a new game,
-with the project's agent tools (`tools/testsaves/testsaves.mjs`). None comes from anyone's own play. Each has the
-story party at levels that suit the fight, gear from a matching tier, healing and AP items, summoning rings and gold.
-The fight list follows the order of the boss guides on GameFAQs.
+Two sets of saves for testing the game, SummonerFix and the rebuilt exes. None comes from anyone's own play.
+- **The fight saves** (this folder, 2026-11-03): saves placed just before the major fights of Summoner, for combat,
+  bosses, their stage changes and cutscenes. Made from a new game with the project's agent tools
+  (`tools/testsaves/testsaves.mjs`). Each has the story party at levels that suit the fight, gear from a matching
+  tier, healing and AP items, summoning rings and gold. The fight list follows the order of the boss guides on GameFAQs.
+- **The play-through set** (`playthrough/`, 2026-11-04): 43 saves of the main story in order, from Masad to the last
+  fight, each with the story state of a real game (quests, journal, party). See
+  [the play-through set](#the-play-through-set-started-2026-11-03).
 
 ## Using them
 

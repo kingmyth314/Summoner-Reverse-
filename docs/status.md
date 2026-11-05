@@ -3,7 +3,7 @@ title: Current state
 nav_order: 1.6
 ---
 
-# Current state (2026-11-03)
+# Current state (2026-11-05)
 
 What exists, what passes and what is open, one row per part. The pages linked hold the evidence and the history;
 how to reproduce each line: [Reproduce and play](quickstart.md).
@@ -27,10 +27,13 @@ how to reproduce each line: [Reproduce and play](quickstart.md).
 | SummonerFix (`dinput.dll` for the original game) | Windows 10/11, OpenGL, widescreen, key rebinding, controller, 40+ bug fixes with switches; since 2026-11-01 the config app sets the 64-bit build's Vulkan, RenderScale and FSR keys and LevelReverb, and window sizes larger than the screen are shrunk to fit | [SummonerFix](summonerfix/index.md) |
 | Game documentation | 35 topic pages on Sum.exe; 355 bugs checked in the code | [Sum.exe](sum-exe/index.md), [bugs](sum-exe/game-bugs.md) |
 | Save editor | `SummonerSaveEditor.exe`, writes new saves only | [Save editor](save-editor.md) |
+| Cheats | `[Cheats]` (2026-11-03), off by default, in SummonerFix and every rebuilt exe: an experience multiplier, a gold key, a skill-point key; set in the config app | [SummonerFix](summonerfix/index.md#cheats-cheats-2026-11-03) |
+| Test saves | `testsaves/` in the repository: 19 saves before the boss-list fights (2026-11-03) and 43 saves of the main story in order, Masad to the last fight (2026-11-04), made in agent mode from a new game; every one loads in the original exe | `testsaves/README.md`; [Tools](tools.md#toolstestsavestestsavesmjs-the-test-saves) |
 | Texture pack | made from your own install with Real-ESRGAN, never distributed | [Texture upscaling](future/texture-upscale.md) |
 | Multiplayer | documented (66 packet types); not ported to 64-bit | [Multiplayer](sum-exe/multiplayer.md) |
 
 ## Next
 
-1. A player's test of the 64-bit build.
+1. A player's test of the 64-bit build; before it, a run of every rebuilt exe against the test saves (load, play a
+   short stretch, compare with the original).
 2. L4, the idiomatic rewrite: the Vulkan renderer, M0-M5 done, merged into `main` on 2026-10-27; since then RenderScale with FSR 1 (soaked at 0.75 and 1.5), frame-pacing measurements and 24-bit movies; variable refresh waits for a DisplayPort connection ([Vulkan renderer](future/vulkan-renderer.md)). Sound stays on DirectSound (the owner's choice, 2026-11-01); the experimental build reads each level's reverb file (`LevelReverb`, heard only with EAX) ([modern port](future/modern-port.md)).

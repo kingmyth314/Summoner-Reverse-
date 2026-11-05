@@ -177,7 +177,9 @@ Added 2026-10-16 at the user's request.
   `gamestage`, the boss `*_stage` commands), SummonerFix `[ConsoleKeys]`, `[Debug] ScriptEditorKey`,
   `TestSaves`, and agent-mode `flag` / `navgoto`. A player-facing version could add a console window with the
   game's own output, a cheats page in the config app, and a level-warp menu (`play_and_load_cutscene` with the
-  return-to-menu bit cleared, see [Tools](tools.md)).
+  return-to-menu bit cleared, see [Tools](tools.md)). *Cheats done 2026-11-03:* `[Cheats]` (experience multiplier,
+  gold and skill-point keys), off by default, with a **Cheats...** window in the config app
+  ([SummonerFix](summonerfix/index.md#cheats-cheats-2026-11-03)).
 
 ### Game mechanics the developers left switched off
 

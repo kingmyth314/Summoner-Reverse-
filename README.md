@@ -48,6 +48,9 @@ documentation and the decompilation notes are also a working log, so they mentio
   feature the original game gets from SummonerFix, checked by comparing SummonerFix's logs for both exes (2026-10-24):
   any game resolution, the widescreen interface in its own source, the game options
   ([Experimental build](docs/experimental-build.md)).
+- **Test saves:** `testsaves/` holds saves made for testing from a new game in agent mode: 19 placed just before
+  the boss fights, with gear and levels for each, and 43 that follow the main story in order from Masad to the last
+  fight. They load in the original exe and the rebuilt ones ([testsaves/README.md](testsaves/README.md)).
 - **Higher-resolution textures:** `tools/texture-upscale.mjs` makes a loose-file texture pack from your own install with
   Real-ESRGAN: 5,261 textures, the 100 animated VBMs and the 7 fonts, at 2x or 4x, each checked against its original.
   `tools/texture-pack-original.mjs` makes the version the original `Sum.exe` can use (no interface art). The pack is
@@ -107,6 +110,7 @@ src/saveeditor/  SummonerSaveEditor.exe and the saveedit command-line tool (C)
 src/summonerfix/ SummonerFix source (C, built with LLVM-MinGW)
 src/summonerfix-config/ SummonerFixConfig.exe (key bindings and options)
 symbols/         Symbol file and structure layouts for Sum.exe
+testsaves/       Purpose-made test saves: before each boss fight, and the main story in order (playthrough/)
 tools/           Build, test and analysis helper scripts
 Summoner/        Local game install - NOT committed (see .gitignore)
 ```

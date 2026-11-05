@@ -45,7 +45,7 @@ Checked, and clean:
   the agent tools, never a player's; a save holds story flags, the party's stats, item names and one small thumbnail
   rendered by the game, no game asset files. `docs/assets/screens/` holds a few screenshots.
   `.gitignore` keeps out `Summoner/`, `extracted/`, `reference/`, `third_party/` and `build/`.
-- **History (474 commits):** no such file was ever committed; the largest objects are versions of `sum.symbols`.
+- **History (587 commits, checked 2026-11-05):** no such file was ever committed apart from the 62 test saves in `testsaves/` (above); the largest objects are versions of `sum.symbols`.
 - **Secrets:** the x32dbg bearer token appears only as a placeholder (`<token from mcp_config.json>`), now and in
   history. Commits use a GitHub no-reply address.
 - **The strategy guide:** never committed; the docs cite it by page only.
