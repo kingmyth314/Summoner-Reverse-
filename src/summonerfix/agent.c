@@ -25,6 +25,7 @@
 //   quit               ask the game to exit (game state 3)
 #include "summonerfix.h"
 #include "keynames.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -413,6 +414,11 @@ static void NpcKillOnGameThread(void *arg)
         if (*(int *)(npc + 0xc) == 4)
             *(int *)(npc + 0xc) = 5;
         ((AddHp)(UINT_PTR)SumVa(0x450850u))(npc, -1000000.0f, -1, 0, 0);
+        // A character killed in the middle of a move stays "dying" (+0x320 bit 0x8, not dead 0x80) until the move ends;
+        // a walking wave soldier never ended it (Liangshan's first wave, 2026-11-04). No current move (+0x6cc = -1)
+        // lets the death finish, as for the party members in the boss runs.
+        if ((*(DWORD *)(npc + 0x320) & 0x88) == 0x08)
+            *(int *)(npc + 0x6cc) = -1;
         Log("agent: npckill %s: %p, hp %.0f, flags %08lX", name, (void *)npc, (double)*(float *)(npc + 0x5f8),
             *(DWORD *)(npc + 0x320));
     }
@@ -895,6 +901,112 @@ static void RunLine(char *line)
             strncat(name, argv[i], 63 - strlen(name));
         }
         Out("npchp %s %s: %s", argv[1], name, AgentRunSync(NpcHpOnGameThread, block) ? "requested" : "no window");
+    } else if (!_stricmp(c, "dlg")) {
+        // dlg [N] (2026-11-04): the open conversation as text, for playing the story from a script: dialogue_mode
+        // (0x5bc48c: 0 closed, 1 text, 3 topics), the speaker, the last N lines of the text box (0x2544408, default
+        // 8) and the offered topics of the topic box (0x2545b68) with the point to click (capture pixels, the
+        // game's mouse coordinates). In mode 1 "more" sits at the topic box's origin (new_dialogue.cpp).
+        const BYTE *tb = (const BYTE *)(UINT_PTR)SumVa(0x2544408u), *tp = (const BYTE *)(UINT_PTR)SumVa(0x2545b68u);
+        const BYTE *ctl = (const BYTE *)(UINT_PTR)SumVa(0x25464b0u);
+        const char *who = *(const char *const *)(ctl + 0x2c);
+        int want = argc > 1 ? atoi(argv[1]) : 8, first = *(const int *)(tb + 0x20), count = *(const int *)(tb + 0x24);
+        Out("dlg: mode %d, state %d, speaker %s", *(const int *)(UINT_PTR)SumVa(0x5bc48cu), *(const int *)(ctl + 8),
+            who && !IsBadReadPtr(who, 1) ? who : "-");
+        for (int i = count > want ? count - want : 0; i < count; i++) {
+            const BYTE *ln = tb + 0x2c + 0x1c * ((first + i) % 64);
+            const char *t = *(const char *const *)(ln + 0x14);
+            if (t && !IsBadReadPtr(t, 1))
+                Out("  line %d: %.300s", *(const int *)(ln + 0x10), t);
+        }
+        int bx = *(const int *)(tp + 4), by = *(const int *)(tp + 8), n = *(const int *)(tp + 0x24);
+        int scroll = (int)*(const float *)(tp + 0xc);
+        Out("  box %d %d (more / end here in text mode), %d topics", bx, by, n);
+        for (int i = 0; i < n && i < 64; i++) {
+            const BYTE *e = tp + 0x2c + 0x18 * i;
+            const BYTE *topic = *(const BYTE *const *)(e + 0x14);
+            const char *t = topic && !IsBadReadPtr(topic, 0x10) ? *(const char *const *)(topic + 0xc) : NULL;
+            Out("  topic %d at %d %d: %.200s", i, bx + 20, by + *(const int *)(e + 4) + scroll + *(const int *)(e + 0xc) / 2,
+                t && !IsBadReadPtr(t, 1) ? t : "-");
+        }
+    } else if (!_stricmp(c, "items")) {
+        // items [R] (2026-11-04): the item objects (type 3) and containers (type 11) of obj_active_list (0x970770)
+        // within R (default 15) of the current character: address, distance, flags +0x84 and the items (ItemType
+        // name through item_info +4), for loot that is hard to see on screen. Open a container with "open ADDR".
+        const BYTE *head = (const BYTE *)(UINT_PTR)SumVa(0x970770u);
+        const BYTE *me = *(const BYTE *const *)(UINT_PTR)SumVa(VA_CUR_CHARACTER);
+        float r = argc > 1 ? (float)atof(argv[1]) : 15.0f;
+        int shown = 0;
+        for (const BYTE *o = *(const BYTE *const *)(head + 4); me && o && o != head && shown < 40; o = *(const BYTE *const *)(o + 4)) {
+            int type = *(const int *)(o + 0xc);
+            if (type != 3 && type != 11)
+                continue;
+            float dx = *(const float *)(o + 0x10) - *(const float *)(me + 0x10);
+            float dy = *(const float *)(o + 0x14) - *(const float *)(me + 0x14);
+            float dz = *(const float *)(o + 0x18) - *(const float *)(me + 0x18);
+            float d = sqrtf(dx * dx + dy * dy + dz * dz);
+            if (d > r)
+                continue;
+            char names[400];
+            int len = 0, n = type == 3 ? 1 : *(const int *)(o + 0xd8);
+            names[0] = 0;
+            for (int i = 0; i < n && i < 16; i++) {
+                const BYTE *it = type == 3 ? o : *(const BYTE *const *)(o + 0x98 + 4 * i);
+                const BYTE *info = it ? *(const BYTE *const *)(it + 0x98) : NULL;
+                const BYTE *ty = info ? *(const BYTE *const *)(info + 4) : NULL;
+                const char *nm = ty ? *(const char *const *)ty : NULL;
+                len += _snprintf(names + len, sizeof names - len - 1, "%s%s x%d", i ? ", " : "",
+                    nm && !IsBadReadPtr(nm, 1) ? nm : "?", it ? *(const int *)(it + 0x9c) : 0);
+                if (len >= (int)sizeof names - 40)
+                    break;
+            }
+            Out("items: %s %08lX at %.1f (flags %X): %s", type == 3 ? "item" : "container", (unsigned long)(UINT_PTR)o, d,
+                *(const unsigned *)(o + 0x84), names);
+            shown++;
+        }
+        if (!shown)
+            Out("items: none within %.1f", r);
+    } else if (!_stricmp(c, "talkto") && argc >= 2) {
+        // talkto NAME (2026-11-04): the nearest character of living_list (0x8eca60, linked at +0x318) whose name
+        // (+0x2f4, character_get_name) starts with NAME ('~' for spaces, case ignored) is talked to as a click
+        // on it does: player_talk_to (0x43c5a0) on the game thread (the party walks up as after a click).
+        // For shopkeepers and others that npcgoto / script_npc_talk cannot find (not script objects).
+        char want[64];
+        lstrcpynA(want, argv[1], sizeof want);
+        for (char *q = want; *q; q++)
+            if (*q == '~')
+                *q = ' ';
+        const BYTE *head = (const BYTE *)(UINT_PTR)SumVa(0x8eca60u);
+        const BYTE *me = *(const BYTE *const *)(UINT_PTR)SumVa(VA_CUR_CHARACTER);
+        const BYTE *best = NULL;
+        float bestd = 1e30f;
+        size_t wl = strlen(want);
+        for (const BYTE *o = *(const BYTE *const *)(head + 0x318); me && o && o != head; o = *(const BYTE *const *)(o + 0x318)) {
+            if (_strnicmp((const char *)(o + 0x2f4), want, wl))
+                continue;
+            float dx = *(const float *)(o + 0x10) - *(const float *)(me + 0x10);
+            float dz = *(const float *)(o + 0x18) - *(const float *)(me + 0x18);
+            if (dx * dx + dz * dz < bestd) {
+                bestd = dx * dx + dz * dz;
+                best = o;
+            }
+        }
+        if (!best) {
+            Out("talkto %s: no such character", want);
+        } else {
+            g_callAddr = 0x43c5a0u;
+            g_callIntA = (DWORD)(UINT_PTR)best;
+            g_callIntB = 0;
+            Out("talkto %s: %s at %.1f, %s", want, (const char *)(best + 0x2f4), sqrtf(bestd),
+                AgentRunSync(CallIntOnGameThread, NULL) ? "requested" : "no window");
+        }
+    } else if (!_stricmp(c, "open") && argc >= 2) {
+        // open ADDR (2026-11-04): open a container from "items" as clicking it does: pickup_container (0x5c3b6c) =
+        // ADDR, then interface_set_screen(4, &pickup_container) (0x412620) on the game thread (the "bag" recipe).
+        *(DWORD *)(UINT_PTR)SumVa(0x5c3b6cu) = (DWORD)strtoul(argv[1], NULL, 16);
+        g_callAddr = 0x412620u;
+        g_callIntA = 4;
+        g_callIntB = SumVa(0x5c3b6cu);
+        Out("open %s: %s", argv[1], AgentRunSync(CallIntOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "npcdead") && argc >= 2) {
         // npcdead NAME: script_object_find (0x4cddf0) and script_npc_is_dead (0x4ce600) for a script character.
         char name[64] = "";

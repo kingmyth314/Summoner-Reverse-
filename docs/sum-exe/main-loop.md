@@ -138,6 +138,12 @@ flowchart LR
   level name) and always sets state 2. It sets `level_entered_by_load` when a save is pending, or when the
   level is `masad` (`level_script_find` index 3) with script `masad`, and sets the byte `0x5fbf18`, which
   nothing reads, when it runs before the first state (`0x431a57`..`0x431b62`).
+  Nothing else writes `level_entered_by_load`, so a level exit (state 4 to state 4) leaves it as it was.
+  `game_stage_set` skips its party joins, its `party_set_level` catch-up and its ring gifts while it is set, so in
+  a game started from the menu or from a save those run only after a level change that cleared it (the console's
+  level warps). **Observed** 2026-11-04 in the play-through test saves (a save loaded, then the story played
+  through the game's own level exits): Iona (stage 2), the act 2 dock (stage 4) and every later stage left the
+  party's levels unchanged.
   Its callers are `mainmenu_start_new_game` (level 3, `masad`), `saveload_load_selected`, `quickload`,
   `cmd_loadgame`, `cutscene_change_level_for` (console), `mp_change_level` and the unreachable state 8.
 - **State 2 enter** (`state_title_enter`, `0x431e20`) plays the "Title" music, resets the objects, the

@@ -83,3 +83,68 @@ function, levels raised to what the walkthroughs suggest. A pilot on 2026-11-03 
 The opening (one conversation, one boss, one exit) took about 45 minutes of agent work; Lenele alone has fifteen
 quests and several districts. The full set is a job of several sessions, kept out of the repository until each save
 is checked like the fight saves.
+
+### The set (2026-11-04)
+
+`testsaves/playthrough/`: 43 saves, the main story from Masad to the last fight, played in order in agent mode on
+the original `Sum.exe` with SummonerFix, from the opening pilot on. Load them as the fight saves (above); their
+descriptions start with `TEST PT` and the number.
+
+How they were made (**Observed**): every conversation of the main story was played through the dialogue window
+(each offered topic clicked, the agent's `dlg` and `talkto` commands; a conversation is read to its end, so side
+topics are spent too); levels were left through `exitto` only; the story items were taken from the containers the
+game drops or places (`items` / `open`). Shortcuts, none of which changes the story state:
+- walking inside a level by teleport (`navgoto`, `npcgoto`), and the world map crossed by `exitto` (no random
+  encounters);
+- every fight ended through the game's damage function (`npckill` / `npchp`), boss stages and cutscenes in their
+  own order. The party gets no experience and almost no loot from those fights, so gold stays at 59 from the
+  Catacombs on;
+- party levels raised with `xpto` (through the game's XP code) to the level `game_stage_set` gives each story stage,
+  from Iona on (stage 2: 7, stage 4: 9 ... the last fight: 25). The game itself never raises them after a load
+  ([`level_entered_by_load`](../docs/sum-exe/main-loop.md)); pt-01..05 keep the levels the opening gave (Joseph 3);
+- the party made immortal (the `immortal` console flag, `0x941704`) during the Liangshan waves and the act 4 fights,
+  and mortal again before each save;
+- Lenele's side quests, the Khosani and Wolong side quests, and the optional bosses Lord Korel, Zane and Azha were
+  not played.
+
+| Save | Where | The story so far |
+|---|---|---|
+| `pt-01` .. `pt-03` | Masad, the world map, Lenele's slums | the opening pilot: Find Yago |
+| `pt-04-sewer-flece-joined` | sewer | Flece joined at the market gate |
+| `pt-05-palace-ring-of-darkness` | Lenele palace | Flece's sneak, Meeting-With-Yago, the Ring of Darkness |
+| `pt-06-iona-rosalind-joined` | Iona | Rosalind joined; the abbot's talk |
+| `pt-07-catacombs-ring-of-light` | Iona catacombs | Brother Ovaard's key, the spheres, Carados, the Ring of Light |
+| `pt-08-act2-lenele-dock` | Lenele dock (`lenele1d_v2`) | act 2 begins (Nar-Act2) |
+| `pt-09-palace-jekhar-joined` | Lenele palace (`lpalaceint_v2`) | Yago and the king; Jekhar joined |
+| `pt-10-worldmap-after-undead-rider` | world map | the Ghost (Undead) Rider driven off |
+| `pt-11`, `pt-12` | Khosani laboratory | the stronghold's Guardian and Ulsadana; the Giant Salamanka, the Ring of Fire |
+| `pt-13-worldmap-after-phoenix-rider` | world map | the Phoenix Rider (killed twice: it is reborn once) |
+| `pt-14-ikaemos-ring-of-stone` | Ikaemos palace | the dagger slots, the Priest King, the Ring of Stone |
+| `pt-15-worldmap-after-serpent-rider` | world map | the Serpent Rider |
+| `pt-16-lenele-besieged` | Lenele gate (`lenele2d`) | Pedrog |
+| `pt-17-occupied-lenele` | occupied Lenele | Joseph and Flece only |
+| `pt-18-temple-before-tiger-rider` | Temple of Urath | Eavesdropping played; the Tiger Rider next |
+| `pt-19-act3-eleh`, `pt-20-eleh-joseph-found` | Eleh | act 3: Flece alone, then Joseph found |
+| `pt-21`, `pt-22` | Wolong | Rosalind rejoined; Sizhe's four items, the draught |
+| `pt-23-wolong-caverns-hand-restored` | Wolong caverns | Ngaru's Ring of Water, Hand-Restoration |
+| `pt-24`, `pt-25` | Wolong under siege | Pijian, Truth-About-Aoqi; Jekhar and the Ring of Four Winds |
+| `pt-26`, `pt-27` | Liangshan | the two riders, the shrine's defence, Wentao; the Ring of the Forest |
+| `pt-28` .. `pt-30` | Jade Temple | the Tiger and Ghost Riders, Murod, the Ring of Jade |
+| `pt-31`, `pt-32` | Khosani stronghold | act 4; Ulsadana (capture the four demons) |
+| `pt-33-iona-yago-found` | Iona in the snow | Yago found |
+| `pt-34`, `pt-35` | Lenele in the snow, the palace | Rosalind and Jekhar alone; Sornehan and Galienne, the Khosani scrolls |
+| `pt-36`, `pt-37` | stronghold, second laboratory | the scrolls for the Ring of Fire; Pyrul trapped |
+| `pt-38` .. `pt-41` | stronghold, Iona, Ikaemos | the Rings of Light and Stone, Luminar and Titus trapped, the Ring of Darkness |
+| `pt-42-temple-of-urath-machival-fight` | Temple of Urath | the last fight under way (its intro plays on arrival) |
+| `pt-43-temple-before-the-endings` | Temple of Urath | Machival dead; both endings ahead |
+
+**Checked** 2026-11-04: each of the 43 loads in the original `Sum.exe` with SummonerFix and reaches play (game state
+4) in the level it names; pt-43 also with its description (the Load Game screen shows it).
+
+Found while making them (**Observed**, not yet in the game's bug list):
+- killing the Tiger Rider while his dismount scene was still ending lost Tiger-Escape's end callback, so act 2 did
+  not end (`act2_done` stayed clear); with the kill after the scene the outro ran;
+- in Wolong under siege the street-fight chain (the alert soldier, the priest, the lieutenant) stopped before the
+  lieutenant's "go" in this run; Pijian and what follows him do not depend on it, so pt-25 has the four street
+  fights unplayed (`wolong2_fight1_won` .. `4` clear). The cause is not known (the party arrived by `exitto` and was
+  moved by teleport).

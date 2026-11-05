@@ -553,7 +553,9 @@ intro movies (2026-10-25). The main menu sets state 1 before it plays them, and 
   encounter pickers, G6: `call0 4fc4b0 40`);
 - `npckill NAME` gives a level script character 1,000,000 damage through `character_add_hp` (a type 4 NPC is made
   type 5 first, since type 4 ignores damage); `npcdead NAME` prints `script_object_find` and `script_npc_is_dead`
-  for it. A character still hidden behind "wait for go" only reaches "dying" (`+0x320` bit `0x8`), not dead (`0x80`);
+  for it. A character still hidden behind "wait for go" only reaches "dying" (`+0x320` bit `0x8`), not dead (`0x80`).
+  Since 2026-11-04 a character left "dying" also gets no current move (`+0x6cc` = -1), so its death finishes: a
+  Liangshan wave soldier killed while walking stayed "dying" for good, and the wave after it never came;
 - `nudge DX DZ` moves the current character by DX, DZ world units, for example after `navgoto` to stand just outside
   a monster group's detection range;
 - `callstr ADDR STRING [ARG [ARG2]]` calls the cdecl game function at ADDR with a string (`~` stands for a space) and up to two more arguments (ints; the first may also be
@@ -588,6 +590,20 @@ intro movies (2026-10-25). The main menu sets state 1 before it plays them, and 
   skills as from play); `xpto NAME LEVEL` raises a party member, Joseph included, to LEVEL the same way. Not in masad,
   the prologue level: `join` crashed there (2026-11-03, a NULL read at `0x51b262`), as the other heroes' files are not
   loaded; join after the next level change. SummonerFix's agent mode only (2026-11-03, for the test saves);
+- Commands for playing the story from a script (2026-11-04, for the play-through test saves; SummonerFix's agent
+  mode only):
+  - `dlg [N]` prints the open conversation: `dialogue_mode` (`0x5bc48c`: 0 closed, 1 text, 3 topics), the speaker,
+    the last N lines of the text box (`0x2544408`, default 8) and the offered topics of the topic box (`0x2545b68`)
+    with their box coordinates. **Observed** 2026-11-04 at 2560x1440: the dialogue panel sits about 165 capture pixels
+    right of the box origin, so a topic is clicked at x + 165, y - 15, and "more" in text mode at box x + 190, box
+    y. Clicks need a `move` to the point first (the game picks the topic under the cursor before the press);
+  - `talkto NAME` talks to the nearest character whose name starts with NAME (`~` for spaces) as a click on it does
+    (`player_talk_to`, `0x43c5a0`; the party walks up as after a click). It finds characters that are not level
+    script objects, such as Wolong's Sizhe, for whom `npcgoto` and `script_npc_talk` find nothing;
+  - `items [R]` lists the item objects (type 3) and containers (type 11) within R (default 15) of the current
+    character with their address, distance and contents, and `open ADDR` opens such a container as a click does
+    (`pickup_container` and `interface_set_screen(4)`). For loot that is hard to see, for example the Ring of Light
+    in Iona's tomb;
 - `bag N [ITEM]` leaves an unlocked loot bag with N items (default Health Tonic, `~` for spaces) beside the current
   character, built as `monster_drop_loot` builds one; the log gives the container address. Open it with
   `interface_set_screen(4, &container)`: write the address into `pickup_container` (`0x5c3b6c`) with `poke` and run
