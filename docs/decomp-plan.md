@@ -420,6 +420,21 @@ play and save with no crash and no error box. Nothing outside the original runs'
 The memory dumps showed the same kinds as in the level check above (layout, `install_path`, the sound and debug
 variables that vary between runs).
 
+**The other builds against the same saves (2026-11-05), with `--fixes`** (SummonerFix's fixes on in the original
+too; one set of original runs shared through `--reuse-orig`). **Observed:** the fixed build (`Sum-fixed.exe`), the
+experimental build (`Sum-exp.exe`) and the 64-bit player build (`Sum-exp-clang-x64.exe`) each loaded, played and
+saved all 62 saves with no crash.
+- **Fixed and experimental (VC6):** the same kinds as the shipped build: positions and headings, skill cooldowns,
+  `cur_action` frame parity. In addition, in the boss-fight saves (`17-undead-and-tiger-riders`, `19-pyrul` and a
+  few others), monsters' goal fields and once a dropped container (`CONT`). Those saves vary the most between the
+  original's own runs, and the same saves differed in other records in the other build, so these are taken as the
+  fights going their own way within 5 s (**Inferred**).
+- **64-bit:** besides those kinds and its pointer-sized memory layout, about ten saves (mostly towns) had NPCs with
+  an extra go-to-navpoint goal and a script one or two actions ahead. The 32-bit clang build had it too. The cause
+  was a port bug: a goal loaded from the original's save no longer matched its navpoint exactly, because the clang
+  builds' navpoint heights differ in the last bit, so a "walk to" counted as done at once. Fixed under
+  `MODERN_BUILD` ([modern-port.md](future/modern-port.md#the-originals-saves-in-the-clang-builds-a-walking-script-skipped-a-step-2026-11-05)).
+
 **The static data check, every difference explained (2026-10-20).** `tools/link-datacheck.mjs` reported 34
 differences. The two not yet traced were both checks, not code: `tutorial_entries` (`0x592aa8`) had no
 sum.symbols entry, so the address table gave `tutorial_unused_592aa4` 0x20c bytes and never compared the table

@@ -15,6 +15,8 @@ nav_order: 1
 >   - It plays the Bink movies through FFmpeg and passes 45 of 48 levels; the 3 that fail fail the same way in the
 >     original.
 >   - Its saves match the original's within float rounding (`-ffp-eval-method=double`) and load across the two exes.
+>     Since 2026-11-05 an original's save no longer makes NPCs on walking scripts skip a step
+>     ([the fix](#the-originals-saves-in-the-clang-builds-a-walking-script-skipped-a-step-2026-11-05)).
 >   - Built from the experimental configuration it is the **player build**: SummonerFix's keys, brightness, registry
 >     settings and centred menus are in its source ([the player build](#the-player-build-the-64-bit-experimental-exe-2026-10-26)).
 > - **L4 (an idiomatic rewrite) started 2026-10-26** with the renderer: a Vulkan back end, in `main` since
@@ -717,6 +719,51 @@ bindings and side buttons, the config key opening SummonerFixConfig.exe, the con
 **Next:**
 - A player's test of the 64-bit experimental build in the user's own game folder.
 - L4, the renderer first.
+
+### The original's saves in the clang builds: a walking script skipped a step (2026-11-05)
+
+**Found by the test-save check** (`tools/link-savecheck.mjs` on the 62 saves of `testsaves/`, each loaded, played
+5 s, saved and compared with three runs of the original; `docs/decomp-plan.md`). In the 64-bit exe, about ten saves
+(mostly towns: Lenele, Eleh, Khosani) had NPCs with a second AI goal the original's runs never had, a script
+`cur_action` one or two actions further on, and `ai_goal_next_id` one to three higher. The original's three runs
+agreed with each other, and the VC6 fixed and experimental builds had none of it (**Observed**).
+
+**Narrowed down** (**Observed**):
+- The 32-bit clang build (x87, the same source) had it too, on other NPCs: so clang's code, not 64-bit.
+- It repeated in a second run of each exe, on the same NPCs.
+- The NPCs are townsfolk on walking loops: Goodwife#2, Farmer#2 and the Potter at Lenele, an Orenian scout at
+  Masad (names found by hashing the names in the level script tables against the save's record hashes).
+- Goodwife#2 at Lenele (pt-03): her script is "wait at" / "walk to" four navpoints. In the save she is on action 1,
+  "walk to $npc145", with that goal (type 12, go to navpoint, flags 0x32) pending, far from the party and so asleep.
+  In the original she stays there for the 5 s. In both clang builds she does not move either, but her script reaches
+  action 3 and a new goal is created.
+- "Walk to" is done when `goal_find` no longer finds a go-to-navpoint goal at **exactly** the navpoint's position
+  (`script_entry_check_done`, `vector3 ==`). Goal flag 0x20 keeps the goal from counting as pending
+  (`script_character_has_pending_goal`), so the check runs even while the NPC sleeps.
+- The memory dumps of the same runs: 328 bytes of the `navpoints` table differ between the original and the 32-bit
+  clang build at Lenele, in `pos.y` (`+0x18`) and `ground_height` (`+0x24`). For example 1.1300561 in the original and
+  1.1300559 in clang; one navpoint the original leaves 9.7e-8 above the ground, clang snaps onto it.
+
+**The cause:** `script_parse_navpoints` drops each navpoint onto the ground with `lobj_raycast_all`, and the hit
+distance still differs from VC6's in the last bit, after the two rounding fixes of 2026-10-25
+([above](#the-clang-builds-extra-npc-goals-two-float-roundings-2026-10-25)). Within one build that does not matter:
+the goal is made from the same navpoint it is compared with. A goal saved by the original and loaded into a clang
+build no longer matches, so the "walk to" counts as done at once and the script moves on. A player who brings the
+original's saves into the 64-bit player build gets this once, after each load of such a save: NPCs on scripts skip
+the walk they were on. A save made by the clang build and loaded into the original would do the same (**Inferred**,
+not run).
+
+**The fix**, under `MODERN_BUILD` only (`ai_state::goal_find`, `unnamed_goals_doors_0x475180.cpp`): the position
+compare allows 1/1000 per axis instead of exact equality. Two goals that close are the same place for every caller.
+The shipped configuration is unchanged (the sweep: 5,613 matched, 0 lost).
+
+**Observed after the fix**, the same three saves (pt-03 Lenele, pt-19 Eleh, 01-barbarian-fighter at Masad), each exe
+twice:
+- No extra goals and no script jumps in 11 of 12 runs; Goodwife#2 stays on action 1 as in the original.
+- Differences beyond the original's spread fell from 21 / 185 / 13 (64-bit) and 100 / 17 / 2 (32-bit clang) to
+  14 / 3 / 1 and 15 / 5 / 2 (positions in their last bits).
+- The twelfth run (32-bit, Eleh) had the party's skill cooldowns (144 dwords, the test-timing class) and one NPC
+  goal's fields differing.
 
 ## Recommendation
 

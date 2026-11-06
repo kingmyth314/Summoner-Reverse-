@@ -570,8 +570,17 @@ int ai_state::goal_find(int mask, int type, int a, int b, int c, vector3 *d, int
         if (type != AI_GOAL_FOLLOW && (m & AI_GF_TARGET) && g->target != c)
             goto next;
         if (m & AI_GF_POS) {
+#ifdef MODERN_BUILD
+            // Within 1/1000 instead of exact: a navpoint's height comes from a raycast (script_parse_navpoints), and
+            // the clang builds' hit distance can differ from VC6's x87 code in the last bit, so a goal loaded from
+            // the original's save never matched its navpoint again and a walking script skipped a step
+            // (docs/future/modern-port.md, 2026-11-05).
+            if (fabsf(g->pos.x - d->x) > 0.001f || fabsf(g->pos.y - d->y) > 0.001f || fabsf(g->pos.z - d->z) > 0.001f)
+                match = false;
+#else
             if (!(g->pos == *d))
                 match = false;
+#endif
             if (g->layer != e || !match)
                 goto next;
         }
