@@ -556,7 +556,9 @@ intro movies (2026-10-25). The main menu sets state 1 before it plays them, and 
   for it. A character still hidden behind "wait for go" only reaches "dying" (`+0x320` bit `0x8`), not dead (`0x80`).
   Since 2026-11-04 a character left "dying" also gets no current move (`+0x6cc` = -1), so its death finishes: a
   Liangshan wave soldier killed while walking stayed "dying" for good, and the wave after it never came (in the
-  in-source host since 2026-11-05);
+  in-source host since 2026-11-05). Stand within about 35 units of the character first (`npcgoto` it): farther
+  away, the renderer keeps a type 4 or 5 character's AI asleep (`ai.flags` 0x40, beyond √1200) and the death never
+  finishes (**Observed** 2026-11-05 at Wolong; `testsaves/README.md`);
 - `nudge DX DZ` moves the current character by DX, DZ world units, for example after `navgoto` to stand just outside
   a monster group's detection range;
 - `callstr ADDR STRING [ARG [ARG2]]` calls the cdecl game function at ADDR with a string (`~` stands for a space) and up to two more arguments (ints; the first may also be

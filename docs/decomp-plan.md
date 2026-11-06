@@ -402,6 +402,24 @@ belong to an unnamed neighbour in one exe and another variable in the other) and
 names); one long help string had been compared over 64 bytes only (now 256, in `link-datacheck.mjs` too). As the
 docs of the tool say, this check cannot see rendering or timing errors: D9815 and D9817 would have passed it.
 
+**Test-save check (2026-11-05, `tools/link-savecheck.mjs` with the saves of `testsaves/`).** The same check started
+from each of the 62 test saves instead of a warp: the save is loaded, played on 5 s with no input, dumped and saved,
+three original runs against one rebuilt run. **Observed** for the shipped build (`Sum-rebuilt.exe`): all 62 load,
+play and save with no crash and no error box. Nothing outside the original runs' spread came from the code:
+- positions and headings of walking characters (floats, within a few hundredths);
+- the 36 skill cooldowns of each party member's record (`+0x90..+0x11c`, 36 dwords per member, up to 145 in a
+  save, in 12 saves): remaining times that vary by several hundred milliseconds between the original's own runs, so
+  three runs' spread is too narrow for them (the level check above found the same in TempleInt and IonaExt02);
+- in five saves (`01-barbarian-fighter`, `15-serpent-and-phoenix-riders`, `pt-16`, `pt-21`, `pt-28`) the
+  `cur_action` of many NPC script objects (record `+0x176`, -1 or 0): these scripts end with end mode 0, so they
+  start over every time they finish (`script_entry_advance`: -1, then 0 at the next advance), and the saved value
+  depends on which of the two the frame of the save falls on. The three original runs had agreed by chance, all on
+  the other value from the loaded save; two more rebuilt runs of `01-barbarian-fighter` gave the original's value
+  on 25 records, the first the loaded save's. Timing, not code.
+
+The memory dumps showed the same kinds as in the level check above (layout, `install_path`, the sound and debug
+variables that vary between runs).
+
 **The static data check, every difference explained (2026-10-20).** `tools/link-datacheck.mjs` reported 34
 differences. The two not yet traced were both checks, not code: `tutorial_entries` (`0x592aa8`) had no
 sum.symbols entry, so the address table gave `tutorial_unused_592aa4` 0x20c bytes and never compared the table

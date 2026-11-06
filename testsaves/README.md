@@ -151,3 +151,18 @@ Found while making them (**Observed**, not yet in the game's bug list):
   lieutenant's "go" in this run; Pijian and what follows him do not depend on it, so pt-25 has the four street
   fights unplayed (`wolong2_fight1_won` .. `4` clear). The cause is not known (the party arrived by `exitto` and was
   moved by teleport).
+
+Rechecked 2026-11-05 in the original `Sum.exe` (**Observed**). Neither is a game bug; both stay out of the bug list:
+- *Tiger Rider:* from pt-18, the rider was brought to 40% (`npchp`, Tiger-Dismount) and killed (`npckill`) at
+  0 s, 3 s and 6 s into the dismount scene, in the same command as the damage, and after the scene. Each time
+  Tiger-Escape played, its end callback ran, `act2_done` was set and Act2-Outro took the game to Eleh. The code
+  agrees: two `script_play_cutscene` calls in one frame leave the second's callback in place, and
+  `script_cutscene_done` runs it. The loss seen on 2026-11-04 was not reproduced; its cause is unknown.
+- *Wolong street fights:* from pt-24 the whole chain ran (`wolong2_fight1_won` .. `fight4_won` set, the lieutenant
+  on action 30 of 33) when the party followed the lieutenant and stood next to each enemy before `npckill`. Two
+  ways to stall it, both from the agent tools: (1) with teleports after Yishi's talk the priest spoke minutes late,
+  only after the party was moved back near him (**Inferred**: a conversation walking up, `conversation_active` state
+  3, keeps `ls_wolong2_force_recruit`'s `is_idle()` false; the state was not sampled then); (2) a character killed
+  more than about 35 units from the party never finishes dying: the renderer puts the AI of a type 4 or 5
+  character in view but farther than √1200 from the current character to sleep each frame (`ai.flags` 0x40,
+  `unnamed_render_scene_0x481680.cpp`), and its death waits for an AI frame. The 2026-11-04 run used both.
