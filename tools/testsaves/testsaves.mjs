@@ -5,6 +5,9 @@
 //   node tools/testsaves/testsaves.mjs build ID|all         raw save per recipe: party, level, place, savenow
 //   node tools/testsaves/testsaves.mjs finish ID|all        testsaves/ID.sav: the tier's gear and items, gold, flags, description
 //   node tools/testsaves/testsaves.mjs verify ID|all        load testsaves/ID.sav, start the fight, fight 25 s, compare party HP
+//   node tools/testsaves/testsaves.mjs gear FILE TIER       the tier's gear on every party member of an existing save
+//                                                           (the play-through set), its items and gold; Joseph wears the
+//                                                           two newest summoning rings the party carries
 //
 // Needs SUMMONER_GAME (a test folder with the original Sum.exe as SUMMONER_EXE, default Sum-orig.exe, SummonerFix
 // with [Debug] Agent=1 and TestSaves=1, and tables.vpp). Work files go to build/testsaves (TESTSAVES_WORK).
@@ -44,7 +47,8 @@ const LEVELS = ["Wolong", "Catacombs", "test", "masad", "worldmap1", "lenele1b",
 const KIT = [
   { gold: 300, items: ["Health Tonic=10", "Recovery Tonic=5"], rings: ["Ring of Darkness"],
     Joseph: ["weapon=Fiery Falchion", "shield=Buckler", "torso=Leather Jerkin", "hands=Silk Gloves", "legs=Blue Pants", "feet=Leather Boots", "finger1=Ring of Darkness"],
-    Flece: ["weapon=Sharp Dagger", "torso=Leather Armor", "hands=Leather Gloves", "feet=Leather Boots"] },
+    Flece: ["weapon=Sharp Dagger", "torso=Leather Armor", "hands=Leather Gloves", "feet=Leather Boots"],
+    Rosalind: ["torso=Quilted Robe", "hands=Cloth Gloves", "feet=Leather Boots"] },
   { gold: 3000, items: ["Health Tonic=20", "Healing Draught=15", "Recovery Tonic=10", "Cleansing Tonic=5"], rings: ["Ring of Darkness", "Ring of Fire", "Ring of Stone"],
     Joseph: ["weapon=Sword of Spirits", "shield=Round Shield", "torso=Chainmail Tunic", "hands=Leather Gauntlets", "legs=Studded Pants", "feet=Studded Boots", "neck=Necklace of Defense", "finger1=Ring of Darkness", "finger2=Ring of Fire"],
     Flece: ["weapon=Fiery Falchion", "torso=Leather Jerkin", "hands=Thief's Gauntlets", "legs=Studded Pants", "feet=High Leather Boots", "neck=Thief's Torque", "finger1=Ring of Thieves"],
@@ -62,6 +66,9 @@ const KIT = [
     Jekhar: ["weapon=Ghork Smashor", "torso=Hero's Platemail", "hands=Hero's Gauntlets", "feet=Hero's Sabaton", "neck=Battle Torque", "finger1=Onslaught Ring", "finger2=Ring of Puissance"] },
 ];
 
+// The summoning rings in the order the story gives them (act 1 to the Jade Temple).
+const STORY_RINGS = ["Ring of Darkness", "Ring of Light", "Ring of Fire", "Ring of Stone", "Ring of Water", "Ring of Four Winds", "Ring of Forest", "Ring of Jade"];
+const saveInfo = (f) => JSON.parse(execFileSync("node", [join(repo, "tools/savinfo.mjs"), "--json", "--tables", join(G, "tables.vpp"), f], { encoding: "utf8" })).saves[0];
 const pick = (id) => { const l = recipes.filter((r) => id === "all" || r.id === id); if (!l.length) throw new Error(`no recipe ${id}`); return l; };
 const pos = (o) => { const m = /(-?[\d.]+) (-?[\d.]+) (-?[\d.]+)/.exec(o || ""); return m ? m.slice(1).map(Number) : null; };
 function scriptTable(script) {
@@ -141,7 +148,8 @@ if (cmd === "base") {
     const raw = join(W, `raw-${R.id}.sav`), out = join(repo, "testsaves", `${R.id}.sav`);
     if (!existsSync(raw)) { console.log(`${R.id}: no raw save`); continue; }
     if (existsSync(out)) rmSync(out);
-    const kit = KIT[R.tier], members = R.party.split(",").map((p) => p.split(":")[0]);
+    // The members come from the save: heroes who join in the level (Rosalind and Jekhar in 12) are not in R.party.
+    const kit = KIT[R.tier], members = saveInfo(raw).party.map((m) => m.name);
     const worn = new Set(Object.values(kit).flat().filter((e) => typeof e === "string" && /^finger\d=/.test(e)).map((e) => e.split("=")[1]));
     const a = [raw, out, "--tables", join(G, "tables.vpp"), "--gold", String(kit.gold), "--desc", `TEST ${R.id.slice(0, 2)}: ${TITLE(R.id)} (${R.level})`];
     for (const it of [...kit.items, ...kit.rings.filter((r) => !worn.has(r))]) a.push("--add-item", it);
@@ -191,4 +199,28 @@ if (cmd === "base") {
     console.log(line); appendFileSync(join(W, "verify.log"), line + "\n");
   }
   agent("stop");
-} else console.log("usage: node tools/testsaves/testsaves.mjs base|build|finish|verify [ID|all]");
+} else if (cmd === "gear") {
+  // The play-through set ended its fights through the damage function, so its heroes kept their starting gear and
+  // gold stayed at 59 (2026-11-06). This puts a tier's kit on an existing save, rewritten in place.
+  const file = resolve(id), kit = KIT[Number(process.argv[4])];
+  if (!kit || !existsSync(file)) { console.log("usage: node tools/testsaves/testsaves.mjs gear FILE TIER(0-3)"); process.exit(2); }
+  const info = saveInfo(file), tmp = file + ".gear.tmp", have = new Map(info.inventory.entries.map((e) => [e.name, e.count]));
+  if (existsSync(tmp)) rmSync(tmp);
+  const a = [file, tmp, "--tables", join(G, "tables.vpp")];
+  if (info.inventory.gold < kit.gold) a.push("--gold", String(kit.gold));
+  for (const it of kit.items) {
+    const [n, c] = it.split("="), want = Number(c), now = have.get(n) || 0;
+    if (now < want) a.push("--add-item", `${n}=${want - now}`);
+  }
+  const rings = STORY_RINGS.filter((r) => have.has(r)).slice(-2);
+  for (const m of info.party) {
+    if (!kit[m.name]) continue;
+    a.push("--member", m.name);
+    for (const e of kit[m.name]) if (!(m.name === "Joseph" && /^finger\d=/.test(e))) a.push("--equip", e);
+    if (m.name === "Joseph")
+      rings.forEach((r, i) => a.push("--equip", `finger${i + 1}=${r}`, "--remove-item", `${r}=1`));
+  }
+  execFileSync("node", [join(repo, "tools/savedit.mjs"), ...a], { encoding: "utf8" });
+  rmSync(file); copyFileSync(tmp, file); rmSync(tmp);
+  console.log(`${file}: tier ${process.argv[4]}, Joseph wears ${rings.join(" and ") || "no ring"}`);
+} else console.log("usage: node tools/testsaves/testsaves.mjs base|build|finish|verify|gear [ID|all]");

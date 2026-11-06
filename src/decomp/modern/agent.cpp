@@ -107,6 +107,15 @@ static bool run_sync(void (*fn)(void *), void *arg)
     return true;
 }
 
+// navgoto / npcgoto: the game's own teleport (party_teleport_to): the whole party, the layer, camera_reset_to_player.
+// Writing only cur_character->pos (before 2026-11-06) kept the old layer and left the others and the camera behind.
+static vector3 tp_pos;
+static int tp_layer;
+static void teleport_body(void *)
+{
+    party_teleport_to(&tp_pos, tp_layer);
+}
+
 static void *sum_va(unsigned int addr)
 {
     void *p = modern_sum_va(addr);
@@ -594,15 +603,24 @@ static void run_line(char *line)
         }
         out("callstr %06X %s: %s", call_addr, call_str, run_sync(callstr_body, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "navgoto") && argc >= 2) {
-        vector3 pos;
-        matrix orient;
-        Character *ch = cur_character;
-        if (!ch || !navpoint_get_position(argv[1], &pos, &orient)) {
+        // navgoto NAVPOINT: the party onto a navpoint and its layer, as SummonerFix's agent (teleport_body).
+        navpoint *nav = navpoint_find(argv[1]);
+        if (!cur_character || !nav) {
             out("navgoto %s: no character or no such navpoint", argv[1]);
         } else {
-            ch->pos = pos;
-            out("navgoto %s: %.2f %.2f %.2f", argv[1], pos.x, pos.y, pos.z);
+            tp_pos = nav->pos;
+            tp_layer = nav->layer;
+            run_sync(teleport_body, NULL);
+            out("navgoto %s: %.2f %.2f %.2f layer %d", argv[1], tp_pos.x, tp_pos.y, tp_pos.z, tp_layer);
         }
+    } else if (!_stricmp(c, "posgoto") && argc >= 5) {
+        // posgoto X Y Z LAYER: the party to a point and layer, as SummonerFix's agent.
+        tp_pos.x = (float)atof(argv[1]);
+        tp_pos.y = (float)atof(argv[2]);
+        tp_pos.z = (float)atof(argv[3]);
+        tp_layer = atoi(argv[4]);
+        out("posgoto %.2f %.2f %.2f layer %d: %s", tp_pos.x, tp_pos.y, tp_pos.z, tp_layer,
+            run_sync(teleport_body, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "speedkey") && argc >= 2) {
         modern_keys_agent_speed(atoi(argv[1]) != 0);
         out("speedkey %s: ok", argv[1]);
@@ -618,8 +636,10 @@ static void run_line(char *line)
         } else {
             vector3 pos = npc->pos;
             out("npcgoto %s: NPC at %.2f %.2f %.2f", name, pos.x, pos.y, pos.z);
-            pos.x += 4.0f;
-            ch->pos = pos;
+            tp_pos = pos;
+            tp_pos.x += 4.0f;
+            tp_layer = npc->layer;
+            run_sync(teleport_body, NULL);
         }
     } else if (!_stricmp(c, "nudge") && argc >= 3) {
         Character *ch = cur_character;

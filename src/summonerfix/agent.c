@@ -507,6 +507,20 @@ static void Call0OnGameThread(void *unused)
     memcpy(names, saved, sizeof saved); // the pickers change the current level's names; put them back
 }
 
+// navgoto / npcgoto move the party as the game's own teleport does (party_teleport_to): the current character and
+// its layer, the others lined up 0.75 apart, then camera_reset_to_player. Writing only the current character's
+// position (before 2026-11-06) kept its old layer and left the others and the camera behind; test saves made after
+// it had a leader in a pit or followers 100+ units away.
+#define VA_NAVPOINT_FIND 0x4dc570u     // cdecl (name) -> navpoint * (0x30 bytes: position +0x14, layer +0x20)
+#define VA_PARTY_TELEPORT_TO 0x439750u // cdecl (vector3 *pos, int layer)
+static float g_tpPos[3];
+static int g_tpLayer;
+static void TeleportOnGameThread(void *unused)
+{
+    (void)unused;
+    ((void(__cdecl *)(float *, int))(UINT_PTR)SumVa(VA_PARTY_TELEPORT_TO))(g_tpPos, g_tpLayer);
+}
+
 // Write one byte of game data (not code: only already-writable memory). For experiments such as
 // setting a debug flag bit; prints the old and new value.
 static void Poke(DWORD va, unsigned value)
@@ -748,16 +762,25 @@ static void RunLine(char *line)
         g_call0Count = argc >= 3 ? atoi(argv[2]) : 1;
         Out("call0 %06lX x%d: %s", g_callAddr, g_call0Count, AgentRunSync(Call0OnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "navgoto") && argc >= 2) {
-        // navgoto NAVPOINT: put the current character on a level navpoint (e.g. $end2trig). Testing only.
-        float pos[3], orient[9];
-        typedef char(__cdecl * GetNav)(const char *, float *, float *);
+        // navgoto NAVPOINT: put the party on a level navpoint (e.g. $end2trig), on its layer. Testing only.
         BYTE *ch = *(BYTE *volatile *)(UINT_PTR)SumVa(VA_CUR_CHARACTER);
-        if (!ch || !((GetNav)(UINT_PTR)SumVa(VA_NAVPOINT_GET_POSITION))(argv[1], pos, orient)) {
+        BYTE *nav = ((BYTE * (__cdecl *)(const char *))(UINT_PTR)SumVa(VA_NAVPOINT_FIND))(argv[1]);
+        if (!ch || !nav) {
             Out("navgoto %s: no character or no such navpoint", argv[1]);
         } else {
-            memcpy(ch + 0x10, pos, sizeof pos);
-            Out("navgoto %s: %.2f %.2f %.2f", argv[1], pos[0], pos[1], pos[2]);
+            memcpy(g_tpPos, nav + 0x14, sizeof g_tpPos);
+            g_tpLayer = *(int *)(nav + 0x20);
+            AgentRunSync(TeleportOnGameThread, NULL);
+            Out("navgoto %s: %.2f %.2f %.2f layer %d", argv[1], g_tpPos[0], g_tpPos[1], g_tpPos[2], g_tpLayer);
         }
+    } else if (!_stricmp(c, "posgoto") && argc >= 5) {
+        // posgoto X Y Z LAYER: the party to a point and layer (party_teleport_to), e.g. a follower's position read
+        // from a save. Testing only.
+        for (int i = 0; i < 3; i++)
+            g_tpPos[i] = (float)atof(argv[1 + i]);
+        g_tpLayer = atoi(argv[4]);
+        Out("posgoto %.2f %.2f %.2f layer %d: %s", g_tpPos[0], g_tpPos[1], g_tpPos[2], g_tpLayer,
+            AgentRunSync(TeleportOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "shop") && argc >= 2) {
         g_shopName[0] = 0;
         for (int i = 1; i < argc; i++) {
@@ -767,8 +790,8 @@ static void RunLine(char *line)
         }
         Out("shop %s: %s", g_shopName, AgentRunSync(ShopOnGameThread, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "npcgoto") && argc >= 2) {
-        // npcgoto NAME: put the current character 4 units from a level script NPC (e.g. Luminar), as
-        // script_object_find_character finds it. Testing only.
+        // npcgoto NAME: put the party 4 units from a level script NPC (e.g. Luminar), as
+        // script_object_find_character finds it, on the NPC's layer. Testing only.
         // The words after npcgoto are joined with spaces, so "npcgoto Canis the Mercenary" works.
         typedef BYTE *(__cdecl * FindChar)(const char *);
         char name[64] = "";
@@ -785,8 +808,11 @@ static void RunLine(char *line)
             float pos[3];
             memcpy(pos, npc + 0x10, sizeof pos);
             Out("npcgoto %s: NPC at %.2f %.2f %.2f", name, pos[0], pos[1], pos[2]);
-            pos[0] += 4.0f;
-            memcpy(ch + 0x10, pos, sizeof pos);
+            g_tpPos[0] = pos[0] + 4.0f;
+            g_tpPos[1] = pos[1];
+            g_tpPos[2] = pos[2];
+            g_tpLayer = *(int *)(npc + 0x68c);
+            AgentRunSync(TeleportOnGameThread, NULL);
         }
     } else if (!_stricmp(c, "exitto") && argc >= 3) {
         // exitto LEVEL SCRIPT [ENTRY]: change level as a level exit does, keeping the game state (ExitToOnGameThread).

@@ -77,6 +77,10 @@ skips the cutscenes, raises Joseph and adds the other heroes (`xpto`, `join`), p
 trigger and saves (`savenow`); `finish` writes `testsaves/ID.sav` with `savedit`: the tier's gear (`--equip`), healing
 and AP items, summoning rings, gold, the flags and a description; `verify` loads each save, starts the fight as a
 tester would, fights 25 s and compares the party's HP. The recipes are `tools/testsaves/recipes.json`.
+`gear FILE TIER` (2026-11-06) puts a tier's kit on an existing save in place, for the play-through set: each party
+member's gear, the healing items and gold up to the kit's, and on Joseph the two newest summoning rings the party
+carries (moved out of the inventory). Since the same day `finish` takes the party from the save, not the recipe
+(heroes who join in the level, such as Rosalind and Jekhar in 12, had kept their starting gear).
 
 Lessons from building them (**Observed** 2026-11-03):
 - a boss's intro cutscene sends its "go" once: when the intro played during the build, the boss in the save waited
@@ -518,9 +522,16 @@ intro movies (2026-10-25). The main menu sets state 1 before it plays them, and 
 - `info` (game state, screen, fps, cursor), `peek ADDR [N]`, `poke ADDR BYTE` (one byte of writable game
   data, hex; used to test the script editor flag), `quit`;
 - `flag NAME [0|1]` reads or sets a story flag of the current level (`savegame_get_flag` / `savegame_set_flag`),
-  `navgoto NAVPOINT` puts the current character on a level navpoint (for example `$end2trig`),
+  `navgoto NAVPOINT` puts the party on a level navpoint (for example `$end2trig`),
   `npcgoto NAME` puts it 4 units from a level script character (`script_object_find_character`; the name may contain spaces, for example
-  `Luminar`) and prints where that character is. Testing only;
+  `Luminar`) and prints where that character is. Testing only. Since 2026-11-06 both go through the game's own
+  teleport, `party_teleport_to` (`0x439750`): the current character on the navpoint's or the character's layer, the
+  others lined up 0.75 apart, `camera_reset_to_player`. Before, they wrote only the current character's position:
+  its layer stayed, the others and the camera stayed behind, and saves made after them had a leader stuck in a pit
+  or on a ledge, or followers 100 units and more away (`testsaves/README.md`);
+  `posgoto X Y Z LAYER` (2026-11-06) moves the party the same way to a point and layer, for example a follower's
+  position read from a save; it repaired the test saves above (both agents; SummonerFix's run in game, the clang
+  host's built but not run). In combat mode a single click on the ground does not move the leader; a double click does;
 - `level NAME SCRIPT` changes level as a level exit does (`game_change_level`, run on the game thread), for example
   `level IonaEXT02 IonaEXT02_v2`. Unlike the `play_and_load_cutscene` warp it loads the level's own script
   characters, so story bosses are there. Start it from a loaded save: from a cutscene warp the load crashed in

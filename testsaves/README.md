@@ -144,6 +144,25 @@ game drops or places (`items` / `open`). Shortcuts, none of which changes the st
 **Checked** 2026-11-04: each of the 43 loads in the original `Sum.exe` with SummonerFix and reaches play (game state
 4) in the level it names; pt-43 also with its description (the Load Game screen shows it).
 
+**Gear and positions, fixed 2026-11-06** (**Observed**; a tester reported heroes in starting clothes and a broken
+camera or position in some saves):
+- *Gear:* the fights were ended through the damage function, so no hero picked up loot: all 43 saves had the
+  starting weapons and clothes (Joseph's Short Sword and Tunic even at level 25), no ring worn, 59 gold. pt-04 .. 43
+  now carry the fight saves' kit by story stage (`testsaves.mjs gear`): tier 0 to pt-07, 1 to pt-18, 2 to pt-30,
+  3 after; Joseph wears the two newest summoning rings the party has, and the healing items and gold are topped up
+  to the tier's. pt-01 .. 03 keep the starting gear, which is what a player has there. In the fight saves Rosalind
+  in 03 and Jekhar and Rosalind in 12 had kept their starting gear (`finish` took the party from the recipe); fixed.
+- *Positions:* the agent's `navgoto` / `npcgoto` wrote only the leader's position, not the layer, the others or
+  the camera. Loaded and walked in the original `Sum.exe` (four clicks around the leader), nine saves were broken:
+  the leader under the ground or in a void (03, pt-20), in a pit below the party (pt-32), inside a wall (08),
+  above water or ground he could not leave (01, 02, 14, pt-25), against a tree (pt-14); in 14 the others stood
+  200 units away. Each was loaded, the party moved with `posgoto` (the game's `party_teleport_to`) onto a
+  follower's spot or a nearby point of the same level, saved, and given back its description (pt-32 also its
+  `khosani_strng_ulsadana2` flag, cleared during the re-save); 08 stands at the laboratory entrance (pt-11's
+  spot), outside the Giant Salamanka's room. All nine then walked, with the party together. The other saves walked
+  as they were; in combat mode (pt-29) a double click is needed to move. The agent's teleports now go through
+  `party_teleport_to` (docs/tools.md).
+
 Found while making them (**Observed**, not yet in the game's bug list):
 - killing the Tiger Rider while his dismount scene was still ending lost Tiger-Escape's end callback, so act 2 did
   not end (`act2_done` stayed clear); with the kill after the scene the outro ran;
