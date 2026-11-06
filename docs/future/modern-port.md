@@ -764,6 +764,11 @@ twice:
   14 / 3 / 1 and 15 / 5 / 2 (positions in their last bits).
 - The twelfth run (32-bit, Eleh) had the party's skill cooldowns (144 dwords, the test-timing class) and one NPC
   goal's fields differing.
+- All 62 saves again with the fixed 64-bit exe: all load, play and save. The goal counter differs in no save
+  (13 before the fix), no NPC record has the extra goal, and a script action differs only in `pt-21` and
+  `17-undead-and-tiger-riders`, records where the shipped VC6 rebuild differs too (end-mode-0 frame parity). Save
+  dwords beyond the original's spread: 548 in all (677 before), most of them the party's skill cooldowns (261) and
+  positions and headings.
 
 ## Recommendation
 
