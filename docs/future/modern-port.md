@@ -768,7 +768,18 @@ twice:
   (13 before the fix), no NPC record has the extra goal, and a script action differs only in `pt-21` and
   `17-undead-and-tiger-riders`, records where the shipped VC6 rebuild differs too (end-mode-0 frame parity). Save
   dwords beyond the original's spread: 548 in all (677 before), most of them the party's skill cooldowns (261) and
-  positions and headings.
+  positions and headings. **Correction (2026-11-06):** 548 and 677 counted only the lines `link-savecheck` prints,
+  at most 25 per save. Counted in full with `save-compare.mjs`, the run after the fix had 2,213 dwords, of them 1,728
+  party skill cooldowns (blocks of about 145 dwords that land on different saves from run to run), 18 second-goal
+  dwords in `17` and `19` (**Unknown** whether these are the extra goal or its timers; not looked at), and the rest
+  positions, headings and timers' last bits. The goal-counter check above used the full comparison and stands.
+- 2026-11-06, the same check with the 64-bit exe built that day against the 62 test saves as re-geared and
+  re-positioned that day (61 changed), with three new runs of the original each (**Observed**): all load, play
+  5 s and save. In full, 2,169 dwords beyond the original's spread: 1,296 party skill cooldowns; 536 in
+  `16-general-wentao`, where the saved entity count differs (229 records against the original's 217 in all three
+  runs; the original's own runs of 2026-11-05 saved 235, 229 and 217, the fight's soldier waves), so every later
+  record compares shifted; the rest positions, headings and timers' last bits. No goal-counter or script-action
+  (`+0x176`) difference, one second-goal dword (a timer's low bits, `pt-06`).
 
 ## Recommendation
 

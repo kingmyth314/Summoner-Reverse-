@@ -435,6 +435,8 @@ saved all 62 saves with no crash.
   builds' navpoint heights differ in the last bit, so a "walk to" counted as done at once. Fixed under
   `MODERN_BUILD`; after the fix all 62 saves were run again and none of it was left
   ([modern-port.md](future/modern-port.md#the-originals-saves-in-the-clang-builds-a-walking-script-skipped-a-step-2026-11-05)).
+  Run again on 2026-11-06 against the re-geared and re-positioned saves: all 62 load, play and save, no goal-counter
+  or script-action difference (same page).
 
 **The static data check, every difference explained (2026-10-20).** `tools/link-datacheck.mjs` reported 34
 differences. The two not yet traced were both checks, not code: `tutorial_entries` (`0x592aa8`) had no
