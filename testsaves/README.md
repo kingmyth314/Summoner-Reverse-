@@ -158,10 +158,15 @@ camera or position in some saves):
   above water or ground he could not leave (01, 02, 14, pt-25), against a tree (pt-14); in 14 the others stood
   200 units away. Each was loaded, the party moved with `posgoto` (the game's `party_teleport_to`) onto a
   follower's spot or a nearby point of the same level, saved, and given back its description (pt-32 also its
-  `khosani_strng_ulsadana2` flag, cleared during the re-save); 08 stands at the laboratory entrance (pt-11's
-  spot), outside the Giant Salamanka's room. All nine then walked, with the party together. The other saves walked
+  `khosani_strng_ulsadana2` flag, cleared during the re-save); 08 first went to the laboratory entrance (pt-11's
+  spot). **Correction (2026-11-06):** that is the first room of the labyrinth, about 100 units and a layer away from
+  the Giant Salamanka, not outside its room. 08 now stands on the rock ledge 8 units before `$salstart`
+  (`posgoto -118.65 -16.44 43.78 1`); loaded in the original, two double clicks forward start the intro and the
+  fight follows (flags, party and gear unchanged). All nine then walked, with the party together. The other saves walked
   as they were; in combat mode (pt-29) a double click is needed to move. The agent's teleports now go through
-  `party_teleport_to` (docs/tools.md).
+  `party_teleport_to` (docs/tools.md). After the changes, `testsaves.mjs verify` on the six changed fight saves
+  (01, 02, 03, 08, 12, 14) in the original: each fight started and the party took damage. In 01 the party stands
+  7 units from `$cuttrig` and the intro does not play on loading.
 
 Found while making them (**Observed**, not yet in the game's bug list):
 - killing the Tiger Rider while his dismount scene was still ending lost Tiger-Escape's end callback, so act 2 did
