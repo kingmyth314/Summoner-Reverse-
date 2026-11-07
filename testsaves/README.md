@@ -166,7 +166,9 @@ camera or position in some saves):
   as they were; in combat mode (pt-29) a double click is needed to move. The agent's teleports now go through
   `party_teleport_to` (docs/tools.md). After the changes, `testsaves.mjs verify` on the six changed fight saves
   (01, 02, 03, 08, 12, 14) in the original: each fight started and the party took damage. In 01 the party stands
-  7 units from `$cuttrig` and the intro does not play on loading.
+  7 units from `$cuttrig` and the intro does not play on loading. pt-11 and pt-19, which the four-click probe had
+  passed only on captures (its clicks hit walls and pt-11's exit strip), walked 4.5 to 6.4 units per double click on
+  open floor.
 
 Found while making them (**Observed**, not yet in the game's bug list):
 - killing the Tiger Rider while his dismount scene was still ending lost Tiger-Escape's end callback, so act 2 did
