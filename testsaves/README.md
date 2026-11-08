@@ -178,7 +178,14 @@ whose count becomes 1); savinfo shows nothing else changed. Repaired pt-43 in th
 and the Cleansing Elixir at 5 after a fresh load, and a Healing Elixir healed Joseph from 124 to 227. `gear` now
 asks for one Cleansing Elixir. **Inferred:** the AP above savinfo's max after a re-save (also on the no-fight
 re-save) is the max the gear gives, which savinfo does not count. The doubled rings of the 19 re-save are not
-explained yet.
+explained yet. **Explained (the same day, Observed):** they were in the committed file. `finish` added the tier's
+summoning rings to a raw save that already held the rings its story gave, and equipped new copies of the two
+Joseph wears while the old ones stayed in the inventory: 16 fight saves had a worn ring listed again (03 .. 22), 13
+of them also two of up to six rings (19 had eight rings plus six more). A played game lists each ring once and a
+worn ring not at all (pt-42). The 16 were repaired with `savedit` (`--set-item-count "Ring of X=1"` for each
+doubled ring, `--remove-item` for each ring Joseph wears); `finish` now adds only the rings the raw save lacks and
+takes the worn ones out of the inventory. The play-through set was not affected (`gear` already did both). After the
+repair each of the 16 loads into play in the original `Sum.exe`.
 
 **Gear and positions, fixed 2026-11-06** (**Observed**; a tester reported heroes in starting clothes and a broken
 camera or position in some saves):

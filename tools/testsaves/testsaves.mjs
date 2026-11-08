@@ -151,10 +151,14 @@ if (cmd === "base") {
     if (!existsSync(raw)) { console.log(`${R.id}: no raw save`); continue; }
     if (existsSync(out)) rmSync(out);
     // The members come from the save: heroes who join in the level (Rosalind and Jekhar in 12) are not in R.party.
-    const kit = KIT[R.tier], members = saveInfo(raw).party.map((m) => m.name);
+    const rawInfo = saveInfo(raw), kit = KIT[R.tier], members = rawInfo.party.map((m) => m.name);
     const worn = new Set(Object.values(kit).flat().filter((e) => typeof e === "string" && /^finger\d=/.test(e)).map((e) => e.split("=")[1]));
     const a = [raw, out, "--tables", join(G, "tables.vpp"), "--gold", String(kit.gold), "--desc", `TEST ${R.id.slice(0, 2)}: ${TITLE(R.id)} (${R.level})`];
-    for (const it of [...kit.items, ...kit.rings.filter((r) => !worn.has(r))]) a.push("--add-item", it);
+    // Each summoning ring once (2026-11-08): the raw save already holds the rings its story gave, and a worn ring is
+    // not also in the inventory (as in a played game); until then the rings were added again and the worn ones kept.
+    const held = new Set(rawInfo.inventory.entries.map((e) => e.name));
+    for (const it of [...kit.items, ...kit.rings.filter((r) => !worn.has(r) && !held.has(r))]) a.push("--add-item", it);
+    for (const r of worn) if (held.has(r)) a.push("--remove-item", r);
     for (const m of members) {
       if (!kit[m]) continue;
       a.push("--member", m);
