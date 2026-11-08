@@ -210,6 +210,20 @@ walks up by pathfinding) opened his conversation at 8.5 units; clicking "Child o
 ended it with `EnemyAttack` (`liangshan_flag_wave1` set, the first soldiers sent). None of the riders' flags is
 needed: the conversation has no condition, and the riders' ground is about 200 units away.
 
+**15 and 18, still open (2026-11-08, Observed in the original `Sum.exe`).** Both stay where they were; each also
+loses HP in the first 20 s after loading (15: Jekhar 598 to 400; 18: Jekhar 608 to 551), without deaths.
+- *15:* every layer-15 spot near `$sptrigger` that was tried, 10 units north or north-west of it, was moved by
+  the game to (-127.2, -0.5, 125.3), among the graves, 12.2 units from the trigger. From there a rock blocks the
+  straight walk, and the party, in combat mode, did not move in 25 double clicks. A spot on layer 14 east of the
+  trigger was moved to (-98.9, ?, 110.2), 22 units away, and the party did not move from there either. How a player
+  reaches the riders' ground is not known yet.
+- *18:* `$murodtrigger` (radius 8) is inside entry 2's four starts, so in the story Murod-Intro plays on arrival.
+  A party put 13 units south of it on layer 4 walked into the trigger by itself within 5 s: the leader kept a move
+  goal from before the teleport (a click at his feet cancelled it). The straight walk from there stops against a
+  wall at 13 units; the leader's own walk had gone round through (-34.9, 134.2) and (-34.6, 143.9), but clicks along
+  those points did not get past 14 units, and `talkto Murod` (6 units away, behind the wall) did not move the
+  party.
+
 **Gear and positions, fixed 2026-11-06** (**Observed**; a tester reported heroes in starting clothes and a broken
 camera or position in some saves):
 - *Gear:* the fights were ended through the damage function, so no hero picked up loot: all 43 saves had the
