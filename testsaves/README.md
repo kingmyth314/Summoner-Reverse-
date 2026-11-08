@@ -42,7 +42,7 @@ of Spirits, chainmail), 2 (Logaros Longsword, Hero's chainmail), 3 (Sword of Sum
 | `16-general-wentao.sav` | General Wentao, Liangshan | all four, 21 | 2 | the boss is a short walk away |
 | `17-undead-and-tiger-riders.sav` | Undead and Tiger Riders, Jade Temple | all four, 21 | 2 | walk a short way on to the trigger point; the intro plays |
 | `18-murod.sav` | Murod and Murod Oni, Jade Temple | all four, 22 | 3 | walk a short way on to the trigger point; the intro plays |
-| `19-pyrul.sav` | Pyrul, Khosani laboratory | all four, 22 | 3 | walk a short way on to the trigger point; the intro plays |
+| `19-pyrul.sav` | Pyrul, Khosani laboratory | all four, 22 | 3 | walk 7 units toward `$salstart`, Pyrul's door; the intro plays (moved 2026-11-08) |
 | `20-luminar.sav` | Luminar, Iona | all four, 23 | 3 | the intro plays on loading; let it play |
 | `21-titus.sav` | Titus, Ikaemos palace | all four, 23 | 3 | the intro plays on loading; let it play |
 | `22-evil-urath-and-the-demon.sav` | Evil Urath, Evil Joseph and the Demon of Darkness, the temple | all four, 24 | 3 | the act-4 cutscene and the intro play on loading; let them play |
@@ -186,6 +186,20 @@ worn ring not at all (pt-42). The 16 were repaired with `savedit` (`--set-item-c
 doubled ring, `--remove-item` for each ring Joseph wears); `finish` now adds only the rings the raw save lacks and
 takes the worn ones out of the inventory. The play-through set was not affected (`gear` already did both). After the
 repair each of the 16 loads into play in the original `Sum.exe`.
+
+**19 moved, 2026-11-08** (**Observed** in the original `Sum.exe`). **Correction:** 19 as committed was broken
+where it stood, not only far away: at the KhosaniLab2 entrance the lab's enemies engaged during the first 20 s, and
+Rosalind died with no input (a re-save without any move came back with her dead); `verify` teleported the party
+away before that showed. Moving it was hard for two reasons found on the way: `party_teleport_to` (`0x439750`)
+lines the followers up 0.75 apart along +x at the leader's height, and right after the move the followers' combat
+or path state from the entrance sent them back to (-97.9, -9.8, 45), layer 0, next to four Burning Bone Knights
+they could not reach (the knights, idle, did no damage in 120 s; `npckill` leaves those four "dying", and five
+others are not script objects). What worked: the party immortal (`0x941704`) from before the load, the leader
+teleported to pt-37's spot, each member's position and layer written onto pt-37's four standing spots (the
+played save right after the Pyrul fight), immortal off, saved at once. Loaded fresh, all four stood together at full
+HP for 30 s (one follower stepped 3.7 units), so the stale state does not survive a load. From that load, double
+clicks toward `$salstart` (6.6 units; it fires within 4) started Pyrul-Intro. Against the committed file: the
+position, the item order, AP filled to the gear's max, and the party-state word's bit 0x10 (not known what it is).
 
 **Gear and positions, fixed 2026-11-06** (**Observed**; a tester reported heroes in starting clothes and a broken
 camera or position in some saves):
