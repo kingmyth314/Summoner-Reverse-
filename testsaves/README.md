@@ -39,7 +39,7 @@ of Spirits, chainmail), 2 (Logaros Longsword, Hero's chainmail), 3 (Sword of Sum
 | `12-tiger-rider.sav` | Tiger Rider, temple (Joseph and Flece, as in the story) | Joseph 18, Flece 18 | 2 | walk a short way on to the trigger point; the intro plays |
 | `14-general-pijian.sav` | General Pijian, battle of Wolong | Joseph, Rosalind, Jekhar, 20 | 2 | walk 7 units toward Pijian, south down the street (behind the camera); the intro plays |
 | `15-serpent-and-phoenix-riders.sav` | Serpent and Phoenix Riders, Liangshan | all four, 20 | 2 | walk a short way on to the trigger point; the intro plays |
-| `16-general-wentao.sav` | General Wentao, Liangshan | all four, 21 | 2 | the boss is a short walk away |
+| `16-general-wentao.sav` | General Wentao, Liangshan | all four, 21 | 2 | the defence of the shrine: click the Guardian of the Shrine, 12 units away on his platform, and talk to the end ("Destiny?"); three waves of soldiers follow, then Wentao (moved 2026-11-08) |
 | `17-undead-and-tiger-riders.sav` | Undead and Tiger Riders, Jade Temple | all four, 21 | 2 | walk a short way on to the trigger point; the intro plays |
 | `18-murod.sav` | Murod and Murod Oni, Jade Temple | all four, 22 | 3 | walk a short way on to the trigger point; the intro plays |
 | `19-pyrul.sav` | Pyrul, Khosani laboratory | all four, 22 | 3 | walk 7 units toward `$salstart`, Pyrul's door; the intro plays (moved 2026-11-08) |
@@ -200,6 +200,15 @@ played save right after the Pyrul fight), immortal off, saved at once. Loaded fr
 HP for 30 s (one follower stepped 3.7 units), so the stale state does not survive a load. From that load, double
 clicks toward `$salstart` (6.6 units; it fires within 4) started Pyrul-Intro. Against the committed file: the
 position, the item order, AP filled to the gear's max, and the party-state word's bit 0x10 (not known what it is).
+
+**16 moved, 2026-11-08** (**Observed** in the original `Sum.exe`). 16 stood at Liangshan's entry, about 270
+units from the shrine (two members lost HP in the first 20 s there, then it stopped). It was moved as 19 was (immortal
+from before the load, each member written onto a spot, saved at once) onto the four navpoints `$npc197` ..
+`$npc201`, 12 to 15 units from the Guardian of the Shrine (layer 17; he stands on a wooden platform, layer 18, inside
+the hollow tree). Loaded fresh: all four held their spots at their saved HP. `talkto` (a click on him: the party
+walks up by pathfinding) opened his conversation at 8.5 units; clicking "Child of prophecy?" .. "Destiny?" in turn
+ended it with `EnemyAttack` (`liangshan_flag_wave1` set, the first soldiers sent). None of the riders' flags is
+needed: the conversation has no condition, and the riders' ground is about 200 units away.
 
 **Gear and positions, fixed 2026-11-06** (**Observed**; a tester reported heroes in starting clothes and a broken
 camera or position in some saves):
