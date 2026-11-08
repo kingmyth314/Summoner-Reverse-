@@ -769,7 +769,8 @@ twice:
   `17-undead-and-tiger-riders`, records where the shipped VC6 rebuild differs too (end-mode-0 frame parity). Save
   dwords beyond the original's spread: 548 in all (677 before), most of them the party's skill cooldowns (261) and
   positions and headings. **Correction (2026-11-06):** 548 and 677 counted only the lines `link-savecheck` prints,
-  at most 25 per save. Counted in full with `save-compare.mjs`, the run after the fix had 2,213 dwords, of them 1,728
+  at most 25 per save (**Observed**: tallying the printed lines of both runs' reports gives exactly 548 and 677).
+  Counted in full with `save-compare.mjs`, the run after the fix had 2,213 dwords, of them 1,728
   party skill cooldowns (blocks of about 145 dwords that land on different saves from run to run), 18 second-goal
   dwords in `17` and `19` (**Unknown** whether these are the extra goal or its timers; not looked at), and the rest
   positions, headings and timers' last bits. The goal-counter check above used the full comparison and stands.
@@ -780,6 +781,9 @@ twice:
   runs; the original's own runs of 2026-11-05 saved 235, 229 and 217, the fight's soldier waves), so every later
   record compares shifted; the rest positions, headings and timers' last bits. No goal-counter or script-action
   (`+0x176`) difference, one second-goal dword (a timer's low bits, `pt-06`).
+- 2026-11-07, five fight saves moved again near their triggers (01, 02, 03, 08, 14; testsaves README), the same
+  check with three new runs of the original each (**Observed**): all load, play and save; 19 dwords beyond the
+  original's spread, all positions and headings of monsters and the party.
 
 ## Recommendation
 

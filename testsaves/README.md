@@ -27,17 +27,17 @@ of Spirits, chainmail), 2 (Logaros Longsword, Hero's chainmail), 3 (Sword of Sum
 
 | Save | Fight | Party | Tier | To start it |
 |---|---|---|---|---|
-| `01-barbarian-fighter.sav` | Barbarian Fighter, Masad | Joseph 3 | 0 | walk a short way on to the trigger point; the intro plays |
-| `02-iron-golem.sav` | Iron Golem, two Broken Brass Golems, tentacles; Lenele sewers | Joseph 9, Flece 8 | 0 | walk a short way on into the boss room; the intro plays |
-| `03-carados.sav` | Carados and the Bone Mages, Iona catacombs | Joseph 11, Flece 10 (Rosalind joins in the level) | 0 | walk a short way on to the crypt; the intro plays |
+| `01-barbarian-fighter.sav` | Barbarian Fighter, Masad | Joseph 3 | 0 | walk 10 units on along the path toward the Barbarian; the intro plays |
+| `02-iron-golem.sav` | Iron Golem, two Broken Brass Golems, tentacles; Lenele sewers | Joseph 9, Flece 8 | 0 | walk 20 units toward the Iron Golem (in view, to the right); the intro plays |
+| `03-carados.sav` | Carados and the Bone Mages, Iona catacombs | Joseph 11, Flece 10 (Rosalind joins in the level) | 0 | walk 8 units north into the crypt, round the bones; the intro plays |
 | `04-undead-rider.sav` | Undead (Ghost) Rider, night forest | Joseph 13, Flece, Rosalind | 1 | the intro plays on loading; let it play |
 | `07-fire-salamanka.sav` | the small Fire Salamanka of the apothecary's quest, hills | all four, 15 | 1 | a short walk away; attack it (it does not attack first) |
-| `08-giant-salamanka.sav` | Giant Salamanka, Khosani laboratory | all four, 16 | 1 | walk a short way on to the trigger point; the intro plays |
+| `08-giant-salamanka.sav` | Giant Salamanka, Khosani laboratory | all four, 16 | 1 | walk 8 units forward off the ledge; the intro plays |
 | `09-phoenix-rider.sav` | Phoenix Rider, hills | all four, 17 | 1 | the intro plays on loading; let it play |
 | `10-ikaemos-priest-king.sav` | Ikaemos Priest King | all four, 17 | 1 | walk a short way on to the trigger point; the intro plays |
 | `11-serpent-rider.sav` | Serpent Rider, forest | all four, 18 | 2 | the intro plays on loading; let it play |
 | `12-tiger-rider.sav` | Tiger Rider, temple (Joseph and Flece, as in the story) | Joseph 18, Flece 18 | 2 | walk a short way on to the trigger point; the intro plays |
-| `14-general-pijian.sav` | General Pijian, battle of Wolong | all four, 20 | 2 | walk a short way on to the trigger point; the intro plays |
+| `14-general-pijian.sav` | General Pijian, battle of Wolong | Joseph, Rosalind, Jekhar, 20 | 2 | walk 7 units toward Pijian, south down the street (behind the camera); the intro plays |
 | `15-serpent-and-phoenix-riders.sav` | Serpent and Phoenix Riders, Liangshan | all four, 20 | 2 | walk a short way on to the trigger point; the intro plays |
 | `16-general-wentao.sav` | General Wentao, Liangshan | all four, 21 | 2 | the boss is a short walk away |
 | `17-undead-and-tiger-riders.sav` | Undead and Tiger Riders, Jade Temple | all four, 21 | 2 | walk a short way on to the trigger point; the intro plays |
@@ -165,8 +165,25 @@ camera or position in some saves):
   fight follows (flags, party and gear unchanged). All nine then walked, with the party together. The other saves walked
   as they were; in combat mode (pt-29) a double click is needed to move. The agent's teleports now go through
   `party_teleport_to` (docs/tools.md). After the changes, `testsaves.mjs verify` on the six changed fight saves
-  (01, 02, 03, 08, 12, 14) in the original: each fight started and the party took damage. In 01 the party stands
-  7 units from `$cuttrig` and the intro does not play on loading. pt-11 and pt-19, which the four-click probe had
+  (01, 02, 03, 08, 12, 14) in the original: each fight started and the party took damage. **Correction
+  (2026-11-07):** `verify` teleports the party to the trigger (`navgoto`) and to the boss (`npcgoto`) before it
+  watches the fight, so it does not test where a save stands. Measured on loading, the repairs had put five of the
+  six far from their fight, on a follower's spot that was itself far away: 02 124 units from `$tbintro`, 03 788
+  from `$ctrigger`, 08 103 and a layer from `$salstart`, 14 507 from Pijian; 01's Joseph, 7 units from
+  `$cuttrig`, stood over the water and did not move. Each was moved again with `posgoto` near its trigger, on open
+  floor with no intro started, and saved with its description back (flags, party, gear and gold unchanged).
+  **Observed** in the original, from a fresh load, double clicks toward the trigger only:
+
+  | Save | Spot (`posgoto X Y Z LAYER`) | Walk to the intro |
+  |---|---|---|
+  | 01 | `-212.07 -14.24 72.65 0`, on the path 10 units before `$cuttrig` (2.5 units) | 7 clicks |
+  | 02 | `218.31 22.59 -150.80 2`, 20 units west of `$tbintro`, the Iron Golem in view | 2 clicks, toward the golem |
+  | 03 | `17.10 -56.56 452.21 9`, 8 units south of `$ctrigger` (4 units; needs `maindoor_open`, set) | 12 clicks round the bones |
+  | 08 | `-118.65 -16.44 43.78 1`, the rock ledge 8 units before `$salstart` | 2 clicks forward |
+  | 12 | unchanged, 11 units from `$tigertrigger` | 2 clicks |
+  | 14 | `-2.58 2.48 -55.15 0`, the street 22 units north of Pijian (within 15 starts it) | 12 clicks |
+
+  The camera often faces away from the fight: walk toward the boss, not up the screen. pt-11 and pt-19, which the four-click probe had
   passed only on captures (its clicks hit walls and pt-11's exit strip), walked 4.5 to 6.4 units per double click on
   open floor.
 
