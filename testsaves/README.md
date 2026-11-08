@@ -183,7 +183,17 @@ camera or position in some saves):
   | 12 | unchanged, 11 units from `$tigertrigger` | 2 clicks |
   | 14 | `-2.58 2.48 -55.15 0`, the street 22 units north of Pijian (within 15 starts it) | 12 clicks |
 
-  The camera often faces away from the fight: walk toward the boss, not up the screen. pt-11 and pt-19, which the four-click probe had
+  The camera often faces away from the fight: walk toward the boss, not up the screen.
+
+  The same measure on the fight saves the repairs did not touch (**Observed**, 2026-11-07): 07 20 units from the
+  Fire Salamanka, 10 15 from `$ipktrigger`, 17 36 from `$tgtrigger` (24 starts it); still to fix, their rows'
+  "a short way" is wrong: 15 252 units from `$sptrigger` (the riders' ground is layer 15, the land east of it
+  layers 13 and 14 below; a party put on layer 15 off that ground slides into the intro), 18 58 units and 13 below
+  `$murodtrigger`, 19 79 units and 55 above `$salstart` (the laboratory entrance, as 08 was). 16 is a defence in
+  waves that the Guardian of the Shrine's conversation starts (`EnemyAttack`: one soldier, three, two samurai and a
+  mage, then Wentao), not a walk to Wentao; the save has none of the wave flags. A first re-save of 19 on 08's ledge
+  started Pyrul's intro by walking but came back with each ring counted twice, 1 Cleansing Elixir instead of 10 and
+  three members hurt; it was not kept. pt-11 and pt-19, which the four-click probe had
   passed only on captures (its clicks hit walls and pt-11's exit strip), walked 4.5 to 6.4 units per double click on
   open floor.
 
