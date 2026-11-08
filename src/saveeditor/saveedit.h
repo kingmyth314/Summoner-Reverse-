@@ -52,7 +52,8 @@ typedef struct {
     const char *lang;
 } se_table_opts;
 
-typedef struct { uint32_t hash; char *name; } se_item_name;
+/* charges: the +Charge Effect: maximum of items.tbl, 0 for an item without one (2026-11-08). */
+typedef struct { uint32_t hash; char *name; int charges; } se_item_name;
 
 typedef struct {
     const char *name;              /* = se_level_names[index] */
@@ -186,8 +187,9 @@ int se_find_level(const char *name);
 typedef enum {
     SE_OP_DESC, SE_OP_GOLD, SE_OP_ADD_ITEM, SE_OP_REMOVE_ITEM, SE_OP_SET_ITEM_COUNT, SE_OP_FLAG,
     SE_OP_MEMBER, SE_OP_LEVEL, SE_OP_XP, SE_OP_HP, SE_OP_MAXHP, SE_OP_AP, SE_OP_MAXAP, SE_OP_SKILLPOINTS,
-    SE_OP_SKILL, SE_OP_COUNT
+    SE_OP_SKILL, SE_OP_FIX_CHARGES, SE_OP_COUNT
 } se_op_kind;
+/* SE_OP_FIX_CHARGES takes no value (the command line's --fix-charges); its se_op value is "". */
 typedef struct { se_op_kind kind; const char *value; } se_op;
 
 /* "desc", "gold", "add-item", ... (the option name without "--"); -1 if not an edit option. */

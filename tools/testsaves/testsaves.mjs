@@ -43,7 +43,9 @@ const LEVELS = ["Wolong", "Catacombs", "test", "masad", "worldmap1", "lenele1b",
   "Rand-IcelandNite01", "endgame", "lenele2d", "sewerboss"];
 
 // Gear by tier, each hero in his or her weapon class (Joseph swords, Flece daggers, Rosalind staves, Jekhar axes and
-// heavy armour); healing and AP items, summoning rings in the party inventory (Joseph wears two).
+// heavy armour); healing and AP items, summoning rings in the party inventory (Joseph wears two). A Cleansing Elixir
+// holds 5 charges and never stacks, so the party carries one (2026-11-08; until then 5 and 10 were asked for, and
+// savedit wrote every added potion with 0 charges, which the game refuses to use: testsaves/README.md).
 const KIT = [
   { gold: 300, items: ["Health Tonic=10", "Recovery Tonic=5"], rings: ["Ring of Darkness"],
     Joseph: ["weapon=Fiery Falchion", "shield=Buckler", "torso=Leather Jerkin", "hands=Silk Gloves", "legs=Blue Pants", "feet=Leather Boots", "finger1=Ring of Darkness"],
@@ -54,12 +56,12 @@ const KIT = [
     Flece: ["weapon=Fiery Falchion", "torso=Leather Jerkin", "hands=Thief's Gauntlets", "legs=Studded Pants", "feet=High Leather Boots", "neck=Thief's Torque", "finger1=Ring of Thieves"],
     Rosalind: ["weapon=Hardwood Staff", "torso=Blessed Surcoat", "hands=Cloth Gloves", "legs=Silk Breeches", "feet=Leather Boots", "neck=Blessed Necklace", "finger1=Ring of Blessings"],
     Jekhar: ["weapon=Heavy War Axe", "torso=Boiled Leather", "hands=Iron Gauntlets", "feet=Heavy Boots", "neck=Barbarian's Torque", "finger1=Berserker Ring"] },
-  { gold: 10000, items: ["Healing Draught=30", "Healing Elixir=10", "Recovery Draught=15", "Cleansing Elixir=5"], rings: ["Ring of Darkness", "Ring of Fire", "Ring of Stone", "Ring of Water", "Ring of Light", "Ring of Jade"],
+  { gold: 10000, items: ["Healing Draught=30", "Healing Elixir=10", "Recovery Draught=15", "Cleansing Elixir=1"], rings: ["Ring of Darkness", "Ring of Fire", "Ring of Stone", "Ring of Water", "Ring of Light", "Ring of Jade"],
     Joseph: ["weapon=Logaros Longsword", "shield=Kite Shield", "torso=Hero's Chainmail", "hands=Steel Gauntlets", "legs=Chainmail Leggings", "feet=Battle Boots", "neck=Medallion of Power", "finger1=Ring of Stone", "finger2=Ring of Water"],
     Flece: ["weapon=Gutting Dirk", "torso=Shadow Haramaki", "hands=Shadow Gauntlets", "legs=Prowler Leggings", "feet=Boots of Stealth", "neck=Necklace of Stealth", "finger1=Ring of Shadows"],
     Rosalind: ["weapon=Nagitana", "torso=Arcticus Mantellum", "hands=Magus Gauntlets", "legs=Magus Leggings", "feet=Magus Boots", "neck=Collar of Health", "finger1=Ring of Recovery"],
     Jekhar: ["weapon=Foecleaver", "torso=Breastplate", "hands=Plate Gauntlets", "feet=Sabatons", "neck=Berserker's Torque", "finger1=Onslaught Ring"] },
-  { gold: 30000, items: ["Healing Elixir=50", "Elixir of Recovery=20", "Recovery Draught=20", "Cleansing Elixir=10"], rings: ["Ring of Darkness", "Ring of Fire", "Ring of Stone", "Ring of Water", "Ring of Light", "Ring of Jade", "Ring of Forest", "Ring of Four Winds"],
+  { gold: 30000, items: ["Healing Elixir=50", "Elixir of Recovery=20", "Recovery Draught=20", "Cleansing Elixir=1"], rings: ["Ring of Darkness", "Ring of Fire", "Ring of Stone", "Ring of Water", "Ring of Light", "Ring of Jade", "Ring of Forest", "Ring of Four Winds"],
     Joseph: ["weapon=Sword of Summoners", "torso=Summoner Chainmail", "hands=Summoner Gauntlets", "legs=Summoner Leggings", "feet=Summoner Sabaton", "neck=Summoner's Torque", "finger1=Ring of Jade", "finger2=Ring of Four Winds"],
     Flece: ["weapon=Decapitator", "torso=Mellifuous Wrappings", "hands=Gloves of Pilfering", "legs=Hero's Leggings", "feet=Boots of Stealth", "neck=Necklace of Anshu", "finger1=Ring of Invisibility"],
     Rosalind: ["weapon=Thunder Nagitana", "torso=Draco Robe", "hands=Midnight Gauntlets", "legs=Magus Leggings", "feet=Magus Boots", "neck=Medallion of Vigor", "finger1=Ring of the Gods"],

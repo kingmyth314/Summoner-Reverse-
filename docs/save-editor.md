@@ -55,7 +55,11 @@ Pages:
 - **Inventory**: one row per item type held (counts of repeated entries added up), with **Set count** and
   **Remove**; **Add** takes a name from the save's own item types (the ITEM chunk; the combo box can be typed
   into, the name must match one of the list). Rows show "added", "changed" or "removed". Items without a name
-  in the tables are shown by hash and cannot be changed.
+  in the tables are shown by hash and cannot be changed. **Correction (2026-11-08):** an item added or newly set
+  here before 2026-11-08 was written with 0 charges, and the game will not use an item at 0 charges: such a potion
+  stayed in the inventory and healed nothing (**Observed**). The editor now writes the item's full charges, and an
+  item of more than one charge (a Cleansing Elixir) is set to 1, since the game never stacks it. A save edited
+  before can be repaired with `saveedit.exe --fix-charges` or `node tools/savedit.mjs ... --fix-charges`.
 - **Story flags**: the levels that have flags (the save's level is selected first) and their flags with
   check boxes, named as in `events.tbl` (`flag N` when a name is empty). A flag whose name is empty, has
   leading or trailing blanks, or repeats an earlier flag's name in its level cannot be named for the library
@@ -84,7 +88,7 @@ Saving:
 All three run without the game, on a folder of **copies** of saves (never a game's `savegame` folder):
 
 1. `node tools/saveedit-test.mjs --corpus DIR`: (a) a round trip, load and write with no edit, must give a
-   byte-identical file for every save; (b) a differential test: 71 cases (description, gold, items, flags by name
+   byte-identical file for every save; (b) a differential test: 76 cases (71 before 2026-11-08) (description, gold, items, flags by name
    and by index, every member field, skills, combined edits, the table options, and refusals) run with the Node
    engine and with `saveedit.exe` on every save, and the outputs must be byte-identical. Results on 41 test saves:
    41/41 round trips, 2,813 runs, 0 failures.

@@ -457,7 +457,7 @@ static void hset_add(hset *h, uint32_t x)
 static int parse_items(se_tables *t, const char *text, size_t len, const char *lang)
 {
     toks v;
-    int i, s, cap = 0;
+    int i, s, cap = 0, cur = -1;
     tokenize(text, len, &v);
     s = language_section(&v, lang);
     if (s < 0) { toks_free(&v); return -1; }
@@ -469,11 +469,24 @@ static int parse_items(se_tables *t, const char *text, size_t len, const char *l
             uint32_t h = se_name_hash(name);
             int k;
             for (k = 0; k < t->nitems; k++) if (t->items[k].hash == h) break;
-            if (k < t->nitems) { free(t->items[k].name); t->items[k].name = name; continue; }
+            if (k < t->nitems) { free(t->items[k].name); t->items[k].name = name; t->items[k].charges = 0; cur = k; continue; }
             if (t->nitems == cap) { cap = cap ? cap * 2 : 256; t->items = xrealloc(t->items, (size_t)cap * sizeof(se_item_name)); }
             t->items[t->nitems].hash = h;
             t->items[t->nitems].name = name;
-            t->nitems++;
+            t->items[t->nitems].charges = 0;
+            cur = t->nitems++;
+        }
+        /* +Charge Effect: / +Self Only Charge Effect: "spell" <max charges> ...: the charges a new item starts with
+           (item_create); a save stores the charges left as the INVT entry's third word (savedata.mjs parseItems). */
+        if (cur >= 0 && (isw(&v, i, "+Charge") || isw(&v, i, "+Self"))) {
+            int j = i + 1;
+            const char *w;
+            while (j < v.n && !v.t[j].str && strcmp(v.t[j].s, "Effect:") != 0) j++;
+            if (isw(&v, j, "Effect:") && strtok_at(&v, j + 1) && (w = wordtok_at(&v, j + 2)) != NULL) {
+                const char *d = w;
+                while (*d >= '0' && *d <= '9') d++;
+                if (d != w && *d == 0) t->items[cur].charges = atoi(w);
+            }
         }
     }
     toks_free(&v);
@@ -969,7 +982,7 @@ int se_find_level(const char *name)
 
 static const char *const op_names[SE_OP_COUNT] = {
     "desc", "gold", "add-item", "remove-item", "set-item-count", "flag", "member", "level", "xp", "hp", "maxhp",
-    "ap", "maxap", "skillpoints", "skill"};
+    "ap", "maxap", "skillpoints", "skill", "fix-charges"};
 int se_op_kind_from_name(const char *name)
 {
     int i;
@@ -1108,6 +1121,19 @@ static int item_arg(ectx *c, const char *k, const char *v, int need_count, int64
     free(name);
     return 0;
 }
+
+/* Charges (2026-11-08, as savedit.mjs): the item's +Charge Effect: maximum (0 without one), or -1 when items.tbl is
+   not loaded or does not list the item. A new INVT entry gets it as its third word (-1: the game's
+   party_inventory_add_type 0x46b460 gives a negative value the full charges); character_use_inventory_item
+   (0x46bc00) refuses an item at 0 charges. An item of more than one charge never stacks: the load makes it 1. */
+static int max_charges(const ectx *c, uint32_t h)
+{
+    int i;
+    if (!c->t || !c->t->have_items) return -1;
+    for (i = 0; i < c->t->nitems; i++) if (c->t->items[i].hash == h) return c->t->items[i].charges;
+    return -1;
+}
+static int multi_charge(const ectx *c, uint32_t h) { return max_charges(c, h) > 1; }
 
 static int64_t held(const ectx *c, uint32_t h)
 {
@@ -1343,9 +1369,15 @@ static int apply_all(ectx *c, const se_op *ops, int nops)
             uint32_t h; int hc; int64_t cnt = 1; const char *label;
             if (item_arg(c, kn, v, 0, 1, &h, &hc, &cnt, &label)) return -1;
             if (!hc) cnt = 1;
-            e_push(c, h, cnt, 0);
+            if (multi_charge(c, h) && cnt != 1) {
+                e_push(c, h, 1, max_charges(c, h));
+                logf_(c, "added 1 x \"%s\" (hash 0x%08lx) to the party inventory (an item of %d charges does not stack: 1, not %lld)",
+                      label, (unsigned long)h, max_charges(c, h), (long long)cnt);
+            } else {
+                e_push(c, h, cnt, max_charges(c, h));
+                logf_(c, "added %lld x \"%s\" (hash 0x%08lx) to the party inventory", (long long)cnt, label, (unsigned long)h);
+            }
             inv_changed = 1;
-            logf_(c, "added %lld x \"%s\" (hash 0x%08lx) to the party inventory", (long long)cnt, label, (unsigned long)h);
         } else if (k == SE_OP_REMOVE_ITEM) {
             uint32_t h; int hc, j; int64_t cnt = 0, have, nleft, removed; const char *label;
             if (item_arg(c, kn, v, 0, 1, &h, &hc, &cnt, &label)) return -1;
@@ -1365,19 +1397,45 @@ static int apply_all(ectx *c, const se_op *ops, int nops)
             inv_changed = 1;
             logf_(c, "removed %lld x \"%s\" (%lld -> %lld)", (long long)removed, label, (long long)have, (long long)(have - removed));
         } else if (k == SE_OP_SET_ITEM_COUNT) {
-            uint32_t h; int hc, j, first = -1; int64_t cnt = 0, have; const char *label;
+            uint32_t h; int hc, j, first = -1; int64_t cnt = 0, have, asked; const char *label;
             if (item_arg(c, kn, v, 1, 0, &h, &hc, &cnt, &label)) return -1;
             have = held(c, h);
+            asked = cnt;
+            if (cnt > 1 && multi_charge(c, h)) cnt = 1;
             for (j = 0; j < c->ne; j++) if (c->e[j].hash == h) { first = j; break; }
             if (cnt == 0) {
                 for (j = c->ne - 1; j >= 0; j--) if (c->e[j].hash == h) e_remove(c, j);
-            } else if (first < 0) e_push(c, h, cnt, 0);
+            } else if (first < 0) e_push(c, h, cnt, max_charges(c, h));
             else {
                 c->e[first].count = cnt;
+                if (c->e[first].field == 0 && max_charges(c, h) > 0) c->e[first].field = max_charges(c, h);
                 for (j = c->ne - 1; j > first; j--) if (c->e[j].hash == h) e_remove(c, j);
             }
             inv_changed = 1;
-            logf_(c, "\"%s\" count %lld -> %lld", label, (long long)have, (long long)cnt);
+            if (cnt != asked)
+                logf_(c, "\"%s\" count %lld -> %lld (an item of %d charges does not stack: 1, not %lld)", label, (long long)have,
+                      (long long)cnt, max_charges(c, h), (long long)asked);
+            else
+                logf_(c, "\"%s\" count %lld -> %lld", label, (long long)have, (long long)cnt);
+        } else if (k == SE_OP_FIX_CHARGES) {
+            int j, fixed = 0;
+            if (!c->t || !c->t->have_items) FAIL("--fix-charges needs items.tbl (the items' charges)");
+            for (j = 0; j < c->ne; j++) {
+                int m = max_charges(c, c->e[j].hash);
+                int64_t was = c->e[j].count;
+                const char *nm;
+                char hb[16];
+                if (m <= 0 || c->e[j].field != 0) continue;
+                nm = se_item_name_of(c->t, c->e[j].hash);
+                if (!nm) { snprintf(hb, sizeof hb, "0x%08lx", (unsigned long)c->e[j].hash); nm = hb; }
+                c->e[j].field = m;
+                if (m > 1) c->e[j].count = 1;
+                if (was != c->e[j].count) logf_(c, "\"%s\": charges 0 -> %d, count %lld -> 1 (does not stack)", nm, m, (long long)was);
+                else logf_(c, "\"%s\": charges 0 -> %d", nm, m);
+                fixed++;
+            }
+            if (!fixed) logf_(c, "no item at 0 charges");
+            if (fixed) inv_changed = 1;
         } else if (k == SE_OP_FLAG) {
             if (op_flag(c, v)) return -1;
         } else if (k == SE_OP_MEMBER) {

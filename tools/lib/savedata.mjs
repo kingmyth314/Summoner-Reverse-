@@ -78,9 +78,16 @@ function parseItems(text, lang) {
   const items = [];
   for (let i = 0; i < t.length; i++) {
     if (t[i].w === "#End") break;
-    if (t[i].w === "$Name:" && t[i + 1]?.s !== undefined) items.push({ name: t[i + 1].s.trim(), slot: null, weapon: false });
+    if (t[i].w === "$Name:" && t[i + 1]?.s !== undefined) items.push({ name: t[i + 1].s.trim(), slot: null, weapon: false, charges: 0 });
     const cur = items[items.length - 1];
     if (!cur) continue;
+    // +Charge Effect: / +Self Only Charge Effect: "spell" <max charges> ...: an item_info starts with the max
+    // (item_create); a save stores the charges left as the INVT entry's third field (2026-11-08).
+    if ((t[i].w === "+Charge" || t[i].w === "+Self") && t[i + 1] !== undefined) {
+      let j = i + 1;
+      while (j < t.length && t[j].s === undefined && t[j].w !== "Effect:") j++;
+      if (t[j]?.w === "Effect:" && t[j + 1]?.s !== undefined && /^\d+$/.test(t[j + 2]?.w ?? "")) cur.charges = Number(t[j + 2].w);
+    }
     if (t[i].w === "$Type:" && t[i + 1]?.s?.toLowerCase() === "weapon") cur.weapon = true;
     if (t[i].w === "+Slot:" && t[i + 1]?.s !== undefined) cur.slot = t[i + 1].s.trim().toLowerCase();
   }
@@ -154,6 +161,7 @@ export function loadTables(opts = {}) {
     if (items) {
       tables.items = new Map(items.map((x) => [nameHash(x.name), x.name]));
       tables.itemSlots = new Map(items.map((x) => [nameHash(x.name), x.slot]));
+      tables.itemCharges = new Map(items.map((x) => [nameHash(x.name), x.charges]));
       sources.items = it.from;
     }
     else warnings.push(`items.tbl has no #${lang} section`);

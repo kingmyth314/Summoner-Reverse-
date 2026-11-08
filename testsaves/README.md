@@ -162,7 +162,23 @@ End2. Both endings reached the credits from pt-42b in both exes, and pt-43's End
 more than the story flags, as 19's did: the item list came back in another order, 1 Cleansing Elixir of 10, Flece
 hurt, and three members' AP above the max savinfo shows (**Inferred**: the party used the elixirs against Evil
 Joseph and Machival, and AP filled to the max the gear gives, which savinfo does not count). The elixirs and
-Flece's HP were set back with `savedit`; flags, party, gear and gold are otherwise pt-42's.
+Flece's HP were set back with `savedit`; flags, party, gear and gold are otherwise pt-42's. **Correction (the same
+day):** the elixirs were not used. A re-save of pt-42 with no movement and no fight also came back with 1 Cleansing
+Elixir and the list re-sorted (**Observed**): a Cleansing Elixir holds 5 charges and never stacks, so the loader
+makes any count 1, and it sorts the list as it adds. See the next paragraph.
+
+**Charges, fixed 2026-11-08** (**Observed**). Our save editors wrote every item they added with 0 charges (the third
+word of an inventory entry, [Savegame](../docs/sum-exe/savegame.md)), and the game will not use an item at 0
+charges. In the original `Sum.exe`, pt-43 as committed on 2026-11-07: "Use" on the Healing Elixir (50, charges 0
+in memory) left 50 and healed nothing; a Health Tonic, an entry the game had written itself (charges 1), healed
+Joseph from 124 to 195 HP. 60 of the 63 saves had such items: every healing, AP and cleansing item `gear` and the
+recipes added (all 19 fight saves and pt-04 .. 43 with pt-42b; pt-01 .. 03 have only the game's own). Both editors now write the item's full
+charges, and all 60 saves were repaired with `savedit --fix-charges`: charges 0 -> 1 (5 for the Cleansing Elixir,
+whose count becomes 1); savinfo shows nothing else changed. Repaired pt-43 in the original: all potions at charges 1
+and the Cleansing Elixir at 5 after a fresh load, and a Healing Elixir healed Joseph from 124 to 227. `gear` now
+asks for one Cleansing Elixir. **Inferred:** the AP above savinfo's max after a re-save (also on the no-fight
+re-save) is the max the gear gives, which savinfo does not count. The doubled rings of the 19 re-save are not
+explained yet.
 
 **Gear and positions, fixed 2026-11-06** (**Observed**; a tester reported heroes in starting clothes and a broken
 camera or position in some saves):

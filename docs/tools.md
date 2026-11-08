@@ -384,7 +384,7 @@ asks about the new exe); the clang builds answer it from `summonerfix.ini` thems
 | `--exe NAME --fixes` (both checks) | `--exe` tests another exe than `Sum-rebuilt.exe` (its `.addr` next to it), for example `Sum-fixed.exe`; `--fixes` runs both exes with SummonerFix's fixes on (`[Fixes] Enabled=1`), the comparison for the fixed build ([Fixed and experimental builds](builds.md)) |
 | `tools/fixed-compile.mjs [--root DIR] FILE [--experimental]` | compiles one unit of a `src/decomp` tree as the fixed build does (its `vc6-flags.txt` flags plus `/DFIXED_BUILD`) and lists the errors and warnings, with paths shortened to the tree. The check for `FIXED_BUILD` code; the byte-matching tools never see that define |
 | `tools/build-saveeditor.ps1` | builds the save editor (`src/saveeditor`) into `build/saveeditor/`: `SummonerSaveEditor.exe` (the window, [Save editor](save-editor.md)), `saveedit.exe` (the command line of `tools/savedit.mjs`) and `app_test.exe` |
-| `tools/saveedit-test.mjs --corpus DIR` | the save editor's acceptance tests on a folder of copies of saves: a byte-identical round trip of every save, and 71 edit cases run with `savedit.mjs` and `saveedit.exe`, outputs compared byte for byte |
+| `tools/saveedit-test.mjs --corpus DIR` | the save editor's acceptance tests on a folder of copies of saves: a byte-identical round trip of every save, and 76 edit cases (71 until the charge cases of 2026-11-08) run with `savedit.mjs` and `saveedit.exe`, outputs compared byte for byte |
 | `tools/saveeditor-uitest.ps1 -Corpus DIR` | starts `SummonerSaveEditor.exe` on copies and drives it with window messages (no mouse): edits on four pages, the save compared with `savedit.mjs`, a refusal, a clean close |
 
 The hybrid cannot see data errors in byte-matching functions (they use Sum.exe's own data there) or globals that
@@ -718,6 +718,16 @@ similar names from `items.tbl` as hints. Case does not matter.
 | `--add-item "Name[=N]"` | one more inventory entry of N items (default 1). Tested: a save with `--add-item "Robe of Restoration"` loaded with the Robe in the party inventory |
 | `--remove-item "Name[=N]"` | removes N of the item (default all), from the last entries first; refused if the party has fewer |
 | `--set-item-count "Name=N"` | the party holds exactly N: the first entry gets N, other entries of the item are removed, 0 removes it, and an item the party lacks is added |
+| `--fix-charges` | (no value, 2026-11-08) every entry of an item with charges that has 0 left gets its full charges; an item of more than one charge gets count 1. Needs items.tbl |
+
+**Charges (2026-11-08).** The third word of an inventory entry is the item's charges left (see
+[Savegame](sum-exe/savegame.md)). Until 2026-11-08 both editors wrote 0 there for every added item, and the game
+refuses to use an item at 0 charges: potions added that way could not be drunk (**Observed** in the original
+`Sum.exe`), which spoiled the healing items of 60 of the 63 test saves. A new entry now gets the item's
+`+Charge Effect:` maximum from items.tbl (0 for an item without one, -1, which the game reads as full, when
+items.tbl is not loaded); `--set-item-count` also fills an existing entry at 0. An item of more than one charge
+(Cleansing Elixir 5, Tears of Usaman 3, the spell books) never stacks, so it is added as 1 whatever N says, and the
+output says so. `--fix-charges` repairs a save made before.
 
 The entries, the count and the trailing length of `INVT` are rewritten together (at most 0x209 entries).
 

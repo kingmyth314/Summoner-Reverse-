@@ -8,6 +8,8 @@
 //   --add-item "Name[=N]"      one more party inventory entry (N items, default 1)          (repeatable)
 //   --remove-item "Name[=N]"   remove N of that item (default: all of it)                    (repeatable)
 //   --set-item-count "Name=N"  the party holds exactly N of that item (0 removes it)          (repeatable)
+//   --fix-charges              (no value) every entry of an item with charges that has 0 left gets its full
+//                              charges; an item of more than one charge (Cleansing Elixir 5) gets count 1
 //   --flag LEVEL:NAME=0|1      clear or set a story flag of a level (name or index 0-50)     (repeatable)
 //   --member I                 which party member the following fields change: 0 = first (default), or a name
 //                              (Joseph, Flece, Jekhar, Rosalind); may be given again for the next member
@@ -26,6 +28,13 @@
 // save's own ITEM chunk, which is the list the loader resolves against; an unknown hash would fail the load with
 // "Couldn't find item type!!!". The INVT section has a fixed capacity (0x209 entries); the entries, the count
 // (+0x08) and the trailing length are rewritten together.
+//
+// Charges (2026-11-08): the third word of an INVT entry is the item's charges left, as the game writes it
+// (item_info +0x08). On load party_inventory_add_type (0x46b460) gives a negative value the item's full charges and
+// makes the count 1 for an item of more than one charge, which never stacks. character_use_inventory_item
+// (0x46bc00) refuses an item at 0 charges, so a potion added with 0 cannot be drunk (observed 2026-11-08). New
+// entries therefore get the item's +Charge Effect: maximum from items.tbl (0 for an item without one), or -1, which
+// the game reads as full, when items.tbl is not loaded; an item of more than one charge is added as 1.
 //
 // Story flags use the per-level block layout of savegame_layout_level_data (0x4d1860) with the flag lists of
 // events.tbl and the automap layer counts of the <level>.tbl files. The edit is refused unless those tables
@@ -47,7 +56,7 @@ import {
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const fail = (msg) => { console.error(msg); process.exit(1); };
-const USAGE = "usage: node tools/savedit.mjs <in.sav> <out.sav> [--desc text] [--gold N] [--add-item Name[=N]] [--remove-item Name[=N]] [--set-item-count Name=N] [--flag LEVEL:NAME=0|1] [--member I|NAME] [--level N] [--xp N] [--hp N] [--maxhp N] [--ap N] [--maxap N] [--skillpoints N] [--skill ID=VALUE] [--equip POS=Name] [--unequip POS] [--tables FILE.vpp] [--tables-dir DIR] [--items-tbl FILE] [--events-tbl FILE] [--lang NAME]";
+const USAGE = "usage: node tools/savedit.mjs <in.sav> <out.sav> [--desc text] [--gold N] [--add-item Name[=N]] [--remove-item Name[=N]] [--set-item-count Name=N] [--fix-charges] [--flag LEVEL:NAME=0|1] [--member I|NAME] [--level N] [--xp N] [--hp N] [--maxhp N] [--ap N] [--maxap N] [--skillpoints N] [--skill ID=VALUE] [--equip POS=Name] [--unequip POS] [--tables FILE.vpp] [--tables-dir DIR] [--items-tbl FILE] [--events-tbl FILE] [--lang NAME]";
 
 const args = process.argv.slice(2);
 const [input, output] = args;
@@ -59,11 +68,13 @@ if (existsSync(output)) fail(`refusing: ${output} already exists (savedit never 
 // (per member for the member fields), so a value is never silently replaced by a later one.
 const FIELDS = ["level", "xp", "hp", "maxhp", "ap", "maxap", "skillpoints"];
 const ONCE = ["desc", "gold"], REPEAT = ["add-item", "remove-item", "set-item-count", "flag", "skill", "member", "equip", "unequip"];
-const TABLE = ["tables", "tables-dir", "items-tbl", "events-tbl", "lang"];
+const TABLE = ["tables", "tables-dir", "items-tbl", "events-tbl", "lang"], NOVALUE = ["fix-charges"];
 const ops = [], tableOpts = {}, seen = new Set();
 for (let i = 2; i < args.length; i++) {
   if (!args[i].startsWith("--")) fail(`unexpected argument ${args[i]}`);
-  const k = args[i].slice(2), v = args[++i];
+  const k = args[i].slice(2);
+  if (NOVALUE.includes(k)) { if (seen.has(k)) fail(`--${k} given twice`); seen.add(k); ops.push({ k, v: "" }); continue; }
+  const v = args[++i];
   if (![...FIELDS, ...ONCE, ...REPEAT, ...TABLE].includes(k)) fail(`unknown option --${k}`);
   if (v === undefined) fail(`--${k} needs a value`);
   if (TABLE.includes(k)) { if (k in tableOpts) fail(`--${k} given twice`); tableOpts[k] = v; continue; }
@@ -112,6 +123,10 @@ const changes = [];
 const inv = readInventory(b);
 if (!inv) fail("no INVT chunk");
 let entries = inv.entries.map((e) => ({ ...e })), invChanged = false;
+// The item's +Charge Effect: maximum (0 without one), or undefined when items.tbl is not loaded.
+const maxCharges = (h) => tables.itemCharges?.get(h >>> 0);
+const newField = (h) => maxCharges(h) ?? -1;
+const multiCharge = (h) => (maxCharges(h) ?? 0) > 1;
 const held = (h) => entries.filter((e) => e.hash === h).reduce((a, e) => a + e.count, 0);
 
 const party = partyMembers(b);
@@ -144,9 +159,10 @@ for (const { k, v } of ops) {
     b.writeInt32LE(g, o + 4);
     changes.push(`gold ${old} -> ${g}`);
   } else if (k === "add-item") {
-    const it = itemArg(k, v, false, 1), count = it.count ?? 1;
-    entries.push({ hash: it.hash, count, field: 0 }); invChanged = true;
-    changes.push(`added ${count} x "${it.name}" (hash ${hex(it.hash)}) to the party inventory`);
+    const it = itemArg(k, v, false, 1), asked = it.count ?? 1, count = multiCharge(it.hash) ? 1 : asked;
+    entries.push({ hash: it.hash, count, field: newField(it.hash) }); invChanged = true;
+    changes.push(`added ${count} x "${it.name}" (hash ${hex(it.hash)}) to the party inventory` +
+      (count !== asked ? ` (an item of ${maxCharges(it.hash)} charges does not stack: 1, not ${asked})` : ""));
   } else if (k === "remove-item") {
     const it = itemArg(k, v, false, 1), have = held(it.hash);
     if (!have) fail(`--remove-item: the party has no "${it.name}"`);
@@ -164,11 +180,29 @@ for (const { k, v } of ops) {
   } else if (k === "set-item-count") {
     const it = itemArg(k, v, true, 0), have = held(it.hash);
     const first = entries.findIndex((e) => e.hash === it.hash);
-    if (it.count === 0) entries = entries.filter((e) => e.hash !== it.hash);
-    else if (first < 0) entries.push({ hash: it.hash, count: it.count, field: 0 });
-    else { entries[first].count = it.count; entries = entries.filter((e, i) => e.hash !== it.hash || i === first); }
+    const count = it.count > 1 && multiCharge(it.hash) ? 1 : it.count;
+    if (count === 0) entries = entries.filter((e) => e.hash !== it.hash);
+    else if (first < 0) entries.push({ hash: it.hash, count, field: newField(it.hash) });
+    else {
+      entries[first].count = count;
+      if (entries[first].field === 0 && (maxCharges(it.hash) ?? 0) > 0) entries[first].field = maxCharges(it.hash);
+      entries = entries.filter((e, i) => e.hash !== it.hash || i === first);
+    }
     invChanged = true;
-    changes.push(`"${it.name}" count ${have} -> ${it.count}`);
+    changes.push(`"${it.name}" count ${have} -> ${count}` +
+      (count !== it.count ? ` (an item of ${maxCharges(it.hash)} charges does not stack: 1, not ${it.count})` : ""));
+  } else if (k === "fix-charges") {
+    if (!tables.itemCharges) fail("--fix-charges needs items.tbl (the items' charges)");
+    let fixed = 0;
+    for (const e of entries) {
+      const m = maxCharges(e.hash) ?? 0;
+      if (m <= 0 || e.field !== 0) continue;
+      const nm = itemName(tables, e.hash) ?? hex(e.hash), was = e.count;
+      e.field = m; if (m > 1) e.count = 1;
+      changes.push(`"${nm}": charges 0 -> ${m}${was !== e.count ? `, count ${was} -> 1 (does not stack)` : ""}`); fixed++;
+    }
+    if (!fixed) changes.push("no item at 0 charges");
+    invChanged = invChanged || fixed > 0;
   } else if (k === "flag") {
     const m = /^([^:]+):(.+)=([01])$/.exec(v);
     if (!m) fail(`--flag needs LEVEL:NAME=0 or LEVEL:NAME=1, not "${v}"`);

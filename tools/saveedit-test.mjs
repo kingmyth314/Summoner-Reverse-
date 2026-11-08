@@ -112,6 +112,16 @@ function casesFor(file) {
     add("remove-item not held (refused)", ["--remove-item", notHeld], "refuse");
   }
   add("unknown item (refused)", ["--add-item", "No Such Item Zz"], "refuse");
+  // charges (2026-11-08): new entries get the item's full charges; an item of more than one charge is added as 1
+  const typeName = (n) => types.some((h) => h === lib.nameHash(n)) ? n : null;
+  const charged = typeName("Healing Elixir") ?? typeName("Health Tonic"), multiCh = typeName("Cleansing Elixir") ?? typeName("Tears of Usaman");
+  if (charged) add("add-item charged =4", ["--add-item", `${charged}=4`]);
+  if (multiCh) {
+    add("add-item multi-charge =3", ["--add-item", `${multiCh}=3`]);
+    add("set-item-count multi-charge =6", ["--set-item-count", `${multiCh}=6`]);
+  }
+  add("fix-charges (with desc)", ["--fix-charges", "--desc", "charges fixed"]);
+  add("fix-charges twice (refused)", ["--fix-charges", "--fix-charges", "--desc", "x"], "refuse");
   if (lvUnset) {
     const f = unsetOf(lvUnset);
     add("flag name on", ["--flag", `${lvUnset.name}:${f}=1`]);

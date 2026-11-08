@@ -3,7 +3,7 @@
  * usage: saveedit <in.sav> <out.sav> [edits...] [--tables FILE.vpp] [--tables-dir DIR] [--items-tbl FILE]
  *                 [--events-tbl FILE] [--lang NAME]
  *        saveedit --roundtrip <in.sav> <out.sav>      (load, check and write the save with no edit)
- * The edits are those of savedit.mjs (--desc, --gold, --add-item, --remove-item, --set-item-count, --flag,
+ * The edits are those of savedit.mjs (--desc, --gold, --add-item, --remove-item, --set-item-count, --fix-charges, --flag,
  * --member, --level, --xp, --hp, --maxhp, --ap, --maxap, --skillpoints, --skill). The output must not exist
  * and must be a different file than the input; one bad edit writes nothing. Exit code 0 = written, 1 = refused.
  * Without --tables the packfile is tables.vpp next to saveedit.exe, else Summoner\tables.vpp under the current
@@ -17,7 +17,7 @@
 
 static const char USAGE[] =
     "usage: saveedit <in.sav> <out.sav> [--desc text] [--gold N] [--add-item Name[=N]] [--remove-item Name[=N]] "
-    "[--set-item-count Name=N] [--flag LEVEL:NAME=0|1] [--member I|NAME] [--level N] [--xp N] [--hp N] [--maxhp N] "
+    "[--set-item-count Name=N] [--fix-charges] [--flag LEVEL:NAME=0|1] [--member I|NAME] [--level N] [--xp N] [--hp N] [--maxhp N] "
     "[--ap N] [--maxap N] [--skillpoints N] [--skill ID=VALUE] [--tables FILE.vpp] [--tables-dir DIR] "
     "[--items-tbl FILE] [--events-tbl FILE] [--lang NAME]\n"
     "       saveedit --roundtrip <in.sav> <out.sav>";
@@ -114,6 +114,15 @@ int wmain(int argc, wchar_t **argv)
         kind = se_op_kind_from_name(k);
         for (ti = 0; ti < 5; ti++) if (!wcscmp(argv[i] + 2, table_names[ti])) break;
         if (kind < 0 && ti == 5) { fprintf(stderr, "unknown option --%s\n", k); return 1; }
+        if (kind == SE_OP_FIX_CHARGES) { /* no value */
+            for (rc = 0; rc < nops; rc++)
+                if (ops[rc].kind == SE_OP_FIX_CHARGES) { fprintf(stderr, "--%s given twice\n", k); return 1; }
+            ops[nops].kind = SE_OP_FIX_CHARGES;
+            ops[nops].value = latin1(L"");
+            nops++;
+            free(k);
+            continue;
+        }
         if (i + 1 >= argc) { fprintf(stderr, "--%s needs a value\n", k); return 1; }
         i++;
         if (ti < 5) {

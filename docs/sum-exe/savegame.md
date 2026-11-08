@@ -191,14 +191,23 @@ not x and y.
 | `+0x00` | char[4] | `INVT` |
 | `+0x04` | int32 | `party_gold` (`0x971868`) (*observed* 2026-10-14: setting it to 5000 with `tools/savedit.mjs` showed 5000 gold in the inventory after loading) |
 | `+0x08` | int32 | entry count n (clamped to 0..0x209 when written; not clamped on load) |
-| `+0x0c` | n x 12 | `{uint32 item-type name hash, int32 count, int32 item field +0x08}` from the inventory list `0x970820` |
+| `+0x0c` | n x 12 | `{uint32 item-type name hash, int32 count, int32 charges}` (the charges are the item's `item_info` +0x08) from the inventory list `0x970820` |
 | then | int32 | chunk length (12 + 12n + 4) |
 
 On load, `party_inventory_clear` runs, then `party_inventory_add_type(type, count, field, 1)` for each
 entry. An unknown hash fails the load with `"Couldn't find item type!!!"`. The trailing length must match.
 Two renamed items are mapped on load, in both `INVT` and `ITEM`: `Brown Dragon Scale` -> `Gray Dragon
-Scale` and `Ring of Preservation` -> `Preservation Ring`, so older saves still load. The meaning of the
-third field (0 or 1 in the saves) is *unknown*.
+Scale` and `Ring of Preservation` -> `Preservation Ring`, so older saves still load.
+
+**Correction (2026-11-08):** the third field was listed as *unknown*. It is the item's charges left
+(**Observed** code and in game). `party_inventory_add_type` (`0x46b460`) gives a negative value the item's full
+charges (its `+Charge Effect:` maximum in items.tbl), caps the value at that maximum, and makes the count 1 for an
+item of more than one charge, which never stacks (a Cleansing Elixir, 5 charges, or a spell book); a second entry of
+such an item adds its charges to the first. An item without a charge effect has 0. The game writes a potion as
+count N, charges 1. `character_use_inventory_item` (`0x46bc00`) refuses an item at 0 charges: in the original
+`Sum.exe` a Healing Elixir entry written with 0 (by our save editors before 2026-11-08) stayed at 50 after "Use" and
+healed nothing, while a Health Tonic the game had written (charges 1) healed. Both editors now write the item's full
+charges, and `--fix-charges` repairs such entries ([Tools](../tools.md)).
 
 ## Conversation state (observed)
 
