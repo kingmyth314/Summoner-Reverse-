@@ -14,6 +14,15 @@ skill points and skills, the party inventory, and story flags. **It always write
 overwrites one**: the engine opens its output with `CREATE_NEW`, and the opened save is refused as a target.
 
 {: .warning }
+**Items added before 2026-11-08 do not work.** Until then the editor wrote every item it added with 0 charges,
+and the game will not use an item at 0 charges: an added Healing Elixir, for example, stays in the inventory and
+heals nothing. The current editor writes items correctly. To repair a save edited with an older build, run
+`saveedit.exe old.sav fixed.sav --fix-charges` (or `node tools/savedit.mjs old.sav fixed.sav --fix-charges`) and
+load `fixed.sav`; nothing else in the save changes. Details under **Inventory** below. Since the fix, every one
+of the game's 521 items was added to a save and loaded, and each of the 42 that can be used (potions, scrolls, books)
+was used in the game successfully ([Tools](tools.md), 2026-11-08).
+
+{: .warning }
 With Windows 11's Smart App Control on, Windows may refuse to start this unsigned program (on the development PC
 it blocked a fresh build on 2026-10-21; see [SummonerFix](summonerfix/index.md)).
 

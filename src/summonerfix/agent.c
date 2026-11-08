@@ -425,6 +425,60 @@ static void NpcKillOnGameThread(void *arg)
     HeapFree(GetProcessHeap(), 0, name);
 }
 
+// "useitem NAME[@TARGET]": the current character uses a party inventory item as the inventory screen's "Use" does,
+// through character_use_inventory_item (0x46bc00, cdecl (Character *, entry, target handle, point, arg) -> bool;
+// inventory_use_selected_item passes the user's own handle, NULL and -1). TARGET is a level script character's name
+// for an item whose spell needs a target (default: the user). The entry's count and the item's charges before and
+// after are logged. Testing only (2026-11-08: the items the save editors add, which had 0 charges).
+static void UseItemOnGameThread(void *arg)
+{
+    char *name = (char *)arg, *target = strchr(name, '@');
+    typedef BYTE *(__cdecl * FindChar)(const char *);
+    typedef char(__cdecl * UseItem)(void *, void *, int, void *, int);
+    int atPoint = 0; // "NAME@@[TARGET]": a spell aimed at a place (Blizzard, ...), cast at the target's feet and layer
+                     // with handle -1, as world_use_item_at_point (0x418540) does; a NULL point there crashes the game
+    if (target) {
+        *target++ = 0;
+        if (*target == '@') {
+            atPoint = 1;
+            target++;
+        }
+        if (!*target)
+            target = NULL;
+    }
+    BYTE *ch = *(BYTE *volatile *)(UINT_PTR)SumVa(VA_CUR_CHARACTER);
+    int n = *(int *)(UINT_PTR)SumVa(0x97186cu);              // party_inventory_count
+    BYTE *inv = (BYTE *)(UINT_PTR)SumVa(0x970820u);          // party_inventory: {int count; item_info *item}
+    BYTE *entry = NULL;
+    for (int i = 0; i < n && !entry; i++) {
+        BYTE *item = *(BYTE **)(inv + i * 8 + 4);
+        const char *nm = item ? **(const char ***)(item + 4) : NULL; // item_info +4 ItemType *, ItemType +0 name
+        if (nm && !_stricmp(nm, name))
+            entry = inv + i * 8;
+    }
+    BYTE *tc = target ? ((FindChar)(UINT_PTR)SumVa(VA_SCRIPT_OBJECT_FIND_CHARACTER))(target) : ch;
+    if (!ch || !entry || !tc) {
+        Log("agent: useitem %s: %s", name, !ch ? "no character" : !entry ? "not in the party inventory" : "no such target");
+    } else {
+        BYTE *item = *(BYTE **)(entry + 4);
+        int count = *(int *)entry, charges = *(int *)(item + 8);
+        float point[3];
+        memcpy(point, tc + 0x10, sizeof point);
+        char ok = atPoint ? ((UseItem)(UINT_PTR)SumVa(0x46bc00u))(ch, entry, -1, point, *(int *)(tc + 0x68c)) // layer
+                          : ((UseItem)(UINT_PTR)SumVa(0x46bc00u))(ch, entry, *(int *)(tc + 0x80), NULL, -1);
+        // the entry may have been removed (the last one used): look the item up again
+        int after = -1, chAfter = -1;
+        n = *(int *)(UINT_PTR)SumVa(0x97186cu);
+        for (int i = 0; i < n; i++)
+            if (*(BYTE **)(inv + i * 8 + 4) == item) {
+                after = *(int *)(inv + i * 8);
+                chAfter = *(int *)(item + 8);
+            }
+        Log("agent: useitem %s: used %d, count %d -> %d, charges %d -> %d", name, ok, count, after, charges, chAfter);
+    }
+    HeapFree(GetProcessHeap(), 0, name);
+}
+
 // "npchp FRACTION NAME": damage a level script character down to FRACTION of its base max HP (+0x5f4) through
 // character_add_hp, as npckill does, so a boss passes its HP stages one at a time (its stage checks and transition
 // cutscenes run as after real damage). The request block is a float followed by the name. Testing only.
@@ -916,6 +970,15 @@ static void RunLine(char *line)
             strncat(name, argv[i], 63 - strlen(name));
         }
         Out("npckill %s: %s", name, AgentRunSync(NpcKillOnGameThread, name) ? "requested" : "no window");
+    } else if (!_stricmp(c, "useitem") && argc >= 2) {
+        // useitem NAME[@TARGET]: the current character uses a party inventory item as "Use" does (game thread).
+        char *name = (char *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, 96); // freed on the game thread
+        for (int i = 1; i < argc; i++) {
+            if (i > 1)
+                strncat(name, " ", 95 - strlen(name));
+            strncat(name, argv[i], 95 - strlen(name));
+        }
+        Out("useitem %s: %s", name, AgentRunSync(UseItemOnGameThread, name) ? "requested" : "no window");
     } else if (!_stricmp(c, "npchp") && argc >= 3) {
         // npchp FRACTION NAME: damage a script character down to FRACTION of its base max HP (game thread).
         char *block = (char *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(float) + 64); // freed there

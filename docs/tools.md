@@ -562,6 +562,12 @@ intro movies (2026-10-25). The main menu sets state 1 before it plays them, and 
 - `call0 ADDR [N]` calls a void game function with no arguments N times on the game thread and logs
   `level_filename` / `level_script_name` after each call, then restores the three level names (for the world map
   encounter pickers, G6: `call0 4fc4b0 40`);
+- `useitem NAME[@TARGET]` makes the current character use a party inventory item as the inventory screen's "Use"
+  does, through `character_use_inventory_item` (`0x46bc00`), and logs `used`, the entry's count and the item's
+  charges before and after. TARGET is a level script character for a spell that needs one (default: the user);
+  `NAME@@[TARGET]` casts a spell aimed at a place (Blizzard Scroll) at the target's feet and layer with handle -1,
+  as a click on the ground does (`world_use_item_at_point`, `0x418540`): with a NULL point the game crashes
+  (**Observed**, access violation, 2026-11-08). SummonerFix's agent mode only (2026-11-08, for the item charges);
 - `npckill NAME` gives a level script character 1,000,000 damage through `character_add_hp` (a type 4 NPC is made
   type 5 first, since type 4 ignores damage); `npcdead NAME` prints `script_object_find` and `script_npc_is_dead`
   for it. A character still hidden behind "wait for go" only reaches "dying" (`+0x320` bit `0x8`), not dead (`0x80`).
@@ -728,6 +734,18 @@ refuses to use an item at 0 charges: potions added that way could not be drunk (
 items.tbl is not loaded); `--set-item-count` also fills an existing entry at 0. An item of more than one charge
 (Cleansing Elixir 5, Tears of Usaman 3, the spell books) never stacks, so it is added as 1 whatever N says, and the
 output says so. `--fix-charges` repairs a save made before.
+
+**Every item, tested 2026-11-08** (**Observed** in the original `Sum.exe`). All 521 item types of the game were
+added with `savedit` (two of each) to two copies of pt-35, about 260 types each. Loaded, every one was in the party
+inventory with its full charges in memory (279 and 278 entries with the save's own items). Of the 44 items with a
+charge effect, the 42 that are used were then used once each with the agent's `useitem`: the 15 self-only
+consumables (potions, elixirs, brews, Food), the 26 runes, scrolls, tracts, books, tablets and tomes (on the user;
+Blizzard Scroll at the user's feet), and Tail of the Rokhul. The other two, Blinding Buckler and Frozen Club, spend
+their charges on hits, not through "Use" (checked only in memory, full charges). Every use succeeded: a stack lost one, an item of several charges lost a
+charge (Cleansing Elixir 5 -> 4, Tears of Usaman 3 -> 2, Nandi's Potion 4 -> 3, books and tomes 5 -> 4), and Tail
+of the Rokhul, which can be recharged, kept its entry at 0 charges. Control: pt-35 as it was before the repair
+(potions written with 0 charges): Healing Elixir and Recovery Draught `used 0`, count unchanged; its Health Tonic,
+written by the game, `used 1`.
 
 The entries, the count and the trailing length of `INVT` are rewritten together (at most 0x209 entries).
 
