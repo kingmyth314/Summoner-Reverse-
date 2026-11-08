@@ -963,7 +963,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G100 | In single player the "leech" special ability of the Blood Elemental, Crystal Rokhul and Wraith (Joseph's summon) does nothing to HP | `living_entity_get_hit_by_spell` `0x45dea0` | **Observed** code, retail data and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] LeechDrain`) |
 | G110 | Latent: a `#Clicks` name that is not a level object makes level object 0 clickable with that entry's message and gold | `level_script_parse_table` `0x4cd5f0` | **Observed** code and retail data, *inferred* effect | No |
 | G111 | Latent: a door `+Key:` that names no item can never be opened with a key | `level_script_parse_table` `0x4cd5f0` | **Observed** code and retail data, *inferred* effect | No |
-| G130 | Latent (the game refuses saving there, tested): after loading a game saved in the last temple level after Machival's defeat, walking to the forge no longer starts the first ending; only the temple exit (the second ending) still ends the game | `ls_templeint2_init` `0x4ef190`, `ls_templeint2_enter_forge` `0x4ef5d0`, `savegame_location_allowed` `0x4d4b5e` | **Observed** code and in game (save refused) | No |
+| G130 | Latent (the game refuses saving there, tested): after loading a game saved in the last temple level after Machival's defeat, walking to the forge no longer starts the first ending; only the temple exit (the second ending) still ends the game | `ls_templeint2_init` `0x4ef190`, `ls_templeint2_enter_forge` `0x4ef5d0`, `savegame_location_allowed` `0x4d4b5e` | **Observed** code and in game (save refused; the lost ending seen with an agent-made save, 2026-11-08) | No |
 | G131 | Latent (the game refuses saving there): on the second Jade Temple visit, a game saved in the 8 s after "Joseph acquired Summon Spirit of Laharah!" loads into a temple that never fades out to the world map, and the level has no exit | `lsf_tiger2_dead` `0x4f0360`, `ls_jadetemple_init` `0x4effe0`, `savegame_location_allowed` `0x4d4b45` | **Observed** code and retail data, *inferred* effect | No |
 | G132 | In Liangshan, General Wentao's wave can arrive, and "That must be the last of them." can be said, while Orenian Samurai#w3a of the third wave is still fighting | `lsf_liangshan_flag_wave4` `0x4f5280`, `lsf_liangshan_flag_finished_quest` `0x4f5320` | **Observed** code and retail data, *inferred* effect | No |
 | G140 | Latent: after a cutscene, an item it took off goes back into a wrong equipment slot when the item's type slot is not the usual one for that hand or body part | `script_action_replace_weapon` `0x4dccb0`, `script_action_replace_armor` `0x4dce60`, `cutscene_script_unload` `0x4ed390` | **Observed** code and retail data, *inferred* effect | No |
@@ -1333,6 +1333,12 @@ showed "Cannot save in The Temple of Urath." after the introduction. So no save 
 exists, and the cleared byte never matters. With the byte set, standing on `$end2trig` started End1-EnterForge
 at once; with only `mach_killed` set (the state a load would give) nothing happened, as the code says. A fix is
 not needed.
+
+**Seen with a real save (2026-11-08, Observed).** The play-through test save pt-43 was saved after Machival's death
+with the agent's `savenow`, which skips the refusal. Loaded in the original `Sum.exe`: `0x257e9b8` 0, the party
+on `$end2trig`, no ending; the `lenele3a` exit played End2-LeaveTemple, End2-Montage and the credits. So the
+*Inferred* line above holds for such a save. The test saves now carry pt-42b, saved before Machival's death, for
+the first ending ([testsaves/README.md](../../testsaves/README.md)).
 
 **G131. A timer that does not survive a load.** In `jadetemple_v2`, once the four riders are dead,
 `lsf_tiger2_dead` sets `got_laharah_spirit`, shows the summon message, starts the 8 s `ls_jadetemple_tiger2_timer` and

@@ -5,7 +5,7 @@ Two sets of saves for testing the game, SummonerFix and the rebuilt exes. None c
   bosses, their stage changes and cutscenes. Made from a new game with the project's agent tools
   (`tools/testsaves/testsaves.mjs`). Each has the story party at levels that suit the fight, gear from a matching
   tier, healing and AP items, summoning rings and gold. The fight list follows the order of the boss guides on GameFAQs.
-- **The play-through set** (`playthrough/`, 2026-11-04): 43 saves of the main story in order, from Masad to the last
+- **The play-through set** (`playthrough/`, 2026-11-04): 43 saves of the main story in order (44 since pt-42b, 2026-11-08), from Masad to the last
   fight, each with the story state of a real game (quests, journal, party). See
   [the play-through set](#the-play-through-set-started-2026-11-03).
 
@@ -89,7 +89,7 @@ is checked like the fight saves.
 
 ### The set (2026-11-04)
 
-`testsaves/playthrough/`: 43 saves, the main story from Masad to the last fight, played in order in agent mode on
+`testsaves/playthrough/`: 43 saves (44 with pt-42b, added 2026-11-08 for the first ending), the main story from Masad to the last fight, played in order in agent mode on
 the original `Sum.exe` with SummonerFix, from the opening pilot on. Load them as the fight saves (above); their
 descriptions start with `TEST PT` and the number.
 
@@ -139,10 +139,30 @@ game drops or places (`items` / `open`). Shortcuts, none of which changes the st
 | `pt-36`, `pt-37` | stronghold, second laboratory | the scrolls for the Ring of Fire; Pyrul trapped |
 | `pt-38` .. `pt-41` | stronghold, Iona, Ikaemos | the Rings of Light and Stone, Luminar and Titus trapped, the Ring of Darkness |
 | `pt-42-temple-of-urath-machival-fight` | Temple of Urath | the last fight under way (its intro plays on arrival) |
-| `pt-43-temple-before-the-endings` | Temple of Urath | Machival dead; both endings ahead |
+| `pt-42b-temple-machival-nearly-dead` | Temple of Urath | Evil Urath and Evil Joseph dead, Machival at 5% and idle; both endings ahead (added 2026-11-08) |
+| `pt-43-temple-before-the-endings` | Temple of Urath | Machival dead; only the second ending ahead (see below) |
 
 **Checked** 2026-11-04: each of the 43 loads in the original `Sum.exe` with SummonerFix and reaches play (game state
 4) in the level it names; pt-43 also with its description (the Load Game screen shows it).
+
+**The endings, 2026-11-08** (**Observed** in the original `Sum.exe` and in the 64-bit exe, each run from a fresh
+load to game state 9, the credits). The forge ending (End1) starts only when a byte is set that Machival's death
+scene sets and every entry to the level clears ([G130](../docs/sum-exe/game-bugs.md)), so no save made after his
+death can reach it: the game itself refuses saving there, and pt-43 was saved with the agent's `savenow`.
+**Correction:** pt-43's "both endings ahead" was wrong. Loaded, with the party on `$end2trig`, nothing happened;
+with the byte poked to 1 End1-EnterForge started at once. pt-43 gives only the second ending: walk back out of the
+temple (back toward the entrance, about 23 units, to the `lenele3a` exit) and End2-LeaveTemple, End2-Montage and the credits play.
+A save before the first ending must be from before Machival dies, so pt-42b was made from pt-42 (intro played,
+Evil Urath and Evil Joseph killed with `npckill` after each transition scene, Machival brought to 5% with `npchp`,
+the party put on `$temple_01`, 6.5 units in front of him, saved with `savenow`). Machival loads idle: his combat
+switch (`0x248b034`) is not saved, so he does not fight back. The party did not attack him from that spot within
+60 s; next to him it killed him in 15 to 20 s. Machival-Death then plays and the party (Joseph) stands at entry 2;
+from there `$end2trig`, 25 units back toward where Machival stood, starts End1-EnterForge and End1-Montage, and the exit, 23 units back toward the entrance,
+End2. Both endings reached the credits from pt-42b in both exes, and pt-43's End2 in both. The re-save changed
+more than the story flags, as 19's did: the item list came back in another order, 1 Cleansing Elixir of 10, Flece
+hurt, and three members' AP above the max savinfo shows (**Inferred**: the party used the elixirs against Evil
+Joseph and Machival, and AP filled to the max the gear gives, which savinfo does not count). The elixirs and
+Flece's HP were set back with `savedit`; flags, party, gear and gold are otherwise pt-42's.
 
 **Gear and positions, fixed 2026-11-06** (**Observed**; a tester reported heroes in starting clothes and a broken
 camera or position in some saves):
