@@ -126,7 +126,13 @@ if (cmd === "base") {
     }
     if (R.level !== "masad") { log(run(`level ${R.level} ${R.script}`).trim()); await sleep(15000); }
     log(`in play: ${await skipToPlay()}`);
-    for (const [name, lv] of R.party.split(",").map((p) => p.split(":"))) { log(run(name === "Joseph" ? `xpto Joseph ${lv}` : `join ${name} ${lv}`).trim()); await sleep(800); }
+    // join returns a hero already in the party (one the level's story added) unchanged, at the story's level: xpto
+    // after it raises him to the recipe's level (2026-11-08; until then 03, 04 and 08 to 12 had companions 1 to 7
+    // levels below the recipe).
+    for (const [name, lv] of R.party.split(",").map((p) => p.split(":"))) {
+      if (name !== "Joseph") { log(run(`join ${name} ${lv}`).trim()); await sleep(800); }
+      log(run(`xpto ${name} ${lv}`).trim()); await sleep(800);
+    }
     if (R.place === "npc") {
       log(run(`npcgoto ${R.at}`).trim());
       log(run(`wait 600; nudge ${R.nudge}`).trim());

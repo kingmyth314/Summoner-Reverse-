@@ -593,7 +593,10 @@ intro movies (2026-10-25). The main menu sets state 1 before it plays them, and 
   at the level the script's story stage gives). Murod: `level jadetemple jadetemple`, then `navgoto $murodtrigger`.
   Luminar: `level IonaEXT02 IonaEXT02_v2`. To kill a member properly, `callt 450850 CHAR 0xC9742400 -1 0 0`
   (`character_add_hp(-1000000)`) and then write `FF FF FF FF` to its current move (`+0x6cc`): the death waits for the
-  move otherwise, and the member stays "dying" (`0x8`). Switch `immortal` off first. Dead heroes leave the living
+  move otherwise, and the member stays "dying" (`0x8`). Switch `immortal` off first. `callt` reads THIS with
+  base 0, so a pointer needs its `0x` (without it, `8ed980` is read as 8 and the game crashes; **Observed**
+  2026-11-08). The same call kills an enemy that is not a level script object, where `npckill` answers
+  "script object -1" (`testsaves/README.md`, 2026-11-08). Dead heroes leave the living
   list but stay in `party_list`;
 - `count ADDR STRIDE N MASK` counts the records of a table (N records, STRIDE bytes apart, hex) whose first byte has a
   bit of MASK set, for example `count 2f077b8 74 128 1` for the used `sound_emitters` (K110);

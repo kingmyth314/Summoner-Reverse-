@@ -29,7 +29,7 @@ of Spirits, chainmail), 2 (Logaros Longsword, Hero's chainmail), 3 (Sword of Sum
 |---|---|---|---|---|
 | `01-barbarian-fighter.sav` | Barbarian Fighter, Masad | Joseph 3 | 0 | walk 10 units on along the path toward the Barbarian; the intro plays |
 | `02-iron-golem.sav` | Iron Golem, two Broken Brass Golems, tentacles; Lenele sewers | Joseph 9, Flece 8 | 0 | walk 20 units toward the Iron Golem (in view, to the right); the intro plays |
-| `03-carados.sav` | Carados and the Bone Mages, Iona catacombs | Joseph 11, Flece 10 (Rosalind joins in the level) | 0 | walk 8 units north into the crypt, round the bones; the intro plays |
+| `03-carados.sav` | Carados and the Bone Mages, Iona catacombs | Joseph 11, Flece 10, Rosalind 10 (she joins in the level) | 0 | walk 8 units north into the crypt, round the bones; the intro plays |
 | `04-undead-rider.sav` | Undead (Ghost) Rider, night forest | Joseph 13, Flece, Rosalind | 1 | the intro plays on loading; let it play |
 | `07-fire-salamanka.sav` | the small Fire Salamanka of the apothecary's quest, hills | all four, 15 | 1 | a short walk away; attack it (it does not attack first) |
 | `08-giant-salamanka.sav` | Giant Salamanka, Khosani laboratory | all four, 16 | 1 | walk 8 units forward off the ledge; the intro plays |
@@ -210,8 +210,39 @@ walks up by pathfinding) opened his conversation at 8.5 units; clicking "Child o
 ended it with `EnemyAttack` (`liangshan_flag_wave1` set, the first soldiers sent). None of the riders' flags is
 needed: the conversation has no condition, and the riders' ground is about 200 units away.
 
-**15 and 18, still open (2026-11-08, Observed in the original `Sum.exe`).** Both stay where they were; each also
-loses HP in the first 20 s after loading (15: Jekhar 598 to 400; 18: Jekhar 608 to 551), without deaths.
+**Thirty seconds after loading, 2026-11-08** (**Observed** in the original `Sum.exe`). Every save, all 63, was
+loaded with no input and the heroes' HP read from memory at once and 30 s later, against the HP in the file.
+The 44 play-through saves: no loss. A member reported missing there is one who is away at that point of the story
+(Jekhar in act 3, for example). The fight saves:
+- *04, 09, 11 (the riders whose intro plays on loading):* HP lost, as intended: the fight starts with the intro.
+- *03 and 17, fixed:* ordinary enemies stood next to the party and attacked at once: a Bone Mage and two Bone
+  Knights in 03, four Orenian Samurai in 17. In 17, Joseph died within seconds of loading (the file held a running
+  fight). None of them is a level script object (`npckill` answers "script object -1"), so each was killed through
+  `callt 450850 0xCHAR 0xC9742400 -1 0 0` (`character_add_hp(-1000000)`; the pointer needs `0x`, as `callt` reads
+  THIS with base 0, and a pointer without it crashed the game), its current move cleared, then the game saved.
+  As a player would have cleared them before the boss. No enemy came back within 30 s. Carados's two guards
+  (type 4, waiting for the intro) were left alone.
+- *Companions too low, fixed:* the sweep also showed that in 03, 04 and 08 to 12 the companions were 1 to 7 levels
+  below the recipe (08 to 11: Jekhar, Flece and Rosalind at 10 or 11 beside Joseph at 16 to 18). `join NAME LEVEL`
+  returns a hero who is already in the party (one the level's story added) as he is, so the recipe level was ignored.
+  Each save was loaded with the party immortal, each companion raised with `xpto` (HP, AP and skills as from play)
+  and saved. `build` now runs `xpto` after every `join`.
+- *HP and AP refilled:* after those saves, and in 16 and 22 (Joseph at 416/464 and 301/488), every member's HP and AP
+  were set to their maximum with `savedit`, the description put back, and in 04, 09 and 11 the intro flag cleared
+  again (`ghost_intro_played`, `phoenix_intro_played`, `serpent_intro_played`), so loading plays the intro.
+- *15 and 18:* the same enemy problem; see the next paragraph.
+- Afterwards 03, 08, 10, 12, 15, 16, 17 and 18 lost no HP in 30 s with no input. `verify` started each fight from a
+  fresh load: 03, 04, 08, 09, 10, 11, 12 and 17 all took damage from their boss.
+
+**15 and 18, still open (2026-11-08, Observed in the original `Sum.exe`).** Both stay where they were. Each lost
+HP in the first 20 s after loading (15: Jekhar 598 to 400; 18: Jekhar 608 to 551). The cause was the same as in 03
+and 17, enemies beside the party: seven Onif in 15, two OG Mages in 18 (a third already dead). They were killed the
+same way, the party made immortal from before the load (in a first try without it, Flece died in 15 during the
+load), and the saves made again with HP and AP refilled. **Fixed:** neither loses HP in 30 s now, and `verify`
+starts both fights. Two Onif in 15 and both OG Mages in 18 stay "dying" (HP 0, flag `0x8`) and do nothing. Still
+open is the walk to the trigger. From 18's spot, 58 units from `$murodtrigger` (which is up on a raised floor, y 17.9),
+the straight walk stops against a wall between two stairways. A walk by waypoints along x = -32 to -35 hardly moved
+the party (3.4 units per click straight on, 0.3 sideways).
 - *15:* every layer-15 spot near `$sptrigger` that was tried, 10 units north or north-west of it, was moved by
   the game to (-127.2, -0.5, 125.3), among the graves, 12.2 units from the trigger. From there a rock blocks the
   straight walk, and the party, in combat mode, did not move in 25 double clicks. A spot on layer 14 east of the
