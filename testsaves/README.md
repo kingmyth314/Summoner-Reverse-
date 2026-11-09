@@ -126,7 +126,9 @@ game drops or places (`items` / `open`). Shortcuts, none of which changes the st
 - the party made immortal (the `immortal` console flag, `0x941704`) during the Liangshan waves and the act 4 fights,
   and mortal again before each save;
 - Lenele's side quests, the Khosani and Wolong side quests, and the optional bosses Lord Korel, Zane and Azha were
-  not played.
+  not played. (Since 2026-11-09 the side quests have been played one by one from these saves with
+  `tools/testsaves/sidequests.mjs`, each from a fresh load, and nothing was saved back into the set: results on
+  [Side quests](../docs/sum-exe/side-quests.md). Korel, Zane and Azha are fight saves 05, 06 and 13.)
 
 | Save | Where | The story so far |
 |---|---|---|

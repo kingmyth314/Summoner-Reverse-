@@ -83,6 +83,7 @@ Ghidra names imports `DLL::Function`, for example `WINMM.DLL::timeGetTime`.
 - [Bosses](bosses.md)
 - [Level scripts](level-scripts.md)
 - [World map and encounters](worldmap.md)
+- [Side quests](side-quests.md)
 - [Cutscenes](cutscenes.md)
 - [Script editor](script-editor.md)
 - [Game data tables in memory](game-tables.md)

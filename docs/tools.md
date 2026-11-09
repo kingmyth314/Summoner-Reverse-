@@ -88,7 +88,8 @@ Lessons from building them (**Observed** 2026-11-03):
   (for Luminar and Pijian, outside the 20 and 15 units of their proximity intros), and for a fight whose intro
   plays on arrival (Titus) the intro flag is set before arriving and cleared in the finished save;
 - fights started by a conversation choice (Lord Korel, Zane, Azha the Archlich) need that conversation, and Korel
-  stayed hidden even with `unhide_korel` set; they belong to the play-through set;
+  stayed hidden even with `unhide_korel` set; they belong to the play-through set (**correction, 2026-11-08:**
+  saves 05, 06 and 13 now exist, made from play-through saves: `testsaves/README.md`);
 - `join` crashes in masad; the heroes join after the first level change;
 - skipping Titus's intro with Esc right after loading left him at his start point for good; letting it play, he
   fought. The check therefore lets every cutscene play (up to 70 s) before pressing Esc. Why the skip loses the
@@ -97,6 +98,29 @@ Lessons from building them (**Observed** 2026-11-03):
 Results of `verify all` on 2026-11-03 (19 saves, the original `Sum.exe` with SummonerFix): the party took damage
 within 35 s in 15; the Undead Rider killed the party (Game Over); Titus and Luminar were in combat with no damage
 yet; the quest Fire Salamanka is passive. Details in `testsaves/README.md`.
+
+## `tools/testsaves/sidequests.mjs` (side quests played)
+
+Added 2026-11-09. Plays the game's side quests in agent mode, one fresh load of a play-through save each, and reports
+what each conversation did to the journal, the inventory, gold and Joseph's experience. Results and the findings are
+on [Side quests](sum-exe/side-quests.md).
+- `list`: the side quests of `events.tbl`, each with the characters whose dialogue opens it (`+Unhide Quest`) and
+  closes it (`+Hide Quest`), from every `*_dlg.tbl` of `tables.vpp` except `Miniquests_dlg.tbl` (a developer copy
+  whose rewards are all 999 XP).
+- `run [ID ...]`: the specs of `tools/testsaves/sidequests.json`. A spec names a play-through save, an optional
+  `exitto`, and steps: talk to a character until a target topic (the shortest path through the character's topics,
+  `+Add Topic` / `+Add Initial Topic` / `+Unhide` edges, read from the dialogue table), `give` items
+  (`party_inventory_add_by_name`, `0x46bb00`), `identify` them, `kill` a script character, `exitto`, or any agent
+  command. After each talk it saves (`savenow`) and compares the save with the one before (`savinfo`).
+- Shortcuts, each reported in the results: an item a quest sends the player to find is given; when a target topic
+  cannot be reached, the event flags (`+Unhide by event`, set with `flagl`) and items (`+Unhide by item`) that unlock
+  it or a topic on the way are supplied and the talk tried once more; a quest item flagged "not identified" is marked
+  identified (bit 0 of `item_types[i].flags`, `+0x5c`), as the Lore skill would. The party is immortal throughout.
+- Lessons (**Observed** 2026-11-08/09): after "Farewell" `dlg` still reports mode 3, with state 0; a topic list of
+  eight or more entries needs scrolling, which the driver does not do (the statue's five parts were therefore handed
+  over one at a time); a character with one topic plays it at once, with no list; `talkto` matches names by prefix,
+  and names keep their `#suffix`, so `Monk#heretic` reaches the heretic monk and `Torvel` may reach `Torvel#part2`;
+  `callt` and `callstr` read hexadecimal arguments only with `0x`.
 
 ## `tools/check.mjs` and CI
 

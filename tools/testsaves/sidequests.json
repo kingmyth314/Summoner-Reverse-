@@ -1,0 +1,1801 @@
+[
+ {
+  "id": "tongue",
+  "quest": "The Beggar's Eyes + The Salamanka's Tongue",
+  "base": "pt-03-lenele-arrival",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "A Beggar With No Eyes",
+    "goto": "A Beggar With No Eyes",
+    "file": "lenele1b_dlg.tbl",
+    "char": "A Beggar With No Eyes",
+    "target": "\"Elixir?\""
+   },
+   {
+    "talk": "Apothecary",
+    "goto": "Apothecary",
+    "file": "lenele1b_dlg.tbl",
+    "char": "Apothecary",
+    "target": "\"Barter?\""
+   },
+   {
+    "give": [
+     "Salamanka Tongue"
+    ]
+   },
+   {
+    "talk": "Apothecary",
+    "goto": "Apothecary",
+    "file": "lenele1b_dlg.tbl",
+    "char": "Apothecary",
+    "target": "Give him the salamanka's tongue."
+   },
+   {
+    "talk": "A Beggar With No Eyes",
+    "goto": "A Beggar With No Eyes",
+    "file": "lenele1b_dlg.tbl",
+    "char": "A Beggar With No Eyes",
+    "target": "Give him the eyes."
+   }
+  ]
+ },
+ {
+  "id": "jinyan",
+  "quest": "The Merchant of Orenia + Free Jinyan",
+  "base": "pt-03-lenele-arrival",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Aravind",
+    "goto": "Aravind",
+    "file": "lenele1b_dlg.tbl",
+    "char": "Aravind",
+    "target": "\"Disappeared?\""
+   },
+   {
+    "talk": "Gorbus the Guard",
+    "goto": "Gorbus the Guard",
+    "file": "lenele1b_dlg.tbl",
+    "char": "Gorbus the Guard",
+    "target": "\"Do you have a prisoner named Jinyan?\""
+   },
+   {
+    "give": [
+     "Forged Document"
+    ]
+   },
+   {
+    "talk": "Gorbus the Guard",
+    "goto": "Gorbus the Guard",
+    "file": "lenele1b_dlg.tbl",
+    "char": "Gorbus the Guard",
+    "target": "Give him 20 gold."
+   },
+   {
+    "talk": "Aravind",
+    "goto": "Aravind",
+    "file": "lenele1b_dlg.tbl",
+    "char": "Aravind",
+    "target": "\"Jinyan is in the Keep.\""
+   }
+  ]
+ },
+ {
+  "id": "salt",
+  "quest": "The Salt Smugglers",
+  "base": "pt-03-lenele-arrival",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Pedrog",
+    "goto": "Pedrog",
+    "file": "lenele1b_dlg.tbl",
+    "char": "Pedrog",
+    "target": "\"Shut down?\""
+   },
+   {
+    "give": [
+     "Chunk of Salt"
+    ]
+   },
+   {
+    "talk": "Pedrog",
+    "goto": "Pedrog",
+    "file": "lenele1b_dlg.tbl",
+    "char": "Pedrog",
+    "target": "Give him the salt."
+   }
+  ]
+ },
+ {
+  "id": "shards",
+  "quest": "Shards of the Ghimaadi",
+  "base": "pt-03-lenele-arrival",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Varyssa",
+    "goto": "Varyssa",
+    "file": "lenele1b_dlg.tbl",
+    "char": "Varyssa",
+    "target": "\"Trade?\""
+   },
+   {
+    "give": [
+     "Blue Glass Shard",
+     "Red Glass Shard",
+     "Green Glass Shard"
+    ]
+   },
+   {
+    "talk": "Varyssa",
+    "goto": "Varyssa",
+    "file": "lenele1b_dlg.tbl",
+    "char": "Varyssa",
+    "target": "Give her the shards."
+   }
+  ]
+ },
+ {
+  "id": "infest",
+  "quest": "The Infestation",
+  "base": "pt-03-lenele-arrival",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Merden",
+    "goto": "Merden",
+    "file": "lenele1b_dlg.tbl",
+    "char": "Merden",
+    "target": "\"Bounty?\""
+   }
+  ]
+ },
+ {
+  "id": "jarl",
+  "quest": "The Sword of Jarl",
+  "base": "pt-03-lenele-arrival",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "exitto": "lenele1aa lenele1aa 1",
+  "steps": [
+   {
+    "talk": "Jarl the Smith",
+    "goto": "Jarl the Smith",
+    "file": "Lenele1aa_dlg.tbl",
+    "char": "Jarl the Smith",
+    "target": "\"Yes.\""
+   },
+   {
+    "give": [
+     "Jarl's Sword"
+    ]
+   },
+   {
+    "talk": "Jarl the Smith",
+    "goto": "Jarl the Smith",
+    "file": "Lenele1aa_dlg.tbl",
+    "char": "Jarl the Smith",
+    "target": "\"No, but I got your sword back.\"#3"
+   }
+  ]
+ },
+ {
+  "id": "torva",
+  "quest": "Torva's Magic Lute",
+  "base": "pt-03-lenele-arrival",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "exitto": "lenele1aa lenele1aa 1",
+  "steps": [
+   {
+    "talk": "Torva",
+    "goto": "Torva",
+    "file": "Lenele1aa_dlg.tbl",
+    "char": "Torva",
+    "target": "\"Dropped lute?\""
+   },
+   {
+    "give": [
+     "Torva's Lute"
+    ]
+   },
+   {
+    "talk": "Torva",
+    "goto": "Torva",
+    "file": "Lenele1aa_dlg.tbl",
+    "char": "Torva",
+    "target": "\"Yes.\""
+   }
+  ]
+ },
+ {
+  "id": "cerval",
+  "quest": "Cerval's Game",
+  "base": "pt-03-lenele-arrival",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "exitto": "lenele1aa lenele1aa 1",
+  "steps": [
+   {
+    "talk": "Mercer the Tailor",
+    "goto": "Mercer the Tailor",
+    "file": "Lenele1aa_dlg.tbl",
+    "char": "Mercer the Tailor",
+    "target": "\"Who is this thief?\""
+   },
+   {
+    "give": [
+     "Silk Garments"
+    ]
+   },
+   {
+    "talk": "Mercer the Tailor",
+    "goto": "Mercer the Tailor",
+    "file": "Lenele1aa_dlg.tbl",
+    "char": "Mercer the Tailor",
+    "target": "\"Yes.\""
+   }
+  ]
+ },
+ {
+  "id": "aesik",
+  "quest": "Aesik's Sword (from Masad)",
+  "base": "pt-01-masad-after-barbarian",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Aesik",
+    "goto": "Aesik",
+    "file": "masad_dlg.tbl",
+    "char": "Aesik",
+    "target": "\"We must flee to Lenele.\""
+   },
+   {
+    "exitto": "lenele1aa lenele1aa 1"
+   },
+   {
+    "talk": "Earis",
+    "goto": "Earis",
+    "file": "Lenele1aa_dlg.tbl",
+    "char": "Earis",
+    "target": "\"I have a sword for you.\""
+   }
+  ]
+ },
+ {
+  "id": "pomporo",
+  "quest": "Pomporo's Heirloom",
+  "base": "pt-03-lenele-arrival",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "exitto": "lenele1ab lenele1ab 1",
+  "steps": [
+   {
+    "talk": "Pomporo",
+    "goto": "Pomporo",
+    "file": "lenele1ab_dlg.tbl",
+    "char": "Pomporo",
+    "target": "\"Any clues about the thief?\""
+   },
+   {
+    "give": [
+     "Signet Ring"
+    ]
+   },
+   {
+    "talk": "Pomporo",
+    "goto": "Pomporo",
+    "file": "lenele1ab_dlg.tbl",
+    "char": "Pomporo",
+    "target": "\"Yes.\""
+   }
+  ]
+ },
+ {
+  "id": "torvel",
+  "quest": "The Lord Chamberlain's Men (act 2; talkto by the full name of the quest giver's double avoided)",
+  "base": "pt-08-act2-lenele-dock",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "exitto": "lenele1ab lenele1ab_v2 1",
+  "steps": [
+   {
+    "talk": "Torvel",
+    "goto": "Torvel",
+    "file": "lenele1ab_v2_dlg.tbl",
+    "char": "Torvel",
+    "target": "\"How can I help you?\""
+   }
+  ]
+ },
+ {
+  "id": "zefnat",
+  "quest": "The Encyclopedia of Heresies",
+  "base": "pt-03-lenele-arrival",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "exitto": "lenele1ab lenele1ab 1",
+  "steps": [
+   {
+    "talk": "Zefnat the Scholar",
+    "goto": "Zefnat the Scholar",
+    "file": "lenele1ab_dlg.tbl",
+    "char": "Zefnat the Scholar",
+    "target": "\"What do I have to do?\""
+   },
+   {
+    "give": [
+     "Volume 67"
+    ]
+   },
+   {
+    "talk": "Zefnat the Scholar",
+    "goto": "Zefnat the Scholar",
+    "file": "lenele1ab_dlg.tbl",
+    "char": "Zefnat the Scholar",
+    "target": "\"I have Volume 67.\""
+   }
+  ]
+ },
+ {
+  "id": "durgan",
+  "quest": "Durgan's Lucky Charm",
+  "base": "pt-03-lenele-arrival",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "exitto": "lenele1d lenele1d 1",
+  "steps": [
+   {
+    "talk": "Durgan the Sailor",
+    "goto": "Durgan the Sailor",
+    "file": "lenele1d_dlg.tbl",
+    "char": "Durgan the Sailor",
+    "target": "\"Your lucky charm?\""
+   },
+   {
+    "give": [
+     "Durgan's Earring"
+    ]
+   },
+   {
+    "talk": "Durgan the Sailor",
+    "goto": "Durgan the Sailor",
+    "file": "lenele1d_dlg.tbl",
+    "char": "Durgan the Sailor",
+    "target": "Give him the charm."
+   }
+  ]
+ },
+ {
+  "id": "ragneli",
+  "quest": "Ragneli's Robbers",
+  "base": "pt-03-lenele-arrival",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "exitto": "lenele1d lenele1d 1",
+  "steps": [
+   {
+    "talk": "The Great Ragneli",
+    "goto": "The Great Ragneli",
+    "file": "lenele1d_dlg.tbl",
+    "char": "The Great Ragneli",
+    "target": "\"What's so special about his bow?\""
+   },
+   {
+    "give": [
+     "Zane's Bow"
+    ]
+   },
+   {
+    "talk": "The Great Ragneli",
+    "goto": "The Great Ragneli",
+    "file": "lenele1d_dlg.tbl",
+    "char": "The Great Ragneli",
+    "target": "\"Yes.\""
+   }
+  ]
+ },
+ {
+  "id": "iven",
+  "quest": "Crazy Iven",
+  "base": "pt-03-lenele-arrival",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "exitto": "lenele1d lenele1d 1",
+  "steps": [
+   {
+    "talk": "Crazy Iven",
+    "goto": "Crazy Iven",
+    "file": "lenele1d_dlg.tbl",
+    "char": "Crazy Iven",
+    "target": "\"It's been nice talking with you.\""
+   }
+  ]
+ },
+ {
+  "id": "seeds1",
+  "quest": "The Seeds of Aahur (start)",
+  "base": "pt-03-lenele-arrival",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "exitto": "lenele1d lenele1d 1",
+  "steps": [
+   {
+    "talk": "Beelon",
+    "goto": "Beelon",
+    "file": "lenele1d_dlg.tbl",
+    "char": "Beelon",
+    "target": "\"Yes.\""
+   }
+  ]
+ },
+ {
+  "id": "yon",
+  "quest": "The Amulet of Prince Yon (end)",
+  "base": "pt-05-palace-ring-of-darkness",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "exitto": "lenele1d lenele1d 1",
+  "steps": [
+   {
+    "give": [
+     "Yon's Amulet"
+    ]
+   },
+   {
+    "talk": "Drego",
+    "goto": "Drego",
+    "file": "lenele1d_dlg.tbl",
+    "char": "Drego",
+    "target": "\"Yes.\""
+   }
+  ]
+ },
+ {
+  "id": "miala",
+  "quest": "Miala the Iomani",
+  "base": "pt-06-iona-rosalind-joined",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Sister Miala the Iomani",
+    "goto": "Sister Miala the Iomani",
+    "file": "IonaEXT_dlg.tbl",
+    "char": "Sister Miala the Iomani",
+    "target": "\"Brother?\""
+   },
+   {
+    "give": [
+     "Iomani Necklace"
+    ]
+   },
+   {
+    "talk": "Sister Miala the Iomani",
+    "goto": "Sister Miala the Iomani",
+    "file": "IonaEXT_dlg.tbl",
+    "char": "Sister Miala the Iomani",
+    "target": "Give her the necklace."
+   }
+  ]
+ },
+ {
+  "id": "qelah",
+  "quest": "Qelah of the Muthavi",
+  "base": "pt-06-iona-rosalind-joined",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Sister Qelah",
+    "goto": "Sister Qelah",
+    "file": "IonaEXT_dlg.tbl",
+    "char": "Sister Qelah",
+    "target": "\"Muthavi to return?\""
+   },
+   {
+    "talk": "Sister Llio",
+    "goto": "Sister Llio",
+    "file": "IonaEXT_dlg.tbl",
+    "char": "Sister Llio",
+    "target": "\"Hail\"",
+    "gate": true
+   }
+  ]
+ },
+ {
+  "id": "wid",
+  "quest": "Wid the Terrified (axe identified)",
+  "base": "pt-06-iona-rosalind-joined",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Brother Wid",
+    "goto": "Brother Wid",
+    "file": "IonaEXT_dlg.tbl",
+    "char": "Brother Wid",
+    "target": "\"Saved?\""
+   },
+   {
+    "give": [
+     "Axe#Axe of Ikus"
+    ]
+   },
+   {
+    "identify": [
+     "Axe#Axe of Ikus"
+    ]
+   },
+   {
+    "talk": "Brother Wid",
+    "goto": "Brother Wid",
+    "file": "IonaEXT_dlg.tbl",
+    "char": "Brother Wid",
+    "target": "Give him the axe."
+   }
+  ]
+ },
+ {
+  "id": "sama",
+  "quest": "Novice Sama (chain: Sama, Eamon, Sama)",
+  "base": "pt-06-iona-rosalind-joined",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Brother Eamon",
+    "goto": "Brother Eamon",
+    "file": "IonaEXT_dlg.tbl",
+    "char": "Brother Eamon",
+    "target": "\"Perhaps I can help.\""
+   },
+   {
+    "talk": "Novice Sama",
+    "goto": "Novice Sama",
+    "file": "IonaEXT_dlg.tbl",
+    "char": "Novice Sama",
+    "target": "\"I'll help you.\""
+   },
+   {
+    "talk": "Brother Eamon",
+    "goto": "Brother Eamon",
+    "file": "IonaEXT_dlg.tbl",
+    "char": "Brother Eamon",
+    "target": "Give him Sama's book."
+   },
+   {
+    "talk": "Novice Sama",
+    "goto": "Novice Sama",
+    "file": "IonaEXT_dlg.tbl",
+    "char": "Novice Sama",
+    "target": "\"Yes.\""
+   }
+  ]
+ },
+ {
+  "id": "tathal1",
+  "quest": "Tathal the Wanderer (start)",
+  "base": "pt-06-iona-rosalind-joined",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Sister Bilan of Nahul",
+    "goto": "Sister Bilan of Nahul",
+    "file": "IonaEXT_dlg.tbl",
+    "char": "Sister Bilan of Nahul",
+    "target": "\"Alive or dead?\""
+   }
+  ]
+ },
+ {
+  "id": "gahnis1",
+  "quest": "The Tome of Gahnis (start; talkto by the full name)",
+  "base": "pt-06-iona-rosalind-joined",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Monk#heretic",
+    "goto": "Monk#heretic",
+    "file": "IonaEXT_dlg.tbl",
+    "char": "Monk#heretic",
+    "target": "\"Hail\""
+   }
+  ]
+ },
+ {
+  "id": "ivane",
+  "quest": "Lady Ivane's Mystery",
+  "base": "pt-09-palace-jekhar-joined",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Lady Ivane",
+    "goto": "Lady Ivane",
+    "file": "lpalaceint_v2_dlg.tbl",
+    "char": "Lady Ivane",
+    "target": "\"How can I help?\""
+   },
+   {
+    "talk": "Lady Ivane",
+    "goto": "Lady Ivane",
+    "file": "lpalaceint_v2_dlg.tbl",
+    "char": "Lady Ivane",
+    "target": "\"Evien has been arrested!\"",
+    "gate": true
+   }
+  ]
+ },
+ {
+  "id": "ikaemos",
+  "quest": "The Ghost of Ikaemos",
+  "base": "pt-14-ikaemos-ring-of-stone",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Munorus",
+    "goto": "Munorus",
+    "file": "ikaemostopint_dlg.tbl",
+    "char": "Munorus",
+    "target": "\"How can I help you?\""
+   },
+   {
+    "give": [
+     "Vaesura's Necklace"
+    ]
+   },
+   {
+    "talk": "Munorus",
+    "goto": "Munorus",
+    "file": "ikaemostopint_dlg.tbl",
+    "char": "Munorus",
+    "target": "\"I found the necklace.\""
+   }
+  ]
+ },
+ {
+  "id": "elodach",
+  "quest": "Elodach the Initiate",
+  "base": "pt-08-act2-lenele-dock",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "exitto": "TempleInt TempleInt 1",
+  "steps": [
+   {
+    "talk": "Jerve the Elder",
+    "goto": "Jerve the Elder",
+    "file": "TempleINT_dlg.tbl",
+    "char": "Jerve the Elder",
+    "target": "\"How can I help?\""
+   },
+   {
+    "give": [
+     "Urath Feather"
+    ]
+   },
+   {
+    "talk": "Jerve the Elder",
+    "goto": "Jerve the Elder",
+    "file": "TempleINT_dlg.tbl",
+    "char": "Jerve the Elder",
+    "target": "\"I have recovered what was stolen.\""
+   }
+  ]
+ },
+ {
+  "id": "logaros",
+  "quest": "The Lord of Logaros (Sir Horum killed)",
+  "base": "pt-17-occupied-lenele",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Lord of Logaros",
+    "goto": "Lord of Logaros",
+    "file": "Lenele2aa_dlg.tbl",
+    "char": "Lord of Logaros",
+    "target": "\"Yes.\""
+   },
+   {
+    "kill": "Sir Horum"
+   },
+   {
+    "talk": "Lord of Logaros",
+    "goto": "Lord of Logaros",
+    "file": "Lenele2aa_dlg.tbl",
+    "char": "Lord of Logaros",
+    "target": "\"You have been avenged!\""
+   }
+  ]
+ },
+ {
+  "id": "adeslani",
+  "quest": "Adeslani's Brother (escort followed)",
+  "base": "pt-17-occupied-lenele",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "exitto": "lenele2ab lenele2ab 1",
+  "steps": [
+   {
+    "talk": "Adeslani",
+    "goto": "Adeslani",
+    "file": "Lenele2ab_dlg.tbl",
+    "char": "Adeslani",
+    "target": "\"Yes, we'll help.\""
+   },
+   {
+    "cmd": "npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000"
+   },
+   {
+    "kill": "Orenian Soldier#kill1-1"
+   },
+   {
+    "kill": "Orenian Soldier#kill1-2"
+   },
+   {
+    "kill": "Orenian Samurai#kill1-3"
+   },
+   {
+    "cmd": "npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000"
+   },
+   {
+    "talk": "Adeslani",
+    "goto": "Adeslani",
+    "file": "Lenele2ab_dlg.tbl",
+    "char": "Adeslani",
+    "target": "\"We made it?\""
+   }
+  ]
+ },
+ {
+  "id": "seeds",
+  "quest": "The Seeds of Aahur (end)",
+  "base": "pt-13-worldmap-after-phoenix-rider",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "exitto": "KhosaniStrng KhosaniStrng_v2 1",
+  "steps": [
+   {
+    "give": [
+     "Seeds of Aahur"
+    ]
+   },
+   {
+    "talk": "Elarh the Merchant",
+    "goto": "Elarh the Merchant",
+    "file": "Khosanistrng_v2_dlg.tbl",
+    "char": "Elarh the Merchant",
+    "target": "\"It's a deal.\""
+   }
+  ]
+ },
+ {
+  "id": "rhukha1",
+  "quest": "The Fate of Rhukha (start)",
+  "base": "pt-13-worldmap-after-phoenix-rider",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "exitto": "KhosaniStrng KhosaniStrng_v2 1",
+  "steps": [
+   {
+    "talk": "Keeper of Lore",
+    "goto": "Keeper of Lore",
+    "file": "Khosanistrng_v2_dlg.tbl",
+    "char": "Keeper of Lore",
+    "target": "\"The fate of Rhukha?\""
+   }
+  ]
+ },
+ {
+  "id": "dakhanim1",
+  "quest": "Secrets of the Dakhanim (start)",
+  "base": "pt-13-worldmap-after-phoenix-rider",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "exitto": "KhosaniStrng KhosaniStrng_v2 1",
+  "steps": [
+   {
+    "talk": "Ilaru the Priestess",
+    "goto": "Ilaru the Priestess#act2",
+    "file": "Khosanistrng_v2_dlg.tbl",
+    "char": "Ilaru the Priestess#act2",
+    "target": "\"Invisible writing?\""
+   }
+  ]
+ },
+ {
+  "id": "scales1",
+  "quest": "The Emperor's Dragon Scales (start)",
+  "base": "pt-19-act3-eleh",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Xueli",
+    "goto": "Xueli",
+    "file": "eleh_dlg.tbl",
+    "char": "Xueli",
+    "target": "\"Passed down from emperor to emperor?\""
+   }
+  ]
+ },
+ {
+  "id": "family",
+  "quest": "The Family Tradition",
+  "base": "pt-25-wolong-ring-of-four-winds",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "exitto": "Wolong2 Wolong2_v2 1",
+  "steps": [
+   {
+    "talk": "Fangyin",
+    "goto": "Fangyin",
+    "file": "Wolong2_v2_dlg.tbl",
+    "char": "Fangyin",
+    "target": "\"I will make the journey for you.\""
+   },
+   {
+    "talk": "Fangyin",
+    "goto": "Fangyin",
+    "file": "Wolong2_v2_dlg.tbl",
+    "char": "Fangyin",
+    "target": "\"I have completed the task.\"",
+    "gate": true
+   }
+  ]
+ },
+ {
+  "id": "hat",
+  "quest": "Longyue's Hat",
+  "base": "pt-25-wolong-ring-of-four-winds",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "exitto": "Wolong2 Wolong2_v2 1",
+  "steps": [
+   {
+    "talk": "Longyue",
+    "goto": "Longyue",
+    "file": "Wolong2_v2_dlg.tbl",
+    "char": "Longyue",
+    "target": "\"Could we get the hat for you?\""
+   },
+   {
+    "give": [
+     "Longyue's Hat"
+    ]
+   },
+   {
+    "talk": "Longyue",
+    "goto": "Longyue",
+    "file": "Wolong2_v2_dlg.tbl",
+    "char": "Longyue",
+    "target": "\"I found your hat.\""
+   }
+  ]
+ },
+ {
+  "id": "statue",
+  "quest": "The Statue of Gaodi II (parts one at a time)",
+  "base": "pt-25-wolong-ring-of-four-winds",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "exitto": "Wolong2 Wolong2_v2 1",
+  "steps": [
+   {
+    "talk": "Caishi the Sculptor",
+    "goto": "Caishi the Sculptor",
+    "file": "Wolong2_v2_dlg.tbl",
+    "char": "Caishi the Sculptor",
+    "target": "\"Arms, head, and legs?\""
+   },
+   {
+    "give": [
+     "Head"
+    ]
+   },
+   {
+    "talk": "Caishi the Sculptor",
+    "goto": "Caishi the Sculptor",
+    "file": "Wolong2_v2_dlg.tbl",
+    "char": "Caishi the Sculptor",
+    "target": "\"I found his head.\""
+   },
+   {
+    "give": [
+     "Left Arm"
+    ]
+   },
+   {
+    "talk": "Caishi the Sculptor",
+    "goto": "Caishi the Sculptor",
+    "file": "Wolong2_v2_dlg.tbl",
+    "char": "Caishi the Sculptor",
+    "target": "\"I found his left arm.\""
+   },
+   {
+    "give": [
+     "Right Arm"
+    ]
+   },
+   {
+    "talk": "Caishi the Sculptor",
+    "goto": "Caishi the Sculptor",
+    "file": "Wolong2_v2_dlg.tbl",
+    "char": "Caishi the Sculptor",
+    "target": "\"I found his right arm.\""
+   },
+   {
+    "give": [
+     "Left Leg"
+    ]
+   },
+   {
+    "talk": "Caishi the Sculptor",
+    "goto": "Caishi the Sculptor",
+    "file": "Wolong2_v2_dlg.tbl",
+    "char": "Caishi the Sculptor",
+    "target": "\"I found his left leg.\""
+   },
+   {
+    "give": [
+     "Right Leg"
+    ]
+   },
+   {
+    "talk": "Caishi the Sculptor",
+    "goto": "Caishi the Sculptor",
+    "file": "Wolong2_v2_dlg.tbl",
+    "char": "Caishi the Sculptor",
+    "target": "\"I found his right leg.\""
+   },
+   {
+    "talk": "Caishi the Sculptor",
+    "goto": "Caishi the Sculptor",
+    "file": "Wolong2_v2_dlg.tbl",
+    "char": "Caishi the Sculptor",
+    "target": "\"How is the statue coming?\""
+   }
+  ]
+ },
+ {
+  "id": "nandi",
+  "quest": "Nandi the Gatherer",
+  "base": "pt-25-wolong-ring-of-four-winds",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "exitto": "Wolong2 Wolong2_v2 1",
+  "steps": [
+   {
+    "talk": "Nandi",
+    "goto": "Nandi",
+    "file": "Wolong2_v2_dlg.tbl",
+    "char": "Nandi",
+    "target": "\"What is this gift?\""
+   },
+   {
+    "give": [
+     "Bane's Kiss"
+    ]
+   },
+   {
+    "talk": "Nandi",
+    "goto": "Nandi",
+    "file": "Wolong2_v2_dlg.tbl",
+    "char": "Nandi",
+    "target": "Give her 'Bane's Kiss.'"
+   }
+  ]
+ },
+ {
+  "id": "child1",
+  "quest": "Child of the Spirits (start)",
+  "base": "pt-27-liangshan-ring-of-forest",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Piaobo",
+    "goto": "Piaobo#oni",
+    "file": "Liangshan_dlg.tbl",
+    "char": "Piaobo#oni",
+    "target": "\"Yes.\""
+   }
+  ]
+ },
+ {
+  "id": "pursued",
+  "quest": "Pursued by Death",
+  "base": "pt-25-wolong-ring-of-four-winds",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "exitto": "Rand-Orenia01 rand-orenia01_v3 1",
+  "steps": [
+   {
+    "talk": "Ahlang",
+    "goto": "Ahlang",
+    "file": "rand-orenia01_v3_dlg.tbl",
+    "char": "Ahlang",
+    "target": "\"Where is he?\""
+   },
+   {
+    "give": [
+     "Tree Bark"
+    ]
+   },
+   {
+    "talk": "Ahlang",
+    "goto": "Ahlang",
+    "file": "rand-orenia01_v3_dlg.tbl",
+    "char": "Ahlang",
+    "target": "Give him the tree bark."
+   }
+  ]
+ },
+ {
+  "id": "pipe",
+  "quest": "The Combustible Crook",
+  "base": "pt-36-khosani-before-pyrul",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Uhika",
+    "goto": "Uhika",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Uhika",
+    "target": "\"Can we help?\""
+   },
+   {
+    "give": [
+     "Pipe"
+    ]
+   },
+   {
+    "talk": "Uhika",
+    "goto": "Uhika",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Uhika",
+    "target": "\"I found this pipe.\""
+   }
+  ]
+ },
+ {
+  "id": "pole",
+  "quest": "The Staff of Profuse Comestibles",
+  "base": "pt-36-khosani-before-pyrul",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Uhika",
+    "goto": "Uhika",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Uhika",
+    "target": "\"Yes, I'll help.\""
+   },
+   {
+    "give": [
+     "Fishing Pole"
+    ]
+   },
+   {
+    "talk": "Uhika",
+    "goto": "Uhika",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Uhika",
+    "target": "\"I found this fishing pole.\""
+   }
+  ]
+ },
+ {
+  "id": "spyglass",
+  "quest": "The Curious Device",
+  "base": "pt-36-khosani-before-pyrul",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Uhika",
+    "goto": "Uhika",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Uhika",
+    "target": "\"Certainly.\""
+   },
+   {
+    "give": [
+     "Spyglass"
+    ]
+   },
+   {
+    "talk": "Uhika",
+    "goto": "Uhika",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Uhika",
+    "target": "\"What about this spyglass?\""
+   }
+  ]
+ },
+ {
+  "id": "chess",
+  "quest": "The Battle of Quadraticus",
+  "base": "pt-36-khosani-before-pyrul",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Uhika",
+    "goto": "Uhika",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Uhika",
+    "target": "\"What do you need?\""
+   },
+   {
+    "give": [
+     "Chess Piece"
+    ]
+   },
+   {
+    "talk": "Uhika",
+    "goto": "Uhika",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Uhika",
+    "target": "\"I found this chess piece.\""
+   }
+  ]
+ },
+ {
+  "id": "perfume",
+  "quest": "The Elixir of Olfactory Obfuscation",
+  "base": "pt-36-khosani-before-pyrul",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Uhika",
+    "goto": "Uhika",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Uhika",
+    "target": "\"Befuddle the enemy?\""
+   },
+   {
+    "give": [
+     "Perfume"
+    ]
+   },
+   {
+    "talk": "Uhika",
+    "goto": "Uhika",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Uhika",
+    "target": "\"I have this bottle of perfume.\""
+   }
+  ]
+ },
+ {
+  "id": "horn",
+  "quest": "The Hunting Horn of Vadagar (horn identified)",
+  "base": "pt-36-khosani-before-pyrul",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Saato the Priestess",
+    "goto": "Saato the Priestess",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Saato the Priestess",
+    "target": "\"Kingdom of the Dead?\""
+   },
+   {
+    "give": [
+     "Hunting Horn#Horn of Vadagar"
+    ]
+   },
+   {
+    "identify": [
+     "Hunting Horn#Horn of Vadagar"
+    ]
+   },
+   {
+    "talk": "Saato the Priestess",
+    "goto": "Saato the Priestess",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Saato the Priestess",
+    "target": "\"Portal?\""
+   }
+  ]
+ },
+ {
+  "id": "haenul",
+  "quest": "Haenul and the Gemstone of Eraekor",
+  "base": "pt-36-khosani-before-pyrul",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Athodi the Priestess",
+    "goto": "Athodi the Priestess",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Athodi the Priestess",
+    "target": "\"Defeat him?\""
+   },
+   {
+    "give": [
+     "Eraekor Gemstone"
+    ]
+   },
+   {
+    "talk": "Athodi the Priestess",
+    "goto": "Athodi the Priestess",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Athodi the Priestess",
+    "target": "\"I have the gemstone.\""
+   }
+  ]
+ },
+ {
+  "id": "crone",
+  "quest": "Curse of the Crone of Savheo (in story order)",
+  "base": "pt-36-khosani-before-pyrul",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Elioma the Priestess",
+    "goto": "Elioma the Priestess",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Elioma the Priestess",
+    "target": "\"How can we help?\""
+   },
+   {
+    "exitto": "rand-forest01 Rand-Forest01_v6 1"
+   },
+   {
+    "talk": "Crone of Savheo",
+    "goto": "Crone of Savheo",
+    "file": "rand-forest01_v6_dlg.tbl",
+    "char": "Crone of Savheo",
+    "target": "\"What do you want?\""
+   },
+   {
+    "exitto": "KhosaniStrng KhosaniStrng_v4 1"
+   },
+   {
+    "talk": "Elioma the Priestess",
+    "goto": "Elioma the Priestess",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Elioma the Priestess",
+    "target": "Tell her what the crone said."
+   },
+   {
+    "talk": "Elioma the Priestess",
+    "goto": "Elioma the Priestess",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Elioma the Priestess",
+    "target": "\"What happened to the rose?\""
+   },
+   {
+    "give": [
+     "Stone Rose"
+    ]
+   },
+   {
+    "talk": "Elioma the Priestess",
+    "goto": "Elioma the Priestess",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Elioma the Priestess",
+    "target": "Show her the Stone Rose of Ovaka."
+   },
+   {
+    "exitto": "rand-forest01 Rand-Forest01_v6 1"
+   },
+   {
+    "talk": "Crone of Savheo",
+    "goto": "Crone of Savheo",
+    "file": "rand-forest01_v6_dlg.tbl",
+    "char": "Crone of Savheo",
+    "target": "Give her the rose."
+   },
+   {
+    "exitto": "KhosaniStrng KhosaniStrng_v4 1"
+   },
+   {
+    "talk": "Elioma the Priestess",
+    "goto": "Elioma the Priestess",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Elioma the Priestess",
+    "target": "\"Yes.\""
+   }
+  ]
+ },
+ {
+  "id": "luleva",
+  "quest": "The Mystery of Luleva",
+  "base": "pt-36-khosani-before-pyrul",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Athana of Sidaeh",
+    "goto": "Athana of Sidaeh",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Athana of Sidaeh",
+    "target": "\"What will you do?\""
+   },
+   {
+    "talk": "Athana of Sidaeh",
+    "goto": "Athana of Sidaeh",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Athana of Sidaeh",
+    "target": "\"She would not come. She waits for you.\"",
+    "gate": true
+   }
+  ]
+ },
+ {
+  "id": "ohmed",
+  "quest": "The Ohmedilosi (map identified)",
+  "base": "pt-36-khosani-before-pyrul",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "give": [
+     "Tablet#Khosani Map"
+    ]
+   },
+   {
+    "identify": [
+     "Tablet#Khosani Map"
+    ]
+   },
+   {
+    "talk": "Kiva the Priestess",
+    "goto": "Kiva the Priestess",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Kiva the Priestess",
+    "target": "\"Treasured?\""
+   },
+   {
+    "give": [
+     "Umakil Carving",
+     "Dehilos Carving",
+     "Muhul Carving"
+    ]
+   },
+   {
+    "talk": "Kiva the Priestess",
+    "goto": "Kiva the Priestess",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Kiva the Priestess",
+    "target": "Give Kiva the map and carvings."
+   }
+  ]
+ },
+ {
+  "id": "seeds2",
+  "quest": "The Seeds of Aahur, Part 2",
+  "base": "pt-36-khosani-before-pyrul",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Elarh the Merchant",
+    "goto": "Elarh the Merchant#act4",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Elarh the Merchant#act4",
+    "target": "\"Lenele has been destroyed.\""
+   },
+   {
+    "give": [
+     "Dust of Aahur"
+    ]
+   },
+   {
+    "talk": "Elarh the Merchant",
+    "goto": "Elarh the Merchant#act4",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Elarh the Merchant#act4",
+    "target": "Give him the 'Dust of Aahur.'"
+   }
+  ]
+ },
+ {
+  "id": "dakhanim",
+  "quest": "Secrets of the Dakhanim (act 4 chain: parchment, mirror, three parts)",
+  "base": "pt-36-khosani-before-pyrul",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "give": [
+     "Blank Parchment"
+    ]
+   },
+   {
+    "talk": "Ilaru the Priestess",
+    "goto": "Ilaru the Priestess#act4",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Ilaru the Priestess#act4",
+    "target": "Give her the blank parchment.",
+    "gate": true
+   },
+   {
+    "give": [
+     "Mirror#Dakhanim Mirror"
+    ]
+   },
+   {
+    "identify": [
+     "Mirror#Dakhanim Mirror"
+    ]
+   },
+   {
+    "talk": "Ilaru the Priestess",
+    "goto": "Ilaru the Priestess#act4",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Ilaru the Priestess#act4",
+    "target": "Give her the mirror."
+   },
+   {
+    "give": [
+     "Huk Kinar's Skull",
+     "Udakar's Heart",
+     "Bacite's Gallbladder"
+    ]
+   },
+   {
+    "talk": "Ilaru the Priestess",
+    "goto": "Ilaru the Priestess#act4",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Ilaru the Priestess#act4",
+    "target": "Give her the skull, heart, & gallbladder."
+   }
+  ]
+ },
+ {
+  "id": "rhukha",
+  "quest": "The Fate of Rhukha (end)",
+  "base": "pt-36-khosani-before-pyrul",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Keeper of Lore",
+    "goto": "Keeper of Lore#act4",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Keeper of Lore#act4",
+    "target": "Tell him about Tiandi's ghost.",
+    "gate": true
+   }
+  ]
+ },
+ {
+  "id": "durgan4",
+  "quest": "Durgan's Lucky Charm (act 4 end)",
+  "base": "pt-34-lenele-act4-rosalind-jekhar",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "give": [
+     "Durgan's Earring"
+    ]
+   },
+   {
+    "talk": "Durgan the Sailor",
+    "goto": "Durgan the Sailor",
+    "file": "lenele3d_dlg.tbl",
+    "char": "Durgan the Sailor",
+    "target": "Give him the charm."
+   }
+  ]
+ },
+ {
+  "id": "gahnis",
+  "quest": "The Tome of Gahnis (end)",
+  "base": "pt-39-iona-luminar-trapped",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "give": [
+     "Tome of Gahnis"
+    ]
+   },
+   {
+    "talk": "Iodir the Heretic",
+    "goto": "Iodir the Heretic",
+    "file": "IonaEXT02_v2_dlg.tbl",
+    "char": "Iodir the Heretic",
+    "target": "Give him the Tome of Gahnis."
+   }
+  ]
+ },
+ {
+  "id": "talas",
+  "quest": "The King of Talas",
+  "base": "pt-36-khosani-before-pyrul",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "exitto": "rand-forest01 Rand-Forest01_v6 1",
+  "steps": [
+   {
+    "talk": "King of Talas",
+    "goto": "King of Talas",
+    "file": "rand-forest01_v6_dlg.tbl",
+    "char": "King of Talas",
+    "target": "\"If I can help you?\""
+   },
+   {
+    "exitto": "KhosaniStrng KhosaniStrng_v4 1"
+   },
+   {
+    "talk": "King of Talas",
+    "goto": "King of Talas#Khosani",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "King of Talas#Khosani",
+    "target": "\"Hail\"",
+    "gate": true
+   }
+  ]
+ },
+ {
+  "id": "nhuva",
+  "quest": "The Tome of the Nhuvasarim (Gesualdo by his full name)",
+  "base": "pt-36-khosani-before-pyrul",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "exitto": "rand-forest01 Rand-Forest01_v6 1",
+  "steps": [
+   {
+    "give": [
+     "Tome#Nhuvasarim Tome",
+     "Parchment#Tome Page 1",
+     "Parchment#Tome Page 2",
+     "Parchment#Tome Page 3",
+     "Parchment#Tome Page 4",
+     "Parchment#Tome Page 5",
+     "Parchment#Tome Page 6",
+     "Parchment#Tome Page 7",
+     "Parchment#Tome Page 8"
+    ]
+   },
+   {
+    "identify": [
+     "Tome#Nhuvasarim Tome",
+     "Parchment#Tome Page 1",
+     "Parchment#Tome Page 2",
+     "Parchment#Tome Page 3",
+     "Parchment#Tome Page 4",
+     "Parchment#Tome Page 5",
+     "Parchment#Tome Page 6",
+     "Parchment#Tome Page 7",
+     "Parchment#Tome Page 8"
+    ]
+   },
+   {
+    "talk": "Gesualdo#part2",
+    "goto": "Gesualdo#part2",
+    "file": "rand-forest01_v6_dlg.tbl",
+    "char": "Gesualdo#part2",
+    "target": "Enter the tome."
+   }
+  ]
+ },
+ {
+  "id": "tathal",
+  "quest": "Tathal the Wanderer (end)",
+  "base": "pt-25-wolong-ring-of-four-winds",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "exitto": "Rand-Desert Rand-Desert_V3 1",
+  "steps": [
+   {
+    "give": [
+     "Nahul Scroll"
+    ]
+   },
+   {
+    "talk": "Tathal the Wanderer",
+    "goto": "Tathal the Wanderer",
+    "file": "Rand-Desert_V3_dlg.tbl",
+    "char": "Tathal the Wanderer",
+    "target": "Give him Bilan's scroll.",
+    "gate": true
+   }
+  ]
+ },
+ {
+  "id": "child",
+  "quest": "Child of the Spirits",
+  "base": "pt-27-liangshan-ring-of-forest",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Piaobo",
+    "goto": "Piaobo#oni",
+    "file": "Liangshan_dlg.tbl",
+    "char": "Piaobo#oni",
+    "target": "\"Yes.\""
+   },
+   {
+    "exitto": "WolongCaverns WolongCaverns 1"
+   },
+   {
+    "talk": "Jade Temple Ghost",
+    "goto": "Jade Temple Ghost#quest",
+    "file": "wolongcaverns_dlg.tbl",
+    "char": "Jade Temple Ghost#quest",
+    "target": "Throw the box into the pit.#2",
+    "gate": true
+   },
+   {
+    "exitto": "Wolong2 Wolong2_v2 1"
+   },
+   {
+    "talk": "Piaobo",
+    "goto": "Piaobo#human",
+    "file": "Wolong2_v2_dlg.tbl",
+    "char": "Piaobo#human",
+    "target": "\"Hail\"",
+    "gate": true
+   }
+  ]
+ },
+ {
+  "id": "scales",
+  "quest": "The Emperor's Dragon Scales",
+  "base": "pt-19-act3-eleh",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "talk": "Xueli",
+    "goto": "Xueli",
+    "file": "eleh_dlg.tbl",
+    "char": "Xueli",
+    "target": "\"Passed down from emperor to emperor?\""
+   },
+   {
+    "exitto": "jadetemple jadetemple 1"
+   },
+   {
+    "talk": "Gongji",
+    "goto": "Gongji",
+    "file": "jadetemple_dlg.tbl",
+    "char": "Gongji",
+    "target": "\"I found what you are seeking.\"",
+    "gate": true
+   }
+  ]
+ }
+]
