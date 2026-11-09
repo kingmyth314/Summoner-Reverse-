@@ -11,16 +11,17 @@ character's dialogue (`+Unhide Quest:`) and closed by another topic (`+Hide Ques
 topic: items (`+Gain Item`), experience (`+AddXP`) and gold (`+AdjustGP`). Every quest that has dialogue was played
 in the original `Sum.exe`, in agent mode, from the play-through saves (`testsaves/playthrough/`) with
 [`tools/testsaves/sidequests.mjs`](../tools.md#toolstestsavessidequestsmjs-side-quests-played).
-- Closed, with the reward: 49. Two of them only from their closing topic (32 was already open in the save; 33 has no
+- Closed, with the reward: 50 (49 on 2026-11-08/09; 68, The Lord Chamberlain's Men, added on 2026-11-09). Two of them only from their closing topic (32 was already open in the save; 33 has no
   opening topic), and 41 closes with no reward.
-- Opened, with a closing topic that the test did not reach: 2 (Adeslani's Brother, the escort; The Lord
-  Chamberlain's Men, Torvel's double, below).
+- Opened, with a closing topic that the test did not reach: 1 (Adeslani's Brother, the escort). Until 2026-11-09
+  also The Lord Chamberlain's Men; it is closed by Torvel's double, at once (bug G312, below).
 - Opened, with no closing topic in the game's data: 2 (The Infestation, Crazy Iven).
 - Cannot appear in the journal: 3. Two are developer leftovers (Bleargh, Ajaymes the Pirate), one is cut (Find a
   blue shard for Varyssa).
 
-No quest turned out broken in the game itself. The findings below are about how the quests work, and two oddities in
-the data (Torva's 125,000 gold, Torvel's double).
+No quest turned out broken in the game itself, with one exception found on 2026-11-09: Torvel's double pays the
+reward for The Lord Chamberlain's Men without the quest ([G312](game-bugs.md)). The other findings below are about how
+the quests work, and one oddity in the data (Torva's 125,000 gold).
 
 ## How they were played
 
@@ -91,7 +92,7 @@ Rewards as observed; XP is the party's (each member gains it). "Given" lists wha
 | 65 | Pomporo's Heirloom | Pomporo (lenele1ab) | Pomporo | Signet Ring | Berserker Sword, 600 XP |
 | 66 | Nandi the Gatherer | Nandi (Wolong2_v2) | Nandi, after three gifts in turn | Sparrow's Egg, Ghimaadi's Cloak, Bane's Kiss | Nandi's Potion |
 | 67 | The Ghost of Ikaemos | Munorus (IkaemosTopInt) | Munorus | Vaesura's Necklace | 1,000 XP |
-| 68 | The Lord Chamberlain's Men | Torvel (lenele1ab) | Torvel's double | | not opened in the test; the double paid on sight (below) |
+| 68 | The Lord Chamberlain's Men | Torvel (lenele1ab) | Torvel's double | | opened 2026-11-09 by the first Torvel (from behind him); the double then paid 2,000 XP and 5,000 gold at once, no step done (G312, below) |
 | 69 | Elodach the Initiate | Jerve the Elder (TempleInt) | Jerve | Urath Feather, two Madog flags | Ring of Talent, 700 XP |
 | 70 | The Seeds of Aahur | Beelon (lenele1d) | Elarh the Merchant (KhosaniStrng_v2) | | both ends: the seeds; 400 XP, 500 gold after bargaining |
 | 71 | The Seeds of Aahur, Part 2 | Elarh (v4) | Elarh | Dust of Aahur | 16,000 XP, 50,000 gold |
@@ -121,6 +122,8 @@ Not in the table: 20 Bleargh ("Pick up a spoon", invalidated by `test_end_flag`)
   (**Observed**, four runs). A comment in the developer copy places the double near the theatre only after the quest
   (`PLACEMENT TRIGGER: +Unhide NPC: "Torvel#part2"`), so the double looks misplaced in the shipped scripts
   (**Inferred**). Whether a player standing at the real Torvel reaches him first is **Unknown**.
+  **Answered 2026-11-09 (Observed):** the two stand 0.8 units apart; from behind the first Torvel he answers and
+  opens the quest, and the double then pays at once with no step done. Now bug [G312](game-bugs.md).
 - **Cross-character unlocks.** Many topics are unlocked from another character's dialogue (`+Unhide topic: {...}
   From: "..."`): the apothecary's barter opens only after the beggar's story, Sama's hand-over only through Brother
   Eamon. Uhika's five quests open one after the other. A quest tested on its own can look stuck for this reason.

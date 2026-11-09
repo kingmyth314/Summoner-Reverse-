@@ -653,7 +653,10 @@ intro movies (2026-10-25). The main menu sets state 1 before it plays them, and 
     y. Clicks need a `move` to the point first (the game picks the topic under the cursor before the press);
   - `talkto NAME` talks to the nearest character whose name starts with NAME (`~` for spaces) as a click on it does
     (`player_talk_to`, `0x43c5a0`; the party walks up as after a click). It finds characters that are not level
-    script objects, such as Wolong's Sizhe, for whom `npcgoto` and `script_npc_talk` find nothing;
+    script objects, such as Wolong's Sizhe, for whom `npcgoto` and `script_npc_talk` find nothing. Close the open
+    conversation first: **Observed** 2026-11-09, `talkto` with a conversation's last page still on screen crashed the
+    original twice (read of 0x4 in `dialogue_frame`, `0x409470`). Of two characters with the same prefix it takes
+    the nearer, so stand on the far side of the one wanted (`posgoto`), as for Torvel and his double;
   - `items [R]` lists the item objects (type 3) and containers (type 11) within R (default 15) of the current
     character with their address, distance and contents, and `open ADDR` opens such a container as a click does
     (`pickup_container` and `interface_set_screen(4)`). For loot that is hard to see, for example the Ring of Light

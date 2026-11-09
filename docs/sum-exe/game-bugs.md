@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 355 in all. [Bug fix priorities](bug-priorities.md) ranks the unfixed ones.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 356 in all. [Bug fix priorities](bug-priorities.md) ranks the unfixed ones.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 7 | 82 | 7 |
-| Gameplay | 48 | 25 | 26 |
+| Gameplay | 49 | 25 | 26 |
 | Cosmetic | 56 | 36 | 23 |
 | Invisible | 43 | 59 | 0 |
 
@@ -1005,6 +1005,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G301 | Choosing "Give him 10 gold pieces." for Canis the Mercenary in occupied Lenele takes 100 gold (all of it below 100) | `ls_lenele2ab_action` `0x4f1220` | **Observed** code, retail data and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] CanisTenGold`) |
 | G310 | In multiplayer, a player's summon never gets its once-a-second position update to the other machines; the leader's update is sent twice instead | `mp_send_local_updates` `0x47f9c0` | **Observed** code, *inferred* effect | No |
 | G311 | Latent: a scripted "go" for a character that has not reached its "wait for go" action yet is lost, so the character can wait there for ever | `script_object_receive_go` `0x4ce220` | **Observed** code, *inferred* effect | No |
+| G312 | Torvel's reward for The Lord Chamberlain's Men (2,000 XP, 5,000 gold) is paid by his double, who stands beside him from act 1, so the quest can be closed at once or never opened at all | retail `lenele1ab*_script.tbl`, `lenele1ab*_dlg.tbl` | **Observed** retail data and in game (2026-11-09) | No |
 
 **G1. Frame limiter.** `FrameTimer` stores `last = now` (`0x501577`) before it sleeps (`0x5015bc`). The
 next frame counts the same sleep again. See
@@ -1832,6 +1833,23 @@ it (the loop end `0x4ce2b8`..`0x4ce2c1` increments only the index), so it tests 
 again. A "go" that arrives while the object is still on an earlier action (walking to its place, for example) is
 therefore lost, and the object waits at the later "wait for go" for ever unless another go comes. Whether a
 retail script sends a go that early was not checked. D8602.
+
+**G312. Two Torvels.** Lenele's theatre district (`lenele1ab`) holds `Torvel`, who opens The Lord Chamberlain's
+Men, and `Torvel#part2`, whose first topic pays the reward (`+AddXP: 2000`, `+AdjustGP: 5000`, `+Hide Quest`)
+with no condition. The developer copy of the dialogue (`Miniquests_dlg.tbl`) gives the plan in a comment under
+the Master of Revels' lantern topic (event `lpalaceint_mq_gave_lanterns`): show `Torvel#part2` near the theatre
+and hide the first Torvel then. No shipped script does it. In `lenele1ab_script.tbl` (act 1) the first Torvel is
+hidden and the double stands at `$mqn7`; in `lenele1ab_v2` and `_v3` both stand there, the double at `$mqn7` 0.8
+units from the first at `$mqn6`. No table names the lantern event outside the dialogue.
+**Observed** 2026-11-09 in the original `Sum.exe` from pt-08 (act 2) with `exitto lenele1ab lenele1ab_v2 1`:
+- standing behind the first Torvel, his six topics to "How can I help you?" opened the quest;
+- standing behind the double, a talk to him at once gave 2,000 XP and 5,000 gold and closed it, with none of the
+  Master of Revels or lantern steps done. The save after it had gold 3,000 → 8,000 and no Lord Chamberlain's Men
+  in the journal.
+
+In earlier runs (2026-11-08, [Side quests](side-quests.md)) the double paid in acts 1 and 2 without the quest
+ever opened. A player meets whichever one is clicked; the double is nearer to most approaches. Not fixed: a fix
+would hide the double until `lpalaceint_mq_gave_lanterns` is set.
 
 ## Cosmetic
 
@@ -4574,4 +4592,5 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | C317 Mist Elemental cutscene crash | `summon_stash_for_cutscene` `0x448056`..`0x44807e` (after `ai_begin_emerge`, `cur_move` `+0x6d0` is read without a NULL test); `ai_begin_emerge` `0x473970` (`find_move(0xc)` NULL: no `play_move`); the summon waits for its appearance effect before it emerges (`fx_frame` kind 8 timer, `ai_frame` disable timer); `Mist Elemental.tbl` has no `"emerge"` move (every other summon table checked has one); reproduced with agent `summon 45` then `cutscene_play("Nar-KhosaniStronghold")` one second later: access violation reading `0x8` at `0x44807e`, caller `0x4362c1`. With the elemental fully emerged the same cutscene stashes it normally |
 | G310 summon update | `mp_send_local_updates` `0x47f9fd`..`0x47fa00`, `0x47fa14`..`0x47fa6f`; `ai_frame` `0x472db1` |
 | G311 receive go | `script_object_receive_go` `0x4ce280`..`0x4ce283`, `0x4ce2b8`..`0x4ce2c1` |
+| G312 two Torvels | retail `lenele1ab_script.tbl`, `lenele1ab_v2_script.tbl` (`$Name: "Torvel#part2"`, no `+Hidden`), `lenele1ab_v2_dlg.tbl` (`$Character: "Torvel#part2"`), `Miniquests_dlg.tbl` (`PLACEMENT TRIGGER` comment); `tools/testsaves/sidequests.mjs` |
 | K310 GL point-light colour | `levelrender_draw_list_opengl` `0x491c0a`..`0x491c2e`, `0x491e06`..`0x491e14`, `0x491f90`..`0x491fe2`, `0x492669`..`0x4926c4`; `levelrender_sum_point_lights` `0x48fcc7`..`0x48fd0e`; `levelrender_draw_list_glide` `0x48ee57`..`0x48ee92`; `levelrender_draw_list_d3d` `0x4907cd`..`0x490805`; `vfx_node_create_light` `0x51fbe0`..`0x51fc5b`; `attached_light_create` `0x5201b2`..`0x5201e0`; `vfx_node_relocate` `0x536c74`..`0x536ca0`; retail `effects.vpp` `.rfx` files |

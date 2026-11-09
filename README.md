@@ -3,7 +3,7 @@
 A reverse-engineering and decompilation project for **Summoner** (Volition / THQ, 2000), the PC version 1.40.
 It has three parts:
 
-- **Documentation** of how the game works, its file formats and 355 bugs found in its code ([`docs/`](docs/index.md),
+- **Documentation** of how the game works, its file formats and 356 bugs found in its code ([`docs/`](docs/index.md),
   set up as a GitHub Pages site).
 - **SummonerFix**, a drop-in `dinput.dll` that makes the original game run well on Windows 10 and 11 (no launcher,
   correct speed, OpenGL, widescreen, key rebinding, support for Xbox-style controllers) and fixes over 40 of those bugs, each with its own switch
@@ -71,7 +71,7 @@ documentation and the decompilation notes are also a working log, so they mentio
 |---|---|---|
 | SummonerFix | Our own `dinput.dll` patch: runs on Windows 11 without the launcher (hidden OpenGL renderer), fixes 2x game speed, the >4 GHz timer and the 24.9-day cutscene skip, black save thumbnails; widescreen, with the game resolution fitted to the screen (`GameWidth=Auto`) or picked in the config app; key and mouse rebinding with a config app; fast-mode key with an on-screen badge; console-command keys; optional zoom, interaction-range and intro-skip settings; fixes the crash on Start New Game without an audio device, the low textures on a fresh OpenGL install, the brightness slider under OpenGL and world sounds at the sfx volume squared; 42 more fixes for bugs in the original game (crashes, AI slips, UI errors), almost all reproduced before they were fixed (in game, by a direct function call or with a faked failure), each with its own switch in the config app; a key for the hidden script editor | [SummonerFix](docs/summonerfix/index.md) |
 | Main loop | Variable timestep, capped at 120 FPS, clamped at 0.25 s per frame, driven by a 15-entry game-state table | [Main loop and frame timer](docs/sum-exe/main-loop.md) |
-| Game bugs | 355 defects in v1.40 checked in the code: crashes and hangs (most latent), gameplay slips such as a save overwrite without a prompt, cosmetic UI errors; which ones SummonerFix fixes | [Bugs in the original game](docs/sum-exe/game-bugs.md) |
+| Game bugs | 356 defects in v1.40 checked in the code: crashes and hangs (most latent), gameplay slips such as a save overwrite without a prompt, cosmetic UI errors; which ones SummonerFix fixes | [Bugs in the original game](docs/sum-exe/game-bugs.md) |
 | Timing bugs | QPC frequency truncated to 32 bits (>4 GHz); frame limiter double-counts its sleep (2x speed); cutscene timer breaks after ~24.9 days of uptime (reproduced and fixed) | [Timing bugs](docs/sum-exe/timing-bugs.md) |
 | Characters | Character object, player record, 84 skills, status effects, experience table, resistances | [Characters](docs/sum-exe/characters.md) |
 | AI | 13 AI states, goals, attacker slots, paths | [AI](docs/sum-exe/ai.md) |

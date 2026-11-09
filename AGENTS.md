@@ -28,7 +28,7 @@ only third-party source is AMD's FidelityFX Super Resolution 1 shader headers (M
 | `src/summonerfix/`, `src/summonerfix-config/` | SummonerFix and its config app (C, llvm-mingw) |
 | `testsaves/` | purpose-made test saves (README): fights from the boss list, and `playthrough/`, the main story in order |
 | `symbols/sum.symbols` | every Sum.exe name: the source of truth for names (`node tools/symbols.mjs`) |
-| `docs/sum-exe/` | one page per game system; `game-bugs.md` = the 355 bugs with ids (C/G/K + number) |
+| `docs/sum-exe/` | one page per game system; `game-bugs.md` = the 356 bugs with ids (C/G/K + number) |
 | `docs/future/modern-port.md` | the clang / 64-bit port (rungs L1-L4), with a summary at the top |
 | `docs/future/vulkan-renderer.md` | L4's first module, the Vulkan renderer (in `main` since 2026-10-27): design, milestones M0-M5 |
 
@@ -96,6 +96,8 @@ Gotchas, each found the hard way:
 - Esc on the main menu quits the game. `agent.mjs start` already waits out the intro movies.
 - `level` during a cutscene crashes even the original. Wait for state 4 with `game_flags` (0x5fbfd8) bit 0x20 clear.
 - Quicksave refuses in combat and in some areas. Use `savenow`.
+- `talkto` while a conversation is still open (screen 13) crashes even the original in `dialogue_frame`. Page with
+  `dlg` until mode 0 or state 0 first.
 - Use test saves only (`[Debug] TestSaves=1`, folder `savetest\`), never the player's `savegame\`.
 - link-build recompiles when sources, the headers they include (since 2026-11-03), defines or clang flags change.
   Shader changes need `--recompile`.
