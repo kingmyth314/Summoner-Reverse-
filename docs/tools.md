@@ -110,7 +110,8 @@ on [Side quests](sum-exe/side-quests.md).
 - `run [ID ...]`: the specs of `tools/testsaves/sidequests.json`. A spec names a play-through save, an optional
   `exitto`, and steps: talk to a character until a target topic (the shortest path through the character's topics,
   `+Add Topic` / `+Add Initial Topic` / `+Unhide` edges, read from the dialogue table), `give` items
-  (`party_inventory_add_by_name`, `0x46bb00`), `identify` them, `kill` a script character, `exitto`, or any agent
+  (`party_inventory_add_by_name`, `0x46bb00`), `identify` them, `kill` a script character, `exitto`, `follow` an escort (stand 2 units behind the character
+  every 3 s until a level flag is set; once she stands still, kill the characters she sent in), or any agent
   command. After each talk it saves (`savenow`) and compares the save with the one before (`savinfo`).
 - Shortcuts, each reported in the results: an item a quest sends the player to find is given; when a target topic
   cannot be reached, the event flags (`+Unhide by event`, set with `flagl`) and items (`+Unhide by item`) that unlock

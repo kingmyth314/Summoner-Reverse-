@@ -776,7 +776,7 @@
  },
  {
   "id": "adeslani",
-  "quest": "Adeslani's Brother (escort followed)",
+  "quest": "Adeslani's Brother (escort followed from behind)",
   "base": "pt-17-occupied-lenele",
   "edits": [
    "--gold",
@@ -792,19 +792,13 @@
     "target": "\"Yes, we'll help.\""
    },
    {
-    "cmd": "npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000"
-   },
-   {
-    "kill": "Orenian Soldier#kill1-1"
-   },
-   {
-    "kill": "Orenian Soldier#kill1-2"
-   },
-   {
-    "kill": "Orenian Samurai#kill1-3"
-   },
-   {
-    "cmd": "npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000; npcgoto Adeslani; wait 5000"
+    "follow": "Adeslani",
+    "until": "lenele2ab_flag_escort_complete",
+    "kill": [
+     "Orenian Soldier#kill1-1",
+     "Orenian Soldier#kill1-2",
+     "Orenian Samurai#kill1-3"
+    ]
    },
    {
     "talk": "Adeslani",

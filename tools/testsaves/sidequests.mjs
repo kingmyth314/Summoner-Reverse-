@@ -128,6 +128,23 @@ function identify(name) {
   run(`poke ${a.toString(16)} ${(b & ~1).toString(16)}`);
   return `type ${idx}, flags ${b.toString(16)} -> ${(b & ~1).toString(16)}`;
 }
+// An escort: stand 2 units behind the character every 3 s (on top of her, the party blocks her path: Adeslani stopped
+// for good when npcgoto put the party on her, 2026-11-09) until the level flag UNTIL is set; when she has stood still
+// for 8 rounds, the characters of KILL (sent in by her "pass go") are killed once.
+function follow(st) {
+  let dir = [1, 0], last = null, still = 0, killed = !st.kill;
+  for (let i = 0; i < (st.rounds || 80); i++) {
+    if (/= 1/.test(run(`flag ${st.until}`))) return `flag set after ${i} rounds`;
+    run("wait 3000");
+    const m = /NPC at (\S+) (\S+) (\S+)/.exec(run(`npcgoto ${st.follow}`)); if (!m) return "no such character";
+    const p = [+m[1], +m[3]], d = last ? Math.hypot(p[0] - last[0], p[1] - last[1]) : 0;
+    if (last && d < 0.3) still++; else { still = 0; if (last && d > 0.5) dir = [(p[0] - last[0]) / d, (p[1] - last[1]) / d]; }
+    last = p;
+    run(`posgoto ${(p[0] - 2 * dir[0]).toFixed(2)} ${m[2]} ${(p[1] - 2 * dir[1]).toFixed(2)} 1`);
+    if (!killed && still >= 8) { for (const n of st.kill) run(`npcgoto ${n}; wait 800; npckill ${n}; wait 3000`); killed = true; still = 0; }
+  }
+  return "flag not set";
+}
 function talkTo(st) {
   const g = graph(st.file, st.char), dist = distances(g, st.target), want = display(st.target);
   if (!g.topics.size) return `no topics for ${st.char} in ${st.file}`;
@@ -190,6 +207,7 @@ for (const sp of specs) {
     let prev = state(base), k = 0;
     for (const st of sp.steps) {
       k++;
+      if (st.follow) { out(`  follow ${st.follow} until ${st.until}: ${follow(st)}`); continue; }
       if (st.give) { for (const it of st.give) out(`  give ${it}: ${give(it)}`); continue; }
       if (st.identify) { for (const it of st.identify) out(`  identify ${it}: ${identify(it)}`); continue; }
       if (st.kill) { out(`  kill ${st.kill}: ${run(`npcgoto ${st.kill}; wait 800; npckill ${st.kill}; wait 6000`).trim().split("\n").slice(-2)[0]}`); continue; }

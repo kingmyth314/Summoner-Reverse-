@@ -11,10 +11,11 @@ character's dialogue (`+Unhide Quest:`) and closed by another topic (`+Hide Ques
 topic: items (`+Gain Item`), experience (`+AddXP`) and gold (`+AdjustGP`). Every quest that has dialogue was played
 in the original `Sum.exe`, in agent mode, from the play-through saves (`testsaves/playthrough/`) with
 [`tools/testsaves/sidequests.mjs`](../tools.md#toolstestsavessidequestsmjs-side-quests-played).
-- Closed, with the reward: 50 (49 on 2026-11-08/09; 68, The Lord Chamberlain's Men, added on 2026-11-09). Two of them only from their closing topic (32 was already open in the save; 33 has no
+- Closed, with the reward: 51 (49 on 2026-11-08/09; 68, The Lord Chamberlain's Men, and 30, Adeslani's Brother,
+  added on 2026-11-09). Two of them only from their closing topic (32 was already open in the save; 33 has no
   opening topic), and 41 closes with no reward.
-- Opened, with a closing topic that the test did not reach: 1 (Adeslani's Brother, the escort). Until 2026-11-09
-  also The Lord Chamberlain's Men; it is closed by Torvel's double, at once (bug G312, below).
+- Opened, with a closing topic that the test did not reach: none since 2026-11-09. Until then Adeslani's Brother
+  (the escort, below) and The Lord Chamberlain's Men (closed by Torvel's double at once, bug G312, below).
 - Opened, with no closing topic in the game's data: 2 (The Infestation, Crazy Iven).
 - Cannot appear in the journal: 3. Two are developer leftovers (Bleargh, Ajaymes the Pirate), one is cut (Find a
   blue shard for Varyssa).
@@ -54,7 +55,7 @@ Rewards as observed; XP is the party's (each member gains it). "Given" lists wha
 | 27 | The Salt Smugglers | Pedrog (lenele1b) | Pedrog | Chunk of Salt | 375 XP, 900 gold |
 | 28 | The Rag Doll | Weeping Butcher (lenele1b) | the butcher | Rag Doll | High Quality Knife, 400 XP |
 | 29 | The Lord of Logaros | Lord of Logaros (lenele2aa) | the Lord | Sir Horum killed | Logaros Longsword, 2,000 XP |
-| 30 | Adeslani's Brother | Adeslani (lenele2ab) | Adeslani, after her escort | | opened; the escort was not completed in the test |
+| 30 | Adeslani's Brother | Adeslani (lenele2ab) | Adeslani, after her escort | the three plaza soldiers killed | 4,188 XP (4,000 in the table; the rest presumably the soldiers), quest closed, 2026-11-09 (below) |
 | 31 | The Fate of Rhukha | Keeper of Lore (KhosaniStrng_v2) | Keeper of Lore (v4) | | both ends, separate runs: Arcticus Mantellum, 15,000 XP |
 | 32 | The Amulet of Prince Yon | (pt-05 had it open) | Drego (lenele1d) | Yon's Amulet | 200 XP, 2,000 gold, 3 Health Tonics |
 | 33 | The Tome of the Nhuvasarim | none | Gesualdo (rand-forest01_v6) | tome and eight pages, identified | tome and pages taken, `gesualdo_done` set, the party sent to the Jade Temple (`jadetemple_v2`): the tome is a portal |
@@ -116,6 +117,14 @@ Not in the table: 20 Bleargh ("Pick up a spoon", invalidated by `test_end_flag`)
 - **Torva pays 125,000 gold** for his lute in act 1 (`+AdjustGP: 125000`, "All the gold I have is yours"), more than
   any other quest before act 4. The game does as the table says (**Observed**); whether the number is a slip is
   **Unknown**.
+- **Adeslani's escort works, if the party stays behind her** (**Observed** 2026-11-09). After "Yes, we'll help." she
+  walks from waypoint to waypoint, at each one waiting until the party is within 3 units (`trigger 3`). At the plaza
+  she sends three soldiers in (`pass go`); `ls_lenele2ab_frame` moves her on once they are dead
+  (`lenele2ab_flag_escort_1`), and at `$adel2-10` it unhides "We made it?" (`lenele2ab_flag_escort_complete`).
+  On 2026-11-08 the test put the party on top of her (`npcgoto`) every few seconds and she stopped for good at
+  (-98, 188.7): the party blocked her path. The soldiers were still hidden there, and killed that way they only
+  reach "dying". With the party kept 2 units behind her (the tool's `follow` step) she reached the plaza, the soldiers
+  appeared and were killed, and she walked on to the house; the escort took 45 rounds of 3 s.
 - **Torvel's double.** `lenele1ab` holds two characters named Torvel: `Torvel` (opens the quest) and `Torvel#part2`
   (closes it: 2,000 XP, 5,000 gold). In act 1's script the first is hidden; in the act 2 and 3 scripts both stand
   there. Talking to "Torvel" in acts 1 and 2 reached the double, who paid at once with the quest never opened
