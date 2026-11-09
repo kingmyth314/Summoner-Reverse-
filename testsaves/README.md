@@ -31,12 +31,15 @@ of Spirits, chainmail), 2 (Logaros Longsword, Hero's chainmail), 3 (Sword of Sum
 | `02-iron-golem.sav` | Iron Golem, two Broken Brass Golems, tentacles; Lenele sewers | Joseph 9, Flece 8 | 0 | walk 20 units toward the Iron Golem (in view, to the right); the intro plays |
 | `03-carados.sav` | Carados and the Bone Mages, Iona catacombs | Joseph 11, Flece 10, Rosalind 10 (she joins in the level) | 0 | walk 8 units north into the crypt, round the bones; the intro plays |
 | `04-undead-rider.sav` | Undead (Ghost) Rider, night forest | Joseph 13, Flece, Rosalind | 1 | the intro plays on loading; let it play |
+| `05-lord-korel.sav` | Lord Korel, grassland encounter (added 2026-11-08) | all four, 14 | 1 | click Korel, 10 units away, and answer "Have you paid for that sword?", "One condition?", "Yes." |
+| `06-zane.sav` | Zane and five bandits, grassland encounter (added 2026-11-08) | all four, 14 | 1 | click Zane, 10 units away, and answer "No." |
 | `07-fire-salamanka.sav` | the small Fire Salamanka of the apothecary's quest, hills | all four, 15 | 1 | a short walk away; attack it (it does not attack first) |
 | `08-giant-salamanka.sav` | Giant Salamanka, Khosani laboratory | all four, 16 | 1 | walk 8 units forward off the ledge; the intro plays |
 | `09-phoenix-rider.sav` | Phoenix Rider, hills | all four, 17 | 1 | the intro plays on loading; let it play |
 | `10-ikaemos-priest-king.sav` | Ikaemos Priest King | all four, 17 | 1 | walk a short way on to the trigger point; the intro plays |
 | `11-serpent-rider.sav` | Serpent Rider, forest | all four, 18 | 2 | the intro plays on loading; let it play |
 | `12-tiger-rider.sav` | Tiger Rider, temple (Joseph and Flece, as in the story) | Joseph 18, Flece 18 | 2 | walk a short way on to the trigger point; the intro plays |
+| `13-azha-the-archlich.sav` | Azha the Archlich, Wolong caverns (added 2026-11-08) | Joseph 19, Flece 18, Rosalind 18 (Jekhar is away, as in the story) | 2 | click Azha, 5 units away, and choose "Challenge him to combat." |
 | `14-general-pijian.sav` | General Pijian, battle of Wolong | Joseph, Rosalind, Jekhar, 20 | 2 | walk 7 units toward Pijian, south down the street (behind the camera); the intro plays |
 | `15-serpent-and-phoenix-riders.sav` | Serpent and Phoenix Riders, Liangshan | all four, 20 | 2 | walk a short way on to the trigger point; the intro plays |
 | `16-general-wentao.sav` | General Wentao, Liangshan | all four, 21 | 2 | the defence of the shrine: click the Guardian of the Shrine, 12 units away on his platform, and talk to the end ("Destiny?"); three waves of soldiers follow, then Wentao (moved 2026-11-08) |
@@ -47,9 +50,24 @@ of Spirits, chainmail), 2 (Logaros Longsword, Hero's chainmail), 3 (Sword of Sum
 | `21-titus.sav` | Titus, Ikaemos palace | all four, 23 | 3 | the intro plays on loading; let it play |
 | `22-evil-urath-and-the-demon.sav` | Evil Urath, Evil Joseph and the Demon of Darkness, the temple | all four, 24 | 3 | the act-4 cutscene and the intro play on loading; let them play |
 
-Not here: **Lord Korel (5), Zane (6) and Azha the Archlich (13)**. Each turns hostile through a conversation choice
-after a quest, and in a save made by jumping to the level Korel stayed hidden even with his quest flag set. They
-belong to the play-through set, made by playing the story in order.
+**Correction (2026-11-08):** Lord Korel (5), Zane (6) and Azha the Archlich (13) were missing until 2026-11-08.
+Each turns hostile through a conversation choice, and in a save made by jumping to the level Korel stayed hidden
+even with his quest flag set. They are now made from play-through saves, not from recipes (**Observed** in the
+original `Sum.exe`):
+- *05 and 06:* pt-10 (the world map after the Undead Rider) with the flag the Lenele conversation gives
+  (`lenele1aa:unhide_korel` for Korel, `lenele1d:unhide_zane` for Zane, set with `savedit`). From there `exitto
+  rand-grassland01 rand-grassland01_v3 1` entered the grassland encounter as the world map does, and the boss was
+  there: Korel visible with Zane and the bandits hidden, or the other way round. Saved at the arrival point, about
+  10 units from him.
+- *13:* pt-23 (the Wolong caverns, the hand restored). Azha waits at `$archlich` (plane 7) with no trigger
+  condition. The party was put 5 units from him on layer 7 the safe way (below, "19 moved"), and a Bone Knight
+  27 units away was killed (see "Thirty seconds after loading").
+- Each was then raised with `xpto` (05 and 06: Joseph 14, the others 13; 13: Joseph 19, Flece and Rosalind 18),
+  given its tier's kit with `testsaves.mjs gear`, and its HP and AP filled with `savedit`.
+- From a fresh load, a click on the boss walked the party up and opened his conversation. Korel turned hostile
+  (type 5) after "Have you paid for that sword?", "One condition?", "Yes.", Zane after "No.", and Azha after
+  "Challenge him to combat.". In each the party took damage within 25 s. Korel and Zane had left the living list by then (killed, **Inferred**).
+  Loaded with no input, none of the three lost HP in 30 s.
 
 ## How they were checked
 
