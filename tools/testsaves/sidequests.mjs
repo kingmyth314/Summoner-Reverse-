@@ -117,6 +117,9 @@ const give = (it) => run(`callstr 46bb00 ${it.replace(/ /g, "~")} 1 -1; wait 300
 // does not count for `+Unhide by item` until then (party_count_item_by_name 0x4ce9a0 counts identified items only).
 // item_type_find (0x44b450) gives the index (in summonerfix.log); bit 0 of item_types[index].flags (+0x5c) is cleared.
 function identify(name) {
+  // The in-source host (clang builds, whose item_types records are larger in 64-bit) has the command (2026-11-09).
+  const r = run(`identify ${name.replace(/ /g, "~")}`).trim();
+  if (/^identify .*: (type|no such)/m.test(r)) return r.split("\n").find((l) => /^identify/.test(l));
   run(`callstr 44b450 ${name.replace(/ /g, "~")}; wait 300`);
   const log = readFileSync(join(G, "summonerfix.log"), "latin1").split(/\r?\n/).reverse().find((l) => /callstr 44B450/.test(l)) || "";
   const m = /= 0x([0-9A-F]+)/i.exec(log); if (!m) return "item_type_find gave no result";

@@ -386,6 +386,53 @@ static void open_body(void *)
     interface_set_screen(4, &pickup_container);
 }
 
+// useitem NAME[@TARGET] / NAME@@[TARGET]: the current character uses a party inventory item as the inventory screen's
+// "Use" does (character_use_inventory_item with the target's handle, NULL, -1); "@@" casts at the target's feet and
+// layer with handle -1, as world_use_item_at_point does (a NULL point there crashes). TARGET is a level script
+// character (default: the user). SummonerFix's useitem (2026-11-08), here since 2026-11-09.
+static char use_name[96];
+static void useitem_body(void *)
+{
+    char *target = strchr(use_name, '@');
+    bool at_point = false;
+    if (target) {
+        *target++ = 0;
+        if (*target == '@') {
+            at_point = true;
+            target++;
+        }
+        if (!*target)
+            target = NULL;
+    }
+    Character *ch = cur_character;
+    party_inventory_entry *entry = NULL;
+    for (int i = 0; i < party_inventory_count && !entry; i++) {
+        item_info *it = party_inventory[i].item;
+        if (it && it->type && it->type->name && !_stricmp(it->type->name, use_name))
+            entry = &party_inventory[i];
+    }
+    Character *tc = target ? script_object_find_character(target) : ch;
+    if (!ch || !entry || !tc) {
+        modern_log("agent: useitem %s: %s", use_name,
+                   !ch ? "no character" : !entry ? "not in the party inventory" : "no such target");
+        return;
+    }
+    item_info *item = entry->item;
+    int count = entry->count, charges = item->charges;
+    vector3 point = tc->pos;
+    bool ok = at_point ? character_use_inventory_item(ch, entry, -1, &point, tc->layer)
+                       : character_use_inventory_item(ch, entry, tc->handle, NULL, -1);
+    // the entry may have been removed (the last one used): look the item up again
+    int after = -1, ch_after = -1;
+    for (int i = 0; i < party_inventory_count; i++)
+        if (party_inventory[i].item == item) {
+            after = party_inventory[i].count;
+            ch_after = item->charges;
+        }
+    modern_log("agent: useitem %s: used %d, count %d -> %d, charges %d -> %d", use_name, (int)ok, count, after, charges,
+               ch_after);
+}
+
 static void join_words(char *dst, size_t size, char **argv, int from, int argc)
 {
     dst[0] = 0;
@@ -781,12 +828,32 @@ static void run_line(char *line)
         }
     } else if (!_stricmp(c, "open") && argc >= 2) {
         // open ADDR: ADDR is the container's address in this process, as items prints it (below 2 GB in both builds).
-        open_target = (container *)(size_t)strtoul(argv[1], NULL, 16);
+        open_target = (container *)(size_t)strtoull(argv[1], NULL, 16);
         out("open %s: %s", argv[1], run_sync(open_body, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "npcdead") && argc >= 2) {
         char name[64];
         join_words(name, sizeof name, argv, 1, argc);
         out("npcdead %s: script object %d, dead %d", name, script_object_find(name), (int)script_npc_is_dead(name));
+    } else if (!_stricmp(c, "identify") && argc >= 2) {
+        // identify NAME ('~' for spaces): clears bit 0 (not identified) of the item type's flags, standing in for the
+        // Lore skill (party_count_item_by_name counts identified items only). The test tools poke item_types +0x5c
+        // in Sum.exe; in the 64-bit build the record is larger, so the host does it by field (2026-11-09).
+        char name[96];
+        join_words(name, sizeof name, argv, 1, argc);
+        for (char *q = name; *q; q++)
+            if (*q == '~')
+                *q = ' ';
+        int t = item_type_find(name);
+        if (t < 0) {
+            out("identify %s: no such item type", name);
+        } else {
+            unsigned before = item_types[t].flags;
+            item_types[t].flags &= (ushort)~1u;
+            out("identify %s: type %d, flags %X -> %X", name, t, before, item_types[t].flags);
+        }
+    } else if (!_stricmp(c, "useitem") && argc >= 2) {
+        join_words(use_name, sizeof use_name, argv, 1, argc);
+        out("useitem %s: %s", use_name, run_sync(useitem_body, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "quit")) {
         gameseq_set_state(3);
         out("quit: requested");

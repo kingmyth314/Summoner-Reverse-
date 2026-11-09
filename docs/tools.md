@@ -115,7 +115,8 @@ on [Side quests](sum-exe/side-quests.md).
 - Shortcuts, each reported in the results: an item a quest sends the player to find is given; when a target topic
   cannot be reached, the event flags (`+Unhide by event`, set with `flagl`) and items (`+Unhide by item`) that unlock
   it or a topic on the way are supplied and the talk tried once more; a quest item flagged "not identified" is marked
-  identified (bit 0 of `item_types[i].flags`, `+0x5c`), as the Lore skill would. The party is immortal throughout.
+  identified (bit 0 of `item_types[i].flags`, `+0x5c`; the agent's `identify` where the exe has it, as the 64-bit
+  build needs), as the Lore skill would. The party is immortal throughout.
 - Lessons (**Observed** 2026-11-08/09): after "Farewell" `dlg` still reports mode 3, with state 0; a topic list of
   eight or more entries needs scrolling, which the driver does not do (the statue's five parts were therefore handed
   over one at a time); a character with one topic plays it at once, with no list; `talkto` matches names by prefix,
@@ -591,7 +592,12 @@ intro movies (2026-10-25). The main menu sets state 1 before it plays them, and 
   charges before and after. TARGET is a level script character for a spell that needs one (default: the user);
   `NAME@@[TARGET]` casts a spell aimed at a place (Blizzard Scroll) at the target's feet and layer with handle -1,
   as a click on the ground does (`world_use_item_at_point`, `0x418540`): with a NULL point the game crashes
-  (**Observed**, access violation, 2026-11-08). SummonerFix's agent mode only (2026-11-08, for the item charges);
+  (**Observed**, access violation, 2026-11-08). SummonerFix's agent mode (2026-11-08, for the item charges), and
+  the in-source host since 2026-11-09;
+- `identify NAME` (`~` for spaces) clears bit 0 (not identified) of the item type's flags, standing in for the Lore
+  skill. The in-source host only (2026-11-09): with SummonerFix the tools poke `item_types[i].flags` (`+0x5c`, records
+  0x100 bytes apart), which is wrong in the 64-bit build, whose records hold 8-byte pointers. **Observed** 2026-11-09:
+  the poke read flags 0 there and Wid's hand-over never appeared; with `identify` it did;
 - `npckill NAME` gives a level script character 1,000,000 damage through `character_add_hp` (a type 4 NPC is made
   type 5 first, since type 4 ignores damage); `npcdead NAME` prints `script_object_find` and `script_npc_is_dead`
   for it. A character still hidden behind "wait for go" only reaches "dying" (`+0x320` bit `0x8`), not dead (`0x80`).
@@ -638,8 +644,8 @@ intro movies (2026-10-25). The main menu sets state 1 before it plays them, and 
   the prologue level: `join` crashed there (2026-11-03, a NULL read at `0x51b262`), as the other heroes' files are not
   loaded; join after the next level change. SummonerFix's agent mode (2026-11-03, for the test saves), and the in-source host since 2026-11-05;
 - Commands for playing the story from a script (2026-11-04, for the play-through test saves; SummonerFix's agent
-  mode, and since 2026-11-05 the in-source host of the clang builds (built, not yet run there), where `items` and `open` take this process's
-  addresses):
+  mode, and since 2026-11-05 the in-source host of the clang builds, where `items` and `open` take this process's
+  addresses; run there on 2026-11-09, see below):
   - `dlg [N]` prints the open conversation: `dialogue_mode` (`0x5bc48c`: 0 closed, 1 text, 3 topics), the speaker,
     the last N lines of the text box (`0x2544408`, default 8) and the offered topics of the topic box (`0x2545b68`)
     with their box coordinates. **Observed** 2026-11-04 at 2560x1440: the dialogue panel sits about 165 capture pixels
@@ -687,6 +693,25 @@ screen). Key names are the ones `summonerfix.ini [KeyBindings]` uses.
 the load screen's Load (798, 368).
 
 Set `Agent=0` again for normal play.
+
+**The commands in the 64-bit build, 2026-11-09 (Observed).** The in-source host's play-through commands had been
+built but not run. In `Sum-exp-clang-x64.exe`, from fresh loads of the play-through saves:
+- `sidequests.mjs run tongue wid logaros nhuva` gave the original's results line for line: the same topics clicked,
+  journal entries, items and experience. This covers `dlg`, `talkto`, `callstr`, `flagl`, `npcgoto`, `npckill`,
+  `savenow` and, after the fix above, `identify`.
+- From pt-08, a scratch script ran the same commands in the 64-bit exe and in `Sum-orig.exe`, with the same log in
+  both:
+  - `useitem Healing Draught` and `useitem Health Tonic`: count 15 → 14 and 20 → 19;
+  - `useitem` of an unknown name: refused;
+  - `join Jekhar 9`: level 9, 5,600 XP, 398 HP, 26 AP;
+  - `xpto Joseph 10`: level 10, 8,700 XP;
+  - `bag 2`, `items 6`, `open` (the loot screen, screen 4), `shop Arms Merchant` (screen 7), `npcdead`, `savenow`.
+
+  The two saves written at the end were the same in `savinfo` (inventory, party, levels).
+- `npchp` and `npcdead` find level script characters only: both builds answered "no such character" for Joseph.
+- Differences that are expected: the container addresses `items` prints are 64-bit (`open` reads them with `strtoull`
+  since 2026-11-09). `peek` inside a table of structs shows the 64-bit layout, so offsets taken from Sum.exe, such as
+  `item_types` `+0x5c`, are wrong there.
 
 ## `tools/savinfo.mjs`
 
