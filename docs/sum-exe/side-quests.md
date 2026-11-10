@@ -11,11 +11,11 @@ character's dialogue (`+Unhide Quest:`) and closed by another topic (`+Hide Ques
 topic: items (`+Gain Item`), experience (`+AddXP`) and gold (`+AdjustGP`). Every quest that has dialogue was played
 in the original `Sum.exe`, in agent mode, from the play-through saves (`testsaves/playthrough/`) with
 [`tools/testsaves/sidequests.mjs`](../tools.md#toolstestsavessidequestsmjs-side-quests-played).
-- Closed, with the reward: 49. Two of them only from their closing topic (32 was already open in the save; 33 has
+- Closed, with the reward: 50 (The King of Talas only at the late Saanavarh visit, below). Two of them only from their closing topic (32 was already open in the save; 33 has
   no opening topic), and 41 closes with no reward. (Counted 51 until the evening of 2026-11-09, see the correction
   below.)
-- Cannot be closed in the original: 1, The King of Talas: the king who pays stays hidden (bug
-  [G313](game-bugs.md), fixed by `[Fixes] TriggeredShow`; with it the reward came).
+- Closed later than intended: The King of Talas. The king who pays stays hidden in Saanavarh through the v4 and v5
+  stages and shows only in v6 (game stage 20; bug [G313](game-bugs.md), fixed by `[Fixes] TriggeredShow`).
 - Opened, with a closing topic that the test did not reach: 1, The Lord Chamberlain's Men. Torvel's double, who
   pays, is hidden until the lanterns are given to the Master of Revels in the palace, as designed; that part was not
   played.
@@ -23,7 +23,7 @@ in the original `Sum.exe`, in agent mode, from the play-through saves (`testsave
 - Cannot appear in the journal: 3. Two are developer leftovers (Bleargh, Ajaymes the Pirate), one is cut (Find a
   blue shard for Varyssa).
 
-One quest is broken in the game itself: The King of Talas ([G313](game-bugs.md)). The other findings below are about
+One quest is broken in the game itself: The King of Talas cannot end until late in act 4 ([G313](game-bugs.md)). The other findings below are about
 how the quests work, and one oddity in the data (Torva's 125,000 gold).
 
 **Correction (2026-11-09, evening).** Until then the test's `talkto` command talked to any character by name, hidden
@@ -32,7 +32,8 @@ see [Game bugs](game-bugs.md#claims-that-did-not-hold)), and it closed six quest
 With `talkto` skipping hidden characters (flag `0x2`), the whole run was repeated (**Observed**, original `Sum.exe`)
 and those six were played again in the state the game shows the character:
 - The King of Talas (40): the full path (the forest king, Uligo the Artisan, "Tell him what the Khosani said.") still
-  leaves the closing king hidden: bug G313.
+  leaves the closing king hidden in Saanavarh v4 (and v5): bug G313. On 2026-11-10 the v6 visit (from pt-41) showed
+  him and he paid; spec `talas6`.
 - The Lord Chamberlain's Men (68): the double is hidden until the lanterns (`ls_lenele1ab_init`); not played further.
 - The Seeds of Aahur, Part 2 (71): Elarh (act 4) is there only with `buy_seeds`, set at the end of part 1; with it set
   and Saanavarh entered again, the quest closed as before.
@@ -85,7 +86,7 @@ Rewards as observed; XP is the party's (each member gains it). "Given" lists wha
 | 37 | The Curious Device | Uhika, after 36 | Uhika | Spyglass | 8,000 XP, 30,000 gold |
 | 38 | The Battle of Quadraticus | Uhika, after 37 | Uhika | Chess Piece | 16,000 XP, 40,000 gold |
 | 39 | The Elixir of Olfactory Obfuscation | Uhika, after 38 | Uhika | Perfume | 35,000 XP, 100,000 gold |
-| 40 | The King of Talas | King of Talas (rand-forest01_v6) | the King in Saanavarh (v4) | | **cannot be closed in the original** (G313): the paying king stays hidden. With `[Fixes] TriggeredShow` (SummonerFix or the fixed builds): Hero's Platemail, 20,000 XP. Until 2026-11-09 counted as closed (hidden king reached by `talkto`) |
+| 40 | The King of Talas | King of Talas (rand-forest01_v6) | the King in Saanavarh (v6; hidden in v4, v5) | | closes only at the late Saanavarh visit (v6, game stage 20): Hero's Platemail, 20,000 XP (2026-11-10, from pt-41). In v4 and v5 the paying king stays hidden (G313; with `[Fixes] TriggeredShow` he shows there too). Until 2026-11-09 counted as closed in v4 (hidden king reached by `talkto`) |
 | 41 | The Emperor's Dragon Scales | Xueli (eleh) | Gongji (jadetemple) | | closed with no reward (as his dialogue's comments expect); Gongji shows only after the Ring of Jade, until the party leaves the temple |
 | 42 | The Family Tradition | Fangyin (Wolong2_v2) | Fangyin | flag `liangshan_mq_placed_coin_locket` | Parrying Dagger, 7,000 XP |
 | 43 | Longyue's Hat | Longyue (Wolong2_v2) | Longyue | Longyue's Hat | Well-Honed Katana, 5,000 XP |

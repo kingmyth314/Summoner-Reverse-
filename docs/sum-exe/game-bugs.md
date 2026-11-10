@@ -1005,7 +1005,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G301 | Choosing "Give him 10 gold pieces." for Canis the Mercenary in occupied Lenele takes 100 gold (all of it below 100) | `ls_lenele2ab_action` `0x4f1220` | **Observed** code, retail data and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] CanisTenGold`) |
 | G310 | In multiplayer, a player's summon never gets its once-a-second position update to the other machines; the leader's update is sent twice instead | `mp_send_local_updates` `0x47f9c0` | **Observed** code, *inferred* effect | No |
 | G311 | Latent: a scripted "go" for a character that has not reached its "wait for go" action yet is lost, so the character can wait there for ever | `script_object_receive_go` `0x4ce220` | **Observed** code, *inferred* effect | No |
-| G313 | The King of Talas never appears in Saanavarh, so his quest cannot be finished: the character who pays the reward (Hero's Platemail, 20,000 XP) stays hidden after the party has told the forest king what the Khosani said | `script_entry_start` `0x4dd0b0` (show/hide case `0x4dd470`); retail `KhosaniStrng_v4`..`_v6_script.tbl` | **Observed** code, retail data and in game (2026-11-09) | Fixed (`bugfix.c`, `[Fixes] TriggeredShow`) |
+| G313 | The King of Talas does not appear in Saanavarh through most of act 4, so his quest cannot be finished until the late visit: the character who pays the reward (Hero's Platemail, 20,000 XP) stays hidden in the `KhosaniStrng_v4` and `_v5` scripts after the party has told the forest king what the Khosani said; `_v6` (game stage 20) shows him | `script_entry_start` `0x4dd0b0` (show/hide case `0x4dd470`); retail `KhosaniStrng_v4`, `_v5_script.tbl` | **Observed** code, retail data and in game (2026-11-09 and 10) | Fixed (`bugfix.c`, `[Fixes] TriggeredShow`) |
 
 **G1. Frame limiter.** `FrameTimer` stores `last = now` (`0x501577`) before it sleeps (`0x5015bc`). The
 next frame counts the same sleep again. See
@@ -1834,22 +1834,26 @@ again. A "go" that arrives while the object is still on an earlier action (walki
 therefore lost, and the object waits at the later "wait for go" for ever unless another go comes. Whether a
 retail script sends a go that early was not checked. D8602.
 
-**G313. The king who never comes.** The King of Talas quest opens in the forest (`rand-forest01_v6`), goes on with
+**G313. The king who comes late.** The King of Talas quest opens in the forest (`rand-forest01_v6`), goes on with
 Uligo the Artisan in Saanavarh (`talas_talked_to_uligo`, 40,000 XP) and with the topic "Tell him what the Khosani
 said." back in the forest, which sets `kingtalas_mq_talked_to_king` (5,000 XP). The reward is paid by
-`King of Talas#Khosani` in `KhosaniStrng_v4`, `_v5` and `_v6`, whose script entry is
-`+Trigger: "rand-forest01" "kingtalas_mq_talked_to_king"` and one action, `"show/hide" 0`. The developer copy's
-comment (`Miniquests_dlg.tbl`: `PLACEMENT TRIGGER: +Unhide NPC: "King of Talas#Khosani"`) shows the intent: hidden
-until the flag. But the hide action runs when the level loads (`set_flag_2_4`, flag `0x2`), and a trigger only
+`King of Talas#Khosani` in `KhosaniStrng_v4`, `_v5` and `_v6`. In `_v4` and `_v5` his script entry is
+`+Trigger: "rand-forest01" "kingtalas_mq_talked_to_king"` and one action, `"show/hide" 0`; in `_v6` (game stage 20,
+from the Ring of Darkness in Saanavarh on) the action is `"wait for go"`. The developer copy's
+comment (`Miniquests_dlg.tbl`: `PLACEMENT TRIGGER: +Unhide NPC: "King of Talas#Khosani"`, levels v4, v5 and v6)
+shows the intent: hidden until the flag, in all three. But the hide action runs when the level loads (`set_flag_2_4`, flag `0x2`), and a trigger only
 switches the AI (`savegame_refresh_character_flags` and the parser call `character_set_ai_active`), which never
 clears flag `0x2`. The other triggered characters (Madog, Luleva, the 22 `ready_for_end` monsters) have no hide action
 and appear. **Observed** 2026-11-09 in the original `Sum.exe` from pt-36: the forest king, Uligo and "Tell him what
 the Khosani said." played through (the flag read 1), then in `KhosaniStrng_v4` the king stood at `$mqn8` with flags
 `0x100022` (hidden, AI off), was not drawn, and only the party came under the mouse. Earlier runs had closed the
-quest only because the agent command `talkto` reached hidden characters (see G312 under
+quest only because the agent command `talkto` reached hidden characters. **Observed** 2026-11-10: from pt-41 with
+the flag set, `exitto KhosaniStrng KhosaniStrng_v6 1` showed the king, and he paid Hero's Platemail and 20,000 XP in
+the original with no fix. So the quest ends at the late visit; through the v4 and v5 stages it cannot (see G312 under
 [Claims that did not hold](#claims-that-did-not-hold)). Fix ([Fixes] `TriggeredShow`, SummonerFix `bugfix.c`; in the
 source `FIXED_BUILD` in `script_internal.cpp`): a hide for a script object whose trigger flag is already set shows
-it instead. Checked 2026-11-09 with the flag set before entering Saanavarh: the original exe with SummonerFix and
+it instead. Only the v4 and v5 king entries have a trigger and a hide (all 143 retail `*_script.tbl` files
+searched; Luminar's trigger entry has only a show). Checked 2026-11-09 with the flag set before entering Saanavarh: the original exe with SummonerFix and
 the 64-bit build both paid Hero's Platemail and 20,000 XP; without the fix, nothing.
 
 ## Cosmetic
@@ -4594,5 +4598,5 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | C317 Mist Elemental cutscene crash | `summon_stash_for_cutscene` `0x448056`..`0x44807e` (after `ai_begin_emerge`, `cur_move` `+0x6d0` is read without a NULL test); `ai_begin_emerge` `0x473970` (`find_move(0xc)` NULL: no `play_move`); the summon waits for its appearance effect before it emerges (`fx_frame` kind 8 timer, `ai_frame` disable timer); `Mist Elemental.tbl` has no `"emerge"` move (every other summon table checked has one); reproduced with agent `summon 45` then `cutscene_play("Nar-KhosaniStronghold")` one second later: access violation reading `0x8` at `0x44807e`, caller `0x4362c1`. With the elemental fully emerged the same cutscene stashes it normally |
 | G310 summon update | `mp_send_local_updates` `0x47f9fd`..`0x47fa00`, `0x47fa14`..`0x47fa6f`; `ai_frame` `0x472db1` |
 | G311 receive go | `script_object_receive_go` `0x4ce280`..`0x4ce283`, `0x4ce2b8`..`0x4ce2c1` |
-| G313 king of Talas | `script_entry_start` `0x4dd470`..`0x4dd4b5`; `savegame_refresh_character_flags`; retail `KhosaniStrng_v4_script.tbl` (`King of Talas#Khosani`), `Miniquests_dlg.tbl`, `rand-forest01_v6_dlg.tbl`; `tools/testsaves/sidequests.mjs` spec `talas` |
+| G313 king of Talas | `script_entry_start` `0x4dd470`..`0x4dd4b5`; `savegame_refresh_character_flags`; `ls_worldmap1_setup_khosani` `0x4fb9c0` (v6 from stage 20); retail `KhosaniStrng_v4`, `_v5`, `_v6_script.tbl` (`King of Talas#Khosani`), `Miniquests_dlg.tbl`, `rand-forest01_v6_dlg.tbl`; `tools/testsaves/sidequests.mjs` spec `talas` |
 | K310 GL point-light colour | `levelrender_draw_list_opengl` `0x491c0a`..`0x491c2e`, `0x491e06`..`0x491e14`, `0x491f90`..`0x491fe2`, `0x492669`..`0x4926c4`; `levelrender_sum_point_lights` `0x48fcc7`..`0x48fd0e`; `levelrender_draw_list_glide` `0x48ee57`..`0x48ee92`; `levelrender_draw_list_d3d` `0x4907cd`..`0x490805`; `vfx_node_create_light` `0x51fbe0`..`0x51fc5b`; `attached_light_create` `0x5201b2`..`0x5201e0`; `vfx_node_relocate` `0x536c74`..`0x536ca0`; retail `effects.vpp` `.rfx` files |

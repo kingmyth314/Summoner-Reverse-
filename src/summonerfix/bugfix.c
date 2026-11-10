@@ -145,11 +145,11 @@
 // ZaneEncounter): the end of that copy (mov ecx, edx ; and ecx, 3 ; rep movsb at 0x4fca1b) jumps to a stub that
 // finishes the copy and leaves through the function's epilogue (0x4fcae1), as the Korel case returns.
 //
-// The King of Talas never shows in Saanavarh (not a crash; game-bugs G313). "King of Talas#Khosani" in
-// KhosaniStrng_v4/_v5/_v6 has +Trigger "rand-forest01" "kingtalas_mq_talked_to_king" and one action, show/hide 0.
+// The King of Talas does not show in Saanavarh before game stage 20 (not a crash; game-bugs G313). "King of
+// Talas#Khosani" in KhosaniStrng_v4/_v5 (not _v6, which shows him) has +Trigger "rand-forest01" "kingtalas_mq_talked_to_king" and one action, show/hide 0.
 // The hide (set_flag_2_4, 0x4dd4a9 in script_entry_start) runs when the level loads, and the trigger only
 // switches the AI (savegame_refresh_character_flags, character_set_ai_active), so he stays hidden with the flag set
-// and the quest cannot be closed. Fix ([Fixes] TriggeredShow): the show/hide case (0x4dd470) jumps to a stub; a hide
+// and the quest cannot be closed before _v6. Only these two entries have a trigger and a hide (all retail scripts). Fix ([Fixes] TriggeredShow): the show/hide case (0x4dd470) jumps to a stub; a hide
 // for a script object whose trigger flag is set (+0x52c level, +0x530 name) shows the character instead.
 //
 // Shop category buttons in sell mode jump to the wrong row (cosmetic; game-bugs K3). The sell list shows the party's

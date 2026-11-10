@@ -1172,8 +1172,8 @@ void script_entry_start(script_object *so, Character *c)
     case SCRIPT_ACTION_SHOW_HIDE:
 #ifdef FIXED_BUILD
         // FIXED_BUILD: G313 TriggeredShow. A hide for a script object whose +Trigger flag is already set shows it
-        // instead: the King of Talas in Saanavarh (KhosaniStrng_v4-v6) has the trigger and only "show/hide 0", and
-        // the trigger switches nothing but the AI, so he stayed hidden and his quest could not end.
+        // instead: the King of Talas in Saanavarh (KhosaniStrng_v4, _v5) has the trigger and only "show/hide 0",
+        // and the trigger switches nothing but the AI, so he stayed hidden until the _v6 stage (the only such entries).
         if (a->arg0c || (so->trigger_level != -1 && savegame_state.get_flag(so->trigger_level, so->trigger))) {
             c->set_ai_active(1);
             c->clear_flag_2_4();

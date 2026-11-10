@@ -1701,6 +1701,31 @@
   ]
  },
  {
+  "id": "talas6",
+  "quest": "The King of Talas (end, Saanavarh v6: the king shows there in the original)",
+  "base": "pt-41-khosani-ring-of-darkness",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "steps": [
+   {
+    "cmd": "flagl 18 kingtalas_mq_talked_to_king 1; wait 1"
+   },
+   {
+    "exitto": "KhosaniStrng KhosaniStrng_v6 1"
+   },
+   {
+    "talk": "King of Talas",
+    "goto": "King of Talas#Khosani",
+    "file": "Khosanistrng_v6_dlg.tbl",
+    "char": "King of Talas#Khosani",
+    "target": "\"Hail\"",
+    "gate": false
+   }
+  ]
+ },
+ {
   "id": "nhuva",
   "quest": "The Tome of the Nhuvasarim (pages given, then the forest entered again)",
   "base": "pt-36-khosani-before-pyrul",
