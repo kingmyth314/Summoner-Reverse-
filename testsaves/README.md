@@ -41,7 +41,7 @@ of Spirits, chainmail), 2 (Logaros Longsword, Hero's chainmail), 3 (Sword of Sum
 | `12-tiger-rider.sav` | Tiger Rider, temple (Joseph and Flece, as in the story) | Joseph 18, Flece 18 | 2 | walk a short way on to the trigger point; the intro plays |
 | `13-azha-the-archlich.sav` | Azha the Archlich, Wolong caverns (added 2026-11-08) | Joseph 19, Flece 18, Rosalind 18 (Jekhar is away, as in the story) | 2 | click Azha, 5 units away, and choose "Challenge him to combat." |
 | `14-general-pijian.sav` | General Pijian, battle of Wolong | Joseph, Rosalind, Jekhar, 20 | 2 | walk 7 units toward Pijian, south down the street (behind the camera); the intro plays |
-| `15-serpent-and-phoenix-riders.sav` | Serpent and Phoenix Riders, Liangshan | all four, 20 | 2 | the intro plays on loading; let it play (since 2026-11-10; the party stands on `$sptrigger`) |
+| `15-serpent-and-phoenix-riders.sav` | Serpent and Phoenix Riders, Liangshan | all four, 20 | 2 | double-click the wooden bridge ahead (the Phoenix Rider stands on the far bank); the intro plays at once |
 | `16-general-wentao.sav` | General Wentao, Liangshan | all four, 21 | 2 | the defence of the shrine: click the Guardian of the Shrine, 12 units away on his platform, and talk to the end ("Destiny?"); three waves of soldiers follow, then Wentao (moved 2026-11-08) |
 | `17-undead-and-tiger-riders.sav` | Undead and Tiger Riders, Jade Temple | all four, 21 | 2 | walk a short way on to the trigger point; the intro plays |
 | `18-murod.sav` | Murod and Murod Oni, Jade Temple | all four, 22 | 3 | double-click the red carpet just below Joseph, about five times (toward Murod, behind the camera); the intro plays |
@@ -295,6 +295,17 @@ until 2026-11-10 it was a script outside the repository.
   fight; with no input the party lost (game over within 25 s of the intro's end in one run, the riders dead in
   another). Teleported onto the trigger from the old save, the idle party fared the same (only Joseph alive 25 s
   after the intro), so that is the fight, not the spot.
+  **Later the same day: 15 is a walk again.** The riders' ground was mapped from one load with the intro flag held
+  (`flagl` before any move) and teleports on a grid, reading where the game put the leader (the agent's new `party`
+  command). Layer 15 is a broad floor south of the trigger (z 40 to 82) joined to the riders by a strip up its west
+  side (x -158 to -132) and a gap at z 112 to 116; walked from the south spot along it, with the camera turned
+  (Left arrow), Joseph reached the riders and the trigger. They stand at the west end of a wooden bridge, and the
+  bridge and the ground east of it are layer 13, as is `$lair`, a party remark 45 units south-east: so the story's
+  way in is across the bridge from the east (**Inferred**: the route from the level entry to the lair was not walked).
+  15 now stands on layer 13 just east of the bridge, Joseph at (-111.4, 0.1, 114.8), 10 units from the trigger,
+  made with `testsaves.mjs place` from the save as it was before this day. **Observed** in the original and the
+  64-bit exe from a fresh load: one or two double clicks on the bridge played SERP-PHNX-Intro, and 40 s later the
+  riders were fighting the party. The on-trigger version above is replaced.
 
 **Gear and positions, fixed 2026-11-06** (**Observed**; a tester reported heroes in starting clothes and a broken
 camera or position in some saves):
