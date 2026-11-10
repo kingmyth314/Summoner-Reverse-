@@ -85,7 +85,8 @@ The docs are also the project's log: long pages are chronological under a summar
 `node tools/agent.mjs start|run "cmds"|stop` drives a running exe through `agent\cmd.txt` / `agent\result.txt`.
 Command reference: `docs/tools.md`, section `tools/agent.mjs`. Some commands:
 - `info` (state, screen, fps), `capture NAME`, `click X Y`, `key NAME`, `postkey NAME`;
-- `peek` / `poke ADDR` (Sum.exe addresses);
+- `peek` / `poke ADDR` (Sum.exe addresses); `party` (each member's position, layer, HP, flags, in both hosts: use it,
+  not `peek` at structure offsets, which differ in the 64-bit exe);
 - `level NAME SCRIPT`, `npcgoto NAME`, `summon N`, `firewall N`, `shop NAME`, `savenow`, `speedkey 1|0`.
 
 Coordinates are capture pixels (half the window).
@@ -96,6 +97,8 @@ Gotchas, each found the hard way:
 - Esc on the main menu quits the game. `agent.mjs start` already waits out the intro movies.
 - `level` during a cutscene crashes even the original. Wait for state 4 with `game_flags` (0x5fbfd8) bit 0x20 clear.
 - Quicksave refuses in combat and in some areas. Use `savenow`.
+- Clicks toward a point behind the camera barely move the party (the HUD hides the bottom of the screen). Turn the
+  camera first: `postkey Left 3000` is about half a circle (Left/Right arrows).
 - A click on the ground selects whoever stands under the cursor, and the save keeps the selected member. Click
   Joseph's portrait before `savenow` (or use `testsaves.mjs place`).
 - `talkto` skips hidden characters since 2026-11-09. A harness command that reaches what a player cannot see or click
