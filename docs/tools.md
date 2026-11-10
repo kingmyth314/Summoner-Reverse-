@@ -81,6 +81,17 @@ tester would, fights 25 s and compares the party's HP. The recipes are `tools/te
 member's gear, the healing items and gold up to the kit's, and on Joseph the two newest summoning rings the party
 carries (moved out of the inventory). Since the same day `finish` takes the party from the save, not the recipe
 (heroes who join in the level, such as Rosalind and Jekhar in 12, had kept their starting gear).
+`place FILE LAYER '{"Joseph":[x,y,z],...}' [--hold LEVEL:FLAG]` (2026-11-10; the procedure used by hand for the
+repaired fight saves since 2026-11-08) moves the party of an existing save and rewrites it in place. It makes the
+party immortal before the load, sends the leader to Joseph's spot with `posgoto`, and clicks at his feet to cancel
+a move goal kept from before the teleport. It then writes every member's position and layer onto its spot and
+clears its stuck-move field, selects Joseph again with a click on his portrait (the click at the feet selects
+whoever is under the cursor, and the selected member is saved: party state bits 7-9), and saves at once with
+`savenow`, with the description kept. `--hold` sets a story flag in memory before the party is placed and clears it
+in the file: a party put inside a trigger is saved before the intro can fire, and loading the save plays it
+(save 15). Original `Sum.exe` only (32-bit structure offsets). **Observed** 2026-11-10: a copy of save 18 placed
+on its own spot came back with the same party state, positions and description; `savinfo` showed only the level
+time and AP changed.
 
 Lessons from building them (**Observed** 2026-11-03):
 - a boss's intro cutscene sends its "go" once: when the intro played during the build, the boss in the save waited

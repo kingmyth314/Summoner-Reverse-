@@ -96,6 +96,10 @@ Gotchas, each found the hard way:
 - Esc on the main menu quits the game. `agent.mjs start` already waits out the intro movies.
 - `level` during a cutscene crashes even the original. Wait for state 4 with `game_flags` (0x5fbfd8) bit 0x20 clear.
 - Quicksave refuses in combat and in some areas. Use `savenow`.
+- A click on the ground selects whoever stands under the cursor, and the save keeps the selected member. Click
+  Joseph's portrait before `savenow` (or use `testsaves.mjs place`).
+- `talkto` skips hidden characters since 2026-11-09. A harness command that reaches what a player cannot see or click
+  proves nothing about the game (G312 was withdrawn for that).
 - `talkto` while a conversation is still open (screen 13) crashes even the original in `dialogue_frame`. Page with
   `dlg` until mode 0 or state 0 first.
 - Use test saves only (`[Debug] TestSaves=1`, folder `savetest\`), never the player's `savegame\`.

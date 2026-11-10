@@ -235,4 +235,61 @@ if (cmd === "base") {
   execFileSync("node", [join(repo, "tools/savedit.mjs"), ...a], { encoding: "utf8" });
   rmSync(file); copyFileSync(tmp, file); rmSync(tmp);
   console.log(`${file}: tier ${process.argv[4]}, Joseph wears ${rings.join(" and ") || "no ring"}`);
-} else console.log("usage: node tools/testsaves/testsaves.mjs base|build|finish|verify|gear [ID|all]");
+} else if (cmd === "place") {
+  // Moves the party of an existing save and saves it again in place (2026-11-08..10; testsaves/README.md, "15 and
+  // 18"). The party is immortal from before the load (enemies beside a spot could kill a member during the load),
+  // the leader goes to Joseph's spot with posgoto (party_teleport_to), a click at his feet cancels a move goal kept
+  // from before the teleport, every member's position (+0x10) and layer (+0x68c) are written onto its spot and its
+  // stuck-move field (+0x6cc) cleared, Joseph is selected again (the click at his feet selects whoever is under the
+  // cursor: party state bits 7-9), and the save is made at once with savenow. --hold LEVEL:FLAG sets that story flag
+  // in memory before the party is placed and clears it in the file, for spots inside a trigger: the intro cannot
+  // fire before the save, and plays on loading it (15). The description is kept. Original Sum.exe (32-bit offsets).
+  const file = resolve(id), layer = Number(process.argv[4]); let spots;
+  try { spots = JSON.parse(process.argv[5]); } catch { spots = null; }
+  const hi = process.argv.indexOf("--hold"), hold = hi > 0 ? process.argv[hi + 1].split(":") : null;
+  if (!existsSync(file) || !spots?.Joseph || Number.isNaN(layer) || (hold && LEVELS.indexOf(hold[0]) < 0)) {
+    console.log("usage: node tools/testsaves/testsaves.mjs place FILE LAYER '{\"Joseph\":[x,y,z],\"Flece\":[x,y,z],...}' [--hold LEVEL:FLAG]");
+    process.exit(2);
+  }
+  const bytes = (a, n) => { const m = /: ((?:[0-9A-F]{2} ?)+)/.exec(run(`peek ${a.toString(16)} ${n}`)); return Buffer.from(m[1].trim().split(" ").map((v) => parseInt(v, 16))); };
+  const heroes = (fn) => { // the living list (head 0x8eca60, next +0x318): type-7 entities named in spots
+    let c = bytes(0x8eca60 + 0x318, 4).readUInt32LE(0), n = 0;
+    while (c !== 0x8eca60 && n++ < 400) {
+      const nm = bytes(c + 0x2f4, 12).toString("latin1").split("\0")[0];
+      if (spots[nm] && bytes(c + 0xc, 4).readInt32LE(0) === 7) fn(c, nm);
+      c = bytes(c + 0x318, 4).readUInt32LE(0);
+    }
+  };
+  const putAll = () => heroes((c, nm) => {
+    const b = Buffer.alloc(16); spots[nm].forEach((v, i) => b.writeFloatLE(v, i * 4)); b.writeInt32LE(layer, 12);
+    const p = [];
+    for (let i = 0; i < 12; i++) p.push(`poke ${(c + 0x10 + i).toString(16)} ${b[i].toString(16)}`);
+    for (let i = 0; i < 4; i++) p.push(`poke ${(c + 0x6cc + i).toString(16)} ff`);
+    for (let i = 0; i < 4; i++) p.push(`poke ${(c + 0x68c + i).toString(16)} ${b[12 + i].toString(16)}`);
+    run(p.join("; "));
+  });
+  const gflags = () => parseInt((/5FBFD8: ([0-9A-F]{2})/.exec(run("peek 5fbfd8 1")) || [])[1] || "0", 16);
+  agent("stop");
+  if (existsSync(join(G, "agent", "cmd.txt"))) rmSync(join(G, "agent", "cmd.txt"));
+  const dst = join(G, "savetest", "summoner40.sav"); copyFileSync(file, dst); const now = new Date(); utimesSync(dst, now, now);
+  agent("start", "--wait", "90");
+  run("poke 941704 01; click left 858 368; wait 2000; click left 798 368; wait 12000");
+  for (let i = 0; i < 30 && (gflags() & 0x20); i++) run("wait 2000");
+  if (hold) console.log(run(`flagl ${LEVELS.indexOf(hold[0])} ${hold[1]} 1`).trim().split("\n")[0]);
+  run(`posgoto ${spots.Joseph.join(" ")} ${layer}; wait 300; click left 640 490; wait 300; click left 640 490; wait 2500`);
+  putAll(); run("wait 300"); putAll(); run("wait 300");
+  run("click left 275 660; wait 800; poke 941704 00"); // Joseph's portrait
+  if (gflags() & 0x24) { console.log("a cutscene or the pause menu is running: not saved"); agent("stop"); process.exit(1); }
+  const quick = join(G, "savetest", "quicksave.sav");
+  if (existsSync(quick)) rmSync(quick);
+  run("savenow; wait 3000");
+  heroes((c, nm) => { const p = bytes(c + 0x10, 12); console.log(`  ${nm} at ${[0, 4, 8].map((o) => p.readFloatLE(o).toFixed(1)).join(", ")}`); });
+  agent("stop");
+  if (!existsSync(quick)) { console.log("savenow wrote nothing: not saved"); process.exit(1); }
+  const tmp = file + ".place.tmp"; if (existsSync(tmp)) rmSync(tmp);
+  const a = [quick, tmp, "--desc", saveInfo(file).description || "", "--tables", join(G, "tables.vpp")];
+  if (hold) a.push("--flag", `${hold[0]}:${hold[1]}=0`);
+  execFileSync("node", [join(repo, "tools/savedit.mjs"), ...a], { encoding: "utf8" });
+  rmSync(file); copyFileSync(tmp, file); rmSync(tmp);
+  console.log(`${file}: party placed on layer ${layer}${hold ? `, ${hold.join(":")} cleared in the file` : ""}`);
+} else console.log("usage: node tools/testsaves/testsaves.mjs base|build|finish|verify|gear|place [ID|all]");

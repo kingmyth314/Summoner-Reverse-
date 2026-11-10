@@ -278,7 +278,9 @@ the party (3.4 units per click straight on, 0.3 sideways).
 **15 and 18, closed (2026-11-10, Observed in the original `Sum.exe` and in the 64-bit exe, each from a fresh load
 with no help).** Both were moved with the method above (party immortal before the load, `posgoto`, each member
 written onto its spot, Joseph selected again, saved at once) and given back their descriptions; `savinfo` shows
-nothing else changed but the level time and AP filled to the gear's max (as in every re-save).
+nothing else changed but the level time and AP filled to the gear's max (as in every re-save). The procedure is now
+`node tools/testsaves/testsaves.mjs place` ([Tools](../docs/tools.md#toolstestsavestestsavesmjs-the-test-saves));
+until 2026-11-10 it was a script outside the repository.
 - *18:* the party stands on the raised floor (layer 4, y 17.8), 12 units north of `$murodtrigger`, Joseph at
   (-43.0, 158.8), on the red carpet that leads to Murod. Spots all round the trigger at 10 and 12 units were tried
   first; on this floor every one held. The camera faces the far wall, so Murod is behind it. Four double clicks on
