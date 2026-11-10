@@ -99,6 +99,7 @@ static const FixOption k_fixes[] = {
     {"ConversationHover", "Conversation more/end hover"},
     {"SaveListThumbnail", "Scrolled save list pictures"},
     {"ZaneEncounter", "Zane's encounters as intended"},
+    {"TriggeredShow", "King of Talas appears in Saanavarh"},
     {"MountedRiders", "AI sees mounted Phoenix / Ghost"},
     {"BossMusic", "Boss music starts and ends"},
     {"RingSixtyThousand", "Ring summons from 60,000 power"},

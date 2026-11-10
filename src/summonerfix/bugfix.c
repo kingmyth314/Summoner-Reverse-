@@ -145,6 +145,13 @@
 // ZaneEncounter): the end of that copy (mov ecx, edx ; and ecx, 3 ; rep movsb at 0x4fca1b) jumps to a stub that
 // finishes the copy and leaves through the function's epilogue (0x4fcae1), as the Korel case returns.
 //
+// The King of Talas never shows in Saanavarh (not a crash; game-bugs G313). "King of Talas#Khosani" in
+// KhosaniStrng_v4/_v5/_v6 has +Trigger "rand-forest01" "kingtalas_mq_talked_to_king" and one action, show/hide 0.
+// The hide (set_flag_2_4, 0x4dd4a9 in script_entry_start) runs when the level loads, and the trigger only
+// switches the AI (savegame_refresh_character_flags, character_set_ai_active), so he stays hidden with the flag set
+// and the quest cannot be closed. Fix ([Fixes] TriggeredShow): the show/hide case (0x4dd470) jumps to a stub; a hide
+// for a script object whose trigger flag is set (+0x52c level, +0x530 name) shows the character instead.
+//
 // Shop category buttons in sell mode jump to the wrong row (cosmetic; game-bugs K3). The sell list shows the party's
 // items that the shop buys (buysell_get_list_item), but buysell_category_first_index's sell branch (0x404f98) returns
 // the index of the first item of the category in the shop's buy list, and enables the button when the shop buys
@@ -396,6 +403,13 @@
 #define VA_GHOST_STAGE 0x2480310u
 #define VA_ZANE_COPY_END 0x4fca1bu         // end of the Zane script-name copy in ls_worldmap1_pick_encounter_stage4
 #define VA_ZANE_EXIT 0x4fcae1u              // the picker's epilogue (pop edi ; pop esi ; add esp, 0xc ; ret)
+#define VA_SHOW_HIDE_CASE 0x4dd470u         // script_entry_start, case show/hide: mov ecx, [esi+0xc] ; mov edi, [esp+0x160]
+#define VA_SHOW_HIDE_CALL 0x4dd47du         // call character_set_ai_active (after push ecx ; mov ecx, edi)
+#define VA_SHOW_HIDE_ADVANCE 0x4dd490u      // push edi ; push ebp ; call script_entry_advance (the show branch's tail)
+#define VA_SET_AI_ACTIVE 0x462200u          // character_set_ai_active, thiscall (on)
+#define VA_CLEAR_FLAG_2_4 0x4546b0u         // character_clear_flag_2_4, thiscall
+#define VA_GET_FLAG 0x4cfca0u               // savegame_get_flag, thiscall on savegame_state (level, name)
+#define VA_SAVEGAME_STATE_G313 0x2493a38u   // savegame_state
 #define VA_LEECH_STORE 0x45f47du         // fstp [ebp-0x24] ; jmp 0x45fe7b at the end of get_hit_by_spell case 0x3e
 #define VA_LEECH_RESUME 0x45fed8u           // after spell_roll_amount + character_add_hp (the flinch test)
 #define VA_LIVING_FROM_HANDLE_FIX 0x46b1a0u
@@ -1044,6 +1058,42 @@ __attribute__((used)) static int __cdecl MountedStage(int species)
     return 0;
 }
 
+// G313: 1 when the script object (ebp in script_entry_start) has a trigger flag and it is set.
+__attribute__((used)) int __cdecl TriggeredShowFlag(const BYTE *so)
+{
+    typedef int(__attribute__((thiscall)) * GetFlag)(void *, int, const char *);
+    int level = *(const int *)(so + 0x52c);
+    if (level == -1)
+        return 0;
+    return ((GetFlag)(UINT_PTR)SumVa(VA_GET_FLAG))((void *)(UINT_PTR)SumVa(VA_SAVEGAME_STATE_G313), level,
+                                                   (const char *)(so + 0x530)) != 0;
+}
+
+// The show/hide case (G313), entered by jmp from 0x4dd470 with esi = the action, ebp = the script object.
+__attribute__((used)) DWORD g_showHideCall, g_showHideAdvance, g_setAiActive, g_clearFlag24;
+void TriggeredShowStub(void);
+__asm__(".text\n"
+        "_TriggeredShowStub:\n"
+        "    movl 0x160(%esp), %edi\n"
+        "    movl 0xc(%esi), %ecx\n"
+        "    testl %ecx, %ecx\n"
+        "    jne 1f\n"
+        "    pushl %ebp\n"
+        "    call _TriggeredShowFlag\n"
+        "    addl $4, %esp\n"
+        "    xorl %ecx, %ecx\n"
+        "    testl %eax, %eax\n"
+        "    je 1f\n"
+        "    pushl $1\n"
+        "    movl %edi, %ecx\n"
+        "    call *_g_setAiActive\n"
+        "    movl %edi, %ecx\n"
+        "    call *_g_clearFlag24\n"
+        "    jmp *_g_showHideAdvance\n"
+        "1:  pushl %ecx\n"
+        "    movl %edi, %ecx\n"
+        "    jmp *_g_showHideCall\n");
+
 // The rest of the Zane script-name copy, then the picker's epilogue (G6). Entered by jmp.
 __attribute__((used)) DWORD g_zaneExit;
 void ZaneEncounterStub(void);
@@ -1411,6 +1461,19 @@ void BugFixesInstall(void)
         DWORD rel = (DWORD)(UINT_PTR)ZaneEncounterStub - (s + 5);
         memcpy(r + 1, &rel, 4);
         PatchBytes(VA_ZANE_COPY_END, o, r, 7, "Zane's encounter kept, not overwritten by the general rolls (G6)");
+    }
+
+    if (FixOn("TriggeredShow")) {
+        g_showHideCall = SumVa(VA_SHOW_HIDE_CALL);
+        g_showHideAdvance = SumVa(VA_SHOW_HIDE_ADVANCE);
+        g_setAiActive = SumVa(VA_SET_AI_ACTIVE);
+        g_clearFlag24 = SumVa(VA_CLEAR_FLAG_2_4);
+        static const BYTE o[10] = {0x8B, 0x4E, 0x0C, 0x8B, 0xBC, 0x24, 0x60, 0x01, 0x00, 0x00};
+        BYTE r[10] = {0xE9, 0, 0, 0, 0, 0x90, 0x90, 0x90, 0x90, 0x90};
+        DWORD s = SumVa(VA_SHOW_HIDE_CASE);
+        DWORD rel = (DWORD)(UINT_PTR)TriggeredShowStub - (s + 5);
+        memcpy(r + 1, &rel, 4);
+        PatchBytes(VA_SHOW_HIDE_CASE, o, r, 10, "a triggered character's hide shows him once the flag is set (G313)");
     }
 
     if (FixOn("MountedRiders")) {

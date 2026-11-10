@@ -657,7 +657,12 @@ intro movies (2026-10-25). The main menu sets state 1 before it plays them, and 
     script objects, such as Wolong's Sizhe, for whom `npcgoto` and `script_npc_talk` find nothing. Close the open
     conversation first: **Observed** 2026-11-09, `talkto` with a conversation's last page still on screen crashed the
     original twice (read of 0x4 in `dialogue_frame`, `0x409470`). Of two characters with the same prefix it takes
-    the nearer, so stand on the far side of the one wanted (`posgoto`), as for Torvel and his double;
+    the nearer, so stand on the far side of the one wanted (`posgoto`);
+    since 2026-11-09 it skips characters with flag `0x2`, `0x8` or `0x80` (hidden or disabled, as a `hide` action and
+    `script_npc_set_disabled` leave them; dying; dead), and says how many it skipped. Flag `0x20` and `obj_flags` bit 0
+    are no test: standing NPCs such as Torva have the AI off too and are talked to by a click (a first filter on them
+    closed 30 side quests instead of 51 in a test run). Before that it reached hidden characters, and a talk to Torvel's
+    hidden double produced the false bug G312 (withdrawn, [Game bugs](sum-exe/game-bugs.md#claims-that-did-not-hold));
   - `items [R]` lists the item objects (type 3) and containers (type 11) within R (default 15) of the current
     character with their address, distance and contents, and `open ADDR` opens such a container as a click does
     (`pickup_container` and `interface_set_screen(4)`). For loot that is hard to see, for example the Ring of Light

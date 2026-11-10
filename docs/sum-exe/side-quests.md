@@ -11,18 +11,38 @@ character's dialogue (`+Unhide Quest:`) and closed by another topic (`+Hide Ques
 topic: items (`+Gain Item`), experience (`+AddXP`) and gold (`+AdjustGP`). Every quest that has dialogue was played
 in the original `Sum.exe`, in agent mode, from the play-through saves (`testsaves/playthrough/`) with
 [`tools/testsaves/sidequests.mjs`](../tools.md#toolstestsavessidequestsmjs-side-quests-played).
-- Closed, with the reward: 51 (49 on 2026-11-08/09; 68, The Lord Chamberlain's Men, and 30, Adeslani's Brother,
-  added on 2026-11-09). Two of them only from their closing topic (32 was already open in the save; 33 has no
-  opening topic), and 41 closes with no reward.
-- Opened, with a closing topic that the test did not reach: none since 2026-11-09. Until then Adeslani's Brother
-  (the escort, below) and The Lord Chamberlain's Men (closed by Torvel's double at once, bug G312, below).
+- Closed, with the reward: 49. Two of them only from their closing topic (32 was already open in the save; 33 has
+  no opening topic), and 41 closes with no reward. (Counted 51 until the evening of 2026-11-09, see the correction
+  below.)
+- Cannot be closed in the original: 1, The King of Talas: the king who pays stays hidden (bug
+  [G313](game-bugs.md), fixed by `[Fixes] TriggeredShow`; with it the reward came).
+- Opened, with a closing topic that the test did not reach: 1, The Lord Chamberlain's Men. Torvel's double, who
+  pays, is hidden until the lanterns are given to the Master of Revels in the palace, as designed; that part was not
+  played.
 - Opened, with no closing topic in the game's data: 2 (The Infestation, Crazy Iven).
 - Cannot appear in the journal: 3. Two are developer leftovers (Bleargh, Ajaymes the Pirate), one is cut (Find a
   blue shard for Varyssa).
 
-No quest turned out broken in the game itself, with one exception found on 2026-11-09: Torvel's double pays the
-reward for The Lord Chamberlain's Men without the quest ([G312](game-bugs.md)). The other findings below are about how
-the quests work, and one oddity in the data (Torva's 125,000 gold).
+One quest is broken in the game itself: The King of Talas ([G313](game-bugs.md)). The other findings below are about
+how the quests work, and one oddity in the data (Torva's 125,000 gold).
+
+**Correction (2026-11-09, evening).** Until then the test's `talkto` command talked to any character by name, hidden
+or not, which a click cannot do. It produced a false bug, G312 (Torvel's double paying without the quest; withdrawn,
+see [Game bugs](game-bugs.md#claims-that-did-not-hold)), and it closed six quests by talking to a hidden character.
+With `talkto` skipping hidden characters (flag `0x2`), the whole run was repeated (**Observed**, original `Sum.exe`)
+and those six were played again in the state the game shows the character:
+- The King of Talas (40): the full path (the forest king, Uligo the Artisan, "Tell him what the Khosani said.") still
+  leaves the closing king hidden: bug G313.
+- The Lord Chamberlain's Men (68): the double is hidden until the lanterns (`ls_lenele1ab_init`); not played further.
+- The Seeds of Aahur, Part 2 (71): Elarh (act 4) is there only with `buy_seeds`, set at the end of part 1; with it set
+  and Saanavarh entered again, the quest closed as before.
+- The Tome of the Nhuvasarim (33): Gesualdo's second self is chosen when the forest loads with the pages; given first
+  and the forest entered again, "Enter the tome." was reached.
+- The Emperor's Dragon Scales (41): Gongji shows when the Ring of Jade is taken (his script's label 1) and is hidden
+  again once the party leaves the temple and comes back; from the save made after the ring (pt-30) his topic was
+  reached. Whether the story brings a player back to the temple later was not checked (**Unknown**).
+- Curse of the Crone of Savheo (50): which forest character stays is random on each visit (`ls_rand_forest01_init`);
+  on the second visit the crone was hidden in the first run and present on a later one.
 
 ## How they were played
 
@@ -58,15 +78,15 @@ Rewards as observed; XP is the party's (each member gains it). "Given" lists wha
 | 30 | Adeslani's Brother | Adeslani (lenele2ab) | Adeslani, after her escort | the three plaza soldiers killed | 4,188 XP (4,000 in the table; the rest presumably the soldiers), quest closed, 2026-11-09 (below) |
 | 31 | The Fate of Rhukha | Keeper of Lore (KhosaniStrng_v2) | Keeper of Lore (v4) | | both ends, separate runs: Arcticus Mantellum, 15,000 XP |
 | 32 | The Amulet of Prince Yon | (pt-05 had it open) | Drego (lenele1d) | Yon's Amulet | 200 XP, 2,000 gold, 3 Health Tonics |
-| 33 | The Tome of the Nhuvasarim | none | Gesualdo (rand-forest01_v6) | tome and eight pages, identified | tome and pages taken, `gesualdo_done` set, the party sent to the Jade Temple (`jadetemple_v2`): the tome is a portal |
+| 33 | The Tome of the Nhuvasarim | none | Gesualdo (rand-forest01_v6) | tome and eight pages, identified | tome and pages taken, `gesualdo_done` set, the party sent to the Jade Temple (`jadetemple_v2`): the tome is a portal. Gesualdo's second self appears only when the forest is entered with the pages |
 | 34 | The Hunting Horn of Vadagar | Saato the Priestess (KhosaniStrng_v4) | Saato | horn, identified | Nobleman's Platemail, 10,000 XP |
 | 35 | The Combustible Crook | Uhika (KhosaniStrng_v4) | Uhika | Pipe | 2,000 XP, 10,000 gold |
 | 36 | The Staff of Profuse Comestibles | Uhika, after 35 | Uhika | Fishing Pole | 4,000 XP, 20,000 gold |
 | 37 | The Curious Device | Uhika, after 36 | Uhika | Spyglass | 8,000 XP, 30,000 gold |
 | 38 | The Battle of Quadraticus | Uhika, after 37 | Uhika | Chess Piece | 16,000 XP, 40,000 gold |
 | 39 | The Elixir of Olfactory Obfuscation | Uhika, after 38 | Uhika | Perfume | 35,000 XP, 100,000 gold |
-| 40 | The King of Talas | King of Talas (rand-forest01_v6) | the King in Saanavarh (v4) | | Hero's Platemail, 20,000 XP |
-| 41 | The Emperor's Dragon Scales | Xueli (eleh) | Gongji (jadetemple) | | closed with no reward (as his dialogue's comments expect) |
+| 40 | The King of Talas | King of Talas (rand-forest01_v6) | the King in Saanavarh (v4) | | **cannot be closed in the original** (G313): the paying king stays hidden. With `[Fixes] TriggeredShow` (SummonerFix or the fixed builds): Hero's Platemail, 20,000 XP. Until 2026-11-09 counted as closed (hidden king reached by `talkto`) |
+| 41 | The Emperor's Dragon Scales | Xueli (eleh) | Gongji (jadetemple) | | closed with no reward (as his dialogue's comments expect); Gongji shows only after the Ring of Jade, until the party leaves the temple |
 | 42 | The Family Tradition | Fangyin (Wolong2_v2) | Fangyin | flag `liangshan_mq_placed_coin_locket` | Parrying Dagger, 7,000 XP |
 | 43 | Longyue's Hat | Longyue (Wolong2_v2) | Longyue | Longyue's Hat | Well-Honed Katana, 5,000 XP |
 | 44 | Secrets of the Dakhanim | Ilaru (KhosaniStrng_v2) | Ilaru, act 4: parchment, mirror, three parts | the items, mirror identified | 10,000 + 25,000 + 100,000 XP, Summoner Platemail |
@@ -93,10 +113,10 @@ Rewards as observed; XP is the party's (each member gains it). "Given" lists wha
 | 65 | Pomporo's Heirloom | Pomporo (lenele1ab) | Pomporo | Signet Ring | Berserker Sword, 600 XP |
 | 66 | Nandi the Gatherer | Nandi (Wolong2_v2) | Nandi, after three gifts in turn | Sparrow's Egg, Ghimaadi's Cloak, Bane's Kiss | Nandi's Potion |
 | 67 | The Ghost of Ikaemos | Munorus (IkaemosTopInt) | Munorus | Vaesura's Necklace | 1,000 XP |
-| 68 | The Lord Chamberlain's Men | Torvel (lenele1ab) | Torvel's double | | opened 2026-11-09 by the first Torvel (from behind him); the double then paid 2,000 XP and 5,000 gold at once, no step done (G312, below) |
+| 68 | The Lord Chamberlain's Men | Torvel (lenele1ab) | Torvel's double | | opened 2026-11-09 by the first Torvel; the double who pays is hidden until the lanterns are given (`ls_lenele1ab_init`); the lantern steps were not played. The earlier "paid at once" (G312) was the test command reaching the hidden double: withdrawn |
 | 69 | Elodach the Initiate | Jerve the Elder (TempleInt) | Jerve | Urath Feather, two Madog flags | Ring of Talent, 700 XP |
 | 70 | The Seeds of Aahur | Beelon (lenele1d) | Elarh the Merchant (KhosaniStrng_v2) | | both ends: the seeds; 400 XP, 500 gold after bargaining |
-| 71 | The Seeds of Aahur, Part 2 | Elarh (v4) | Elarh | Dust of Aahur | 16,000 XP, 50,000 gold |
+| 71 | The Seeds of Aahur, Part 2 | Elarh (v4) | Elarh | Dust of Aahur | 16,000 XP, 50,000 gold (Elarh is there only once part 1 has set `buy_seeds`) |
 | 72 | Aesik's Sword | Aesik (masad) | Earis (lenele1aa) | | Bastard Sword, 100 XP |
 | 73 | The Encyclopedia of Heresies | Zefnat the Scholar (lenele1ab) | Zefnat | Volumes 28 and 67 | Garnet, 1,250 XP |
 | 75 | Novice Sama | Brother Eamon (IonaEXT) | Sama, after her book goes to Eamon | | 200 gold (from Eamon) |
@@ -133,6 +153,10 @@ Not in the table: 20 Bleargh ("Pick up a spoon", invalidated by `test_end_flag`)
   (**Inferred**). Whether a player standing at the real Torvel reaches him first is **Unknown**.
   **Answered 2026-11-09 (Observed):** the two stand 0.8 units apart; from behind the first Torvel he answers and
   opens the quest, and the double then pays at once with no step done. Now bug [G312](game-bugs.md).
+  **Corrected the same evening (Observed):** all of this went through `talkto`, which reached hidden characters. The
+  game hides the double itself: `ls_lenele1ab_init` disables `Torvel#part2` until `lpalaceint_mq_gave_lanterns` is set
+  and the first Torvel after (in act 1 both are hidden). In game the double had flag `0x2` set, was not drawn, and the
+  real mouse never put him under the cursor. G312 is withdrawn; the shipped placement is the designers' plan.
 - **Cross-character unlocks.** Many topics are unlocked from another character's dialogue (`+Unhide topic: {...}
   From: "..."`): the apothecary's barter opens only after the beggar's story, Sama's hand-over only through Brother
   Eamon. Uhika's five quests open one after the other. A quest tested on its own can look stuck for this reason.

@@ -811,9 +811,16 @@ static void run_line(char *line)
                 *q = ' ';
         Character *me = cur_character, *best = NULL;
         float bestd = 1e30f;
+        int skipped = 0;
+        // 2026-11-09: hidden or disabled (CF_SUMMONLIKE), dying or dead characters are skipped (before this, talkto
+        // reached Torvel's hidden double, the false bug G312). Not obj_flags bit 0: standing NPCs have it clear.
         for (Character *o = living_list.live_next; me && o && o != &living_list; o = o->live_next) {
             if (_strnicmp(o->name, want, strlen(want)))
                 continue;
+            if (o->flags & (CF_SUMMONLIKE | CF_HIDDEN | CF_DEAD)) {
+                skipped++;
+                continue;
+            }
             float dx = o->pos.x - me->pos.x, dz = o->pos.z - me->pos.z;
             if (dx * dx + dz * dz < bestd) {
                 bestd = dx * dx + dz * dz;
@@ -821,7 +828,7 @@ static void run_line(char *line)
             }
         }
         if (!best) {
-            out("talkto %s: no such character", want);
+            out("talkto %s: no such character (%d hidden or disabled skipped)", want, skipped);
         } else {
             talk_target = best;
             out("talkto %s: %s at %.1f, %s", want, best->name, sqrtf(bestd), run_sync(talkto_body, NULL) ? "requested" : "no window");

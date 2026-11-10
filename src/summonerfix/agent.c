@@ -1069,9 +1069,18 @@ static void RunLine(char *line)
         const BYTE *best = NULL;
         float bestd = 1e30f;
         size_t wl = strlen(want);
+        // 2026-11-09: a hidden or disabled character (flags +0x320 with 0x2, as a script hide and
+        // script_npc_set_disabled set it), a dying (0x8) or a dead one (0x80) is skipped; before this, talkto reached
+        // Torvel's hidden double in lenele1ab (the false bug G312). Not obj_flags bit 0 or flag 0x20: standing NPCs
+        // such as Torva have both cleared / set (AI inactive) and are talked to by a click.
+        int skipped = 0;
         for (const BYTE *o = *(const BYTE *const *)(head + 0x318); me && o && o != head; o = *(const BYTE *const *)(o + 0x318)) {
             if (_strnicmp((const char *)(o + 0x2f4), want, wl))
                 continue;
+            if (*(const DWORD *)(o + 0x320) & 0x8a) {
+                skipped++;
+                continue;
+            }
             float dx = *(const float *)(o + 0x10) - *(const float *)(me + 0x10);
             float dz = *(const float *)(o + 0x18) - *(const float *)(me + 0x18);
             if (dx * dx + dz * dz < bestd) {
@@ -1080,7 +1089,7 @@ static void RunLine(char *line)
             }
         }
         if (!best) {
-            Out("talkto %s: no such character", want);
+            Out("talkto %s: no such character (%d hidden or disabled skipped)", want, skipped);
         } else {
             g_callAddr = 0x43c5a0u;
             g_callIntA = (DWORD)(UINT_PTR)best;

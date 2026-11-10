@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 7 | 82 | 7 |
-| Gameplay | 49 | 25 | 26 |
+| Gameplay | 49 | 25 | 27 |
 | Cosmetic | 56 | 36 | 23 |
 | Invisible | 43 | 59 | 0 |
 
@@ -1005,7 +1005,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G301 | Choosing "Give him 10 gold pieces." for Canis the Mercenary in occupied Lenele takes 100 gold (all of it below 100) | `ls_lenele2ab_action` `0x4f1220` | **Observed** code, retail data and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] CanisTenGold`) |
 | G310 | In multiplayer, a player's summon never gets its once-a-second position update to the other machines; the leader's update is sent twice instead | `mp_send_local_updates` `0x47f9c0` | **Observed** code, *inferred* effect | No |
 | G311 | Latent: a scripted "go" for a character that has not reached its "wait for go" action yet is lost, so the character can wait there for ever | `script_object_receive_go` `0x4ce220` | **Observed** code, *inferred* effect | No |
-| G312 | Torvel's reward for The Lord Chamberlain's Men (2,000 XP, 5,000 gold) is paid by his double, who stands beside him from act 1, so the quest can be closed at once or never opened at all | retail `lenele1ab*_script.tbl`, `lenele1ab*_dlg.tbl` | **Observed** retail data and in game (2026-11-09) | No |
+| G313 | The King of Talas never appears in Saanavarh, so his quest cannot be finished: the character who pays the reward (Hero's Platemail, 20,000 XP) stays hidden after the party has told the forest king what the Khosani said | `script_entry_start` `0x4dd0b0` (show/hide case `0x4dd470`); retail `KhosaniStrng_v4`..`_v6_script.tbl` | **Observed** code, retail data and in game (2026-11-09) | Fixed (`bugfix.c`, `[Fixes] TriggeredShow`) |
 
 **G1. Frame limiter.** `FrameTimer` stores `last = now` (`0x501577`) before it sleeps (`0x5015bc`). The
 next frame counts the same sleep again. See
@@ -1834,22 +1834,23 @@ again. A "go" that arrives while the object is still on an earlier action (walki
 therefore lost, and the object waits at the later "wait for go" for ever unless another go comes. Whether a
 retail script sends a go that early was not checked. D8602.
 
-**G312. Two Torvels.** Lenele's theatre district (`lenele1ab`) holds `Torvel`, who opens The Lord Chamberlain's
-Men, and `Torvel#part2`, whose first topic pays the reward (`+AddXP: 2000`, `+AdjustGP: 5000`, `+Hide Quest`)
-with no condition. The developer copy of the dialogue (`Miniquests_dlg.tbl`) gives the plan in a comment under
-the Master of Revels' lantern topic (event `lpalaceint_mq_gave_lanterns`): show `Torvel#part2` near the theatre
-and hide the first Torvel then. No shipped script does it. In `lenele1ab_script.tbl` (act 1) the first Torvel is
-hidden and the double stands at `$mqn7`; in `lenele1ab_v2` and `_v3` both stand there, the double at `$mqn7` 0.8
-units from the first at `$mqn6`. No table names the lantern event outside the dialogue.
-**Observed** 2026-11-09 in the original `Sum.exe` from pt-08 (act 2) with `exitto lenele1ab lenele1ab_v2 1`:
-- standing behind the first Torvel, his six topics to "How can I help you?" opened the quest;
-- standing behind the double, a talk to him at once gave 2,000 XP and 5,000 gold and closed it, with none of the
-  Master of Revels or lantern steps done. The save after it had gold 3,000 → 8,000 and no Lord Chamberlain's Men
-  in the journal.
-
-In earlier runs (2026-11-08, [Side quests](side-quests.md)) the double paid in acts 1 and 2 without the quest
-ever opened. A player meets whichever one is clicked; the double is nearer to most approaches. Not fixed: a fix
-would hide the double until `lpalaceint_mq_gave_lanterns` is set.
+**G313. The king who never comes.** The King of Talas quest opens in the forest (`rand-forest01_v6`), goes on with
+Uligo the Artisan in Saanavarh (`talas_talked_to_uligo`, 40,000 XP) and with the topic "Tell him what the Khosani
+said." back in the forest, which sets `kingtalas_mq_talked_to_king` (5,000 XP). The reward is paid by
+`King of Talas#Khosani` in `KhosaniStrng_v4`, `_v5` and `_v6`, whose script entry is
+`+Trigger: "rand-forest01" "kingtalas_mq_talked_to_king"` and one action, `"show/hide" 0`. The developer copy's
+comment (`Miniquests_dlg.tbl`: `PLACEMENT TRIGGER: +Unhide NPC: "King of Talas#Khosani"`) shows the intent: hidden
+until the flag. But the hide action runs when the level loads (`set_flag_2_4`, flag `0x2`), and a trigger only
+switches the AI (`savegame_refresh_character_flags` and the parser call `character_set_ai_active`), which never
+clears flag `0x2`. The other triggered characters (Madog, Luleva, the 22 `ready_for_end` monsters) have no hide action
+and appear. **Observed** 2026-11-09 in the original `Sum.exe` from pt-36: the forest king, Uligo and "Tell him what
+the Khosani said." played through (the flag read 1), then in `KhosaniStrng_v4` the king stood at `$mqn8` with flags
+`0x100022` (hidden, AI off), was not drawn, and only the party came under the mouse. Earlier runs had closed the
+quest only because the agent command `talkto` reached hidden characters (see G312 under
+[Claims that did not hold](#claims-that-did-not-hold)). Fix ([Fixes] `TriggeredShow`, SummonerFix `bugfix.c`; in the
+source `FIXED_BUILD` in `script_internal.cpp`): a hide for a script object whose trigger flag is already set shows
+it instead. Checked 2026-11-09 with the flag set before entering Saanavarh: the original exe with SummonerFix and
+the 64-bit build both paid Hero's Platemail and 20,000 XP; without the fix, nothing.
 
 ## Cosmetic
 
@@ -3741,6 +3742,7 @@ test. Found by clang's `-Wbitwise-op-parentheses` warning ([Modern C++ port](../
 | G50 (withdrawn 2026-10-17): after a reload or a second visit the Khosani lab flipper board (cleared by `ls_khosanilab_init`, `0x4f895c`..`0x4f8980`) no longer matches flipper doors kept raised by their saved two-stage bits | This page, then [Bug fix priorities](bug-priorities.md) rank 13 | A reload cannot happen inside the lab: saving there gives "Cannot save in Labyrinth of the Khosani." (agent mode, 2026-10-17). For a second visit, agent mode raised flippers 32, 16 and 30 (`callstr 4f95a0 puzzle-flippers31`, the level's use hook; `door_is_open_by_name` then returned 1 for each), went to KhosaniLab2 and back with `level`, and found the board all 0 and the three doors down again. So the doors do not come back raised on re-entry. Why the saved two-stage bit does not raise them was not traced |
 | G30 (withdrawn 2026-10-17): `boss_ai_parse_table` stores `atoi("$offenseNN") - 1` = -1 as every boss move's offense point, so offense-point attacks aim from near the world origin | This page, [Bosses](bosses.md), the decompiled `boss_ai.cpp`, then [Bug fix priorities](bug-priorities.md) rank 14 | `TextFile__ParseString` gets `lea edx, [esp+0x68]` after two pushes (the buffer is at frame `+0x60`), and `atoi` gets `lea eax, [esp+0x68]` with nothing pushed (`0x4a18b2`), 8 bytes further on: `atoi("NN")` after the 8 characters of `$offense`. The game's `atoi("$offense03")` is 0 (agent `callstr 56e311`), but the parsed Giant Salamanka moves held 0, 0, 1, 2, 3, 4, 5 for `$offense01`, 01, 02 .. 06 (agent `peek 248c984`), and `[Debug] TraceBossReach` logged points 2 and 5 with targets in reach. The decompilation read the call as `atoi(point_name)`; it is `atoi(point_name + 8)` (corrected) |
 | G5 (withdrawn 2026-10-17): buying with a full inventory (0x209 entries) takes the gold and gives nothing, because `buysell_buy_item` subtracts the price before `party_inventory_add_type` refuses a new type (`cmp edx, 0x209` at `0x46b9e4`) | This page, [Shops and loot](shops-loot.md), then [Bug fix priorities](bug-priorities.md) rank 30 | There are exactly 0x209 = 521 item types (`num_item_types`, capped by `items_parse_table`; every save's `ITEM` chunk lists 521), and `party_inventory_add_type` first looks for an entry of the same type and adds to its count (stackable) or its charges, before the count test. A full inventory therefore already holds every type, and a bought item always finds its entry. A held type that is neither stackable nor chargeable cannot exist: `item_type_is_stackable` is false only with a charge effect |
+| G312 (withdrawn 2026-11-09, the day it was added): Torvel's double (`Torvel#part2`, lenele1ab) pays the reward of The Lord Chamberlain's Men (2,000 XP, 5,000 gold) from act 1, without the quest, because no shipped script hides him until the lanterns are given | This page, [Side quests](side-quests.md), commit 4da7b35 | The level's init hook does it: `ls_lenele1ab_init` (`0x4ef850`) disables `Torvel#part2` until `lpalaceint_mq_gave_lanterns` is set and `Torvel` after (`script_npc_set_disabled`, the decompiled `level_script_lenele1ab.cpp`). Disabling sets flag `0x2` (`CF_SUMMONLIKE`), the bit a script `hide` action sets. **Observed** 2026-11-09 in the original `Sum.exe` with the real mouse moved over a grid of 13 by 14 points around them (`world_hover_object`, `0x60ab8c`): from pt-08 with `exitto lenele1ab lenele1ab_v2 1` (act 2) `Torvel#part2` had flags `0x100023` and `Torvel` `0x100001`, and only `Torvel` came under the cursor (15 points); from pt-03 with `exitto lenele1ab lenele1ab 1` (act 1) both had `0x100023`, neither was drawn, and only Joseph came under the cursor. The claim came from the agent command `talkto`, which called `player_talk_to` on any character of `living_list` by name, hidden or not; it now skips characters a click cannot reach ([Tools](../tools.md)) |
 | K131 (withdrawn 2026-10-18): every load of a game saved in the last temple level (TempleInt2) replays the 29 s "Nar-TempleAct4" narration, because `ls_templeint2_init` clears `ls_templeint2_act4_played` (`0x4ef1c3`) and no saved flag records it | This page ("saving is allowed in the level"), then [Bug fix priorities](bug-priorities.md) rank 34 | No such save can be made. The narration plays on the level's first frame, and its end callback sets the saved flag `mach_intro` at once (`0x4ef275`..`0x4ef282`). `savegame_location_allowed` refuses saving in TempleInt2 while `mach_intro` is set (`0x4d4b5e`..`0x4d4b73`; the refusal was seen in game for G130), and the cutscene itself cannot be saved in. A save from before the level cannot load into it |
 | K9 (withdrawn 2026-10-19): the Create Game screen's player count and level limits are centred with the string height twice, the width never read | This page, then [Bug fix priorities](bug-priorities.md) rank 81 | Not a bug. The three `sprintf` arguments are still on the stack (popped with the rest at the end), so after `gr_get_string_size` and three pushes `[esp+0x30]` (`0x40a541`) is the height, for y, and `[esp+0x34]` (`0x40a553`) the width, for x: two different locals, with no push between the reads. `gamecreate_draw_limits` (`0x40a5c1`/`0x40a5d3`, `0x40a631`/`0x40a643`) is the same. The decompilation had copied the claim (corrected, D9817) |
 | Melee calls `character_get_resistance(-1)`, which may read out of bounds | `NOTES-spells-combat.md` open question 7 | Type -1 returns 0 before any table access (`0x4626bb`..`0x4626cb`) |
@@ -4592,5 +4594,5 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | C317 Mist Elemental cutscene crash | `summon_stash_for_cutscene` `0x448056`..`0x44807e` (after `ai_begin_emerge`, `cur_move` `+0x6d0` is read without a NULL test); `ai_begin_emerge` `0x473970` (`find_move(0xc)` NULL: no `play_move`); the summon waits for its appearance effect before it emerges (`fx_frame` kind 8 timer, `ai_frame` disable timer); `Mist Elemental.tbl` has no `"emerge"` move (every other summon table checked has one); reproduced with agent `summon 45` then `cutscene_play("Nar-KhosaniStronghold")` one second later: access violation reading `0x8` at `0x44807e`, caller `0x4362c1`. With the elemental fully emerged the same cutscene stashes it normally |
 | G310 summon update | `mp_send_local_updates` `0x47f9fd`..`0x47fa00`, `0x47fa14`..`0x47fa6f`; `ai_frame` `0x472db1` |
 | G311 receive go | `script_object_receive_go` `0x4ce280`..`0x4ce283`, `0x4ce2b8`..`0x4ce2c1` |
-| G312 two Torvels | retail `lenele1ab_script.tbl`, `lenele1ab_v2_script.tbl` (`$Name: "Torvel#part2"`, no `+Hidden`), `lenele1ab_v2_dlg.tbl` (`$Character: "Torvel#part2"`), `Miniquests_dlg.tbl` (`PLACEMENT TRIGGER` comment); `tools/testsaves/sidequests.mjs` |
+| G313 king of Talas | `script_entry_start` `0x4dd470`..`0x4dd4b5`; `savegame_refresh_character_flags`; retail `KhosaniStrng_v4_script.tbl` (`King of Talas#Khosani`), `Miniquests_dlg.tbl`, `rand-forest01_v6_dlg.tbl`; `tools/testsaves/sidequests.mjs` spec `talas` |
 | K310 GL point-light colour | `levelrender_draw_list_opengl` `0x491c0a`..`0x491c2e`, `0x491e06`..`0x491e14`, `0x491f90`..`0x491fe2`, `0x492669`..`0x4926c4`; `levelrender_sum_point_lights` `0x48fcc7`..`0x48fd0e`; `levelrender_draw_list_glide` `0x48ee57`..`0x48ee92`; `levelrender_draw_list_d3d` `0x4907cd`..`0x490805`; `vfx_node_create_light` `0x51fbe0`..`0x51fc5b`; `attached_light_create` `0x5201b2`..`0x5201e0`; `vfx_node_relocate` `0x536c74`..`0x536ca0`; retail `effects.vpp` `.rfx` files |

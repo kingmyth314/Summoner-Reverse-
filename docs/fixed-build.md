@@ -186,6 +186,7 @@ In the test folder at 1366x768 on a 143 Hz screen, with test saves. **Observed**
 | G271 | AI fireball not blocked by old effects | `EffectSlotSpell` | `fx_new (0x48c3e0)` | `game/unnamed_fx_0x489c40.cpp` |
 | G300 | Robe of Restoration heals its wearer | `RobeOfRestoration` | `living_combat::trigger_reflex_ability (0x467670)` | `game/combat.cpp` |
 | G301 | Canis takes 10 gold, as offered | `CanisTenGold` | `ls_lenele2ab_action (0x4f1220)` | `game/level_script_lenele2ab.cpp` |
+| G313 | The King of Talas appears in Saanavarh | `TriggeredShow` | `script_entry_start (0x4dd0b0)` | `game/script_internal.cpp` |
 | K3 | Shop sell list category buttons | `ShopCategoryButtons` | `buysell_category_first_index (0x404f70)` | `game/new_buysell.cpp` |
 | K4 | Identify list category buttons | `InventoryCategoryButtons` | `inventory_category_first_index (0x4153d0)` | `game/new_inventory.cpp` |
 | K5 | Scrolled save list pictures | `SaveListThumbnail` | `saveload_load_thumbnail (0x425c10)` | `game/new_saveload.cpp` |

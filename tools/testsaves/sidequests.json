@@ -1394,6 +1394,26 @@
     "target": "Give her the rose."
    },
    {
+    "exitto": "rand-forest01 Rand-Forest01_v6 1"
+   },
+   {
+    "talk": "Crone of Savheo",
+    "goto": "Crone of Savheo",
+    "file": "rand-forest01_v6_dlg.tbl",
+    "char": "Crone of Savheo",
+    "target": "Give her the rose."
+   },
+   {
+    "exitto": "rand-forest01 Rand-Forest01_v6 1"
+   },
+   {
+    "talk": "Crone of Savheo",
+    "goto": "Crone of Savheo",
+    "file": "rand-forest01_v6_dlg.tbl",
+    "char": "Crone of Savheo",
+    "target": "Give her the rose."
+   },
+   {
     "exitto": "KhosaniStrng KhosaniStrng_v4 1"
    },
    {
@@ -1475,13 +1495,19 @@
  },
  {
   "id": "seeds2",
-  "quest": "The Seeds of Aahur, Part 2",
+  "quest": "The Seeds of Aahur, Part 2 (buy_seeds from part 1 set, Saanavarh entered again)",
   "base": "pt-36-khosani-before-pyrul",
   "edits": [
    "--gold",
    "5000"
   ],
   "steps": [
+   {
+    "cmd": "flagl 23 buy_seeds 1; wait 1"
+   },
+   {
+    "exitto": "KhosaniStrng KhosaniStrng_v4 1"
+   },
    {
     "talk": "Elarh the Merchant",
     "goto": "Elarh the Merchant#act4",
@@ -1625,7 +1651,7 @@
  },
  {
   "id": "talas",
-  "quest": "The King of Talas",
+  "quest": "The King of Talas (full path; the closing king is hidden in the original, G313)",
   "base": "pt-36-khosani-before-pyrul",
   "edits": [
    "--gold",
@@ -1644,6 +1670,27 @@
     "exitto": "KhosaniStrng KhosaniStrng_v4 1"
    },
    {
+    "talk": "Uligo the Artisan",
+    "goto": "Uligo the Artisan",
+    "file": "Khosanistrng_v4_dlg.tbl",
+    "char": "Uligo the Artisan",
+    "target": "\"What must the king do now?\"",
+    "gate": true
+   },
+   {
+    "exitto": "rand-forest01 Rand-Forest01_v6 1"
+   },
+   {
+    "talk": "King of Talas",
+    "goto": "King of Talas",
+    "file": "rand-forest01_v6_dlg.tbl",
+    "char": "King of Talas",
+    "target": "Tell him what the Khosani said."
+   },
+   {
+    "exitto": "KhosaniStrng KhosaniStrng_v4 1"
+   },
+   {
     "talk": "King of Talas",
     "goto": "King of Talas#Khosani",
     "file": "Khosanistrng_v4_dlg.tbl",
@@ -1655,7 +1702,7 @@
  },
  {
   "id": "nhuva",
-  "quest": "The Tome of the Nhuvasarim (Gesualdo by his full name)",
+  "quest": "The Tome of the Nhuvasarim (pages given, then the forest entered again)",
   "base": "pt-36-khosani-before-pyrul",
   "edits": [
    "--gold",
@@ -1688,6 +1735,9 @@
      "Parchment#Tome Page 7",
      "Parchment#Tome Page 8"
     ]
+   },
+   {
+    "exitto": "rand-forest01 Rand-Forest01_v6 1"
    },
    {
     "talk": "Gesualdo#part2",
@@ -1765,23 +1815,13 @@
  },
  {
   "id": "scales",
-  "quest": "The Emperor's Dragon Scales",
-  "base": "pt-19-act3-eleh",
+  "quest": "The Emperor's Dragon Scales (from the save after the Ring of Jade)",
+  "base": "pt-30-jade-temple-ring-of-jade",
   "edits": [
    "--gold",
    "5000"
   ],
   "steps": [
-   {
-    "talk": "Xueli",
-    "goto": "Xueli",
-    "file": "eleh_dlg.tbl",
-    "char": "Xueli",
-    "target": "\"Passed down from emperor to emperor?\""
-   },
-   {
-    "exitto": "jadetemple jadetemple 1"
-   },
    {
     "talk": "Gongji",
     "goto": "Gongji",
