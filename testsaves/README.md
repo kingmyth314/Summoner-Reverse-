@@ -41,10 +41,10 @@ of Spirits, chainmail), 2 (Logaros Longsword, Hero's chainmail), 3 (Sword of Sum
 | `12-tiger-rider.sav` | Tiger Rider, temple (Joseph and Flece, as in the story) | Joseph 18, Flece 18 | 2 | walk a short way on to the trigger point; the intro plays |
 | `13-azha-the-archlich.sav` | Azha the Archlich, Wolong caverns (added 2026-11-08) | Joseph 19, Flece 18, Rosalind 18 (Jekhar is away, as in the story) | 2 | click Azha, 5 units away, and choose "Challenge him to combat." |
 | `14-general-pijian.sav` | General Pijian, battle of Wolong | Joseph, Rosalind, Jekhar, 20 | 2 | walk 7 units toward Pijian, south down the street (behind the camera); the intro plays |
-| `15-serpent-and-phoenix-riders.sav` | Serpent and Phoenix Riders, Liangshan | all four, 20 | 2 | walk a short way on to the trigger point; the intro plays |
+| `15-serpent-and-phoenix-riders.sav` | Serpent and Phoenix Riders, Liangshan | all four, 20 | 2 | the intro plays on loading; let it play (since 2026-11-10; the party stands on `$sptrigger`) |
 | `16-general-wentao.sav` | General Wentao, Liangshan | all four, 21 | 2 | the defence of the shrine: click the Guardian of the Shrine, 12 units away on his platform, and talk to the end ("Destiny?"); three waves of soldiers follow, then Wentao (moved 2026-11-08) |
 | `17-undead-and-tiger-riders.sav` | Undead and Tiger Riders, Jade Temple | all four, 21 | 2 | walk a short way on to the trigger point; the intro plays |
-| `18-murod.sav` | Murod and Murod Oni, Jade Temple | all four, 22 | 3 | walk a short way on to the trigger point; the intro plays |
+| `18-murod.sav` | Murod and Murod Oni, Jade Temple | all four, 22 | 3 | double-click the red carpet just below Joseph, about five times (toward Murod, behind the camera); the intro plays |
 | `19-pyrul.sav` | Pyrul, Khosani laboratory | all four, 22 | 3 | walk 7 units toward `$salstart`, Pyrul's door; the intro plays (moved 2026-11-08) |
 | `20-luminar.sav` | Luminar, Iona | all four, 23 | 3 | the intro plays on loading; let it play |
 | `21-titus.sav` | Titus, Ikaemos palace | all four, 23 | 3 | the intro plays on loading; let it play |
@@ -275,6 +275,25 @@ the party (3.4 units per click straight on, 0.3 sideways).
   those points did not get past 14 units, and `talkto Murod` (6 units away, behind the wall) did not move the
   party.
 
+**15 and 18, closed (2026-11-10, Observed in the original `Sum.exe` and in the 64-bit exe, each from a fresh load
+with no help).** Both were moved with the method above (party immortal before the load, `posgoto`, each member
+written onto its spot, Joseph selected again, saved at once) and given back their descriptions; `savinfo` shows
+nothing else changed but the level time and AP filled to the gear's max (as in every re-save).
+- *18:* the party stands on the raised floor (layer 4, y 17.8), 12 units north of `$murodtrigger`, Joseph at
+  (-43.0, 158.8), on the red carpet that leads to Murod. Spots all round the trigger at 10 and 12 units were tried
+  first; on this floor every one held. The camera faces the far wall, so Murod is behind it. Four double clicks on
+  the carpet just below Joseph moved him a unit each, the fifth crossed the 8-unit radius and Murod-Intro played
+  (both exes).
+- *15:* how a player reaches the riders' ground is still not known. Spots on layer 15 that held were 21 to 59 units
+  from the trigger, and from 31 units south (-130.7, 85.0) the party did not get closer in 25 calibrated double
+  clicks: the ground ends at an edge there (the cursor turns into an arrow). So 15 is now made like 11: the party
+  stands on `$sptrigger` and the intro flag is clear. To save there without the intro firing first,
+  `phoenix_serpent` (level 20) was set in memory with `flagl` before the party was placed, and cleared in the file
+  afterwards (`savedit --flag Liangshan:phoenix_serpent=0`). Loaded, SERP-PHNX-Intro plays at once and the riders
+  fight; with no input the party lost (game over within 25 s of the intro's end in one run, the riders dead in
+  another). Teleported onto the trigger from the old save, the idle party fared the same (only Joseph alive 25 s
+  after the intro), so that is the fight, not the spot.
+
 **Gear and positions, fixed 2026-11-06** (**Observed**; a tester reported heroes in starting clothes and a broken
 camera or position in some saves):
 - *Gear:* the fights were ended through the damage function, so no hero picked up loot: all 43 saves had the
@@ -317,7 +336,8 @@ camera or position in some saves):
   The camera often faces away from the fight: walk toward the boss, not up the screen.
 
   The same measure on the fight saves the repairs did not touch (**Observed**, 2026-11-07): 07 20 units from the
-  Fire Salamanka, 10 15 from `$ipktrigger`, 17 36 from `$tgtrigger` (24 starts it); still to fix, their rows'
+  Fire Salamanka, 10 15 from `$ipktrigger`, 17 36 from `$tgtrigger` (24 starts it); still to fix (15 and 18 fixed
+  on 2026-11-10, see "15 and 18, closed" above), their rows'
   "a short way" is wrong: 15 252 units from `$sptrigger` (the riders' ground is layer 15, the land east of it
   layers 13 and 14 below; a party put on layer 15 off that ground slides into the intro), 18 58 units and 13 below
   `$murodtrigger`, 19 79 units and 55 above `$salstart` (the laboratory entrance, as 08 was). 16 is a defence in
