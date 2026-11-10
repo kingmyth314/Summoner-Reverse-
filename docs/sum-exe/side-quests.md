@@ -11,14 +11,15 @@ character's dialogue (`+Unhide Quest:`) and closed by another topic (`+Hide Ques
 topic: items (`+Gain Item`), experience (`+AddXP`) and gold (`+AdjustGP`). Every quest that has dialogue was played
 in the original `Sum.exe`, in agent mode, from the play-through saves (`testsaves/playthrough/`) with
 [`tools/testsaves/sidequests.mjs`](../tools.md#toolstestsavessidequestsmjs-side-quests-played).
-- Closed, with the reward: 50 (The King of Talas only at the late Saanavarh visit, below). Two of them only from their closing topic (32 was already open in the save; 33 has
+- Closed, with the reward: 51 (The King of Talas only at the late Saanavarh visit, below; The Lord Chamberlain's Men
+  added on 2026-11-10). Two of them only from their closing topic (32 was already open in the save; 33 has
   no opening topic), and 41 closes with no reward. (Counted 51 until the evening of 2026-11-09, see the correction
   below.)
 - Closed later than intended: The King of Talas. The king who pays stays hidden in Saanavarh through the v4 and v5
   stages and shows only in v6 (game stage 20; bug [G313](game-bugs.md), fixed by `[Fixes] TriggeredShow`).
-- Opened, with a closing topic that the test did not reach: 1, The Lord Chamberlain's Men. Torvel's double, who
-  pays, is hidden until the lanterns are given to the Master of Revels in the palace, as designed; that part was not
-  played.
+- Opened, with a closing topic that the test did not reach: none since 2026-11-10. Until then The Lord Chamberlain's
+  Men: Torvel's double, who pays, is hidden until the lanterns are given to the Master of Revels in the palace, as
+  designed, and that part had not been played (spec `torvel2` plays it, below).
 - Opened, with no closing topic in the game's data: 2 (The Infestation, Crazy Iven).
 - Cannot appear in the journal: 3. Two are developer leftovers (Bleargh, Ajaymes the Pirate), one is cut (Find a
   blue shard for Varyssa).
@@ -34,7 +35,13 @@ and those six were played again in the state the game shows the character:
 - The King of Talas (40): the full path (the forest king, Uligo the Artisan, "Tell him what the Khosani said.") still
   leaves the closing king hidden in Saanavarh v4 (and v5): bug G313. On 2026-11-10 the v6 visit (from pt-41) showed
   him and he paid; spec `talas6`.
-- The Lord Chamberlain's Men (68): the double is hidden until the lanterns (`ls_lenele1ab_init`); not played further.
+- The Lord Chamberlain's Men (68): the double is hidden until the lanterns (`ls_lenele1ab_init`); not played further
+  that evening. **Observed** 2026-11-10 (spec `torvel2`, from pt-08, in the original and the 64-bit exe): Torvel ("How
+  can I help you?"), the Master of Revels in the palace ("What do they have to do?"), Krys the Lantern Maker in the
+  market ("Gargoyle blood?"; the six Gargoyle Blood given, standing in for the Ikaemos gargoyles; "I have six drams"
+  gave the Stonefire Lanterns and 2,000 XP), the Master again ("I have the Stonefire Lanterns!", 500 XP), and back in
+  the theatre district the double, now shown, closed the quest on "Hail": 2,000 XP and 5,000 gold. No flag was set
+  by hand.
 - The Seeds of Aahur, Part 2 (71): Elarh (act 4) is there only with `buy_seeds`, set at the end of part 1; with it set
   and Saanavarh entered again, the quest closed as before.
 - The Tome of the Nhuvasarim (33): Gesualdo's second self is chosen when the forest loads with the pages; given first
@@ -114,7 +121,7 @@ Rewards as observed; XP is the party's (each member gains it). "Given" lists wha
 | 65 | Pomporo's Heirloom | Pomporo (lenele1ab) | Pomporo | Signet Ring | Berserker Sword, 600 XP |
 | 66 | Nandi the Gatherer | Nandi (Wolong2_v2) | Nandi, after three gifts in turn | Sparrow's Egg, Ghimaadi's Cloak, Bane's Kiss | Nandi's Potion |
 | 67 | The Ghost of Ikaemos | Munorus (IkaemosTopInt) | Munorus | Vaesura's Necklace | 1,000 XP |
-| 68 | The Lord Chamberlain's Men | Torvel (lenele1ab) | Torvel's double | | opened 2026-11-09 by the first Torvel; the double who pays is hidden until the lanterns are given (`ls_lenele1ab_init`); the lantern steps were not played. The earlier "paid at once" (G312) was the test command reaching the hidden double: withdrawn |
+| 68 | The Lord Chamberlain's Men | Torvel (lenele1ab) | Torvel's double | | closed 2026-11-10 by the double after the full lantern path (spec `torvel2`): 2,000 XP, 5,000 gold (on the way: Stonefire Lanterns and 2,000 XP from Krys, 500 XP from the Master of Revels). The double is hidden until the lanterns are given (`ls_lenele1ab_init`). The earlier "paid at once" (G312) was the test command reaching the hidden double: withdrawn |
 | 69 | Elodach the Initiate | Jerve the Elder (TempleInt) | Jerve | Urath Feather, two Madog flags | Ring of Talent, 700 XP |
 | 70 | The Seeds of Aahur | Beelon (lenele1d) | Elarh the Merchant (KhosaniStrng_v2) | | both ends: the seeds; 400 XP, 500 gold after bargaining |
 | 71 | The Seeds of Aahur, Part 2 | Elarh (v4) | Elarh | Dust of Aahur | 16,000 XP, 50,000 gold (Elarh is there only once part 1 has set `buy_seeds`) |

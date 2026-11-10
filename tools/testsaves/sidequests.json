@@ -339,6 +339,82 @@
   ]
  },
  {
+  "id": "torvel2",
+  "quest": "The Lord Chamberlain's Men (full path: Torvel, the Master of Revels, Krys's lanterns, the double)",
+  "base": "pt-08-act2-lenele-dock",
+  "edits": [
+   "--gold",
+   "5000"
+  ],
+  "exitto": "lenele1ab lenele1ab_v2 1",
+  "steps": [
+   {
+    "talk": "Torvel",
+    "goto": "Torvel",
+    "file": "lenele1ab_v2_dlg.tbl",
+    "char": "Torvel",
+    "target": "\"How can I help you?\""
+   },
+   {
+    "exitto": "lpalaceint lpalaceint_v2 1"
+   },
+   {
+    "talk": "Master of Revels",
+    "goto": "Master of Revels",
+    "file": "lpalaceint_v2_dlg.tbl",
+    "char": "Master of Revels",
+    "target": "\"What do they have to do?\""
+   },
+   {
+    "exitto": "lenele1aa lenele1aa_v2 1"
+   },
+   {
+    "talk": "Krys the Lantern Maker",
+    "goto": "Krys the Lantern Maker",
+    "file": "lenele1aa_v2_dlg.tbl",
+    "char": "Krys the Lantern Maker",
+    "target": "\"Gargoyle blood?\""
+   },
+   {
+    "give": [
+     "Gargoyle Blood",
+     "Gargoyle Blood",
+     "Gargoyle Blood",
+     "Gargoyle Blood",
+     "Gargoyle Blood",
+     "Gargoyle Blood"
+    ]
+   },
+   {
+    "talk": "Krys the Lantern Maker",
+    "goto": "Krys the Lantern Maker",
+    "file": "lenele1aa_v2_dlg.tbl",
+    "char": "Krys the Lantern Maker",
+    "target": "\"I have six drams of gargoyle blood.\""
+   },
+   {
+    "exitto": "lpalaceint lpalaceint_v2 1"
+   },
+   {
+    "talk": "Master of Revels",
+    "goto": "Master of Revels",
+    "file": "lpalaceint_v2_dlg.tbl",
+    "char": "Master of Revels",
+    "target": "\"I have the Stonefire Lanterns!\""
+   },
+   {
+    "exitto": "lenele1ab lenele1ab_v2 1"
+   },
+   {
+    "talk": "Torvel",
+    "goto": "Torvel#part2",
+    "file": "lenele1ab_v2_dlg.tbl",
+    "char": "Torvel#part2",
+    "target": "\"Farewell.\""
+   }
+  ]
+ },
+ {
   "id": "zefnat",
   "quest": "The Encyclopedia of Heresies",
   "base": "pt-03-lenele-arrival",
