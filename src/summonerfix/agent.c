@@ -1054,6 +1054,23 @@ static void RunLine(char *line)
         }
         if (!shown)
             Out("items: none within %.1f", r);
+    } else if (!_stricmp(c, "party")) {
+        // party (2026-11-10): every party member (living_list entries of type 7, +0x0c) with its position (+0x10),
+        // layer (+0x68c), HP (+0x5f8) and flags (+0x320); '*' marks cur_character. The same line in the 64-bit
+        // host, so test scripts need no structure offsets of their own.
+        const BYTE *head = (const BYTE *)(UINT_PTR)SumVa(0x8eca60u);
+        const BYTE *me = *(const BYTE *const *)(UINT_PTR)SumVa(VA_CUR_CHARACTER);
+        int n = 0;
+        for (const BYTE *o = *(const BYTE *const *)(head + 0x318); o && o != head && n < 16; o = *(const BYTE *const *)(o + 0x318)) {
+            if (*(const int *)(o + 0x0c) != 7)
+                continue;
+            n++;
+            Out("party %s%s pos %.2f %.2f %.2f layer %d hp %.0f flags %x", o == me ? "*" : "", (const char *)(o + 0x2f4),
+                (double)*(const float *)(o + 0x10), (double)*(const float *)(o + 0x14), (double)*(const float *)(o + 0x18),
+                *(const int *)(o + 0x68c), (double)*(const float *)(o + 0x5f8), (unsigned)*(const DWORD *)(o + 0x320));
+        }
+        if (!n)
+            Out("party: none");
     } else if (!_stricmp(c, "talkto") && argc >= 2) {
         // talkto NAME (2026-11-04): the nearest character of living_list (0x8eca60, linked at +0x318) whose name
         // (+0x2f4, character_get_name) starts with NAME ('~' for spaces, case ignored) is talked to as a click

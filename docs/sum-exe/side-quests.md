@@ -48,7 +48,18 @@ and those six were played again in the state the game shows the character:
   and the forest entered again, "Enter the tome." was reached.
 - The Emperor's Dragon Scales (41): Gongji shows when the Ring of Jade is taken (his script's label 1) and is hidden
   again once the party leaves the temple and comes back; from the save made after the ring (pt-30) his topic was
-  reached. Whether the story brings a player back to the temple later was not checked (**Unknown**).
+  reached. Whether the story brings a player back to the temple later was not checked (**Unknown**). **Answered
+  2026-11-10 (code and data):** the hand-in can be missed. Gongji's entry in `jadetemple_script.tbl` starts hidden,
+  and only the end of Murod-Death sends him to label 1, where he shows (`level_script_jadetemple.cpp`). After that,
+  Qifeng's "Yes, we will leave now." (trigger `EndCutscene`) moves the party to the stronghold
+  (`ls_jadetemple_finish`); "No, we will not leave yet." keeps it there. From game stage 14, which the temple sets,
+  the world map keeps the temple as an exit (`ls_worldmap1_setup_jadetemple`), so the party can come back
+  (**Inferred**), but every later entry runs the start script again and Gongji stays hidden (**Observed** on
+  re-entry, above). The scales can all be had before the temple: the Green from Xueli in Eleh, the Blue in the
+  desert encounter's v3, which rolls at game stages 9 to 14 (`ls_worldmap1_pick_encounter_stage9`); the Red and the
+  Gray are placed in levels not checked here. Gongji takes one to four (`CheckScales`), and the quest closes with no
+  reward either way. So it is a quest that closes only in the window between Murod's death and leaving the temple
+  (**Inferred** from the code; not a bug: the script does what the data says).
 - Curse of the Crone of Savheo (50): which forest character stays is random on each visit (`ls_rand_forest01_init`);
   on the second visit the crone was hidden in the first run and present on a later one.
 
@@ -94,7 +105,7 @@ Rewards as observed; XP is the party's (each member gains it). "Given" lists wha
 | 38 | The Battle of Quadraticus | Uhika, after 37 | Uhika | Chess Piece | 16,000 XP, 40,000 gold |
 | 39 | The Elixir of Olfactory Obfuscation | Uhika, after 38 | Uhika | Perfume | 35,000 XP, 100,000 gold |
 | 40 | The King of Talas | King of Talas (rand-forest01_v6) | the King in Saanavarh (v6; hidden in v4, v5) | | closes only at the late Saanavarh visit (v6, game stage 20): Hero's Platemail, 20,000 XP (2026-11-10, from pt-41). In v4 and v5 the paying king stays hidden (G313; with `[Fixes] TriggeredShow` he shows there too). Until 2026-11-09 counted as closed in v4 (hidden king reached by `talkto`) |
-| 41 | The Emperor's Dragon Scales | Xueli (eleh) | Gongji (jadetemple) | | closed with no reward (as his dialogue's comments expect); Gongji shows only after the Ring of Jade, until the party leaves the temple |
+| 41 | The Emperor's Dragon Scales | Xueli (eleh) | Gongji (jadetemple) | | closed with no reward (as his dialogue's comments expect); Gongji shows only after Murod's death, until the party leaves the temple with Qifeng, so the hand-in can be missed (2026-11-10, code and data) |
 | 42 | The Family Tradition | Fangyin (Wolong2_v2) | Fangyin | flag `liangshan_mq_placed_coin_locket` | Parrying Dagger, 7,000 XP |
 | 43 | Longyue's Hat | Longyue (Wolong2_v2) | Longyue | Longyue's Hat | Well-Honed Katana, 5,000 XP |
 | 44 | Secrets of the Dakhanim | Ilaru (KhosaniStrng_v2) | Ilaru, act 4: parchment, mirror, three parts | the items, mirror identified | 10,000 + 25,000 + 100,000 XP, Summoner Platemail |

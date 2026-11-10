@@ -674,6 +674,10 @@ intro movies (2026-10-25). The main menu sets state 1 before it plays them, and 
     are no test: standing NPCs such as Torva have the AI off too and are talked to by a click (a first filter on them
     closed 30 side quests instead of 51 in a test run). Before that it reached hidden characters, and a talk to Torvel's
     hidden double produced the false bug G312 (withdrawn, [Game bugs](sum-exe/game-bugs.md#claims-that-did-not-hold));
+  - `party` (2026-11-10) prints one line per party member (living-list entries of type 7): name, with `*` on the
+    current character, position, layer, HP and flags (`+0x320`), the same line in both hosts. Before it, test
+    scripts read the party with `peek` at 32-bit structure offsets, which give nonsense in the 64-bit exe.
+    **Observed** 2026-11-10: save 18 loaded in the original and in the 64-bit exe printed the same four lines;
   - `items [R]` lists the item objects (type 3) and containers (type 11) within R (default 15) of the current
     character with their address, distance and contents, and `open ADDR` opens such a container as a click does
     (`pickup_container` and `interface_set_screen(4)`). For loot that is hard to see, for example the Ring of Light

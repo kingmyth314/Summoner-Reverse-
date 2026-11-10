@@ -801,6 +801,19 @@ static void run_line(char *line)
         }
         if (!shown)
             out("items: none within %.1f", r);
+    } else if (!_stricmp(c, "party")) {
+        // party (2026-11-10): every party member (living_list entries of type 7) with position, layer, HP and flags;
+        // '*' marks cur_character. The same line as SummonerFix's agent prints.
+        int n = 0;
+        for (Character *o = living_list.live_next; o && o != &living_list && n < 16; o = o->live_next) {
+            if (o->type != 7)
+                continue;
+            n++;
+            out("party %s%s pos %.2f %.2f %.2f layer %d hp %.0f flags %x", o == cur_character ? "*" : "", o->name,
+                (double)o->pos.x, (double)o->pos.y, (double)o->pos.z, o->layer, (double)o->hp, o->flags);
+        }
+        if (!n)
+            out("party: none");
     } else if (!_stricmp(c, "talkto") && argc >= 2) {
         // talkto NAME: the nearest living character whose name starts with NAME ('~' for spaces) is talked to as a
         // click on it does (player_talk_to), also shopkeepers that npcgoto cannot find.
