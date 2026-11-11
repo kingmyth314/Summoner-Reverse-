@@ -16,7 +16,7 @@ are the older roadmap and its history.
 
 ### A. Checks still owed (agent mode can do them)
 
-1. **C317's fix has never run in game** (*Observed* in [SummonerFix](summonerfix/index.md): built and reviewed,
+1. ~~**C317's fix has never run in game**~~ *Done 2026-11-10:* crash without the fix, none with it, original and 64-bit exe ([SummonerFix](summonerfix/index.md)). (*Observed* in [SummonerFix](summonerfix/index.md): built and reviewed,
    2026-10-21). Reproduce: the Mist Elemental summoned just before the Ghost Rider's dismount cutscene, with
    `SummonStashNoMove` off (crash) and on.
 2. **Per-fix reproductions for the fixed build**: listed as open for its 53 fixes on [Current state](status.md)
