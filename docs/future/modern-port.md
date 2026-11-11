@@ -785,6 +785,56 @@ twice:
   check with three new runs of the original each (**Observed**): all load, play and save; 19 dwords beyond the
   original's spread, all positions and headings of monsters and the party.
 
+### Print Screen wrote an empty JPEG: the libjpeg struct layouts (2026-11-10)
+
+**Found in the game** by the lead on 2026-11-10 (**Observed**): in the 64-bit player build (OpenGL), Print Screen
+wrote `screen000.jpg` of 0 bytes, and further presses wrote nothing. The original wrote an 81 KB `screen1000.jpg` in
+the same test. libjpeg 6b was linked (built from the IJG source by `tools/link-build.mjs`), not the no-op stub.
+
+**Two layout mismatches** between Volition's `jpeg_write_file` (`0x5565e0`, `src/decomp/vsdk/unnamed_jpeg_write_0x5565e0.cpp`)
+and the library it calls. The caller's `jpeg_compress_struct` and `jpeg_error_mgr` come from `jpeg_min.h`, which
+stands in for `jpeglib.h` with the 32-bit sizes read from Sum.exe; the library is compiled from `jpeglib.h`.
+`jpeg_CreateCompress` compares the caller's `sizeof` with its own and, if they differ, calls `error_exit`, which
+prints "JPEG parameter struct mismatch" to stderr, frees the object and calls `exit(1)` (jerror.c): the file is already open, so
+it stays at 0 bytes, and the **game process ends** (**Observed** in a host test, below; the game's exit is
+**Inferred** from it, which fits "further presses wrote nothing").
+1. **`boolean`, every rebuilt exe.** link-build used the IJG's `jconfig.vc` as `jconfig.h`, and `jconfig.vc` makes
+   `boolean` an `unsigned char`. Sum.exe's library was built with `int` (jmorecfg.h's default): its compress object
+   is 0x178 bytes with `dct_method` at `+0xc4` (`jpeg_write_file`'s `push 0x178` and its stores). With `unsigned char`
+   the four flags before `smoothing_factor` and the later ones shrink, and the library's object is 0x168 bytes. So the
+   VC6 fixed and experimental rebuilds and the 32-bit clang build failed the same check (**Observed** in the host
+   test for VC6 and for the 32-bit clang object; not tried in the game).
+2. **Pointer size, 64-bit only.** `jpeg_min.h` declares the fields up to `dct_method` and pads the rest with a
+   byte array of the 32-bit size. In 64-bit the real objects are 0x208 (compress) and 0xa8 (error manager) bytes;
+   the stand-ins were 0x1c8 and 0x88, so `jpeg_std_error` also wrote 0x20 bytes past `jerr` on the stack before the
+   size check failed (**Observed**: the sizes printed by a probe compiled against `jpeglib.h`).
+
+**Host test** (2026-11-10, **Observed**; scratch programs, not the game): the 24 libjpeg objects link-build compiles,
+built the same way (VC6 `/O2 /MT` for 32-bit, clang `x86_64-w64-mingw32` for 64-bit), plus the decomp's
+`unnamed_jpeg_write_0x5565e0.cpp` compiled as each build compiles it, plus a `main` that writes a 64x48 RGB gradient
+three times:
+
+| Build of the test | Before | After |
+|---|---|---|
+| 64-bit (clang, `MODERN_BUILD`) | "library thinks size is 504, caller expects 456", exit 1, a 0-byte file | three 904-byte JPEGs, exit 0 |
+| 32-bit, VC6 (`FIXED_BUILD`) | "library thinks size is 360, caller expects 376", exit 1 | three 904-byte JPEGs |
+| 32-bit, clang `i686-pc-windows-msvc` object, VC6 library | (same library as VC6) | three 904-byte JPEGs |
+
+The three builds' files are byte-identical and open as the expected gradient.
+
+**The fix:**
+- `tools/link-build.mjs` writes `jconfig.h` from `jconfig.vc` with `typedef int boolean`, as Sum.exe's library was
+  built, and recompiles the library objects when `jconfig.h` changes. The library is not part of the byte match.
+- `jpeg_min.h`: under `_WIN64` the padding is the 64-bit size (0xf0 after `dct_method` at `+0x114`, 0xa0 in the
+  error manager), with `LAYOUT_CHECK`s for 0x208, 0xa8 and the `dct_method` offset. The fields it names are plain
+  `int`, `double` and pointer members, so their natural 64-bit offsets are the library's. The 32-bit layout and the
+  shipped configuration's code are unchanged (the sweep: 0 lost).
+
+**The Targa path** (`Print_screen_as_targa`, and forced above 1024 lines for C290) has no such problem (**Inferred**
+from reading, not run in 64-bit): `gr_screenshot` writes the 18-byte header field by field through `File`'s
+`write_uint8` / `write_uint16` (fixed-size `write(&v, 1 / 2)`), and `tga_rle_encode_row` / `tga_convert_pixels` use
+only byte pointers, `int` counts and the returned `out - dst`.
+
 ## Recommendation
 
 L1 and L2 together as "the modern build", in the same tree, behind `MODERN_BUILD`, tested against the fixed build.

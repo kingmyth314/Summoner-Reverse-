@@ -321,7 +321,11 @@ What it took:
 - It runs from a separate folder (hard links to the archives, copies of the data and a save), because
   SummonerFix's patches assume Sum.exe's addresses.
 
-**Later the same day.** libjpeg 6b is built from the IJG source into the link. SummonerFix runs inside the rebuilt
+**Later the same day.** libjpeg 6b is built from the IJG source into the link. (**Correction, 2026-11-10:** built
+with `jconfig.vc`'s `unsigned char` boolean, while Sum.exe's library used `int`, so every rebuilt exe's Print Screen
+failed libjpeg's struct size check, wrote an empty JPEG and ended the process; fixed that day,
+[modern port](future/modern-port.md#print-screen-wrote-an-empty-jpeg-the-libjpeg-struct-layouts-2026-11-10).)
+SummonerFix runs inside the rebuilt
 exe through an address table, so agent mode drives it like the original ([SummonerFix](summonerfix/index.md),
 [tools](tools.md)). Starting a new game then showed what the hybrid could not:
 - The first level render crashed (`levelrender_fade_occluders`, a garbage level object index). The `$vis_base`

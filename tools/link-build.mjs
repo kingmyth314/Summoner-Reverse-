@@ -217,6 +217,11 @@ if (defines.includes("MODERN_BUILD")) {
 // libjpeg 6b (Sum.exe links it statically): built from the IJG source when it is in third_party/jpeg6b/jpeg-6b
 // (jpegsrc.v6b.tar.gz, not in the repository; docs/reference/sources.md), its common and compression objects as
 // the IJG's makefile.vc lists them, with jconfig.vc as jconfig.h. Without it the no-op stub is linked.
+// jconfig.vc's boolean is unsigned char; Sum.exe's library was built with jmorecfg.h's int boolean (its compress
+// object is 0x178 bytes with dct_method at +0xc4, jpeg_write_file 0x5565e0), and so is jpeg_min.h. With the
+// unsigned char boolean the library's object is 0x168 bytes, jpeg_CreateCompress's size check fails and libjpeg's
+// error_exit ends the process (Print Screen wrote an empty file in every rebuilt exe until 2026-11-10,
+// docs/future/modern-port.md). A changed jconfig.h recompiles the library.
 const jpegSrc = resolve(opt("--jpeg", join(repo, "third_party", "jpeg6b", "jpeg-6b")));
 const jpegObjs = ["jcomapi", "jutils", "jerror", "jmemmgr", "jmemnobs", "jcapimin", "jcapistd", "jctrans", "jcparam",
   "jdatadst", "jcinit", "jcmaster", "jcmarker", "jcmainct", "jcprepct", "jccoefct", "jccolor", "jcsample", "jchuff",
@@ -226,12 +231,17 @@ const stubs = x64 ? ["x64_stubs.c"] : ["dx7guids.c"];   // x64: llvm-mingw's lib
 if (haveJpeg) {
   const jdir = join(out, "jpeg");
   mkdirSync(jdir, { recursive: true });
-  writeFileSync(join(jdir, "jconfig.h"), readFileSync(join(jpegSrc, "jconfig.vc")));
+  const jvc = readFileSync(join(jpegSrc, "jconfig.vc"), "latin1");
+  const jconfig = jvc.replace("typedef unsigned char boolean;", "typedef int boolean;\t/* Sum.exe's libjpeg: int (link-build.mjs) */");
+  if (jconfig === jvc) throw new Error("jconfig.vc: the boolean typedef was not found");
+  const jcfgFile = join(jdir, "jconfig.h");
+  if (!existsSync(jcfgFile) || readFileSync(jcfgFile, "latin1") !== jconfig) writeFileSync(jcfgFile, jconfig, "latin1");
+  const jcfgTime = statSync(jcfgFile).mtimeMs;
   const jenv = { ...env, INCLUDE: `${jdir};${jpegSrc};${join(VC, "INCLUDE")}` };
   for (const n of jpegObjs) {
     const obj = join(jdir, n + ".obj");
     objs.push(obj);
-    if (fresh(obj, join(jpegSrc, n + ".c"))) continue;
+    if (fresh(obj, join(jpegSrc, n + ".c")) && statSync(obj).mtimeMs >= jcfgTime) continue;
     if (x64) { const t = runClang(join(jpegSrc, n + ".c"), obj, [], [jdir, jpegSrc]); if (t) { failed++; console.log(`libjpeg compile failed: ${n}.c\n${t}`); } continue; }
     try { execFileSync(join(VC, "BIN", "CL.EXE"), ["/nologo", "/c", "/O2", "/MT", `/Fo${obj}`, join(jpegSrc, n + ".c")], { env: jenv, cwd: jdir, encoding: "latin1" }); }
     catch (e) { failed++; console.log(`libjpeg compile failed: ${n}.c\n${e.stdout}`); }

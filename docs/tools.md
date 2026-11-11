@@ -389,7 +389,9 @@ experimental build also the `// EXPERIMENTAL_BUILD: <feature> <Key>` ones; Summo
 dxguid.lib; VC6's is older), stub sources whose only use is an import library with the right names for
 binkw32.dll (decorated stdcall names) and EAX.DLL (ordinal 5), and a no-op libjpeg stub. Sum.exe links libjpeg 6b
 statically: when the IJG source is in `third_party/jpeg6b/jpeg-6b` (git-ignored; [sources](reference/sources.md))
-the tool builds its common and compression objects with VC6 instead (`--jpeg DIR` for another place). Nothing of
+the tool builds its common and compression objects with VC6 instead (clang for `--arch x64`; `--jpeg DIR` for
+another place), with `jconfig.vc` as `jconfig.h` but `boolean` as `int`, as in Sum.exe's library (since 2026-11-10;
+[why](future/modern-port.md#print-screen-wrote-an-empty-jpeg-the-libjpeg-struct-layouts-2026-11-10)). Nothing of
 these is a third-party binary in the repository.
 
 After a full `hybrid-build` (which writes `build/hybrid-all/hybrid-addrs.txt`, every name it resolved to a Sum.exe
