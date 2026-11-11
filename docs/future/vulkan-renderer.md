@@ -547,7 +547,10 @@ VulkanValidation=1`.
   `... not acquired (n)`.
 - A failed acquire (the window not in front, or not covering the monitor) makes the swapchain again without the
   extension's description: the game goes on borderless. `VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT` from the
-  acquire or the present is handled as an out-of-date swapchain: a new one tries to acquire again.
+  acquire or the present is handled as an out-of-date swapchain: a new one tries to acquire again; after the third
+  loss without an activation in between (something taking the display each time) the game stays borderless until
+  the window is activated again. The present mode is chosen for each swapchain, as the modes offered with and
+  without the extension's description may differ.
 - Focus: on losing it the host calls `vk_window_active(false)`, which releases exclusive mode at once, then gives
   the desktop's mode back and minimises the window; while minimised nothing is drawn (as before). On gaining it, the
   host sets the mode again and restores the window, and `vk_window_active(true)` only marks the swapchain to be

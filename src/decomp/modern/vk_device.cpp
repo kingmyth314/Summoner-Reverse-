@@ -46,6 +46,21 @@ static bool vk_frame_cleared;                  // the frame's first rendering pa
 static bool vk_acquire_waited;                 // a submission of this frame already waited for the acquire
 static bool vk_skip_frame;                     // minimised, or the swapchain could not be made: nothing is drawn
 static bool vk_context_initialized;          // vk_init_context has run once (the texture cache exists)
+static int vk_fse_losses;                      // full-screen exclusive lost since the window was last activated
+
+// VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT: the next swapchain acquires again; after three losses without an
+// activation in between (an overlay taking the display each time) it stays borderless until the next activation.
+static void vk_fse_lost(const char *where)
+{
+    vkc.fse_acquired = false;
+    if (++vk_fse_losses >= 3 && vkc.fse_use) {
+        vkc.fse_use = false;
+        vk_log("full-screen exclusive: lost at %s for the third time; borderless until the window is activated again",
+               where);
+    } else if (vk_fse_losses < 3) {
+        vk_log("full-screen exclusive: lost at %s", where);
+    }
+}
 
 static void vk_destroy_transfer();
 
@@ -608,6 +623,9 @@ static bool vk_create_swapchain()
     if (extent.width == 0 || extent.height == 0)
         return false;
 
+    // The present modes offered can differ with and without full-screen exclusive's description: chosen for each
+    // swapchain (a mode offered only with it would be invalid for the borderless one made after a failed acquire).
+    vkc.present_mode = vk_choose_present_mode();
     VkSwapchainKHR old = vkc.swapchain;
     VkSwapchainCreateInfoKHR si = {};
     si.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
@@ -965,6 +983,7 @@ void vk_begin_frame()
         // The window is in front again (vk_window_active): a new swapchain tries full-screen exclusive again.
         vkc.fse_reacquire = false;
         vkc.fse_use = true;
+        vk_fse_losses = 0;
         vkc.extent.width = 0;
     }
     if (!vkc.swapchain || (uint32_t)(rc.right - rc.left) != vkc.extent.width ||
@@ -987,10 +1006,8 @@ void vk_begin_frame()
     if (r == VK_ERROR_OUT_OF_DATE_KHR || r == VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT) {
         // Full-screen exclusive lost (another program took the display): a new swapchain tries to acquire it again
         // and goes borderless if it cannot.
-        if (r == VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT) {
-            vk_log("full-screen exclusive: lost at acquire");
-            vkc.fse_acquired = false;
-        }
+        if (r == VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT)
+            vk_fse_lost("acquire");
         vkDeviceWaitIdle(vkc.device);
         if (!vk_create_swapchain())
             return;
@@ -1251,10 +1268,8 @@ void vk_end_frame()
     VkResult r = vkQueuePresentKHR(vkc.queue, &pi);
     if (vk_timing)
         vk_stats.present_ms += vk_now_ms() - t0;
-    if (r == VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT) {
-        vk_log("full-screen exclusive: lost at present");
-        vkc.fse_acquired = false;
-    }
+    if (r == VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT)
+        vk_fse_lost("present");
     if (r == VK_ERROR_OUT_OF_DATE_KHR || r == VK_SUBOPTIMAL_KHR || r == VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT)
         vkc.extent.width = 0;   // recreated at the next frame
     vk_recording = false;

@@ -111,6 +111,8 @@ Gotchas, each found the hard way:
 - Git Bash's `sed -i` and `node -e` mangle backslashes and `\b` in replacement text. Edit files that contain them
   with an editor or a script file.
 - The "gamma" console command only stores the value; `gr_gamma` is 0x5a6064.
+- The sweep reads `Summoner/Sum.exe` of the checkout it runs in. In a git worktree there is none, and every unit
+  reports "lost" (an ENOENT error per unit): copy `Sum.exe` into the worktree's `Summoner/` first (git-ignored).
 
 ## Evidence and history
 
