@@ -40,15 +40,28 @@ fixed, and only 4 still score 9 or more:
 - Then K30 (tall bosses' health bar and click area), K63 (character click radius), G132 (Liangshan's wave 4 tests two
   of three enemies), G13, G41.
 
+**Done 2026-11-10** (two agents, merged; [Bugs](sum-exe/game-bugs.md), [Fixed build](fixed-build.md)): all nine
+re-read in the code and still holding; each fixed in SummonerFix (a `[Fixes]` switch) and in `FIXED_BUILD`. On by
+default: K1, K19, G132, G13, G41. **Off by default, for the owner** (section E): G15 `DamageDice` (the intent is
+not known), K272 `ShadowSizes` (a trial), K30 `BossHeight` and K63 `ClickRadius` (both kept by earlier decisions).
+Run in the game (**Observed**): G41 and K19 (with and without the fix), G15 and K272 (the difference seen). *Not run:*
+K1 (the harness could not make a number key use a hot button, filled through `savegame_hot_button_set`), G13, G132
+(the wave enemies ignored the test commands' damage), K30 and K63.
+
 ### C. Features still open
 
-- The speed key's on-screen indicator.
-- Display: exclusive fullscreen, anti-aliasing, field of view, interface scale.
+- The speed key's on-screen indicator. *Corrected 2026-11-10:* it existed since 2026-10-14 (`FAST xN`); now with
+  a switch, `[Game] SpeedBadge`.
+- Display: exclusive fullscreen, anti-aliasing, field of view, interface scale. *2026-11-10:* `[Display]
+  FieldOfView` (SummonerFix and the rebuilt builds), `Antialiasing` (64-bit, OpenGL and Vulkan) run in the game;
+  `Mode=Exclusive` built, its Alt+Tab behaviour needs a person (section E); interface scale and MSAA for SummonerFix
+  in progress.
 - **Undo the matching devices** in `FIXED_BUILD` ([below](#after-the-code-fully-recompiles)), so the fixed source
-  reads plainly.
+  reads plainly. *Done 2026-11-10 for the 7 undefined or compiler-dependent ones* (`PLAIN_SOURCE`, D26300;
+  [Matching devices](matching-devices.md)); the VC6 fixed build had two functions ending without a return.
 - A DirectSound wrapper with EAX, so that `LevelReverb` can be heard (untried; sound stays on DirectSound, the owner's
-  choice of 2026-11-01).
-- Timeslip's Bink fix, only for the original exe under Direct3D or Glide (low).
+  choice of 2026-11-01). Needs a third-party wrapper (a download): section E.
+- Timeslip's Bink fix, only for the original exe under Direct3D or Glide (low). *In progress 2026-11-10.*
 - Multiplayer in the 64-bit build (last, the owner's order).
 
 ### D. Documentation
