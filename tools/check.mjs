@@ -88,7 +88,8 @@ section("4. setting names (.fixes markers, SummonerFix, config app, summonerfix.
   const iniDoc = read("src/summonerfix/summonerfix.ini");
   const all = (files, re) => files.flatMap(([f, s]) => [...s.matchAll(re)].map((m) => ({ f, m })));
 
-  const fixOn = new Set(all(sfFiles, /\bFixOn\("([A-Za-z0-9]+)"\)/g).map((x) => x.m[1]));
+  // FixOptIn (2026-11-10): a fix that is off unless its key is 1
+  const fixOn = new Set(all(sfFiles, /\bFix(?:On|OptIn)\("([A-Za-z0-9]+)"\)/g).map((x) => x.m[1]));
   const inSource = new Set(all(sfFiles, /\bRebuiltFixInSource\("([A-Za-z0-9]+)"\)/g).map((x) => x.m[1]));
   const cfgFixes = new Set([...(/k_fixes\[\]\s*=\s*\{([\s\S]*?)\n\};/.exec(cfg)?.[1] ?? "").matchAll(/\{"([A-Za-z0-9]+)",/g)].map((m) => m[1]));
   // (section, key) pairs read by SummonerFix and by the game's source (exp_ini_int, modern_ini_*, vk_from_ini)
@@ -96,6 +97,7 @@ section("4. setting names (.fixes markers, SummonerFix, config app, summonerfix.
   const reads = new Set();
   for (const { m } of all(sfFiles, /GetPrivateProfile(?:Int|String)A(\(\s*"[A-Za-z]+"\s*,\s*"[A-Za-z0-9]+")/g)) { const p = pair.exec(m[1]); reads.add(`${p[1]}.${p[2]}`); }
   for (const { m } of all(decompFiles, /\b(?:exp_ini_int|exp_ini_str|modern_ini_int|modern_ini_str)(\(\s*"[A-Za-z]+"\s*,\s*"[A-Za-z0-9]+")/g)) { const p = pair.exec(m[1]); reads.add(`${p[1]}.${p[2]}`); }
+  for (const { m } of all(decompFiles, /\bexp_fix_opt_in\(\s*"([A-Za-z0-9]+)"\)/g)) reads.add(`Fixes.${m[1]}`);
   for (const k of fixOn) reads.add(`Fixes.${k}`);
   // key bindings read by key name alone, with a default key: VkFromIni (SummonerFix), vk_from_ini (the host)
   const keyOnly = new Set([...all(sfFiles, /\bVkFromIni\(\s*"([A-Za-z0-9]+)"/g), ...all(decompFiles, /\bvk_from_ini\(\s*"([A-Za-z0-9]+)"/g)].map((x) => x.m[1]));

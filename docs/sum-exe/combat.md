@@ -207,7 +207,8 @@ from a caster not on team 0 turns combat mode on (`combat_mode_set`, `0x45e0d0`)
      [Game bugs](game-bugs.md).
 4. **Roll** (`spell_roll_amount`, `0x47f4d0`):
    - for `count > 0` the result is `count` dice, each `floor(frand() x die + 1)`. A positive die gives 1 to
-     `die`. A negated die gives 0 to `-(die - 1)`, so damage dice average `(die - 1) / 2`, not `(die + 1) / 2`.
+     `die`. A negated die gives 0 to `-(die - 1)`, so damage dice average `(die - 1) / 2`, not `(die + 1) / 2`
+     (and +1 when `rand()` returns 0; bug G15, with an opt-in fix `[Fixes] DamageDice` since 2026-11-10).
      With die 0 the result is `-count` at once, with no resistance or party factor (`0x47f4ec`..`0x47f4fe`);
      with `count <= 0` it is 0;
    - damage (a negative result) on a target is multiplied by `1 - resistance(spell damage type)` (fire, ice,

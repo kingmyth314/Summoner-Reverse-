@@ -51,6 +51,7 @@
 #include "engine/objects/objects.h"
 #include "engine/objects/item_paging.h"
 #include "levelscripts/savegame.h"
+#include "experimental/experimental.h"   // FIXED_BUILD only ([Fixes] DamageDice, opt-in)
 
 // ---- .data (0x59b988-0x59ba0f; the literals follow) ----------------------------------------------
 // Skill per spell group (spell_get_group result): heal, dark, energy, holy, fire, ice magic, then summon.
@@ -2283,6 +2284,18 @@ float spell_roll_amount(Character *target, int spell, int count, int die, float 
         return (float)-count;
     if (count == 0 || die == 0)
         return 0.0f;
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: G15 DamageDice (opt-in: off unless [Fixes] DamageDice=1, see game-bugs G15). The handlers negate
+    // the die for damage, and floor(frand() x die + 1) then gives 0 to -(die - 1) (and +1, a heal, when rand() is
+    // 0). With the switch on a damage die rolls -1 to -die, the mirror of a healing die's 1 to die.
+    static int damage_dice = -1;
+    if (damage_dice < 0)
+        damage_dice = exp_fix_opt_in("DamageDice");
+    if (die < 0 && damage_dice) {
+        for (i = 0; i < count; i++)
+            total -= (int)floor(frand() * -die + 1.0f);
+    } else
+#endif
     for (i = 0; i < count; i++) // D25900: closer (6 -> 3; the binary's trip count is dec / lea +1, 8966 gives mov)
         total += (int)floor(frand() * die + 1.0f);
     if (!No_resist && total < 0.0f) {

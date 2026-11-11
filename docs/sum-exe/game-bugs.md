@@ -28,7 +28,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 |---|---|---|---|
 | Crash or hang | 7 | 82 | 7 |
 | Gameplay | 49 | 25 | 30 |
-| Cosmetic | 56 | 36 | 23 |
+| Cosmetic | 56 | 36 | 25 |
 | Invisible | 43 | 59 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
@@ -945,7 +945,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G12 | Spell cooldowns are the spell's record number in seconds, not the table's recovery time (fireball 26 s instead of 20; monsters' AI recovery times likewise) | `spells_parse_table` `0x47a190` | **Observed** code, retail data and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] SpellRecoveryTimes`) |
 | G13 | The blind / cripple / slow chance of an aimed attack (and of blindness stab, arm slice, leg swipe) uses the selected character's aimed attack skill, not the attacker's | `combat_apply_melee_hit` `0x465df0` | **Observed** code (re-read 2026-11-10), *inferred* effect | Fixed (`bugfix.c`, `[Fixes] AimedAttackSkill`, 2026-11-10; not yet run in game) |
 | G14 | Multiplayer: when a player closes a container after taking some items, the other machines drop the container's last entries instead of the taken ones | `mp_handle_container_close` `0x488eb0` | **Observed** code, *inferred* effect | No |
-| G15 | Damage spells roll each die from 0 to die-1 (lightning d6 averages 2.5), while healing dice roll 1 to die | `living_entity_get_hit_by_spell` `0x45dea0`, `spell_roll_amount` `0x47f4d0` | **Observed** code and retail data; intent *inferred* | No: left as it is (decided 2026-10-17) |
+| G15 | Damage spells roll each die from 0 to die-1 (lightning d6 averages 2.5), while healing dice roll 1 to die | `living_entity_get_hit_by_spell` `0x45dea0`, `spell_roll_amount` `0x47f4d0` | **Observed** code and retail data; intent *inferred* | Opt-in fix, off by default (`bugfix.c`, `[Fixes] DamageDice`, 2026-11-10); the 2026-10-17 decision to leave it stays the default until the owner decides |
 | G16 | Latent: with all 20 missile slots taken, the next spell missile is not fired | `spell_launch_missile` `0x47e6c0` | **Observed** code, *inferred* effect | No |
 | G17 | Latent: if an offered item is gone when a trade completes, the partner gets it anyway and the `add_gold` console command is corrupted | `mp_trade_complete` `0x4718d0` | **Observed** code, *inferred* effect | No |
 | G18 | Multiplayer: a lock picked through the host can stay locked on the other machines, or another container unlocks there | `mp_handle_container_lockpick` `0x489660` | **Observed** code, *inferred* effect | No |
@@ -1142,6 +1142,31 @@ lightning; nine `neg` sites in all), and `spell_roll_amount` rolls `floor(frand(
 (`0x47f51e`..`0x47f549`). With die 6 that is 1..6 for a heal but 0..-5 for damage. Lightning (d6) and the other
 damage spells with a `+Die:` in retail `spells.tbl` lose one point per die on average. A designer may have tuned the tables to this, so the intent is *inferred*. **Decision 2026-10-17:** SummonerFix leaves this as it is; the extra point on healing stays and damage is not raised. See
 [Combat](combat.md#spell-hits).
+
+**Slip or intent? (re-checked 2026-11-10.)** The evidence:
+- **Observed** (code): `floor(frand() x die + 1)` is the game's "1 to N" roll. `xp_level_up_gains` (`0x489ac0`) rolls a
+  random level-up HP or AP gain the same way, with a positive N. `spell_roll_amount` applies it to a die that the
+  damage handlers negate (nine places in `living_entity_get_hit_by_spell`, six in the multiplayer
+  `spell_prepare_cast`; the decompiled `living_entity.cpp` and `spells.cpp`), and nothing in it takes the sign into
+  account. Its die-0 branch returns exactly `-count` (`0x47f4f0`), with no point lost.
+- **Observed** (code): the roll can even heal. When `rand()` returns 0 (1 in 32,768 per die) a damage die gives
+  `floor(0 + 1) = +1`. A positive total skips both resistance multipliers (they test `total < 0`) and gets no party
+  factor, so a one-die lightning heals its target by 1 HP. A helper written for negative dice would not do that.
+- **Observed** (retail `spells.tbl`): one `+Die:` field serves heal (12), vitalize (8) and the damage spells, read by
+  one parser line (`spells_parse_table`), with no comment on dice anywhere in the file. The die sizes are not only
+  standard dice (9, 13, 14 and 20 occur), so they do not tell whether a designer counted 0 or 1 as the low roll.
+- **Observed** (retail `strings.tbl`): no text shows the player a damage range for a spell ("Does energy based
+  damage.", "Does fire damage to target."); `Damage: %d` is the weapon line. Nothing in the game promises 1 to die.
+- **Unknown:** Summoner 2's code is not in the repository and was not used.
+
+So the code is very probably a slip (*inferred*: a sign convention added on top of a roll written for positive dice).
+Whether the designers then balanced the damage dice by playing with the short rolls cannot be told from the code or
+the data. Lightning (d6) would do 40 % more per die (3.5 instead of 2.5), a fireball die (13) 17 % more (7 instead
+of 6), before resistances. **Fix, opt-in
+(2026-11-10):** `[Fixes] DamageDice` (SummonerFix `bugfix.c`; in the source `FIXED_BUILD` in `spells.cpp`, which
+reads the same key) rolls a damage die from -1 to -die. It is **off by default**: the 2026-10-17 decision stays the
+default until the owner decides from this evidence. Not yet run in game (the lead's test recipe is in the commit
+report).
 
 **G16. Both exits return.** When the free-slot search fails (`0x47e705`..`0x47e716`), the function clears the
 slots whose effect object is gone (`0x47e71d`..`0x47e745`) and then searches again, but both outcomes return
@@ -1887,7 +1912,7 @@ the 64-bit build both paid Hero's Platemail and 20,000 XP; without the fix, noth
 
 | # | What the player sees | Function | Evidence | SummonerFix |
 |---|---|---|---|---|
-| K1 | A hot button used with a number key lights up for one frame instead of 100 ms | `hud_frame` `0x40cf40` | **Observed** code | No |
+| K1 | A hot button used with a number key lights up for one frame instead of 100 ms | `hud_frame` `0x40cf40` | **Observed** code | Fixed (`bugfix.c`, `[Fixes] HotButtonHighlight`; 2026-11-10, not yet seen in game) |
 | K2 | In the multiplayer character screen, the info panel's up arrow scrolls down | `mp_charselect_button_action` `0x4074e0` | **Observed** code | No |
 | K3 | In a shop's sell list, the category buttons jump to the wrong row | `buysell_category_first_index` `0x404f70` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] ShopCategoryButtons`) |
 | K4 | In the inventory's identify mode, the category buttons jump to the wrong row | `inventory_category_first_index` `0x4153d0` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] InventoryCategoryButtons`) |
@@ -1903,7 +1928,7 @@ the 64-bit build both paid Hero's Platemail and 20,000 XP; without the fix, noth
 | K16 | Latent: resetting a character's animations clears only the first 25 of 100 weights | `character_instance__reset_anims` `0x519850` | **Observed** code, *inferred* effect | No |
 | K17 | Latent: a summon's second weapon (slot 9) pages the first weapon's model | `items_level_load` `0x44d540` | **Observed** code, *inferred* effect | No |
 | K18 | Latent: paging out the popup model slot 18 can drop another slot's item model | `item_page_out_all` `0x46ca50` | **Observed** code, *inferred* effect | No |
-| K19 | The launcher's Speed tab ("Default Detail Level") has no effect on the game's detail settings | `GameInit` `0x43df40`, `summoner_cfg_load` `0x43e250` | **Observed** code and launcher strings, *inferred* effect | No |
+| K19 | The launcher's Speed tab ("Default Detail Level") has no effect on the game's detail settings | `GameInit` `0x43df40`, `summoner_cfg_load` `0x43e250` | **Observed** code and launcher strings, *inferred* effect | Fixed (`bugfix.c`, `[Fixes] ComputerSpeedDefault`; 2026-11-10, not yet seen in game) |
 | K20 | Brass, Steel and Iron Golems show no hit effect when struck (stone golems do) | `combat_spawn_hit_vfx` `0x4669c0` | **Observed** code, retail data and in game (2026-10-16, `[Debug] TraceHitVfx`) | Fixed (`bugfix.c`) |
 | K30 | Tall bosses (Tentacle Beast, Evil Urath, Luminar, Machival, Giant Salamanka, Titus, Pyrul) get their size class's height: health bar and floating text sit too low, and clicking the upper body misses | `character_size_height` `0x4542f0` | **Observed** code (re-read 2026-11-10), *inferred* effect | No: left as it is (decided 2026-10-17); an opt-in fix for the bar, texts and picking, `[Fixes] BossHeight`, off by default (2026-11-10, not yet run in game) |
 | K40 | With 128 map labels saved, deleting or editing a label is not saved, and the old label comes back on the next visit or load | `savegame_automap_label_remove` `0x4d1390` | **Observed** code and by function call (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] MapLabelsFull`) |
@@ -1959,7 +1984,7 @@ the 64-bit build both paid Hero's Platemail and 20,000 XP; without the fix, noth
 | K265 | Latent: Page Down in a list box whose selected last entry is taller than the box selects the list's own head record (no text, data -1), which the list's callback then receives | `ui_listbox__select_page_down` `0x52e050` | **Observed** code, *inferred* effect | No |
 | K270 | In the Ghost-Escape and Ghost-Dismount cutscenes (Rand-ForestNite1) the Ghost Rider's attached props are drawn, although the code means to hide them there | `levelrender_add_character` `0x483260` | **Observed** code and retail data, *inferred* effect; not seen in play | No |
 | K271 | A lamp glow on an effect (a torch or brazier effect) can shine through one level object that should hide it | `lamp_glow_update_effects` `0x484600` | **Observed** code, *inferred* effect | No |
-| K272 | Every character gets the same blob shadow: the per-character shadow sizes in `shadows.tbl` (0.47 to 25.55) are loaded and never used | `shadows_parse_table` `0x4874c0`, `shadow_draw_character` `0x487630` | **Observed** code and retail data | No (deferred: needs a design for `$Radius` and `$Scale`) |
+| K272 | Every character gets the same blob shadow: the per-character shadow sizes in `shadows.tbl` (0.47 to 25.55) are loaded and never used | `shadows_parse_table` `0x4874c0`, `shadow_draw_character` `0x487630` | **Observed** code and retail data | Opt-in trial, off by default (`bugfix.c`, `[Fixes] ShadowSizes`, 2026-11-10): `$Radius` x `$Scale` as the shadow's half width, to be compared in game |
 | K273 | Latent: a level table's `+Fog Near:` and `+Fog Far:` are stored swapped as the level's default fog, so a cutscene `$Fog` key with a near distance of 0 starts the fog at the far value | `level_parse_table` `0x4cb7b0`, `fog_set_level_default` `0x486b90` | **Observed** code and retail data, *inferred* effect | No |
 | K274 | Latent: floating text drawn inside a cutscene's letterbox would sit lower by the letterbox height; health bars, speech text and overhead icons have the same slip but are not drawn in cutscenes | `levelrender_draw_float_text` `0x485380`, `levelrender_draw_health_bars` `0x4848c0`, `levelrender_draw_speech_text` `0x484ae0`, `character_draw_overhead_bitmap` `0x481c40` | **Observed** code, *inferred* effect | No |
 | K280 | With SummonerFix's widescreen output (a game width above 1024), the black strip right of the centred main menu showed old frames of the last level in turn with black after a cutscene had run (seen after the console cutscene viewer and after skipping story cutscenes) | SummonerFix `display.c` (`Hook_SwapBuffers`), not the game | **Observed** by the user and in agent-mode captures (2026-10-16) | Fixed (`display.c`) |
@@ -1989,6 +2014,14 @@ the 64-bit build both paid Hero's Platemail and 20,000 XP; without the fix, noth
 `WM_KEYDOWN`, sampling `hud_hot_button_used` (`0x5bd028`) every 15-40 ms; it stayed -1 with and without a test
 fix, so the press did not reach `0x40dd1c` (the slot was probably refused by `spell_is_usable`). Not fixed until
 the highlight path is seen running.
+
+**Re-checked and fixed (2026-11-10).** The test is as described (**Observed** again, `0x40cf58`..`0x40cf7e`).
+`GameTimer__elapsed` (`0x501910`) already returns false for an invalid timer, so `elapsed()` alone is the right
+test; `!valid() || elapsed()` (the guess above) would also clear the highlight that a held mouse button sets in
+`hud_hot_buttons_handle_click`, whenever that runs before `hud_frame`. Fix ([Fixes] `HotButtonHighlight`, SummonerFix
+`bugfix.c`: `jne 0x40cf74` at `0x40cf64` becomes `je 0x40cf88`; in the source `FIXED_BUILD` in `new_hud.cpp`). Not yet
+seen in game: the 2026-10-17 attempt never reached the highlight, so the lead's test sets the hot button through the
+interface and reads the timer (`0x5bd088`) with the highlight, to tell a refused press from a cleared light.
 
 **K2. Two buttons, one case.** The case table at `0x407630` maps button 31 (up) and button 33 (down) to the
 same body, `mp_charselect_scroll_down(2)` (`0x4075d0`). There is no `scroll_up(2)` case. See
@@ -2134,6 +2167,22 @@ whether or not the file exists. The launcher (`Summoner.exe`) writes `ComputerSp
 "SpeedTab", "ComputerSpeed", "Default Detail Level:"), and `launcher_help.txt` describes that tab as setting "the
 default Detail Level". The presets themselves are also odd: value 1 gives `config_detail_14` 2 and value 2 gives 1.
 Found in the [`summoner.cpp`](../../src/decomp/game/summoner.cpp) notes.
+
+**Re-checked and fixed (2026-11-10).** **Correction:** the presets are not odd. `levelrender_draw_list` (`0x4858f0`)
+switches a model to its low lighting by distance with detail 0 (at 0.7 or 0.8 of the LOD distance) and with detail
+2 (at the full LOD distance), and never with detail 1, so detail 0 < 2 < 1 and the presets rise with the speed for
+all four values (**Observed** code; the labels on the options screen were not read). What the launcher's tab is for
+is in the retail `Readme.txt`: Speed "determines the default Detail Level used in Summoner. You may manually change
+this default". So the presets are meant as defaults that the player's own options override. Those are only written by
+`options_apply_and_save` (the one caller of `summoner_cfg_save`), and nothing writes `Summoner_options` before
+`GameInit` (the only other writers are the constructor and the `gamma` / `dcamera` console commands). Fix ([Fixes]
+`ComputerSpeedDefault`, SummonerFix `bugfix.c`: `jmp 0x43e327` over the default stores at `0x43e295`; in the source
+`FIXED_BUILD` in `summoner_cfg_load`): the second set of defaults is skipped, so without a `summoner.cfg` the presets
+stay, and a full `summoner.cfg` still replaces everything. *Inferred*, not yet seen in game.
+Where the value comes from: under SummonerFix (`reghook.c`) and in the 64-bit build (`modern/registry.cpp`) the
+game's registry key is emulated, and a value other than the display and sound ones is read from `summonerfix.ini`
+`[Registry]` (`ComputerSpeed=dword:00000002`), not from the real registry the launcher writes (**Observed** code).
+So with SummonerFix the fix only shows when that line is set; neither the config app nor the shipped ini sets it.
 
 **K20. The name switch and the spawn tests disagree.** `combat_spawn_hit_vfx` picks a name from the target's skin
 (char_info `+0x218`, case bytes at `0x466a64`): flesh and leather (1, 2) get `blood.vfx`, stone, ice and the metals
@@ -2766,6 +2815,27 @@ Not fixed yet (2026-10-16): the shadow is a projector 2 m (`shadow_anchor_height
 has to decide how `$Radius` and `$Scale` map to its field of view and range, which no code tells us. The bug is
 cosmetic, so it waits until a fix can be compared in game; in the sewer boss room the shadows were too faint to
 compare at all.
+
+**How the sizes were meant to apply (2026-11-10).** The retail `shadows.tbl` says it in its header (**Observed**):
+`$Radius` is "the radius of the shadow bitmap around the object" and `$Scale`, "from 0.0 to 1.0", is "the fudge
+factor to make the character's shadow look right from the overhead view" (120 entries 0.65, 29 0.80, one 0.90, one
+0.45). The game draws `Shadow01.tga` through a projector instead: a square frustum from 2 m above the root bone,
+half angle 0.15 rad (`shadow_record_add` stores `tan(fov)` and builds the side planes from it), so the shadow's half
+width on the ground is about 0.15 times the anchor's height above the feet, the same for every character. Two more
+leftovers point to an earlier, bitmap-based design that the projector replaced (*inferred*): the sixteen radial blob
+bitmaps that nothing reads (V272), and the unused radius argument of `shadow_draw_character`. So the intended size
+is most likely a shadow bitmap of half width `$Radius` x `$Scale` around the character: Joseph 0.97 m, a Golem 3.0 m,
+the Giant Salamanka 8.3 m. **Trial fix, opt-in (2026-11-10):** `[Fixes] ShadowSizes` (SummonerFix `bugfix.c`, a stub
+on the `shadow_record_add` call at `0x48769f`; in the source `FIXED_BUILD` in `shadow_draw_character`). For a mesh
+the table names it opens the projector to that half width on the ground (half angle `atan(half width / anchor
+height above the feet)`, at most 1.2) and moves the far plane to at least 2 m below the feet (and at least the 5 m
+of the original), so a tall character's shadow is not cut off. `shadow_record_add` gives the record a sphere half way
+between the near and far planes with half their distance as radius, and `projector_collect_lobj_faces` walks the
+level's BSP with that sphere (**Observed** code), so the far plane also goes deep enough for the sphere to reach the
+shadow's edge on the ground (`far >= near + ((h - near)^2 + w^2) / (h - near)`, h the anchor height, w the half
+width); for the Giant Salamanka that is some 20 m or more below the feet, so its shadow can also fall on geometry
+far below it (*inferred*, a limit of the trial). Other meshes keep the original projector. It is **off by default**
+until it has been compared in game: whether the projected sizes look right is not known.
 
 **K273. Arguments pushed in the wrong order.** `level_parse_table` pushes `level_fog_near` first and
 `level_fog_far` last (`0x4cbefc`..`0x4cbf09`), so `fog_set_level_default` gets the far value as its first argument
@@ -4348,12 +4418,12 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | G12 recovery times | `spells_parse_table` `0x47a49c`, `0x47a4c1`, `0x47a50b`, `0x47a648`; `character_start_spell_recovery` `0x44dce6`..`0x44dd1f`; `character_perform_spell_cast` `0x45dc7a`; `status_effect_duration` `0x47ab90` |
 | G13 aimed attack skill | `combat_apply_melee_hit` `0x4663c0`..`0x4663df`, `0x466468`..`0x466487`, `0x466510`..`0x46652f` |
 | G14 container close | `mp_handle_container_close` `0x488f00`..`0x488f15`, `0x488f4f`..`0x488f77`; `container_remove_item` `0x46abf5`..`0x46ac04`; `mp_send_container_close` `0x488e08`..`0x488e2a` |
-| G15 damage dice | `living_entity_get_hit_by_spell` `0x45e4ca`..`0x45e4d8`; `spell_roll_amount` `0x47f513`..`0x47f551` |
+| G15 damage dice | `living_entity_get_hit_by_spell` `0x45e4ca`..`0x45e4d8`; `spell_roll_amount` `0x47f513`..`0x47f551`, die 0 `0x47f4ec`..`0x47f4fe`; `xp_level_up_gains` (`0x489ac0`, the same roll with a positive N); retail `spells.tbl` (`+Die:`), `strings.tbl` (spell descriptions) |
 | G16 missile slots | `spell_launch_missile` `0x47e700`..`0x47e765`; `spell_fire_missile` `0x47e883` |
 | G17 trade slot | `mp_trade_complete` `0x471913`..`0x47193e`; `party_inventory_find_type_index` `0x46bd91`; `console_command__console_command` `0x50a1dc` |
 | C14 character name | `character_create_base` `0x54150c`..`0x5415c7`, `0x54160e`..`0x541636`; `character_load_shadow` `0x540e18`, `0x540e98`; `ca_preload_alloc_slot` `0x541700`..`0x541730` |
 | G18 lockpick handle | `mp_handle_container_lockpick` `0x4896a2`..`0x4896ce`; `container_lockpick` `0x4894b9`, `0x489564`; `mp_send_lockpick_result` `0x489614`; `mp_obj_from_net_handle` `0x475265`..`0x47526b`; `object_use_container` `0x43cc7c` |
-| K19 ComputerSpeed | `GameInit` `0x43e06f`..`0x43e104`; `summoner_cfg_load` `0x43e295`..`0x43e327` |
+| K19 ComputerSpeed | `GameInit` `0x43e06f`..`0x43e104`; `summoner_cfg_load` `0x43e295`..`0x43e327`; writers of `config_*` (`init_game_config_defaults` `0x43d199`.., `cmd_gamma` `0x43d538`, `cmd_dcamera` `0x4db211`); `summoner_cfg_save` caller `0x41faa3` (`options_apply_and_save`); detail use in `levelrender_draw_list` (0x4858f0); retail `Readme.txt` (Speed) |
 | K20 hit effects | `combat_spawn_hit_vfx` `0x4669d2`..`0x466a54`, case bytes `0x466a64`, jump table `0x466a58`; `material_names` `0x598f5c`; `characterinfo_parse_table` `0x445f42`..`0x445f64` |
 | V17 options | `cmdline_read_params` `0x43dc7c`..`0x43dc8b`; `init_cmdline_glide` `0x43d37c`; `LoadSettings` `0x43dade`..`0x43db03`, `0x43d95b`, `0x43d968` |
 | V18 extract_angles | `matrix3__extract_angles` `0x51028f`..`0x5102c0`; `set_from_sincos` `0x510086`..`0x5100b0`; `camera_blend_sequence__advance` `0x4944b9`..`0x4945f2`; `camera_update_sequence` `0x4794ad`..`0x4794ce`; `cutscene_camera_sequence__ctor` `0x493f83` |
@@ -4600,7 +4670,7 @@ Function and instruction addresses (no REA evidence ids; listings from `tools/as
 | G271 stale spell | `fx_new` `0x48c3e0`..`0x48c467`; `fx_obj__ctor` `0x489d30`..`0x489da1`; `fx_get_status_holder` `0x48ccdc`..`0x48cd09`; `character_equip_item_fx` `0x48ca74`..`0x48ca96`; `fx_count_spells_1a_1d_4e` `0x48bd50`..`0x48bd65`; `ai_choose_offensive_spell` `0x4bfa0b`..`0x4bfa2b`; `fx_destroy_spell_effects` `0x48d733`..`0x48d753` |
 | K270 Ghost cutscenes | `levelrender_add_character` `0x483329`..`0x483369`; `cutscene_script_table` `0x4ed760` |
 | K271 glow occluder | `lamp_glow_update_effects` `0x48461d`, `0x484785`, `0x4847b4`, `0x4847f9`..`0x484815`; `lamp_glow_update_lobjs` `0x48451f` |
-| K272 shadows.tbl | `shadows_parse_table` `0x4875b4`..`0x4875d8`; `shadow_draw_character` `0x487677`..`0x48769f`; `shadows_draw_characters` `0x48772f`..`0x48773a` |
+| K272 shadows.tbl | `shadows_parse_table` `0x4875b4`..`0x4875d8`; `shadow_draw_character` `0x487677`..`0x48769f`; `shadows_draw_characters` `0x48772f`..`0x48773a`; `shadow_record_add` `0x4a3ef0` (`tan(fov)`); retail `shadows.tbl` header comment |
 | K273 level fog | `level_parse_table` `0x4cbefc`..`0x4cbf11`; `fog_set_level_default` `0x486b99`..`0x486ba6`; `fog_restore_level_default` `0x486bc0`..`0x486bd0`; `fog_set_distances` `0x486b55`; `cutscene_events_frame` `0x4370f7` |
 | K274 clip y | `gr_project_vertex` `0x50eb0e`, `0x50eb1f`; `character_draw_overhead_bitmap` `0x481d83`..`0x481dec`; `levelrender_draw_health_bars` `0x4849c9`..`0x4849e1`; `levelrender_draw_speech_text` `0x484c05`..`0x484c1c`; `levelrender_draw_float_text` `0x48541b`, `0x4854c8`..`0x4854d0`; `interface_set_view_clip` `0x41222a`..`0x412251`, `0x41235f` |
 | V270 render toggles | `cmd_render_level` `0x4818af`..`0x48190a`; `cmd_render_characters` `0x48199f`..`0x4819fa`; `cmd_render_effects` `0x481a8f`..`0x481aea` |

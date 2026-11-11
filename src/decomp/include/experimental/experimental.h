@@ -20,6 +20,10 @@
 int  exp_ini_int(const char *section, const char *key, int def);
 // The value as text into out (size n); def when missing. Returns the length.
 int  exp_ini_string(const char *section, const char *key, const char *def, char *out, int n);
+// An opt-in [Fixes] key, a bug fix that is off unless the player turns it on (2026-11-10: G15 DamageDice and
+// K272 ShadowSizes): 1 when [Fixes] Enabled (default 1) and the key (default 0) are both set. Reads the ini on
+// every call: callers keep the result.
+int  exp_fix_opt_in(const char *key);
 // One line into experimental.log next to the exe (printf format; a newline is added). Cheap when [Debug]
 // ExperimentalLog=0 (the default): nothing is written.
 void exp_log(const char *fmt, ...);

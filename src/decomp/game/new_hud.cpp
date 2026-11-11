@@ -344,7 +344,14 @@ int hud_frame(int key)
 
     for (i = 0; i < HUD_NUM_BUTTONS; i++)
         hud_buttons[i].flags &= ~2;
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: K1 HotButtonHighlight. Clear the highlight when the 100 ms timer that hud_handle_keys sets for a
+    // number key has run out (an invalid timer never elapses); the original also cleared it while the timer ran,
+    // so the highlight lasted one frame.
+    if (hud_hot_button_timer.elapsed()) {
+#else
     if (hud_hot_button_timer.valid() || hud_hot_button_timer.elapsed()) {
+#endif
         hud_hot_button_timer.invalidate();
         hud_hot_button_used = -1;
     }

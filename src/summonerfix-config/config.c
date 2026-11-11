@@ -77,6 +77,15 @@ static const NumOption k_numOptions[] = {
 // switches single fixes.
 #define ID_FIX0 300
 typedef struct { const char *iniKey, *label; } FixOption;
+// Off unless ticked (SummonerFix's FixOptIn, 2026-11-10): fixes whose intent or look the owner has not settled.
+static const char *const k_optInFixes[] = {"DamageDice", "ShadowSizes"};
+static int FixDefault(const char *key)
+{
+    for (int i = 0; i < (int)(sizeof k_optInFixes / sizeof k_optInFixes[0]); i++)
+        if (!strcmp(k_optInFixes[i], key))
+            return 0;
+    return 1;
+}
 static const FixOption k_fixes[] = {
     {"RobeOfRestoration", "Robe of Restoration heals its wearer"},
     {"WorldSoundVolume", "World sounds follow the volume slider"},
@@ -131,6 +140,10 @@ static const FixOption k_fixes[] = {
     {"GoldPilesSaved", "More than 32 gold piles are saved"},
     {"BossHeight", "Tall bosses: bar and clicks at full height"},
     {"ClickRadius", "Click radius not squared (closer clicks)"},
+    {"HotButtonHighlight", "Number-key hot buttons light 100 ms"},
+    {"ComputerSpeedDefault", "Launcher Speed tab sets the details"},
+    {"DamageDice", "Damage dice 1 to die (off: as shipped)"},
+    {"ShadowSizes", "Shadow sizes from shadows.tbl (trial)"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 // The fixes that are off unless turned on (the owner kept these bugs; src/summonerfix/bugfix.c FixDefault).
@@ -623,7 +636,7 @@ static LRESULT CALLBACK FixWndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
             HWND fc = CreateWindowA("BUTTON", k_fixes[i].label, WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX,
                                     10 + (i / FIX_ROWS) * FIX_COL_W, 50 + (i % FIX_ROWS) * 20, FIX_COL_W - 10, 20, w, (HMENU)(INT_PTR)(ID_FIX0 + i), NULL, NULL);
             SendMessageA(fc, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
-            CheckDlgButton(w, ID_FIX0 + i, GetPrivateProfileIntA("Fixes", k_fixes[i].iniKey, FixDefaultOn(k_fixes[i].iniKey), g_ini) ? BST_CHECKED : BST_UNCHECKED);
+            CheckDlgButton(w, ID_FIX0 + i, GetPrivateProfileIntA("Fixes", k_fixes[i].iniKey, FixDefault(k_fixes[i].iniKey) && FixDefaultOn(k_fixes[i].iniKey), g_ini) ? BST_CHECKED : BST_UNCHECKED);
         }
         int y = 56 + FIX_ROWS * 20;
         if (!IsDlgButtonChecked(g_wnd, ID_FIXALL))

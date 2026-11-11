@@ -535,7 +535,9 @@ void game_shutdown_systems()
 }
 
 // 0x43df40  Confidence: exact (VC6 byte match, match14; was likely) (the ComputerSpeed clamp shape; the font switch's case 0 shares the
-// default). The ComputerSpeed presets are dead: summoner_cfg_load resets every field right after.
+// default). The ComputerSpeed presets are dead: summoner_cfg_load resets every field right after (game-bugs K19;
+// FIXED_BUILD keeps them when there is no summoner.cfg). They rise with the speed: detail 0 switches a model to its
+// low lighting nearest, 2 at the full LOD distance, 1 never (levelrender_draw_list 0x4858f0).
 void GameInit()
 {
     int speed;
@@ -674,7 +676,14 @@ void summoner_cfg_load()
 {
     File f;
 
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: K19 ComputerSpeedDefault. No defaults again here: the constructor stored them at start-up and
+    // nothing writes Summoner_options before GameInit, so the only change is that GameInit's ComputerSpeed presets
+    // (the launcher's Speed tab, "the default Detail Level") stay when there is no summoner.cfg. A full
+    // summoner.cfg (the player's own options, written by options_apply_and_save) still replaces all of it.
+#else
     Summoner_options.set_defaults();
+#endif
     if (f.open("summoner.cfg", 1, path_root) == 0) {
         int n = f.size(NULL, PATH_ANY);
         int size;
