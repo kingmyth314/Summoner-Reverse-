@@ -271,11 +271,12 @@ Format tag 1 (PCM) is loaded directly. Format tag 2 (MS-ADPCM) is decoded with A
 (`ds_load_buffer_acm`, `0x55cbe0`); streams convert each chunk (`snd_stream_fill_acm`,
 `0x566630`) (**observed**). See [Packfiles](vsdk-packfile.md) for the `.vpp` layout.
 
-**Answered 2026-11-10 (Observed, the `fmt ` chunks of the shipped packfiles read):** every shipped sound is
-MS-ADPCM (format tag 2, 4 bits per sample). The 41 music files of `music.vpp` are stereo, 37 at 22,050 Hz and 4 at
-44,100 Hz (`iona01.wav`, `jade_temple.wav`, `Palace Theme II.wav`, `random_grass.wav`). The 1,336 files of
-`sounds.vpp` are mono, 678 at 11,025 Hz and 658 at 22,050 Hz. So every sound goes through the ACM path; the PCM
-path is never used with retail data.
+**Answered 2026-11-10 (Observed, the `fmt ` chunks of the `.wav` files in all eleven shipped packfiles read):**
+every packed sound is MS-ADPCM (format tag 2, 4 bits per sample). The 41 music files of `music.vpp` are stereo, 37 at
+22,050 Hz and 4 at 44,100 Hz (`iona01.wav`, `jade_temple.wav`, `Palace Theme II.wav`, `random_grass.wav`). The
+1,336 files of `sounds.vpp` are mono, 678 at 11,025 Hz and 658 at 22,050 Hz. The 77 cutscene soundtracks of
+`cutscene.vpp` are stereo, 73 at 22,050 Hz and 4 at 44,100 Hz (`UrathMyth1a`..`1d`). No other packfile holds a
+`.wav`. So every packed sound goes through the ACM path; loose files outside the packfiles were not checked.
 
 ## Open questions
 

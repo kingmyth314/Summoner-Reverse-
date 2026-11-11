@@ -83,7 +83,7 @@ story order):** the rings come from conversations (`+Gain Item:`), a level item 
 
 | Ring | Given by |
 |---|---|
-| Darkness | Yago in the Lenele palace (`LpalaceINT_dlg.tbl`); a second copy from the Guardian of the Stone Portal in the Khosani stronghold (`Khosanistrng_v6_dlg.tbl`, "I give to you now the Ring of Darkness") |
+| Darkness | Yago in the Lenele palace (`LpalaceINT_dlg.tbl`, his second record `Yago#2`); a second copy from the Guardian of the Stone Portal in the Khosani stronghold (`Khosanistrng_v6_dlg.tbl`, "I give to you now the Ring of Darkness") |
 | Light | level item `Catacombs-004` at `$npc105`, which appears on the event `catacombs_boss_dead` (`level_items.tbl`); also the Guardian of the Stone Portal (`Khosanistrng_v5_dlg.tbl`, with the Ring of Stone) |
 | Stone | the Ikaemos Priest King's `+Drop: "Ring of Stone" 100`; also the Guardian of the Stone Portal (`Khosanistrng_v5_dlg.tbl`) |
 | Water | Ngaru's Ghost in the Wolong caverns (`wolongcaverns_dlg.tbl`) |
