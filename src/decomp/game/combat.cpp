@@ -1344,7 +1344,12 @@ void living_combat::apply_melee_hit(bool flinch)
         combat_spawn_hit_vfx(owner, opponent->owner);
         if (flinch == true)
             opponent->play_flinch(owner->cur_move->variant);
+#ifdef FIXED_BUILD
+        // FIXED_BUILD: G13 AimedAttackSkill. The attacker's aimed attack skill, not the selected character's.
+        if (owner->get_skill(SKILL_AIMED_ATTACK) > frand()) {
+#else
         if (cur_character->get_skill(SKILL_AIMED_ATTACK) > frand()) {
+#endif
             opponent->owner->status_effect_add(STATUS_BLIND, 15000, -1, 0, owner->handle, 0);
             fx_attach_to_character("generichit04.vfx", opponent->owner->handle, -1, -1, 0, 0);
         }
@@ -1354,7 +1359,12 @@ void living_combat::apply_melee_hit(bool flinch)
         combat_spawn_hit_vfx(owner, opponent->owner);
         if (flinch == true)
             opponent->play_flinch(owner->cur_move->variant);
+#ifdef FIXED_BUILD
+        // part of FIXED_BUILD G13
+        if (owner->get_skill(SKILL_AIMED_ATTACK) > frand()) {
+#else
         if (cur_character->get_skill(SKILL_AIMED_ATTACK) > frand()) {
+#endif
             opponent->owner->status_effect_add(STATUS_CRIPPLE, 15000, -1, 0, owner->handle, 0);
             fx_attach_to_character("generichit03.vfx", opponent->owner->handle, -1, -1, 0, 0);
         }
@@ -1364,7 +1374,12 @@ void living_combat::apply_melee_hit(bool flinch)
         combat_spawn_hit_vfx(owner, opponent->owner);
         if (flinch == true)
             opponent->play_flinch(owner->cur_move->variant);
+#ifdef FIXED_BUILD
+        // part of FIXED_BUILD G13
+        if (owner->get_skill(SKILL_AIMED_ATTACK) > frand()) {
+#else
         if (cur_character->get_skill(SKILL_AIMED_ATTACK) > frand()) {
+#endif
             opponent->owner->status_effect_add(STATUS_SLOW, 15000, -1, 0, owner->handle, 0);
             fx_attach_to_character("generichit05.vfx", opponent->owner->handle, -1, -1, 0, 0);
         }

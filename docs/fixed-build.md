@@ -207,6 +207,15 @@ In the test folder at 1366x768 on a 143 Hz screen, with test saves. **Observed**
 | launcher | 1024x768 by default when the launcher wrote no settings | `ResolutionDefault` | `LoadSettings (0x43d7f0)` | `game/summoner.cpp` |
 | K260 | World sounds follow the volume slider | `WorldSoundVolume` | `snd_play_3d (0x521480)` | `vsdk/unnamed_snd_0x5204c0.cpp` |
 | K292 | Conversation more/end hover | `ConversationHover` | `dialogue_topic_entry::draw (0x4d6e70)` | `game/unnamed_dialogue_box_0x4d6660.cpp` |
+| G132 | Liangshan: Wentao waits for wave 3 (2026-11-10) | `LiangshanWave4` | `lsf_liangshan_flag_wave4 (0x4f5280)` | `game/level_script_liangshan.cpp` |
+| G13 | Aimed attacks use the attacker's skill (2026-11-10) | `AimedAttackSkill` | `living_combat::apply_melee_hit (0x465df0)` | `game/combat.cpp` |
+| G41 | More than 32 gold piles are saved (2026-11-10) | `GoldPilesSaved` | `savegame::write_item_objects (0x4d2370)` | `game/level_scripts.cpp` |
+| K30 | Tall bosses: bar, texts and picking at their own height; **off unless** `[Fixes] BossHeight=1` (2026-11-10) | `BossHeight` | `Character::shown_height` (new), used by `levelrender_draw_health_bars`, `_speech_text`, `_float_text`, `pick_test_character` | `game/living_entity.cpp`, `game/unnamed_render_scene_0x481680.cpp`, `game/gametarget.cpp` |
+| K63 | Click radius not squared; **off unless** `[Fixes] ClickRadius=1` (2026-11-10) | `ClickRadius` | `pick_test_character (0x43c620)` | `game/gametarget.cpp` |
+
+K30 and K63 are the only source fixes that read their `[Fixes]` key at run time (`exp_ini_int`, default 0): the owner
+kept both bugs (2026-10-17, 2026-10-18), so the fixed build behaves as the original unless the key is set. Their
+markers still put the keys into the `.fixes` file, so SummonerFix does not patch them a second time.
 
 ## Notes from the port
 

@@ -38,6 +38,12 @@ cannot end before it), found while playing the side quests. Not ranked: it was f
 `bugfix.c`, `[Fixes] TriggeredShow`, and `FIXED_BUILD`), reproduced in game first. G312, added the same day, was
 withdrawn (the test command had reached a hidden character; [Game bugs](game-bugs.md#claims-that-did-not-hold)).
 
+**Fixed 2026-11-10, not yet run in game:** G132 (`[Fixes] LiangshanWave4`), G13 (`AimedAttackSkill`) and G41
+(`GoldPilesSaved`), in SummonerFix `bugfix.c` and `FIXED_BUILD`, each re-read in the code first (**Observed**); the
+in-game check is still to come, so they are not in the list below yet. K30 (`BossHeight`) and K63 (`ClickRadius`) got
+opt-in fixes the same day, **off by default**: the owner's decisions to keep them (2026-10-17 and 2026-10-18) stand
+until the owner says otherwise.
+
 {: .note }
 **Fixed since the ranking:** G4, G215, C250, G8, G12, G40, G170, G301, C210 with G212, G270, G211, G210, G100, K292, K5, G6, G32, K130, K150, K100, K6, K3, K4, K110, K12, K191, K61, K80, C310, G271, G241, K300, K40, G229, C2, G2, K193, C272, G253, G252, G31 and G213 (2026-10-17 and 18, SummonerFix `bugfix.c`, all reproduced in game first (C210: the doubled count, not the crash); C270, G50, G30, G5, K131 and K9 were withdrawn instead (they did not happen); each fix can be switched off in `[Fixes]`: `SaveOverwriteQuestion`, `PhoenixInferno`, `LuminarBeamTarget`, `SummonKeepsLeader`, `SpellRecoveryTimes`, `GoldPileAmount`, `MessageBoxPause`, `CanisTenGold`, `AiBlessCount`, `AreaCasterGone`, `SupportAiTarget`, `DetectionCone`, `LeechDrain`, `ConversationHover`, `SaveListThumbnail`, `ZaneEncounter`, `MountedRiders`, `BossMusic`, `RingSixtyThousand`, `MapLabelLimit`, `ShopCategoryButtons`, `InventoryCategoryButtons`, `AmbientSounds`, `PickupScrollbar`, `EdgeTurnAfterDrag`, `LootHighlightColour`, `KnockDownMessage`, `LongInstallPath`, `EffectSlotSpell`, `AreaSpellDistances`, `SpellHitSoundPosition`, `MapLabelsFull`, `SupportSpellPick`, `PrimarySoundBuffer`, `QpcFrequency`, `ScreenshotNumbers`, `EffectSearchGuard`, `BossAnchorsAlive`, `MurodBackBiteTimer`, `BossSpellInRange`, `SerpentSleepTest`).
 The same data is in [`bug-priorities.json`](bug-priorities.json).
@@ -107,12 +113,12 @@ for those the fix also needs a decision on what the game should do.
 | 24 | G270 | One fire / blizzard / dark wall area whose caster is gone switches off every later area and cures their statuses | 3 | 3 | Wall of fire from a summon, dismiss it, walk into later areas | tiny | 9 |
 | 25 | G229 | AI healers compare each share against the random number instead of a running sum, so they often cast nothing | 3 | 3 | Fight with Rosalind on AI; log support spell picks | small | 9 |
 | 26 | K6 | A 33rd map label replaces the first one | 2 | 4 | Add 33 labels on one map (script the clicks) | tiny | 8 |
-| 27 | K30 | Tall bosses use their size class height: health bar and text too low, upper body not clickable | 2 | 4 | Warp to the Luminar or Machival; look at the health bar, click high | tiny | 8 |
+| 27 | K30 | **Kept by decision 2026-10-17**; opt-in fix `[Fixes] BossHeight` (off by default, 2026-11-10). Tall bosses use their size class height: health bar and text too low, upper body not clickable | 2 | 4 | Warp to the Luminar or Machival; look at the health bar, click high | tiny | 8 |
 | 28 | K100 | A ring total of exactly 60,000 never shows the summon message, and the pop-up lists the summon early | 2 | 4 | Set a ring total to 59,999 / 60,000 by memory, gain power | tiny | 8 |
 | 29 | C200 | LAN game list leaks a player record per visit; the fifth visit after four Create Game / Cancel rounds crashes | 2 | 4 | Options: LAN; Multiplayer, then Create Game and Cancel four times. Menus only, no second machine | small | 8 |
 | 30 | G5 | **Withdrawn 2026-10-17: cannot happen** (521 item types, 521 inventory entries: a full inventory holds every type). Was: Buying with a full inventory (521 item types) takes the gold and gives nothing | 2 | 4 | Fill the inventory with `savedit.mjs`, buy an item type not yet held | small | 8 |
 | 31 | K12 | Container pickup list scrollbar thumb is full height and runs past the track when scrolled | 2 | 4 | Open a container with more than a page of items | small | 8 |
-| 32 | K63 | **Kept by decision 2026-10-18** (the longer reach is fine). Character click radius compares a squared distance with a plain radius | 2 | 4 | Click beside small and large characters; log picks | small | 8 |
+| 32 | K63 | **Kept by decision 2026-10-18** (the longer reach is fine); opt-in fix `[Fixes] ClickRadius` (off by default, 2026-11-10). Character click radius compares a squared distance with a plain radius | 2 | 4 | Click beside small and large characters; log picks | small | 8 |
 | 33 | K110 | Each level leave frees only half the ambient emitters; after enough changes levels lose ambient sounds | 2 | 4 | Change levels repeatedly; count used `sound_emitters` with `peek` | small | 8 |
 | 34 | K131 | **Withdrawn 2026-10-18: cannot happen** (the game refuses saving in the last temple level once the narration has ended; see game-bugs, "Claims that did not hold"). Was: Each load of a save in the last temple level replays the 29 s narration | 2 | 4 | Warp to the last temple level, save, load | small | 8 |
 | 35 | K191 | Releasing a drag at the screen edge starts the edge camera turn at once | 2 | 4 | Drag with the left button to the edge, release | small | 8 |

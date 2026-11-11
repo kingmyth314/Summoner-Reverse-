@@ -262,8 +262,16 @@ void lsf_liangshan_flag_wave3()
 // 0x4f5280  Confidence: exact. Wave 3 "dead": only Samurai#w3b and the mage are tested, not Samurai#w3a.
 void lsf_liangshan_flag_wave4()
 {
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: G132 LiangshanWave4. Samurai#w3a, sent with the other two, must be dead too (or not in the level's
+    // script at all, so the defence cannot stall on a missing name).
+    if (!savegame_state.get_flag(cur_level_index, "liangshan_flag_wave4") && script_npc_is_dead("Orenian Samurai#w3b")
+        && (script_object_find("Orenian Samurai#w3a") < 0 || script_npc_is_dead("Orenian Samurai#w3a"))
+        && script_npc_is_dead("Orenian Mage#w3")) {
+#else
     if (!savegame_state.get_flag(cur_level_index, "liangshan_flag_wave4") && script_npc_is_dead("Orenian Samurai#w3b")
         && script_npc_is_dead("Orenian Mage#w3")) {
+#endif
         savegame_state.set_flag(cur_level_index, "liangshan_flag_wave4", true);
         script_npc_send_go("Orenian Greater Mage#w4");
         script_npc_send_go("Orenian Soldier#w4a");

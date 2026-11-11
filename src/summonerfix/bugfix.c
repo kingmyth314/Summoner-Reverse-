@@ -1230,7 +1230,148 @@ __asm__(".text\n"
         "    popl %eax\n"
         "    ret\n");
 
-// [Fixes] Key=0 turns one of the fixes below off (default on); the no-sound crash fix is always on (2026-10-17).
+// ---- K30, K63, G132, G13, G41 (2026-11-10), one block: comments, addresses, stubs, FixDefault, install --------------
+//
+// Tall bosses' health bar, texts and picking at the size-class height (cosmetic; game-bugs K30). For type 9
+// character_size_height (0x4542f0) calls charinfo_boss_height and drops the result (fstp st(0) at 0x45430f), so the
+// Luminar (5.5), Machival (5), Evil Urath (8), the Tentacle Beast (15) ... get 0.9 / 1.8 / 2.5. Fix ([Fixes]
+// BossHeight, OFF by default: the owner kept K30 on 2026-10-17): only the six calls that place the health bar, the
+// speech and float texts and the pick cylinder go to a stub that returns the boss height; line of sight, overlap,
+// guard sight and the conversation camera keep the size-class height.
+//
+// Click radius compared squared against unsquared (game-bugs K63). pick_test_character compares dx^2 + dz^2 with the
+// halved pick radius, not its square (fld [esp+0x14] ; fadd st, st(1) ; fcomp [esp+0x48] at 0x43c7ad), so the limit is
+// sqrt(r): wider for r < 1 (every normal character), narrower above 1. Fix ([Fixes] ClickRadius, OFF by default: the
+// owner kept K63 on 2026-10-18, the longer reach is fine): the three instructions call a stub that compares
+// sqrt(dx^2 + dz^2) with r; the x87 status word reaches the fnstsw after it as before.
+//
+// Liangshan's fourth wave tests two of the three wave-3 enemies (game-bugs G132). lsf_liangshan_flag_wave4 sends
+// Wentao's wave when "Orenian Samurai#w3b" and "Orenian Mage#w3" are dead; "#w3a", sent in the same wave, is never
+// tested. Fix ([Fixes] LiangshanWave4): its first script_npc_is_dead call (0x4f529e, the caller pushes #w3b and pops
+// it) goes to a stub that also needs #w3a dead (or missing from the level's script, so the defence can never stall).
+//
+// Aimed attack status chance from the selected character (game-bugs G13). combat_apply_melee_hit's blind / cripple /
+// slow branches read the aimed attack skill (0x11) of cur_character (mov ecx, [0x5fcc88] at 0x4663c0, 0x466468,
+// 0x466510), not of the attacker ([esi], as the skill 0xd read at 0x465f0e). Fix ([Fixes] AimedAttackSkill):
+// mov ecx, [esi] and four nops at each site.
+//
+// More than 32 loose gold piles lost on load (game-bugs G41). savegame_write_item_objects stops at 32 piles
+// (cmp ebp, 0x20 ; jge 0x4d256f at 0x4d24e3). The CONT chunk (0x18b4 bytes) is sized for 40 full containers (16 items)
+// plus 32 piles, so 32 is the worst case, not the room left; the reader has no limit. Fix ([Fixes] GoldPilesSaved): the
+// test becomes "room for one more 16-byte pile" (esi + 16 <= the chunk size [edi+0x1038]); at least 32, up to 394.
+#define VA_SIZE_HEIGHT_K30 0x4542f0u          // character_size_height, thiscall
+#define VA_CHARINFO_BOSS_HEIGHT 0x4a15a0u     // cdecl (char_info *) -> float
+#define VA_PICK_HORIZONTAL_TEST 0x43c7adu     // fld [esp+0x14] ; fadd st, st(1) ; fcomp [esp+0x48] in pick_test_character
+#define VA_WAVE4_W3B_DEAD_CALL 0x4f529eu      // call script_npc_is_dead ("Orenian Samurai#w3b") in lsf_liangshan_flag_wave4
+#define VA_SCRIPT_NPC_IS_DEAD 0x4ce600u       // cdecl (name) -> bool
+#define VA_SCRIPT_OBJECT_FIND 0x4cddf0u       // cdecl (name) -> index or -1
+#define VA_GOLD_PILE_LIMIT 0x4d24e3u          // cmp ebp, 0x20 ; jge 0x4d256f in savegame_write_item_objects
+#define VA_GOLD_PILES_DONE 0x4d256fu          // after the pile loop (stores the count)
+static const DWORD k_bossHeightCalls[6] = {
+    0x43c6f3u, // pick_test_character
+    0x48496du, // levelrender_draw_health_bars
+    0x484bc5u, // levelrender_draw_speech_text
+    0x485476u, 0x485617u, 0x48572bu, // levelrender_draw_float_text (HP, modifier, float text)
+};
+static const DWORD k_aimedSkillLoads[3] = {0x4663c0u, 0x466468u, 0x466510u}; // mov ecx, [cur_character]
+
+// K30: the height used to place a character's bar and texts and to pick it (thiscall, float in st(0)).
+__attribute__((used)) static float __attribute__((thiscall)) BossShownHeight(BYTE *c)
+{
+    if (*(const int *)(c + 0xc) == 9)
+        return ((float(__cdecl *)(void *))(UINT_PTR)SumVa(VA_CHARINFO_BOSS_HEIGHT))(*(void **)(c + 0x71c));
+    return ((float(__attribute__((thiscall)) *)(void *))(UINT_PTR)SumVa(VA_SIZE_HEIGHT_K30))(c);
+}
+
+// K63: called in place of the 10-byte horizontal test, st(0) = one squared horizontal distance, [esp+4+0x14] the other,
+// [esp+4+0x48] the halved pick radius. Leaves the compare in the status word, the x87 stack as the original did.
+void PickRadiusStub(void);
+__asm__(".text\n"
+        "_PickRadiusStub:\n"
+        "    flds 0x18(%esp)\n"
+        "    fadd %st(1), %st\n"
+        "    fsqrt\n"
+        "    fcomps 0x4c(%esp)\n"
+        "    ret\n");
+
+// G132: replaces script_npc_is_dead("Orenian Samurai#w3b") in lsf_liangshan_flag_wave4 (cdecl, bool in al).
+__attribute__((used)) static int __cdecl Wave3Dead(const char *w3b)
+{
+    typedef char(__cdecl * IsDeadFn)(const char *);
+    typedef int(__cdecl * FindFn)(const char *);
+    IsDeadFn isDead = (IsDeadFn)(UINT_PTR)SumVa(VA_SCRIPT_NPC_IS_DEAD);
+    if (!isDead(w3b))
+        return 0;
+    if (((FindFn)(UINT_PTR)SumVa(VA_SCRIPT_OBJECT_FIND))("Orenian Samurai#w3a") < 0)
+        return 1;
+    return isDead("Orenian Samurai#w3a") ? 1 : 0;
+}
+
+// G41: called in place of cmp ebp, 0x20 ; jge (9 bytes); esi = the write offset, edi = the savegame. With no room for
+// one more pile it leaves the loop at 0x4d256f. eax is free (reloaded before its next use either way).
+__attribute__((used)) DWORD g_goldPilesDone;
+void GoldPileRoomStub(void);
+__asm__(".text\n"
+        "_GoldPileRoomStub:\n"
+        "    leal 0x10(%esi), %eax\n"
+        "    cmpl 0x1038(%edi), %eax\n"
+        "    jg 1f\n"
+        "    ret\n"
+        "1:  addl $4, %esp\n"
+        "    jmp *_g_goldPilesDone\n");
+
+// The [Fixes] keys of this block that are off unless the ini turns them on (owner decisions, see above).
+static int FixDefault(const char *key)
+{
+    return (!strcmp(key, "BossHeight") || !strcmp(key, "ClickRadius")) ? 0 : 1;
+}
+
+static void NextRankFixesInstall(void)
+{
+    if (FixOn("BossHeight")) {
+        for (int i = 0; i < 6; i++) {
+            DWORD s = SumVa(k_bossHeightCalls[i]);
+            BYTE o[5] = {0xE8}, r[5] = {0xE8};
+            DWORD ro = SumVa(VA_SIZE_HEIGHT_K30) - (s + 5), rn = (DWORD)(UINT_PTR)BossShownHeight - (s + 5);
+            memcpy(o + 1, &ro, 4);
+            memcpy(r + 1, &rn, 4);
+            PatchBytes(k_bossHeightCalls[i], o, r, 5, "tall bosses' bar, texts and picking at their own height (K30)");
+        }
+    }
+    if (FixOn("ClickRadius")) {
+        static const BYTE o[10] = {0xD9, 0x44, 0x24, 0x14, 0xD8, 0xC1, 0xD8, 0x5C, 0x24, 0x48};
+        BYTE r[10] = {0xE8, 0, 0, 0, 0, 0x90, 0x90, 0x90, 0x90, 0x90};
+        DWORD rel = (DWORD)(UINT_PTR)PickRadiusStub - (SumVa(VA_PICK_HORIZONTAL_TEST) + 5);
+        memcpy(r + 1, &rel, 4);
+        PatchBytes(VA_PICK_HORIZONTAL_TEST, o, r, 10, "click radius compared as a distance, not squared (K63)");
+    }
+    if (FixOn("LiangshanWave4")) {
+        DWORD s = SumVa(VA_WAVE4_W3B_DEAD_CALL);
+        BYTE o[5] = {0xE8}, r[5] = {0xE8};
+        DWORD ro = SumVa(VA_SCRIPT_NPC_IS_DEAD) - (s + 5), rn = (DWORD)(UINT_PTR)Wave3Dead - (s + 5);
+        memcpy(o + 1, &ro, 4);
+        memcpy(r + 1, &rn, 4);
+        PatchBytes(VA_WAVE4_W3B_DEAD_CALL, o, r, 5, "Liangshan's fourth wave waits for all three of the third (G132)");
+    }
+    if (FixOn("AimedAttackSkill")) {
+        static const BYTE o[6] = {0x8B, 0x0D, 0x88, 0xCC, 0x5F, 0x00}; // mov ecx, [0x5fcc88]
+        static const BYTE r[6] = {0x8B, 0x0E, 0x90, 0x90, 0x90, 0x90}; // mov ecx, [esi]
+        for (int i = 0; i < 3; i++)
+            PatchBytes(k_aimedSkillLoads[i], o, r, 6, "aimed attack status chance from the attacker's skill (G13)");
+    }
+    if (FixOn("GoldPilesSaved")) {
+        g_goldPilesDone = SumVa(VA_GOLD_PILES_DONE);
+        static const BYTE o[9] = {0x83, 0xFD, 0x20, 0x0F, 0x8D, 0x83, 0x00, 0x00, 0x00};
+        BYTE r[9] = {0xE8, 0, 0, 0, 0, 0x90, 0x90, 0x90, 0x90};
+        DWORD rel = (DWORD)(UINT_PTR)GoldPileRoomStub - (SumVa(VA_GOLD_PILE_LIMIT) + 5);
+        memcpy(r + 1, &rel, 4);
+        PatchBytes(VA_GOLD_PILE_LIMIT, o, r, 9, "gold piles saved while the chunk has room, not only 32 (G41)");
+    }
+}
+// ---- end of the K30, K63, G132, G13, G41 block ----------------------------------------------------------------------
+
+// [Fixes] Key=0 turns one of the fixes below off (default on, except the keys FixDefault lists); the no-sound crash
+// fix is always on (2026-10-17).
 // [Fixes] Enabled=0 (the config app's "Fix bugs in the original game") turns every one of them off.
 static BOOL FixOn(const char *key)
 {
@@ -1242,7 +1383,7 @@ static BOOL FixOn(const char *key)
         Log("fix %s: fixed in this exe's source (FIXED_BUILD), patch not applied", key);
         return FALSE;
     }
-    if (GetPrivateProfileIntA("Fixes", key, 1, g_cfg.iniPath))
+    if (GetPrivateProfileIntA("Fixes", key, FixDefault(key), g_cfg.iniPath))
         return TRUE;
     Log("fix %s is off ([Fixes] %s=0)", key, key);
     return FALSE;
@@ -1717,4 +1858,6 @@ void BugFixesInstall(void)
         static const BYTE thisRepl[2] = {0x8B, 0xCB}; // mov ecx, ebx
         PatchBytes(VA_INFERNO_HIT_THIS, thisOrig, thisRepl, 2, "Phoenix Inferno hits each member once (G215)");
     }
+
+    NextRankFixesInstall(); // K30, K63, G132, G13, G41
 }

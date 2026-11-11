@@ -173,6 +173,9 @@ public:
     // decomp20 (conversationctl.cpp). Argument lists from its call sites.
     float size_radius();              // 0x4542b0 character_size_radius
     float size_height();              // 0x4542f0 character_size_height
+#ifdef FIXED_BUILD
+    float shown_height();             // not in Sum.exe: K30 BossHeight (living_entity.cpp)
+#endif
     float distance_between_edges(Character *other, bool a, int b);  // 0x454330 (the calls pass false, -1)
     // decomp37: (status, force, restore_fx)
     void  status_effect_cure(int status, bool force, bool restore_fx);   // 0x4553a0 (conversation_begin: 8, 1, 0)

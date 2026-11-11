@@ -6,6 +6,7 @@
 #include <commctrl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "../summonerfix/keynames.h"
 #include "../summonerfix/padmap.h"
 #include "../summonerfix/screensize.h"
@@ -125,8 +126,18 @@ static const FixOption k_fixes[] = {
     {"MurodBackBiteTimer", "Murod Oni back bite on its 5 s timer"},
     {"BossSpellInRange", "Boss poison/fear only when in reach"},
     {"SerpentSleepTest", "Serpent checks its new target asleep"},
+    {"LiangshanWave4", "Liangshan: Wentao waits for wave 3"},
+    {"AimedAttackSkill", "Aimed attacks use the attacker's skill"},
+    {"GoldPilesSaved", "More than 32 gold piles are saved"},
+    {"BossHeight", "Tall bosses: bar and clicks at full height"},
+    {"ClickRadius", "Click radius not squared (closer clicks)"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
+// The fixes that are off unless turned on (the owner kept these bugs; src/summonerfix/bugfix.c FixDefault).
+static int FixDefaultOn(const char *key)
+{
+    return strcmp(key, "BossHeight") && strcmp(key, "ClickRadius");
+}
 
 static char g_ini[MAX_PATH];
 static Bindings g_b; // physical key/button -> game key/button
@@ -612,7 +623,7 @@ static LRESULT CALLBACK FixWndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
             HWND fc = CreateWindowA("BUTTON", k_fixes[i].label, WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX,
                                     10 + (i / FIX_ROWS) * FIX_COL_W, 50 + (i % FIX_ROWS) * 20, FIX_COL_W - 10, 20, w, (HMENU)(INT_PTR)(ID_FIX0 + i), NULL, NULL);
             SendMessageA(fc, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
-            CheckDlgButton(w, ID_FIX0 + i, GetPrivateProfileIntA("Fixes", k_fixes[i].iniKey, 1, g_ini) ? BST_CHECKED : BST_UNCHECKED);
+            CheckDlgButton(w, ID_FIX0 + i, GetPrivateProfileIntA("Fixes", k_fixes[i].iniKey, FixDefaultOn(k_fixes[i].iniKey), g_ini) ? BST_CHECKED : BST_UNCHECKED);
         }
         int y = 56 + FIX_ROWS * 20;
         if (!IsDlgButtonChecked(g_wnd, ID_FIXALL))
