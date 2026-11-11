@@ -97,6 +97,16 @@ K1 (the harness could not make a number key use a hot button, filled through `sa
    is within the tier the owner chose on 2026-10-21 ([Public release](public-release.md)), and goes with item 2.
 4. **Variable refresh** needs a DisplayPort connection ([Vulkan renderer](future/vulkan-renderer.md)).
 5. **A real controller.** The controller code has only been driven through agent mode's `pad`.
+6. **The opt-in fixes** (added 2026-11-10; off by default until the owner decides): G15  (lightning
+   about 60 % stronger per hit in the test), K272  (subtle in dark levels), K30  and K63
+    (both kept by earlier decisions) ([Fixed build](fixed-build.md#checked-2026-11-10-fixes-run-in-the-game)).
+7. **Settings to expose or not:** the launcher's Speed tab (, read by K19's fix) in the
+   config app; the game's own anti-aliasing option switching MSAA at run time.
+8. **Things a person has to do at the screen:** exclusive fullscreen with Alt+Tab, the Windows key, minimise and
+   restore; and the three fixes the harness could not drive: K1 (a number key on a filled hot button), G13 (an
+   aimed attack while another hero is selected), G132 (Liangshan's defence with #w3a left alive).
+9. **A DirectSound wrapper with EAX** (a third-party download) so that  can be heard.
+10. **Multiplayer in the 64-bit build** (last).
 
 ## Custom key bindings for player actions
 
