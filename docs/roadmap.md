@@ -50,7 +50,7 @@ for example as a hotkey to speed up walking long distances.
 *Correction 2026-11-10:* the on-screen indicator is not open. It was added on 2026-10-14 (commit 165bc84): a
 "FAST x3" badge at the top left of the picture while fast mode is on in play, drawn by SummonerFix (`display.c`, in the
 `SwapBuffers` hook, so also in the 32-bit rebuilt exes it runs in) and by the 64-bit build's own host
-(`modern/gamma.cpp` under OpenGL, `modern/vk_post.cpp` under Vulkan). **Observed** 2026-11-10 by the owner on the
+(`modern/gamma.cpp` under OpenGL, `modern/vk_post.cpp` under Vulkan). **Observed** 2026-11-10 in a play-test on the
 original exe ("FAST x8" with `SpeedFactor=8`). New on 2026-11-10: `[Game] SpeedBadge` (default 1) switches it off, in
 SummonerFix and the 64-bit build, live, and in the config app's **Display / resolution...** window
 ([SummonerFix](summonerfix/index.md#configuration-summonerfixini)). The badge uses Windows' Arial (a GL bitmap font),
