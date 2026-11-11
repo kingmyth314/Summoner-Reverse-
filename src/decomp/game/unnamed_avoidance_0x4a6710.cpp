@@ -1068,8 +1068,9 @@ void rect2d_add_point(rect2d *r, const vector2 *p)
     r->min_y = min_f(r->min_y, p->y);
 }
 
-// 0x4a8680  Confidence: likely (the reuse of sl's argument slot for b's corner index; D22804: ws as a
-// pf_edge, 264 -> 262; ib still does not take sl's slot). Appends the
+// 0x4a8680  Confidence: exact (D22804: ws as a pf_edge; D26900: the corner searches as guarded do / while
+// loops through a corner pointer p, nc / ns read before the -1 stores, p taken before `ia = nc++`, the wall
+// corners addressed as corners[nc - 1] after the increment, and a block-scope idx in each wall block). Appends the
 // segment a-b (reusing corners at the same points). Soft lists compute the miter at the ends that lie on
 // walls; prohibit lists add a closing segment along each wall to the wall's end point on a's side.
 // Returns -1 when the 30 corners are used up.
@@ -1077,38 +1078,48 @@ int avoid_seglist_add_segment(const vector2 *a, const vector2 *b, pf_edge *wall_
                               avoid_seglist *sl)
 {
     pf_edge ws;
-    vector2 *ep;
-    int ia, ib, nc, ns, i, idx;
+    vector2 *ep, *p;
+    int ia, ib, nc, ns, i;
 
-    ia = -1;
-    ib = -1;
     nc = sl->num_corners;
     ns = sl->num_segs;
-    for (i = nc - 1; i >= 0; i--) {
-        if (a->x == sl->corners[i].pos.x && a->y == sl->corners[i].pos.y) {
-            ia = i;
-            break;
-        }
+    ia = -1;
+    ib = -1;
+    i = nc - 1;
+    if (i >= 0) {
+        do {
+            p = &sl->corners[i].pos;
+            if (a->x == p->x && a->y == p->y) {
+                ia = i;
+                break;
+            }
+        } while (--i >= 0);
     }
-    for (i = nc - 1; i >= 0; i--) {
-        if (b->x == sl->corners[i].pos.x && b->y == sl->corners[i].pos.y) {
-            ib = i;
-            break;
-        }
+    i = nc - 1;
+    if (i >= 0) {
+        do {
+            p = &sl->corners[i].pos;
+            if (b->x == p->x && b->y == p->y) {
+                ib = i;
+                break;
+            }
+        } while (--i >= 0);
     }
     if (ia == -1) {
         if (nc == AVOID_SEGLIST_MAX)
             return -1;
+        p = &sl->corners[nc].pos;
         ia = nc++;
-        sl->corners[ia].pos.x = a->x;
-        sl->corners[ia].pos.y = a->y;
+        p->x = a->x;
+        p->y = a->y;
     }
     if (ib == -1) {
         if (nc == AVOID_SEGLIST_MAX)
             return -1;
+        p = &sl->corners[nc].pos;
         ib = nc++;
-        sl->corners[ib].pos.x = b->x;
-        sl->corners[ib].pos.y = b->y;
+        p->x = b->x;
+        p->y = b->y;
     }
     sl->segs[ns].a = (short)ia;
     sl->segs[ns].b = (short)ib;
@@ -1128,10 +1139,10 @@ int avoid_seglist_add_segment(const vector2 *a, const vector2 *b, pf_edge *wall_
             ep = seg2d_point_left_of(wall_a->a, &ws, 0) ? wall_a->a : wall_a->b;
             if (nc == AVOID_SEGLIST_MAX)
                 return -1;
-            idx = nc++;
-            sl->corners[idx].pos.x = ep->x;
-            sl->corners[idx].pos.y = ep->y;
-            rect2d_add_point(&sl->bounds, &sl->corners[idx].pos);
+            int idx = nc++;
+            sl->corners[nc - 1].pos.x = ep->x;
+            sl->corners[nc - 1].pos.y = ep->y;
+            rect2d_add_point(&sl->bounds, &sl->corners[nc - 1].pos);
             sl->segs[ns].a = (short)idx;
             sl->segs[ns].b = (short)ia;
             sl->segs[ns].side = 0;
@@ -1144,10 +1155,10 @@ int avoid_seglist_add_segment(const vector2 *a, const vector2 *b, pf_edge *wall_
             ep = seg2d_point_left_of(wall_b->a, &ws, 0) ? wall_b->a : wall_b->b;
             if (nc == AVOID_SEGLIST_MAX)
                 return -1;
-            idx = nc++;
-            sl->corners[idx].pos.x = ep->x;
-            sl->corners[idx].pos.y = ep->y;
-            rect2d_add_point(&sl->bounds, &sl->corners[idx].pos);
+            int idx = nc++;
+            sl->corners[nc - 1].pos.x = ep->x;
+            sl->corners[nc - 1].pos.y = ep->y;
+            rect2d_add_point(&sl->bounds, &sl->corners[nc - 1].pos);
             sl->segs[ns].a = (short)ib;
             sl->segs[ns].b = (short)idx;
             sl->segs[ns].side = 1;
@@ -1240,20 +1251,22 @@ void avoid_sort_refs_along_segment(int count, avoid_seg_ref_entry *refs)
     qsort(refs, count, sizeof(avoid_seg_ref_entry), qsort_cmp_float_asc);
 }
 
-// 0x4a8b80  Confidence: likely (the "previous segment" index arithmetic, segs[index - 1] or
-// segs[index - 2], is the code's; D22802: the corner point copied as one vector2 assignment, which lets
-// 8966 cross-jump the two calc_shared_corner_offset calls as the binary does, 191 -> 128). Where several prohibit lists end on the same nav wall, the corners
+// 0x4a8b80  Confidence: exact (the "previous segment" index arithmetic, segs[n] or segs[n - 1], is the
+// code's; D22802: the corner point copied as one vector2 assignment, which lets 8966 cross-jump the two
+// calc_shared_corner_offset calls as the binary does; D26901: c / cc / l / n block-scoped in each branch,
+// the k entry fetched into e and k's list into ml before the call, the side test on the call result
+// without a local, and done[40] / refs[40] from the binary's frame offsets). Where several prohibit lists end on the same nav wall, the corners
 // that lie between two neighbouring references along the wall are joined (the later one takes the
 // earlier one's point) and get a shared miter.
 void avoid_merge_shared_segments(avoid_seglist *sl)
 {
-    pf_edge *done[42];
-    avoid_seg_ref_entry refs[39];
+    pf_edge *done[40];
+    avoid_seg_ref_entry refs[40];
     avoid_seg_ref *e, *sp;
-    avoid_seglist *l;
+    avoid_seglist *ml;
     avoid_corner *p;
     pf_edge *w;
-    int n_done, count, i, k, c, cc;
+    int n_done, count, i, k;
 
     n_done = 0;
     for (i = 0; i < sl->num_segs; i++) {
@@ -1265,31 +1278,36 @@ void avoid_merge_shared_segments(avoid_seglist *sl)
         if (count != 1) {
             avoid_sort_refs_along_segment(count, refs);
             for (k = 0; k < count; k++) {
-                e = avoid_ref_entry(&refs[k]);
-                if (!e->side) {
+                if (!avoid_ref_entry(&refs[k])->side) {
                     if (k == 0)
                         continue;
-                    c = avoid_ref_entry(&refs[k - 1])->a;
+                    int c = avoid_ref_entry(&refs[k - 1])->a;
                     p = &refs[k - 1].list->corners[c];
-                    cc = avoid_ref_entry(&refs[k])->a;
+                    int cc = avoid_ref_entry(&refs[k])->a;
                     refs[k].list->corners[cc].pos = p->pos;
-                    l = refs[k - 1].list;
-                    sp = &l->segs[refs[k - 1].index - 1];
+                    avoid_seglist *l = refs[k - 1].list;
+                    int n = refs[k - 1].index - 1;
+                    sp = &l->segs[n];
                     if (sp->b != c)
-                        sp = &l->segs[refs[k - 1].index - 2];
-                    avoid_seglist_calc_shared_corner_offset(l, refs[k].list, sp, avoid_ref_entry(&refs[k]), sp->b, cc);
+                        sp = &l->segs[n - 1];
+                    ml = refs[k].list;
+                    e = avoid_ref_entry(&refs[k]);
+                    avoid_seglist_calc_shared_corner_offset(l, ml, sp, e, sp->b, cc);
                 } else {
                     if (k == count - 1)
                         continue;
-                    c = avoid_ref_entry(&refs[k + 1])->b;
+                    int c = avoid_ref_entry(&refs[k + 1])->b;
                     p = &refs[k + 1].list->corners[c];
-                    cc = avoid_ref_entry(&refs[k])->b;
+                    int cc = avoid_ref_entry(&refs[k])->b;
                     refs[k].list->corners[cc].pos = p->pos;
-                    l = refs[k + 1].list;
-                    sp = &l->segs[refs[k + 1].index - 1];
+                    avoid_seglist *l = refs[k + 1].list;
+                    int n = refs[k + 1].index - 1;
+                    sp = &l->segs[n];
                     if (sp->a != c)
-                        sp = &l->segs[refs[k + 1].index - 2];
-                    avoid_seglist_calc_shared_corner_offset(refs[k].list, l, avoid_ref_entry(&refs[k]), sp, cc, sp->a);
+                        sp = &l->segs[n - 1];
+                    ml = refs[k].list;
+                    e = avoid_ref_entry(&refs[k]);
+                    avoid_seglist_calc_shared_corner_offset(ml, l, e, sp, cc, sp->a);
                 }
             }
         }
