@@ -300,11 +300,11 @@ void gr_d3d_set_state(gr::Mode mode)
     case 0:
     case 1:
     case 2:
-        if (gr_fog_enabled)
+        if (gr_fog_enabled) {
             gr_d3d_set_render_state(D3DRENDERSTATE_FOGENABLE, TRUE);
-        else
-            gr_d3d_set_render_state(D3DRENDERSTATE_FOGENABLE, FALSE);
-        break;
+            break;
+        }
+        // fall through: D26500, fog off shares case 3's block, which the binary places last
     case 3:     // not allowed
         gr_d3d_set_render_state(D3DRENDERSTATE_FOGENABLE, FALSE);
         break;
