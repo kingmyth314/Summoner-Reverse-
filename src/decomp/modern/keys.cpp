@@ -180,11 +180,17 @@ static volatile int speed_toggle = 1;   // SpeedMode: 1 Toggle, 0 Hold
 static volatile float speed_factor = 3.0f;
 static volatile int editor_scan;        // [Debug] ScriptEditorKey, 0 = off
 static volatile int speed_on;          // fast mode active (the badge, modern/gamma.cpp)
+static volatile int speed_badge = 1;   // [Game] SpeedBadge: 1 = draw "FAST xN" while fast mode is on (default)
 static volatile int agent_speed_req;    // agent mode's speedkey: 1 = fast mode off, 2 = on
 
 float modern_keys_speed_active()
 {
     return speed_on ? speed_factor : 0.0f;
+}
+
+bool modern_keys_speed_badge()
+{
+    return speed_badge != 0;
 }
 
 void modern_keys_agent_speed(bool on)
@@ -220,6 +226,10 @@ static void load_game_keys()
     int toggle = _stricmp(mode, "Hold") != 0;
     if (toggle != speed_toggle)
         modern_log("hotkeys: speed key mode %s", toggle ? "toggle" : "hold");
+    int badge = modern_ini_int("Game", "SpeedBadge", 1) != 0;
+    if (badge != speed_badge)
+        modern_log("hotkeys: fast-mode badge %s", badge ? "on" : "off");
+    speed_badge = badge;
     char ed[32];
     modern_ini_str("Debug", "ScriptEditorKey", "", ed, sizeof ed);
     int scan = ed[0] && _stricmp(ed, "none") != 0 ? KeyParse(ed) : 0;

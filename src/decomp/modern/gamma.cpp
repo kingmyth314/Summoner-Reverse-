@@ -264,11 +264,11 @@ float modern_brightness_pass_gamma(HWND wnd)
     return 0.0f;
 }
 
-// The badge's factor while it is shown (fast mode on, in play), else 0.
+// The badge's factor while it is shown (fast mode on, in play, [Game] SpeedBadge on), else 0.
 float modern_speed_badge_factor()
 {
     float factor = modern_keys_speed_active();
-    return factor > 0.0f && gameseq_state_cur == 4 ? factor : 0.0f;
+    return factor > 0.0f && gameseq_state_cur == 4 && modern_keys_speed_badge() ? factor : 0.0f;
 }
 
 // ---- the fast-mode badge ----
@@ -278,8 +278,8 @@ static GLuint font_base;
 
 void modern_speed_badge(HDC dc, int cw, int ch, int off_x, int off_y, double scale)
 {
-    float factor = modern_keys_speed_active();
-    if (factor <= 0.0f || gameseq_state_cur != 4)
+    float factor = modern_speed_badge_factor();
+    if (factor <= 0.0f)
         return;
     int fh = (int)(18 * scale + 0.5);
     if (fh != font_height) {   // (re)build the bitmap font for this output size

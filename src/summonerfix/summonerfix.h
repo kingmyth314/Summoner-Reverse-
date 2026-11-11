@@ -95,6 +95,7 @@ void KeysInjectMouse(int button, int down);
 void KeysAgentSpeed(int on);  // agent mode: switch fast mode on/off
 BOOL KeysAgentRun(void (*fn)(void *), void *arg); // agent mode: run fn(arg) on the game thread (posted message)
 float KeysSpeedActive(void);   // current speed factor while fast mode is on, else 0
+int KeysSpeedBadge(void);      // [Game] SpeedBadge: draw the "FAST xN" badge (default 1)
 
 // display.c (agent mode)
 void DisplayRequestCapture(const char *path);

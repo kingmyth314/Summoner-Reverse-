@@ -75,6 +75,7 @@ runs without SummonerFix, had no controller and no game options either.
 | Upscaled interface images | `[Experimental] HiResInterface` | yes |
 | Level reverb (K261, a bug of the original) | `[Experimental] LevelReverb` | yes |
 | dgVoodoo 2 (Direct3D and Glide) | `[Display] Renderer`, `Windowed` | yes |
+| Field of view | `[Display] FieldOfView` | yes, since 2026-11-10 ([below](#field-of-view-2026-11-10)) |
 | Autosave | `[Experimental] Autosave` ... | no: a new feature, experimental only |
 | Tentacle Beast grab and throw | `[Experimental] TentacleGrab` | no: changes a boss fight, experimental only |
 
@@ -127,6 +128,40 @@ In the test folder at 1366x768 on a 143 Hz screen, with test saves. **Observed**
   error (`player.cpp` line 421: five Player records, four heroes and one summon). A test-tool misuse, not a game bug
   (**Inferred**: the game never makes a second summon while one is out); `summon` now refuses when no record is free (observed in both agent hosts: `Sum-fixed.exe` under SummonerFix and the
 64-bit exe).
+
+## Field of view (2026-11-10)
+
+`[Display] FieldOfView` sets the horizontal field of view, in degrees, of the 4:3 in-game view; empty or 0 is the
+game's 73.74, values are clamped to 40-110. Written 2026-11-10; the fixed (VC6) and the 64-bit player build link
+(`unresolved 0; multiply defined 0`) and the sweep keeps its matches. **Not yet run in game.**
+
+**How the game sets its view (Observed in the code, `gr_setup_3d` 0x50dec0 and `gr_fov_to_vertical` 0x50e5e0 read in
+the disassembly 2026-11-10; first worked out in NOTES-experimental-2026-10-21.md):** `interface_init_global`
+(GameInit) calls `gr_setup_3d` once with 73.74 as the *horizontal* angle on the 1024 x 672 view and keeps the
+resulting *vertical* angle in `interface_view_fov` (0x5bd818; tan(v/2) = tan(36.87) x 0.65625, about 52.4 degrees).
+Every frame outside cutscenes `interface_set_view_clip` turns that back into the horizontal angle for the current clip
+(`camera_fov` = `gr_fov_to_vertical(interface_view_fov)`, despite the name), and `state_game_frame` passes it to
+`gr_setup_3d`. The projection, the view frustum (culling), `gr_screen_to_world_ray` (mouse picking), the target decal
+size and the overhead texts all derive from `gr_matrix_scale`, which `gr_setup_3d` sets. The Vulkan renderer
+projects on the CPU with the same `gr_projection_*` values (`vk_scene_level.cpp`, `vk_scene_mesh.cpp`).
+
+**The change:** `exp_display_init` (the first frame, after GameInit) scales `interface_view_fov` once:
+v' = 2 atan(tan(v/2) tan(F/2) / tan(73.74/2)). Inferred consequences: picking and culling follow by themselves; the
+vertical angle is what the game keeps, so a wide `GameWidth` still sees more at the sides (73.74 at 4:3 is about 90
+degrees at 1366 x 768); side panels and the widescreen full-panel aspect (`exp_ws_view_width`) are unchanged;
+cutscenes keep their shots' fov (`interface_set_view_clip` skips them) and the item views their fixed 60; the save
+thumbnail uses `camera_fov` and so the same view. Levels were built for the game's view, so a wide one can show level
+edges or unfinished geometry (content, not a crash; Inferred).
+
+**The draw lists:** `levelrender_sort_list` and `levelrender_opaque_list` (500 entries) and `levelrender_attach_list`
+(2000) are filled with `list[count++] = e` and no bounds check; only the entry pool (0xc800 bytes, at most 3200
+16-byte entries) is checked (Observed in the code). A wider view puts more objects in view, so the fixed build sizes
+each list to `LEVELRENDER_POOL_SIZE / sizeof(levelrender_entry)` (3200 in the 32-bit exes, fewer in the 64-bit exe,
+whose entries are larger): past that the allocation fails first and nothing is pushed. Whether the stock view ever
+comes near 500 is Unknown; `experimental.log`'s 5-second "draw lists peak" line now shows the peaks against the new
+size. Marker `// FIXED_BUILD: display FieldOfView` (both places), so `Sum-fixed.fixes` lists `FieldOfView`.
+SummonerFix installs its own version only in the original exe (`gameopts.c` is not run in a rebuilt exe), so the
+two never both apply.
 
 ## How a fix is written
 
