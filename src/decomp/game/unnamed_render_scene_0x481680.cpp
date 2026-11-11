@@ -92,6 +92,21 @@ float Character_lod_dist = 27.0f;         // 0x59bda0
 int levelrender_fade_alpha = 0xff;        // 0x59bda4
 bool Cull_ground_too = true;              // 0x59bda8
 
+// FIXED_BUILD: display FieldOfView (2026-11-10). The three draw lists are filled with list[count++] = e and no bounds
+// check (levelrender_build_draw_lists, levelrender_add_lobj, levelrender_add_effect_entry and the attachment pushes);
+// only the entry pool is checked (LEVELRENDER_ALLOC). A wider [Display] FieldOfView puts more objects in view, so the
+// fixed build sizes each list to the most entries the pool can ever hand out: past that the allocation fails first
+// and nothing is pushed. Nothing else changes (the counts and loops are the same). SummonerFix moves the original
+// exe's lists to arrays of the same size when FieldOfView is set (src/summonerfix/gameopts.c).
+#ifdef FIXED_BUILD
+#define LEVELRENDER_SORTED_CAP (LEVELRENDER_POOL_SIZE / sizeof(levelrender_entry))
+#define LEVELRENDER_ATTACH_CAP (LEVELRENDER_POOL_SIZE / sizeof(levelrender_entry))
+int levelrender_list_cap = (int)LEVELRENDER_SORTED_CAP;   // read by experimental/display.cpp's log
+#else
+#define LEVELRENDER_SORTED_CAP LEVELRENDER_MAX_SORTED
+#define LEVELRENDER_ATTACH_CAP LEVELRENDER_MAX_ATTACH
+#endif
+
 // ---- .bss (0x22ea498-0x22fb71b) -----------------------------------------------------------------------
 // 0x481680 init_empty_481690_thunk: jmp init_empty_481690 (static initialiser entry 239). Confidence: exact.
 // 0x481690 init_empty_481690: an empty dynamic initialiser (bare RET). Confidence: exact.
@@ -111,7 +126,7 @@ float levelrender_fx_char_tint_g;         // 0x22ea4a0
 int level_layer_vis_flags[LEVEL_NUM_LAYERS];         // 0x22ea4a4
 float level_layer_fog_far[LEVEL_NUM_LAYERS];        // 0x22ea4f4
 s3d_vis_set *level_vis_force_list[LEVEL_MAX_FORCED_VIS];   // 0x22ea544
-levelrender_entry *levelrender_attach_list[LEVELRENDER_MAX_ATTACH];   // 0x22ea584
+levelrender_entry *levelrender_attach_list[LEVELRENDER_ATTACH_CAP];   // 0x22ea584
 int levelrender_22ec4c4;                  // 0x22ec4c4 never accessed (name ours)
 int levelrender_num_float_texts;          // 0x22ec4d4
 ubyte levelrender_entry_pool[LEVELRENDER_POOL_SIZE]; // 0x22ec4e4
@@ -123,7 +138,7 @@ lobj *hover_tint_char;                    // 0x22f8d0c
 float hover_tint_char_g;                  // 0x22f8d10
 levelrender_entry *levelrender_hover_target;          // 0x22f8d14
 attached_light *levelrender_level_lights[LEVELRENDER_MAX_LEVEL_LIGHTS];   // 0x22f8d18
-levelrender_entry *levelrender_sort_list[LEVELRENDER_MAX_SORTED];          // 0x22f8d84
+levelrender_entry *levelrender_sort_list[LEVELRENDER_SORTED_CAP];          // 0x22f8d84
 int levelrender_22f9554;                  // 0x22f9554 never accessed (name ours)
 bool overhead_label_slot_used[2][3];      // 0x22f9558
 character_speech_record *overhead_label_slot_owner[2][3];   // 0x22f9560
@@ -137,7 +152,7 @@ s3d_vis_set *level_vis_set_lists[LEVEL_MAX_VIS_SETS];       // 0x22f9e9c (name o
 float hover_tint_char_r;                  // 0x22fa69c
 lobj_glow_ref *levelrender_lobj_glow_map; // 0x22fa6a0
 obj *hover_tint_obj;                      // 0x22fa6a4
-levelrender_entry *levelrender_opaque_list[LEVELRENDER_MAX_SORTED];        // 0x22fa6a8
+levelrender_entry *levelrender_opaque_list[LEVELRENDER_SORTED_CAP];        // 0x22fa6a8
 float level_layer_fog_near[LEVEL_NUM_LAYERS];         // 0x22fae78
 float hover_tint_obj_g;                   // 0x22faec8
 int levelrender_lobj_state_bytes;         // 0x22faecc

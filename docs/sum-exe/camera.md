@@ -180,7 +180,11 @@ to `camera_view_pos` / `camera_view_orient` and passes them and `+0x18c` to `gr_
 **Field of view.** The constructor and `camera_level_reset` (`0x478d20`) set 73.74°.
 `interface_set_view_clip` (`0x412220`) overwrites it every frame outside cutscenes with
 `gr_fov_to_vertical(interface_view_fov)` for the current viewport (side panels make it
-narrower). **Observed.**
+narrower). **Observed.** `interface_view_fov` (0x5bd818) is the *vertical* angle, measured once by GameInit with
+73.74° as the horizontal angle of the 1024 x 672 view (about 52.4°); `gr_fov_to_vertical` returns the horizontal angle
+that keeps it for the current clip, which `gr_setup_3d` takes. So a wider view keeps the vertical angle and widens
+the horizontal one. **Observed** in the disassembly of `gr_setup_3d` (2026-11-10). SummonerFix's and the rebuilt
+builds' `[Display] FieldOfView` (2026-11-10) scale this one value ([Fixed build](../fixed-build.md#field-of-view-2026-11-10)).
 
 ## Walls and level geometry
 

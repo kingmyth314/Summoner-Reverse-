@@ -340,7 +340,7 @@ static void IndicatorInit(void)
 static void DrawSpeedIndicator(HDC dc, const Map *m)
 {
     float factor = KeysSpeedActive();
-    if (factor <= 0.0f || *(volatile int *)(UINT_PTR)SumVa(VA_GAMESEQ_STATE_CUR) != 4)
+    if (factor <= 0.0f || !KeysSpeedBadge() || *(volatile int *)(UINT_PTR)SumVa(VA_GAMESEQ_STATE_CUR) != 4)
         return;
     if (!gi.ok) {
         static BOOL tried;

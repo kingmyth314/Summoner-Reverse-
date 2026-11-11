@@ -19,7 +19,21 @@
 // [Debug] TestSaves=1 (testing only): setup_data_paths (0x43dee1) registers the .sav folder from the string
 // "savegame" (0x594b00); it becomes "savetest", so saves and loads use Summoner/savetest and the player's own
 // slots are never touched. The folder is created if missing.
+//
+// [Display] FieldOfView=90 (2026-11-10; empty or 0 = the game's): the horizontal field of view, in degrees, of the
+// 4:3 in-game view (the game's is 73.74). interface_init_global (GameInit) measures the vertical fov of that view
+// once into interface_view_fov (0x5bd818, about 52.4 degrees); every frame outside cutscenes interface_set_view_clip
+// turns it back into the horizontal fov for the current clip (side panels, a wide GameWidth), and gr_setup_3d builds
+// the projection, the frustum and the mouse-picking ray from that. So one write of interface_view_fov after GameInit
+// changes the in-game view everywhere and keeps the game's widescreen behaviour (the vertical angle is what stays;
+// wider screens see more at the sides). Cutscenes keep their shots' fov; the item views keep their fixed 60.
+// A wider view puts more objects in the draw lists, which the game fills with no bounds check (sort and opaque 500
+// entries, attach 2000; only the shared entry pool, 0xc800 bytes = at most 3200 entries, is checked). So the three
+// lists are first moved to arrays of 3200 entries here (23 operands, each compared before it is written); if any
+// site does not match, neither the lists nor the fov are changed. The rebuilt exes do this in their source
+// (experimental/display.cpp, game/unnamed_render_scene_0x481680.cpp) and SummonerFix does not install it there.
 #include "summonerfix.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,8 +54,96 @@ static float IniFloat(const char *key)
     return buf[0] ? (float)atof(buf) : 0.0f;
 }
 
+// ---- [Display] FieldOfView ----
+#define VA_INTERFACE_VIEW_FOV 0x5bd818u   // float, vertical fov of the 4:3 in-game view (degrees), set by GameInit
+#define GAME_FOV 73.74f                  // the horizontal fov GameInit measures it with (camera constructor)
+#define FOV_MIN 40.0f
+#define FOV_MAX 110.0f
+#define DRAW_LIST_CAP 3200               // levelrender_entry_pool (0xc800 bytes) / 16-byte entries
+
+typedef struct { DWORD list; const DWORD *sites; int count; } DrawListMove;
+// Every instruction that holds a list's base address (llvm-objdump of Sum.exe 1.40, 2026-10-14 listing, searched
+// for any address inside the three lists): pushes to levelrender_sort_back_to_front / shadows_draw_characters /
+// levelrender_draw_list, the `mov [4*ecx + list], eax` pushes, the lamp-glow loops and the shadow pass (0x4a4c..).
+static const DWORD k_sortSites[] = {0x4823db, 0x482407, 0x482589, 0x48314a, 0x483aef, 0x4842f5, 0x48461d, 0x4a4db4};
+static const DWORD k_opaqueSites[] = {0x4823ec, 0x482572, 0x483160, 0x483b0b, 0x4842df, 0x4a4d27};
+static const DWORD k_attachSites[] = {0x48255b, 0x483482, 0x483695, 0x4837f7, 0x483b21, 0x4843fd, 0x484518, 0x48477e, 0x4a4c93};
+static DWORD g_sortList[DRAW_LIST_CAP], g_opaqueList[DRAW_LIST_CAP], g_attachList[DRAW_LIST_CAP];
+static float g_fovWant;
+
+// The operand's address inside the instruction at va (the base address is in its first 8 bytes), or 0.
+static DWORD OperandOf(DWORD va, DWORD list)
+{
+    const BYTE *p = (const BYTE *)(UINT_PTR)SumVa(va);
+    for (int k = 1; k <= 4; k++) {
+        DWORD v;
+        memcpy(&v, p + k, 4);
+        if (v == list)
+            return va + k;
+    }
+    return 0;
+}
+
+static BOOL MoveDrawLists(void)
+{
+    const DrawListMove moves[3] = {
+        {0x22f8d84, k_sortSites, (int)(sizeof k_sortSites / sizeof k_sortSites[0])},
+        {0x22fa6a8, k_opaqueSites, (int)(sizeof k_opaqueSites / sizeof k_opaqueSites[0])},
+        {0x22ea584, k_attachSites, (int)(sizeof k_attachSites / sizeof k_attachSites[0])},
+    };
+    DWORD *to[3] = {g_sortList, g_opaqueList, g_attachList};
+    for (int i = 0; i < 3; i++) // check every site before writing any
+        for (int j = 0; j < moves[i].count; j++)
+            if (!OperandOf(moves[i].sites[j], moves[i].list)) {
+                Log("SKIP FieldOfView: draw-list site 0x%06lX does not hold 0x%08lX", moves[i].sites[j], moves[i].list);
+                return FALSE;
+            }
+    for (int i = 0; i < 3; i++)
+        for (int j = 0; j < moves[i].count; j++)
+            if (!WriteDword(OperandOf(moves[i].sites[j], moves[i].list), moves[i].list, (DWORD)(UINT_PTR)to[i],
+                            "draw list -> 3200 entries (FieldOfView)"))
+                return FALSE; // cannot happen after the check; the lists already moved stay consistent per list only
+    return TRUE;
+}
+
+// Waits for GameInit's interface_view_fov, then scales it once.
+static DWORD WINAPI ApplyFov(LPVOID unused)
+{
+    volatile float *v = (volatile float *)(UINT_PTR)SumVa(VA_INTERFACE_VIEW_FOV);
+    while (!(*v > 1.0f))
+        Sleep(50);
+    const double rad = 3.14159265358979 / 180.0;
+    float game = *v;
+    float want = (float)(2.0 * atan(tan(game * rad / 2) * tan(g_fovWant * rad / 2) / tan(GAME_FOV * rad / 2)) / rad);
+    *v = want;
+    Log("FieldOfView %.2f: vertical fov %.2f -> %.2f degrees (the game's horizontal 4:3 view is %.2f)", g_fovWant,
+        game, want, GAME_FOV);
+    return 0;
+}
+
+static void FieldOfViewInstall(void)
+{
+    char buf[32];
+    GetPrivateProfileStringA("Display", "FieldOfView", "", buf, sizeof buf, g_cfg.iniPath);
+    float fov = buf[0] ? (float)atof(buf) : 0.0f;
+    if (fov <= 0.0f)
+        return;
+    if (fov < FOV_MIN || fov > FOV_MAX) {
+        float c = fov < FOV_MIN ? FOV_MIN : FOV_MAX;
+        Log("FieldOfView %.2f is outside %.0f-%.0f; using %.0f", fov, FOV_MIN, FOV_MAX, c);
+        fov = c;
+    }
+    if (fabsf(fov - GAME_FOV) < 0.01f)
+        return;
+    if (!MoveDrawLists())
+        return;
+    g_fovWant = fov;
+    CloseHandle(CreateThread(NULL, 0, ApplyFov, NULL, 0, NULL));
+}
+
 void GameOptionsInstall(void)
 {
+    FieldOfViewInstall();
     float zoom = IniFloat("CameraZoomMax");
     if (zoom > 0.3f) {
         float orig = 1.0f;

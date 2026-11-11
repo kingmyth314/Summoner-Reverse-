@@ -111,6 +111,14 @@ shows the game copes with game time running faster than real time. Offer it deli
 for example as a hotkey to speed up walking long distances.
 
 **Implemented 2026-10-13 (lever 1); mechanism verified 2026-10-14** (game clock runs 3.0x with the key held): hold `[Game] SpeedKey` (default F11) to set `frametime_divisor` (`0x5a5748`) to `1 / SpeedFactor` (default 3, range 1-8). It is polled every 15 ms by SummonerFix and only applies while the game has focus. The key can be changed in `SummonerFixConfig.exe`. Still open: an on-screen indicator, and play-testing combat/AI/scripts at high factors.
+*Correction 2026-11-10:* the on-screen indicator is not open. It was added on 2026-10-14 (commit 165bc84): a
+"FAST x3" badge at the top left of the picture while fast mode is on in play, drawn by SummonerFix (`display.c`, in the
+`SwapBuffers` hook, so also in the 32-bit rebuilt exes it runs in) and by the 64-bit build's own host
+(`modern/gamma.cpp` under OpenGL, `modern/vk_post.cpp` under Vulkan). **Observed** 2026-11-10 in a play-test on the
+original exe ("FAST x8" with `SpeedFactor=8`). New on 2026-11-10: `[Game] SpeedBadge` (default 1) switches it off, in
+SummonerFix and the 64-bit build, live, and in the config app's **Display / resolution...** window
+([SummonerFix](summonerfix/index.md#configuration-summonerfixini)). The badge uses Windows' Arial (a GL bitmap font),
+not the game's own fonts. Still open: play-testing combat/AI/scripts at high factors.
 
 *Played 2026-11-10 (Observed), original exe with SummonerFix:* the Undead Rider fight (`testsaves/04-undead-rider.sav`, party immortal, the speed key held through agent mode's `speedkey 1`) at `SpeedFactor=8` and at 1. At 8 the divisor `0x5a5748` reads 0.125, the rider's stage cutscenes come one after another (each still at normal speed: cutscenes run on `timeGetTime`) and the fight is over after about 25 seconds; at 1 after about 56 seconds. Both end with the rider gone and Joseph at the same spot (-26.54, -1.19, 14.66), with no error in the log. A `FAST x8` label already shows in the top-left corner while the key is held. The same day, a melee at 8: the battle of Wolong (`14-general-pijian.sav`, three heroes against Pijian's soldiers) played on through its cutscene to the next stage of the battle in 90 seconds, with soldiers fighting on both sides and no error in the log. *Not checked:* whether the outcome of a long melee differs at 8 (AI decisions that run per frame, not per second, see above).
 
@@ -307,7 +315,10 @@ the plan for a fixed build and an experimental build that take them up is in
   layout to the screen's shape, and the config app's **Display / resolution...** window lists the sizes, the renderer,
   fullscreen or window and the window sizes the monitor reports ([SummonerFix](summonerfix/index.md)); the
   experimental build has vsync and a frame-rate cap. Candidates: exclusive fullscreen, anti-aliasing, field of view,
-  UI scale.
+  UI scale. *Field of view written 2026-11-10* (not yet run in game): `[Display] FieldOfView` (degrees, the
+  horizontal angle of the 4:3 in-game view; empty = the game's 73.74), in SummonerFix (`gameopts.c`, the original exe)
+  and in the fixed, experimental and 64-bit builds (`experimental/display.cpp`), with the draw lists made big enough
+  for any view; [SummonerFix](summonerfix/index.md#fixes), [Fixed build](fixed-build.md#features-from-the-experimental-build-2026-11-01).
 
 ## Other planned work
 

@@ -325,6 +325,7 @@ static volatile UINT g_configVk, g_speedVk;
 static volatile int g_agentSpeedReq; // agent mode: 1 = switch fast mode off, 2 = on
 static volatile int g_speedToggle = 1; // SpeedMode: 1 Toggle, 0 Hold
 static volatile int g_speedOn;         // fast mode active (read by the on-screen indicator)
+static volatile int g_speedBadge = 1;  // [Game] SpeedBadge: 1 = draw "FAST xN" while fast mode is on (default)
 
 void KeysAgentSpeed(int on)
 {
@@ -335,6 +336,11 @@ static volatile float g_speedFactor = 3.0f;
 float KeysSpeedActive(void)
 {
     return g_speedOn ? g_speedFactor : 0.0f;
+}
+
+int KeysSpeedBadge(void)
+{
+    return g_speedBadge;
 }
 
 static UINT VkFromIni(const char *key, const char *def)
@@ -365,6 +371,10 @@ static void LoadGameKeys(void)
     int toggle = _stricmp(mode, "Hold") != 0;
     if (toggle != g_speedToggle)
         Log("hotkeys: speed key mode %s", toggle ? "toggle" : "hold");
+    int badge = GetPrivateProfileIntA("Game", "SpeedBadge", 1, g_cfg.iniPath) != 0;
+    if (badge != g_speedBadge)
+        Log("hotkeys: fast-mode badge %s", badge ? "on" : "off");
+    g_speedBadge = badge;
     char ed[32];
     GetPrivateProfileStringA("Debug", "ScriptEditorKey", "", ed, sizeof ed, g_cfg.iniPath);
     int edScan = ed[0] && _stricmp(ed, "none") != 0 ? KeyParse(ed) : 0;

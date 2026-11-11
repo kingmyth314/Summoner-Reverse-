@@ -17,8 +17,19 @@
 // and the cutscenes) is read only by the Direct3D and Glide back ends; for those the switch only logs that it is
 // not supported here.
 //
-// FieldOfView is not implemented: see NOTES.md (the draw lists it would fill have no bounds check).
+// FieldOfView ([Display], degrees; empty or 0 = the game's 73.74; 40-110), 2026-11-10: the horizontal field of view
+// of the 4:3 in-game view. interface_init_global (GameInit) stores the vertical fov of that view in interface_view_fov
+// (0x5bd818); every frame outside cutscenes interface_set_view_clip derives the horizontal fov for the current clip
+// from it (side panels, a wide GameWidth), and gr_setup_3d builds the projection, the frustum and the picking ray from
+// that. exp_display_init (the first frame, after GameInit) scales it once:
+//   v' = 2 atan(tan(v / 2) tan(F / 2) / tan(73.74 / 2)).
+// Cutscenes keep their shots' fov and the item views their fixed 60. A wider view fills the draw lists further; in
+// this build they hold as many entries as the entry pool can allocate (game/unnamed_render_scene_0x481680.cpp), so
+// they cannot overflow (NOTES-experimental-2026-10-21.md had left the fov out for that reason).
+// FIXED_BUILD: display FieldOfView (SummonerFix's gameopts.c does the same on the original exe only).
 #include <windows.h>
+#include <math.h>
+#include <stdlib.h>
 #include "experimental/experimental.h"
 
 #ifdef FIXED_BUILD
@@ -33,8 +44,12 @@
 extern int levelrender_attach_count;  // 0x22fb6c4
 extern int levelrender_opaque_count;  // 0x22fb6c8
 extern int levelrender_sort_count;    // 0x22fb6cc
-#define DISPLAY_LEVELRENDER_MAX_ATTACH 2000   // LEVELRENDER_MAX_ATTACH
-#define DISPLAY_LEVELRENDER_MAX_SORTED 500    // LEVELRENDER_MAX_SORTED (sort and opaque lists, not bounds-checked)
+extern int levelrender_list_cap;      // each list's size in the fixed build: the entry pool's most entries
+extern float interface_view_fov;      // 0x5bd818 (summoner/interface/interface.h)
+
+#define DISPLAY_GAME_FOV 73.74f       // the horizontal fov GameInit measures interface_view_fov with
+#define DISPLAY_FOV_MIN 40.0f
+#define DISPLAY_FOV_MAX 110.0f
 
 #define DISPLAY_CAP_MIN 30
 #define DISPLAY_CAP_MAX 240
@@ -98,8 +113,34 @@ static void display_vsync_apply()
             display_get_swap_interval ? display_get_swap_interval() : -1);
 }
 
+// [Display] FieldOfView: scale the in-game view's vertical fov once (see the top of this file).
+static void display_fov_init()
+{
+    char buf[32];
+    exp_ini_string("Display", "FieldOfView", "", buf, sizeof buf);
+    float fov = buf[0] ? (float)atof(buf) : 0.0f;
+    if (fov <= 0.0f) {
+        exp_log("display: FieldOfView off (the game's vertical fov %.2f)", (double)interface_view_fov);
+        return;
+    }
+    if (fov < DISPLAY_FOV_MIN || fov > DISPLAY_FOV_MAX) {
+        float c = fov < DISPLAY_FOV_MIN ? DISPLAY_FOV_MIN : DISPLAY_FOV_MAX;
+        exp_log("display: FieldOfView %.2f is outside %.0f-%.0f; using %.0f", (double)fov, (double)DISPLAY_FOV_MIN,
+                (double)DISPLAY_FOV_MAX, (double)c);
+        fov = c;
+    }
+    const double rad = 3.14159265358979 / 180.0;
+    float game = interface_view_fov;
+    interface_view_fov = (float)(2.0 * atan(tan(game * rad / 2) * tan(fov * rad / 2) / tan(DISPLAY_GAME_FOV * rad / 2))
+                                 / rad);
+    exp_log("display: FieldOfView %.2f: vertical fov %.2f -> %.2f degrees (draw lists hold %d entries)", (double)fov,
+            (double)game, (double)interface_view_fov, levelrender_list_cap);
+}
+
 void exp_display_init()
 {
+    display_fov_init();
+
     int cap = exp_ini_int("Experimental", "FrameRateCap", 0);
     display_vsync = exp_ini_int("Experimental", "VSync", 0) != 0;
 
@@ -167,8 +208,8 @@ void exp_display_frame()
         exp_log("display: speed: wall %lu ms, game real-time ticker %d ms (%.1f%%), %d frames, fps %.1f, min dt %.6f; "
                 "draw lists peak sorted %d opaque %d (of %d) attach %d (of %d)",
                 (unsigned long)wall, ticker, ticker * 100.0 / (double)wall, display_report_frames, (double)fps,
-                (double)min_reported_frametime, display_max_sorted, display_max_opaque, DISPLAY_LEVELRENDER_MAX_SORTED,
-                display_max_attach, DISPLAY_LEVELRENDER_MAX_ATTACH);
+                (double)min_reported_frametime, display_max_sorted, display_max_opaque, levelrender_list_cap,
+                display_max_attach, levelrender_list_cap);
         display_report_tick = now;
         display_report_ticker = Timestamp_realtime_ticker;
         display_report_frames = 0;

@@ -51,7 +51,7 @@ enum { ID_LIST = 100, ID_CHANGE, ID_CLEAR, ID_RESET, ID_CLOSE, ID_STATUS, ID_SKI
        ID_PADOPEN, ID_PADENABLED, ID_PADSAVE, ID_PADRESET, ID_PADCLOSE,
        ID_EXPOPEN, ID_EXPAUTOSAVE, ID_EXPLEVEL, ID_EXPVSYNC, ID_EXPHIRES, ID_EXPREVERB, ID_EXPLOG, ID_EXPSAVE, ID_EXPRESET, ID_EXPCLOSE,
        ID_DISPOPEN, ID_DISPRENDER, ID_DISPOUTPUT, ID_DISPSIZE, ID_DISPWIN, ID_DISPMENUS, ID_DISPHUD, ID_DISPPANELS,
-       ID_DISPSCALE, ID_DISPSHARP, ID_DISPSAVE, ID_DISPRESET, ID_DISPCLOSE, ID_CHEATOPEN };
+       ID_DISPSCALE, ID_DISPSHARP, ID_DISPSAVE, ID_DISPRESET, ID_DISPCLOSE, ID_CHEATOPEN, ID_DISPFOV, ID_DISPBADGE };
 
 // [ConsoleKeys] Key=command entries (keys that run a developer console command). Shown as list rows after the
 // hotkeys; Change key / Clear work on them, and "Bind key..." adds one for the command typed in the box.
@@ -1032,7 +1032,7 @@ static void OpenCheatWindow(void)
 // or the survey's common sizes when it reports none.
 static HWND g_dispWnd;
 #define DISP_WND_W 560
-#define DISP_WND_H 400
+#define DISP_WND_H 460
 typedef struct { int sw, sh; const char *shape; } DispSize;
 static const DispSize k_dispSizes[] = {
     {4, 3, "4:3, the original layout"},
@@ -1245,6 +1245,20 @@ static void DispFill(HWND w, BOOL defaults)
     CheckDlgButton(w, ID_DISPHUD, (defaults || GetPrivateProfileIntA("Display", "CenterHud", 1, g_ini)) ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(w, ID_DISPPANELS,
                    (defaults || GetPrivateProfileIntA("Display", "SidePanelsOverWorld", 1, g_ini)) ? BST_CHECKED : BST_UNCHECKED);
+    char fov[32] = "";
+    if (!defaults)
+        GetPrivateProfileStringA("Display", "FieldOfView", "", fov, sizeof fov, g_ini);
+    SetDlgItemTextA(w, ID_DISPFOV, fov);
+    CheckDlgButton(w, ID_DISPBADGE, (defaults || GetPrivateProfileIntA("Game", "SpeedBadge", 1, g_ini)) ? BST_CHECKED : BST_UNCHECKED);
+}
+
+// [Display] FieldOfView: empty (the game's) or 40-110 degrees. FALSE (and nothing saved) for anything else.
+static BOOL DispFovValid(HWND w)
+{
+    char fov[32];
+    GetDlgItemTextA(w, ID_DISPFOV, fov, sizeof fov);
+    double v = atof(fov);
+    return !fov[0] || (v >= 40 && v <= 110);
 }
 
 static void DispSave(HWND w)
@@ -1274,6 +1288,10 @@ static void DispSave(HWND w)
     WritePrivateProfileStringA("Display", "CenterMenus", IsDlgButtonChecked(w, ID_DISPMENUS) ? "1" : "0", g_ini);
     WritePrivateProfileStringA("Display", "CenterHud", IsDlgButtonChecked(w, ID_DISPHUD) ? "1" : "0", g_ini);
     WritePrivateProfileStringA("Display", "SidePanelsOverWorld", IsDlgButtonChecked(w, ID_DISPPANELS) ? "1" : "0", g_ini);
+    char fov[32];
+    GetDlgItemTextA(w, ID_DISPFOV, fov, sizeof fov);
+    WritePrivateProfileStringA("Display", "FieldOfView", fov, g_ini);
+    WritePrivateProfileStringA("Game", "SpeedBadge", IsDlgButtonChecked(w, ID_DISPBADGE) ? "1" : "0", g_ini);
     DispSaveChoice(GetDlgItem(w, ID_DISPSCALE), "RenderScale", k_renderScales, RENDER_SCALE_COUNT, g_dispScaleIni);
     DispSaveChoice(GetDlgItem(w, ID_DISPSHARP), "FsrSharpness", k_fsrSharpness, FSR_SHARP_COUNT, g_dispSharpIni);
 }
@@ -1307,20 +1325,31 @@ static LRESULT CALLBACK DispWndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         DispCheck(w, ID_DISPMENUS, "Centre the menus on wide screens", 202);
         DispCheck(w, ID_DISPHUD, "Centre the HUD and in-game screens on wide screens", 224);
         DispCheck(w, ID_DISPPANELS, "Keep the world full width behind the map, spells and skills panels", 246);
-        Label(w, "Vulkan renderer only (the 64-bit builds):", 10, 280, DISP_WND_W - 20);
-        Label(w, "Render scale:", 10, 304, 130);
-        DispCombo(w, ID_DISPSCALE, 150, 301, 220);
-        Label(w, "FSR sharpening:", 10, 336, 130);
-        DispCombo(w, ID_DISPSHARP, 150, 333, 220);
-        Label(w, "(below scale 1 only)", 380, 336, 170);
-        Button(w, ID_DISPSAVE, "&Save", 10, 366, 100);
-        Button(w, ID_DISPRESET, "&Defaults", 120, 366, 100);
-        Button(w, ID_DISPCLOSE, "Close", 230, 366, 100);
+        Label(w, "Field of view:", 10, 276, 130);
+        HWND fe = CreateWindowExA(WS_EX_CLIENTEDGE, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL, 150, 273, 60, 22,
+                                  w, (HMENU)(INT_PTR)ID_DISPFOV, NULL, NULL);
+        SendMessageA(fe, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
+        Label(w, "degrees, 40-110 (empty = the game's 73.74; wide screens see more)", 220, 276, 330);
+        DispCheck(w, ID_DISPBADGE, "Show \"FAST x3\" while the speed key's fast mode is on", 302);
+        Label(w, "Vulkan renderer only (the 64-bit builds):", 10, 340, DISP_WND_W - 20);
+        Label(w, "Render scale:", 10, 364, 130);
+        DispCombo(w, ID_DISPSCALE, 150, 361, 220);
+        Label(w, "FSR sharpening:", 10, 396, 130);
+        DispCombo(w, ID_DISPSHARP, 150, 393, 220);
+        Label(w, "(below scale 1 only)", 380, 396, 170);
+        Button(w, ID_DISPSAVE, "&Save", 10, 426, 100);
+        Button(w, ID_DISPRESET, "&Defaults", 120, 426, 100);
+        Button(w, ID_DISPCLOSE, "Close", 230, 426, 100);
         DispFill(w, FALSE);
         return 0;
     }
     case WM_COMMAND:
         if (LOWORD(wp) == ID_DISPSAVE) {
+            if (!DispFovValid(w)) {
+                MessageBoxA(w, "Field of view: a number from 40 to 110, or empty for the game's own (73.74).",
+                            "SummonerFix - Display", MB_OK | MB_ICONINFORMATION);
+                return 0;
+            }
             DispSave(w);
             SetStatus("Display settings saved. They apply the next time the game starts.");
             DestroyWindow(w);
