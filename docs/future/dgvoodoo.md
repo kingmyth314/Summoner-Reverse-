@@ -359,7 +359,11 @@ Steps (the lead runs them; I did not run the game):
   card at 12 MB+ / 2 TMUs (window closed and reopened) and at 8 MB (`grSstControl`). Pass: picture and textures come
   back, no crash, the cursor is not stuck.
 - **T7. Movies.** The logo movies at start (`SkipIntroMovies=0`) and the credits. Pass: picture and sound on both
-  renderers; compare with OpenGL (open question 5).
+  renderers; compare with OpenGL (open question 5). Since 2026-11-10 also Direct3D with `Windowed=1`, once with
+  `[Fixes] MovieSurfaceFormat=1` and once with `=0` (expected: garbage without the fix), and the
+  `movie frame: Direct3D back buffer` line of `summonerfix.log` for each Direct3D run (section 6, item 3). Agent
+  mode's `capture` and the game's Print Screen do not show these movies reliably here (OpenGL only; Print Screen reads
+  2 bytes a pixel), so use a desktop screenshot.
 - **T8. Resolutions.** 640x480, 800x600, 1024x768 on both; then (expected to fail on Glide) a custom `GameWidth`.
 - **T9. Long run.** 20 minutes of play through a level change on each renderer; watch for texture corruption (the
   2 MB-bank allocator and eviction under Glide; `D3D Optimizations` vertex buffers off by default under Direct3D).
@@ -400,6 +404,17 @@ Exact code places (line numbers of `W\src`, the dgvoodoo worker's copy):
    save thumbnails and movies. Fix under the switch: either create the offscreen surface with an explicit 565
    `DDPIXELFORMAT` (`DDSD_PIXELFORMAT`) or make `gr_d3d_read_backbuffer` and the movie blit convert from the surface's
    real format. Fullscreen (16-bit `SetDisplayMode`) is not affected.
+   **Movies done 2026-11-10** (code; not yet run): the movie blit now uses the surface's real format, in SummonerFix
+   (`[Fixes] MovieSurfaceFormat`, a wrapper on the `BinkCopyToBuffer` import that asks `d3d_back_surface` for its
+   pixel format under Direct3D) and in the fixed and experimental builds (`movie_blit_frame` takes the type from
+   the locked surface's `ddpfPixelFormat`). Under Glide the movie lock is `grLfbLock(..., GR_LFBWRITEMODE_565, ...)`:
+   the caller declares the format it writes and the Glide implementation converts, so Glide needs nothing
+   (*Inferred* from the Glide 2 API; dgVoodoo honouring it is not verified here). In fullscreen the back buffer is
+   whatever dgVoodoo gives for a 16-bit mode request; if that were 555 rather than 565, the same fix picks Bink's 555
+   type, and the log line `movie frame: Direct3D back buffer ...` says which (**Unknown** until run). Screenshots and
+   save thumbnails (`gr_d3d_read_backbuffer`) in the window mode are still open. This is also what Timeslip's "Bink
+   corruption in 32-bit mode" was about: his patch forces fullscreen to 32 bits and then has to make Bink write 32
+   ([Timeslip's patch](../patches/timeslip.md#the-32-bit-fix)).
 4. **`vsdk/gr.cpp`, `gr_init` (`0x505e00`), windowed branch line 293.** The aspect from the desktop (game bug) can be
    fixed for the experimental build in the source (`aspect = max_w / max_h`), which SummonerFix does only for OpenGL.
    Line 297 (`WS_EX_TRANSPARENT` for Glide): only if T2 shows lost clicks.

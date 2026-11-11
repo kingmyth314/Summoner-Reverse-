@@ -52,16 +52,40 @@ attach and patches Sum.exe in memory with `VirtualProtect`. Nothing is written t
 | `0x57e1cc` | IAT `QueryPerformanceFrequency` -> `FUN_1000a750` | >4 GHz fix |
 | `0x43e9cb` | `7D` (JGE) -> `EB` (JMP) | **Removes the CD check** (not in the readme) |
 | `0x5173d8` | 4 x `NOP` when `DisableBikVideo=1` | Skip opening movies |
-| `0x539840` | byte -> `0x20` | *Inferred:* 32-bit Bink fix |
-| `0x5174f2` | dword -> `0x80000003` | *Inferred:* 32-bit Bink or save-image fix |
-| `0x5398db` | dword -> `0x0FAD15F1` | *Inferred:* 32-bit Bink or save-image fix |
+| `0x539840` | byte -> `0x20` | Direct3D fullscreen in a **32-bit** mode: the `push 0x10` of `SetDisplayMode(w, h, 16)` (see "The 32-bit fix") |
+| `0x5174f2` | dword -> `0x80000003` | Bink movie frames as 32-bit: the `BinkCopyToBuffer` surface type |
+| `0x5398db` | dword -> `0x0FAD15F1` | the `call gr_d3d_noop_hook` after the fullscreen surfaces -> a function of the patch (`0x1000aed0`) |
 | `0x59b800` | float -> 3.0 when `IncreaseCameraZoomRange=1` | Camera zoom range |
 | `0x43ad38` | pointer -> patch-owned float (value / 10) | `BoostMouseOverRange` |
 | `0x40e696` | pointer -> patch-owned float (value / 10) | `BoostInteractionRange` |
 | `0x580e48`, `0x580e4c` | screen width and height | Custom resolution, plus code patches at `0x43d85f` and `0x43d878` |
 
-The rows marked *Inferred* were not cross-checked against the Sum.exe code at those
-addresses.
+{: .important }
+Corrected 2026-11-10: the rows at `0x539840`, `0x5174f2` and `0x5398db` were marked *Inferred* ("32-bit Bink or
+save-image fix") and not cross-checked. They are now read against the Sum.exe code (**Observed**, below).
+
+## The 32-bit fix
+
+**Observed** (`llvm-objdump` of Sum.exe v1.40, 2026-11-10). Three of the patch's writes belong together:
+
+| Site | Original instruction | After the patch |
+|---|---|---|
+| `0x53983f` in `gr_d3d_init_device` (`0x5395c0`), fullscreen branch | `6A 10` `push 0x10`: the bit depth of `IDirectDraw7::SetDisplayMode(max_w, max_h, 16)` (`call [ecx+0x54]` at `0x53984a`) | `push 0x20`: a 32-bit mode |
+| `0x5174f1` in `movie_blit_frame` (`0x517430`) | `68 0A 00 00 80` `push 0x8000000a`: `BINKCOPYALL \| BINKSURFACE565`, the last argument of `BinkCopyToBuffer` (`call [0x57e490]` at `0x51751e`) | `push 0x80000003`: `BINKCOPYALL \| BINKSURFACE32` |
+| `0x5398da` in `gr_d3d_init_device`, after the flipping chain | `E8 81 0A 00 00` `call gr_d3d_noop_hook` (`0x53a360`, an empty function), argument 1 | a call to `0x1000aed0` in the patch's `dinput.dll` (`0x5398df + 0x0FAD15F1`); what that function does is **Unknown** (not disassembled) |
+
+So the "Bink corruption in 32-bit mode" of the readme is not a bug of the original 16-bit game: the patch **switches
+fullscreen Direct3D to 32 bits** and then has to tell Bink about it, because `movie_blit_frame` writes RGB565 into
+the locked back buffer whatever its format. The copy flag is written unconditionally, so under Glide (a frame
+buffer locked with `GR_LFBWRITEMODE_565`) the same 32-bit frame would go into a 16-bit lock (*Inferred*; the patch
+was presumably used with Direct3D only). Whether the call to `0x1000aed0` is the save-image half (the game's
+`gr_d3d_read_backbuffer`, `0x53a7f0`, also assumes 2 bytes a pixel) is **Unknown**.
+
+What this means for this project (2026-11-10, details in [dgVoodoo 2](../future/dgvoodoo.md)): unpatched,
+fullscreen Direct3D asks for 16 bits and Bink writes 565, so the two agree. The one place where the mismatch
+Timeslip fixed still happens is the game's **window mode** under Direct3D (`[Display] Windowed=1`), whose render
+target takes the desktop's 32-bit format. SummonerFix's `[Fixes] MovieSurfaceFormat` and the fixed builds handle
+that by asking the surface for its format, not by changing the display mode.
 
 {: .note }
 The `Sum.exe` in this repository (`Summoner/`) already has a separate no-CD edit in the file itself,

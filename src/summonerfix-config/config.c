@@ -125,6 +125,7 @@ static const FixOption k_fixes[] = {
     {"MurodBackBiteTimer", "Murod Oni back bite on its 5 s timer"},
     {"BossSpellInRange", "Boss poison/fear only when in reach"},
     {"SerpentSleepTest", "Serpent checks its new target asleep"},
+    {"MovieSurfaceFormat", "Movies in windowed Direct3D"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 
