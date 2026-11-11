@@ -61,7 +61,7 @@ K1 (the harness could not make a number key use a hot button, filled through `sa
   [Matching devices](matching-devices.md)); the VC6 fixed build had two functions ending without a return.
 - A DirectSound wrapper with EAX, so that `LevelReverb` can be heard (untried; sound stays on DirectSound, the owner's
   choice of 2026-11-01). Needs a third-party wrapper (a download): section E.
-- Timeslip's Bink fix, only for the original exe under Direct3D or Glide (low). *In progress 2026-11-10.*
+- Timeslip's Bink fix, only for the original exe under Direct3D or Glide (low). *Done 2026-11-10:* the problem is the game's window mode under Direct3D (K311), reproduced and fixed (`[Fixes] MovieSurfaceFormat`); fullscreen Direct3D and Glide were fine.
 - Multiplayer in the 64-bit build (last, the owner's order).
 
 ### D. Documentation

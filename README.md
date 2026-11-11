@@ -3,7 +3,7 @@
 A reverse-engineering and decompilation project for **Summoner** (Volition / THQ, 2000), the PC version 1.40.
 It has three parts:
 
-- **Documentation** of how the game works, its file formats and 356 bugs found in its code ([`docs/`](docs/index.md),
+- **Documentation** of how the game works, its file formats and 357 bugs found in its code ([`docs/`](docs/index.md),
   set up as a GitHub Pages site).
 - **SummonerFix**, a drop-in `dinput.dll` that makes the original game run well on Windows 10 and 11 (no launcher,
   correct speed, OpenGL, widescreen, key rebinding, support for Xbox-style controllers) and fixes over 40 of those bugs, each with its own switch

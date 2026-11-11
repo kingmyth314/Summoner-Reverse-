@@ -10,7 +10,7 @@ nav_order: 6.95
 1. TOC
 {:toc}
 
-**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 356 in all. [Bug fix priorities](bug-priorities.md) ranks the unfixed ones.
+**Summary:** This page lists the defects in `Sum.exe` v1.40 that we have found so far: 357 in all. [Bug fix priorities](bug-priorities.md) ranks the unfixed ones.
 Three of them hurt every player on a modern PC: double game speed, intros that skip after about 25 days
 of Windows uptime, and a crash on Start New Game when no audio device is connected. SummonerFix fixes all
 three. Most of the rest are small UI slips. Others are latent: they need modded data or an unusual
@@ -28,7 +28,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 |---|---|---|---|
 | Crash or hang | 7 | 82 | 7 |
 | Gameplay | 49 | 25 | 30 |
-| Cosmetic | 56 | 36 | 25 |
+| Cosmetic | 57 | 36 | 26 |
 | Invisible | 43 | 59 | 0 |
 
 Two bugs only matter with the OpenGL renderer. The game never selects that renderer, but SummonerFix
@@ -2003,6 +2003,7 @@ the 64-bit build both paid Hero's Platemail and 20,000 XP; without the fix, noth
 | K302 | Latent: an effect whose particle interval curve has two or more non-zero keys spawns at the wrong rate between the keys | `vif_curve__evaluate` `0x533ca0` | **Observed** code, *inferred* effect | No |
 | K303 | Latent: the `sysinfo` console command always reports MMX, and shows the RAM speed four times too high | `cpu_identify` `0x5312d6`, `PrintSystemInfo` `0x53171f` | **Observed** code | No |
 | K310 | Latent (not seen in five test scenes): With the OpenGL renderer, coloured light from spells and effects on lightmapped walls and floors shows only its red value, as grey: fire and torch light turns white, blue light (Icicle, the Catacombs effects) all but disappears | `levelrender_draw_list_opengl` `0x491500` | **Observed** code and retail data, *inferred* effect | No |
+| K311 | In the game's window mode under Direct3D on a 32-bit desktop, the logo and credits movies show as garbage (coloured noise over the picture) | `movie_blit_frame` `0x5174f2` | **Observed** code and in game (2026-11-10, through dgVoodoo 2) | Fixed (`bugfix.c`, `[Fixes] MovieSurfaceFormat`) |
 
 **K1. Wrong timer test.** `hud_frame` clears `hud_hot_button_used` when the timer is valid *or* elapsed
 (`jne 0x40cf74` after `GameTimer__valid` at `0x40cf5d`). A running timer is valid, so the highlight that
@@ -3050,6 +3051,17 @@ channels correctly. The faulty branch needs a light-node effect next to a level 
 unclipped; no such scene has been found yet. The Phoenix Rider ambush on the road to Lenele (`play_and_load_cutscene PHNX-Intro`, full
 party, Rosalind's Light active during the fight) gave 25,214 lit calls with up to six lights and again no face on
 the faulty branch. The Tentacle Beast's sewer (`sewerboss`, 2026-10-20, a scene the user picked for its close walls; Light on the leader through agent `spellhit`, standing and then moved along the walkway) gave 41,594 of 83,665 draw-list calls with a light and again no face on the faulty branch. Filed as latent: real in the code, but not reached in any scene tried.
+
+**K311. Bink told 565 whatever the surface is.** `movie_blit_frame` copies each Bink frame with the flags
+`0x8000000a` (`BINKCOPYALL | BINKSURFACE565`, `0x5174f2`). Fullscreen Direct3D asks for a 16-bit mode, so that
+matches; the game's window mode renders into a surface of the desktop's format, 32-bit today, and the 16-bit frames
+land in it as noise. Glide converts (`GR_LFBWRITEMODE_565`) and OpenGL uses its own path. Timeslip's patch changed the
+same flags, for its forced 32-bit fullscreen ([Timeslip's patch](../patches/timeslip.md)). **Reproduced 2026-11-10**
+(the original exe through dgVoodoo 2, `Renderer=Direct3D`, `Windowed=1`, a screen grab during the THQ logo): coloured
+noise with the switch off; with it, a clean logo and the log line "Direct3D back buffer 32 bpp ... -> Bink surface
+type 3". **Fixed** in SummonerFix (`[Fixes] MovieSurfaceFormat`: a wrapper on the `BinkCopyToBuffer` import passes
+the surface's own format under Direct3D) and in `FIXED_BUILD`. Screenshots and save thumbnails in the same mode
+still read 2 bytes a pixel (`gr_d3d_read_backbuffer` `0x53a7f0`; *Inferred*, not run).
 
 ## Invisible
 

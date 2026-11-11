@@ -28,7 +28,7 @@ only third-party source is AMD's FidelityFX Super Resolution 1 shader headers (M
 | `src/summonerfix/`, `src/summonerfix-config/` | SummonerFix and its config app (C, llvm-mingw) |
 | `testsaves/` | purpose-made test saves (README): fights from the boss list, and `playthrough/`, the main story in order |
 | `symbols/sum.symbols` | every Sum.exe name: the source of truth for names (`node tools/symbols.mjs`) |
-| `docs/sum-exe/` | one page per game system; `game-bugs.md` = the 356 bugs with ids (C/G/K + number) |
+| `docs/sum-exe/` | one page per game system; `game-bugs.md` = the 357 bugs with ids (C/G/K + number) |
 | `docs/future/modern-port.md` | the clang / 64-bit port (rungs L1-L4), with a summary at the top |
 | `docs/future/vulkan-renderer.md` | L4's first module, the Vulkan renderer (in `main` since 2026-10-27): design, milestones M0-M5 |
 
