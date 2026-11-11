@@ -317,7 +317,8 @@
 // and $Scale "the fudge factor to make the character's shadow look right from the overhead view". With [Fixes]
 // ShadowSizes=1 the call of shadow_record_add (0x48769f) goes through a stub that, for a mesh the table names,
 // opens the projector to a half width of radius x scale on the ground (half angle atan(that / the anchor's height
-// above the feet), at most 1.2) and keeps the far plane 2 m below the feet (at least 5).
+// above the feet), at most 1.2) and moves the far plane to at least 2 m below the feet and deep enough that the
+// record's sphere, which the BSP walk of projector_collect_lobj_faces uses, reaches the shadow's edge (at least 5).
 #include "summonerfix.h"
 #include <math.h>
 #include <stdio.h>
@@ -1107,11 +1108,17 @@ __attribute__((used)) static void __cdecl ShadowSizesAdjust(const BYTE *c, DWORD
             continue;
         float radius = *(const float *)(e + 0x44), scale = *(const float *)(e + 0x48);
         float height = ((const float *)(UINT_PTR)args[0])[1] - *(const float *)(c + 0x14);
-        if (height <= 0.5f || radius <= 0.0f)
+        float nearDist = *(const float *)&args[3];
+        if (height <= nearDist + 0.5f || radius <= 0.0f)
             return;
-        float fov = atanf(radius * scale / height), farDist = height + 2.0f;
+        // The record's sphere (projector_collect_lobj_faces walks the BSP with it) must reach the shadow's edge.
+        float half = radius * scale, depth = height - nearDist;
+        float fov = atanf(half / height), farDist = height + 2.0f;
+        float sphereFar = nearDist + (depth * depth + half * half) / depth;
         if (fov > 1.2f)
             fov = 1.2f;
+        if (farDist < sphereFar)
+            farDist = sphereFar;
         if (farDist < *(const float *)&args[4])
             farDist = *(const float *)&args[4];
         memcpy(&args[2], &fov, 4);

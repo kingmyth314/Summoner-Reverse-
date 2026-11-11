@@ -2152,6 +2152,10 @@ this default". So the presets are meant as defaults that the player's own option
 `ComputerSpeedDefault`, SummonerFix `bugfix.c`: `jmp 0x43e327` over the default stores at `0x43e295`; in the source
 `FIXED_BUILD` in `summoner_cfg_load`): the second set of defaults is skipped, so without a `summoner.cfg` the presets
 stay, and a full `summoner.cfg` still replaces everything. *Inferred*, not yet seen in game.
+Where the value comes from: under SummonerFix (`reghook.c`) and in the 64-bit build (`modern/registry.cpp`) the
+game's registry key is emulated, and a value other than the display and sound ones is read from `summonerfix.ini`
+`[Registry]` (`ComputerSpeed=dword:00000002`), not from the real registry the launcher writes (**Observed** code).
+So with SummonerFix the fix only shows when that line is set; neither the config app nor the shipped ini sets it.
 
 **K20. The name switch and the spawn tests disagree.** `combat_spawn_hit_vfx` picks a name from the target's skin
 (char_info `+0x218`, case bytes at `0x466a64`): flesh and leather (1, 2) get `blood.vfx`, stone, ice and the metals
@@ -2778,8 +2782,13 @@ is most likely a shadow bitmap of half width `$Radius` x `$Scale` around the cha
 the Giant Salamanka 8.3 m. **Trial fix, opt-in (2026-11-10):** `[Fixes] ShadowSizes` (SummonerFix `bugfix.c`, a stub
 on the `shadow_record_add` call at `0x48769f`; in the source `FIXED_BUILD` in `shadow_draw_character`). For a mesh
 the table names it opens the projector to that half width on the ground (half angle `atan(half width / anchor
-height above the feet)`, at most 1.2) and keeps the far plane 2 m below the feet (at least the 5 m of the original),
-so a tall character's shadow is not cut off; other meshes keep the original projector. It is **off by default**
+height above the feet)`, at most 1.2) and moves the far plane to at least 2 m below the feet (and at least the 5 m
+of the original), so a tall character's shadow is not cut off. `shadow_record_add` gives the record a sphere half way
+between the near and far planes with half their distance as radius, and `projector_collect_lobj_faces` walks the
+level's BSP with that sphere (**Observed** code), so the far plane also goes deep enough for the sphere to reach the
+shadow's edge on the ground (`far >= near + ((h - near)^2 + w^2) / (h - near)`, h the anchor height, w the half
+width); for the Giant Salamanka that is some 20 m or more below the feet, so its shadow can also fall on geometry
+far below it (*inferred*, a limit of the trial). Other meshes keep the original projector. It is **off by default**
 until it has been compared in game: whether the projected sizes look right is not known.
 
 **K273. Arguments pushed in the wrong order.** `level_parse_table` pushes `level_fog_near` first and
