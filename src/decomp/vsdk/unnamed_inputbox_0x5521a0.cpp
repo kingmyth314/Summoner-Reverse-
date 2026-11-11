@@ -55,7 +55,8 @@ bool ui_inputbox::is_char_allowed(char c)
     return true;
 }
 
-// 0x552310  Confidence: likely (the case order of the switch). A click on a hidden box only plays sound
+// 0x552310  Confidence: exact (D27100: the backspace test and the typed-character path written with the
+// success paths as the then-blocks, so the failure exits are laid out after them). A click on a hidden box only plays sound
 // 4; a click on a shown one focuses it; only the focused box takes keys. Backspace, Left and Delete all
 // remove the last character; Esc (unless UI_INPUTBOX_NO_ESCAPE) and Home clear the text.
 int ui_inputbox::process(int key)
@@ -82,12 +83,12 @@ int ui_inputbox::process(int key)
     case KEY_BACKSPACE:
     case KEY_LEFT:
     case KEY_DELETE:
-        if (strlen(text) == 0) {
-            ui_play_sound(5);
+        if (strlen(text) != 0) {
+            text[strlen(text) - 1] = '\0';
+            send_event(0x15, UI_USE_ID);
             return 0;
         }
-        text[strlen(text) - 1] = '\0';
-        send_event(0x15, UI_USE_ID);
+        ui_play_sound(5);
         return 0;
     case KEY_ENTER:
         return 0;
@@ -106,23 +107,24 @@ int ui_inputbox::process(int key)
     c = numpad_to_ascii(key);
     if (c == 0 || c == 0xff)
         return 0;
-    if (!is_char_allowed((char)c))
-        return key;
-    if ((int)strlen(text) >= max_length) {
+    if (is_char_allowed((char)c)) {
+        if ((int)strlen(text) < max_length) {
+            strcpy(buf, text);
+            buf[strlen(text)] = (char)c;
+            buf[strlen(text) + 1] = '\0';
+            gr_get_string_size(&tw, &th, buf, -1, font);
+            if ((flags & UI_INPUTBOX_FIT_WIDTH) && tw > w - margin * 2 - cursor_w) {
+                send_event(0x16, UI_USE_ID);
+                return 0;
+            }
+            strcpy(text, buf);
+            send_event(0x15, UI_USE_ID);
+            return 0;
+        }
         send_event(0x16, UI_USE_ID);
         return 0;
     }
-    strcpy(buf, text);
-    buf[strlen(text)] = (char)c;
-    buf[strlen(text) + 1] = '\0';
-    gr_get_string_size(&tw, &th, buf, -1, font);
-    if ((flags & UI_INPUTBOX_FIT_WIDTH) && tw > w - margin * 2 - cursor_w) {
-        send_event(0x16, UI_USE_ID);
-        return 0;
-    }
-    strcpy(text, buf);
-    send_event(0x15, UI_USE_ID);
-    return 0;
+    return key;
 }
 
 // 0x5526a0  vtable slot 0 (sum.symbols ui_inputbox__vfunc0). Confidence: exact (jmp).
@@ -192,17 +194,18 @@ void ui_inputbox::set_tooltip(const char *text, int x, int y, int delay)
     last->next = t;
 }
 
-// The range a-b of a set (either order).
+// The range a-b of a set (either order). lo / hi are the caller's function-scope locals (D27101).
 #define INPUTBOX_MARK_RANGE(a, b)                                       \
     {                                                                   \
-        char lo = (a) < (b) ? (a) : (b);                                \
-        char hi = (a) < (b) ? (b) : (a);                                \
+        lo = (a) < (b) ? (a) : (b);                                     \
+        hi = (a) < (b) ? (b) : (a);                                     \
         if (lo <= hi)                                                   \
             memset(&allowed[(unsigned char)lo], 1, hi - lo + 1);        \
     }
 
 // 0x552870  Confidence: likely (the case order of the five switches; the range code may have been a
-// macro, as here). A state machine over the set string: 0 start, 1 / 3 / 5 a digit / capital / small
+// macro, as here; D27101: one function-scope lo / hi, the binary's 0x8c frame; the binary does not
+// cross-jump the three range blocks, 8966 does). A state machine over the set string: 0 start, 1 / 3 / 5 a digit / capital / small
 // letter pending, 2 / 4 / 6 the same followed by '-', 8 another character pending, 7 that followed by
 // '-'. A range needs both ends of the same class; "x--" adds x and '-'. In state 7 the next character
 // is dropped (only the '-' is added: "!-?" gives "!-"). Returns 0, without touching the box, for a
@@ -213,6 +216,7 @@ int ui_inputbox::set_valid_chars(const char *chars)
     int state = 0;
     unsigned int len, i, j;
     int n;
+    char lo, hi;
 
     if (chars == NULL)
         return 0;
@@ -351,6 +355,7 @@ int ui_inputbox::set_invalid_chars(const char *chars)
     int state = 0;
     unsigned int len, i, j;
     int n;
+    char lo, hi;
 
     if (chars == NULL)
         return 0;
