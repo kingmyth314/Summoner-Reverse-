@@ -183,6 +183,8 @@ Found on the way: every rebuilt exe wrote an **empty JPEG screenshot** (0 bytes)
 library's size check stopped the write. Repaired the same day ([Modern port](future/modern-port.md)); `Sum-fixed.exe`
 and the 64-bit exe then wrote 80 KB JPEGs, like the original's 81 KB.
 
+After the plain forms of the undefined matching devices (`PLAIN_SOURCE`, D26300; [Matching devices](matching-devices.md)), `Sum-fixed.exe` (VC6) loaded saves, opened the pause menu and the Options screen (the two `send_event` functions), walked to the Crier in Lenele and showed his conversation (**Observed**). The face animation (D16701) was not judged: the camera showed his back.
+
 The opt-in fixes, for the owner's decision (**Observed**, original exe with the patch):
 - **G15 `DamageDice`:** lightning at power 100 on a party member (`spellhit`, `No_resist` set): 15 hits with the
   fix off took 22 to 40 HP each, mean 31.6; 7 hits with it on took 40 to 65, mean 50.9 (she died then).
