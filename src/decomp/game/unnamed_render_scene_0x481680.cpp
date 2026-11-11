@@ -1581,7 +1581,12 @@ void levelrender_draw_health_bars(levelrender_entry *e)
     if (fabsf(cur_character->pos.y - c->pos.y) > 4.0f || distance_squared(&cur_character->pos, &c->pos) > 2500.0f)
         return;
     p = e->object->pos;
+#ifdef FIXED_BUILD
+    // part of FIXED_BUILD K30: a boss's own height when [Fixes] BossHeight=1 (Character::shown_height).
+    p.y = c->shown_height() + p.y;
+#else
     p.y = c->size_height() + p.y;
+#endif
     if (c->type != 9)
         p.y += 0.75f;
     gr_rotate_vertex(&v, &p);
@@ -1645,7 +1650,12 @@ void levelrender_draw_speech_text(character_speech_record *s)
     } else if (c->type == 7 && (c->flags & CF_DEAD))
         return;
     p = c->pos;
+#ifdef FIXED_BUILD
+    // part of FIXED_BUILD K30
+    p.y = c->shown_height() + p.y + 0.3f;
+#else
     p.y = c->size_height() + p.y + 0.3f;
+#endif
     gr_rotate_vertex(&v, &p);
     gr_project_vertex(&v);
     gr_get_clip(&clip_x, &clip_y, &clip_w, &clip_h);
@@ -1861,7 +1871,12 @@ void levelrender_draw_float_text(levelrender_entry *e)
         int w, h, hh;
         sprintf(buf, "%d", (int)fabsf(c->hp_overflow));
         p = e->object->pos;
+#ifdef FIXED_BUILD
+        // part of FIXED_BUILD K30
+        p.y = c->shown_height() + p.y + 0.3f;
+#else
         p.y = c->size_height() + p.y + 0.3f;
+#endif
         gr_rotate_vertex(&v, &p);
         gr_project_vertex(&v);
         gr_get_string_size(&w, &h, buf, -1, -1);
@@ -1885,7 +1900,12 @@ void levelrender_draw_float_text(levelrender_entry *e)
         int w, h, hh;
         sprintf(buf, "%d%%", (int)(c->pos_mod_text * 100.0f));
         p = e->object->pos;
+#ifdef FIXED_BUILD
+        // part of FIXED_BUILD K30
+        p.y = c->shown_height() + p.y + 0.3f;
+#else
         p.y = c->size_height() + p.y + 0.3f;
+#endif
         gr_rotate_vertex(&v, &p);
         gr_project_vertex(&v);
         gr_get_string_size(&w, &h, buf, -1, -1);
@@ -1903,7 +1923,12 @@ void levelrender_draw_float_text(levelrender_entry *e)
     if (strlen(c->float_text)) {
         int w, h;
         p = e->object->pos;
+#ifdef FIXED_BUILD
+        // part of FIXED_BUILD K30
+        p.y = c->shown_height() + p.y + 0.3f;
+#else
         p.y = c->size_height() + p.y + 0.3f;
+#endif
         gr_rotate_vertex(&v, &p);
         gr_project_vertex(&v);
         gr_get_string_size(&w, &h, c->float_text, -1, -1);

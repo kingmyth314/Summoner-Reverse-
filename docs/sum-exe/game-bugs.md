@@ -27,7 +27,7 @@ comes from reading the code and has not been tested. "Latent" means we know of n
 | Severity | Live | Latent | Fixed by SummonerFix |
 |---|---|---|---|
 | Crash or hang | 7 | 82 | 7 |
-| Gameplay | 49 | 25 | 27 |
+| Gameplay | 49 | 25 | 30 |
 | Cosmetic | 56 | 36 | 23 |
 | Invisible | 43 | 59 | 0 |
 
@@ -943,7 +943,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G10 | Latent: adding gold to a container that already holds gold loses the gold and leaves a stale slot | `container_add_item` `0x46aa30` | **Observed** code, *inferred* effect | No |
 | G11 | Latent: using aimed attack (or forge, mine, enchant) as a skill takes the AP and does nothing | `character_use_skill` `0x429410` | **Observed** code, *inferred* effect | No |
 | G12 | Spell cooldowns are the spell's record number in seconds, not the table's recovery time (fireball 26 s instead of 20; monsters' AI recovery times likewise) | `spells_parse_table` `0x47a190` | **Observed** code, retail data and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] SpellRecoveryTimes`) |
-| G13 | The blind / cripple / slow chance of an aimed attack (and of blindness stab, arm slice, leg swipe) uses the selected character's aimed attack skill, not the attacker's | `combat_apply_melee_hit` `0x465df0` | **Observed** code, *inferred* effect | No |
+| G13 | The blind / cripple / slow chance of an aimed attack (and of blindness stab, arm slice, leg swipe) uses the selected character's aimed attack skill, not the attacker's | `combat_apply_melee_hit` `0x465df0` | **Observed** code (re-read 2026-11-10), *inferred* effect | Fixed (`bugfix.c`, `[Fixes] AimedAttackSkill`, 2026-11-10; not yet run in game) |
 | G14 | Multiplayer: when a player closes a container after taking some items, the other machines drop the container's last entries instead of the taken ones | `mp_handle_container_close` `0x488eb0` | **Observed** code, *inferred* effect | No |
 | G15 | Damage spells roll each die from 0 to die-1 (lightning d6 averages 2.5), while healing dice roll 1 to die | `living_entity_get_hit_by_spell` `0x45dea0`, `spell_roll_amount` `0x47f4d0` | **Observed** code and retail data; intent *inferred* | No: left as it is (decided 2026-10-17) |
 | G16 | Latent: with all 20 missile slots taken, the next spell missile is not fired | `spell_launch_missile` `0x47e6c0` | **Observed** code, *inferred* effect | No |
@@ -952,7 +952,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G31 | A boss's `+Plus Spell:` (Serpent sickle poison; Ghost paralysing fear and "ghost death") lands even when the hit itself is dropped as out of range | `living_combat_resolve_hit` `0x467df0` | **Observed** code and in game (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] BossSpellInRange`) |
 | G32 | Melee party members fight the mounted Phoenix Rider in melee (unless the Serpent is in its stage 1), and the mounted Ghost Rider always | `boss_species_mounted_stage` `0x4a2480` | **Observed** code and in game (2026-10-17, the function called directly) | Fixed (`bugfix.c`, `[Fixes] MountedRiders`) |
 | G40 | A loose gold pile on the ground holds only 1 gold after the game is loaded | `savegame_read_item_objects` `0x4d31e0` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] GoldPileAmount`) |
-| G41 | With more than 32 loose gold piles in a level, the extra piles are gone after a load | `savegame_write_item_objects` `0x4d2370` | **Observed** code, *inferred* effect | No |
+| G41 | With more than 32 loose gold piles in a level, the extra piles are gone after a load | `savegame_write_item_objects` `0x4d2370` | **Observed** code (re-read 2026-11-10), *inferred* effect | Fixed (`bugfix.c`, `[Fixes] GoldPilesSaved`, 2026-11-10; not yet run in game) |
 | G42 | Latent: a door whose name plus the level script name has 64 characters or more makes every save of that level fail to load | `savegame_read_two_stage` `0x4d34e0` | **Observed** code, *inferred* effect | No |
 | G51 | Latent: once the 1000 path nodes run out, every failed path search keeps its nodes until the next level load | `pf_graph_search` `0x49fa70` | **Observed** code, *inferred* effect | No |
 | G52 | Latent: a path to a goal outside the walkable area usually fails instead of ending at the area's edge | `pf_find_cell_crossing` `0x49ecb0` | **Observed** code, *inferred* effect | No |
@@ -965,7 +965,7 @@ areas; whether a retail fight reaches that was not checked. D7503.
 | G111 | Latent: a door `+Key:` that names no item can never be opened with a key | `level_script_parse_table` `0x4cd5f0` | **Observed** code and retail data, *inferred* effect | No |
 | G130 | Latent (the game refuses saving there, tested): after loading a game saved in the last temple level after Machival's defeat, walking to the forge no longer starts the first ending; only the temple exit (the second ending) still ends the game | `ls_templeint2_init` `0x4ef190`, `ls_templeint2_enter_forge` `0x4ef5d0`, `savegame_location_allowed` `0x4d4b5e` | **Observed** code and in game (save refused; the lost ending seen with an agent-made save, 2026-11-08) | No |
 | G131 | Latent (the game refuses saving there): on the second Jade Temple visit, a game saved in the 8 s after "Joseph acquired Summon Spirit of Laharah!" loads into a temple that never fades out to the world map, and the level has no exit | `lsf_tiger2_dead` `0x4f0360`, `ls_jadetemple_init` `0x4effe0`, `savegame_location_allowed` `0x4d4b45` | **Observed** code and retail data, *inferred* effect | No |
-| G132 | In Liangshan, General Wentao's wave can arrive, and "That must be the last of them." can be said, while Orenian Samurai#w3a of the third wave is still fighting | `lsf_liangshan_flag_wave4` `0x4f5280`, `lsf_liangshan_flag_finished_quest` `0x4f5320` | **Observed** code and retail data, *inferred* effect | No |
+| G132 | In Liangshan, General Wentao's wave can arrive, and "That must be the last of them." can be said, while Orenian Samurai#w3a of the third wave is still fighting | `lsf_liangshan_flag_wave4` `0x4f5280`, `lsf_liangshan_flag_finished_quest` `0x4f5320` | **Observed** code (re-read 2026-11-10) and retail data, *inferred* effect | Fixed (`bugfix.c`, `[Fixes] LiangshanWave4`, 2026-11-10; not yet run in game) |
 | G140 | Latent: after a cutscene, an item it took off goes back into a wrong equipment slot when the item's type slot is not the usual one for that hand or body part | `script_action_replace_weapon` `0x4dccb0`, `script_action_replace_armor` `0x4dce60`, `cutscene_script_unload` `0x4ed390` | **Observed** code and retail data, *inferred* effect | No |
 | G160 | Latent: `multi_path_type 2` is accepted (and reported as "Unknown"), and a machine set to it drops every path it receives, so other players' characters stop on that screen | `cmd_Multi_path_type` `0x4811d0`, `mp_handle_new_path` `0x4801f0` | **Observed** code, *inferred* effect | No |
 | G170 | A "Cannot save..." warning shown while the player has paused the game resumes the game when it is closed | `ui_message_box_show` `0x413e40`, `ClearFrameFlag5bd504` `0x414020` | **Observed** code and in game (2026-10-17) | Fixed (`bugfix.c`, `[Fixes] MessageBoxPause`) |
@@ -1121,6 +1121,14 @@ hits with its own selected character. In single player the aimed attacks are sta
 before the hit lands. Monsters never pick these skills (`living_combat::ai_choose_special` only takes ids below
 `0x24`).
 
+**Fixed 2026-11-10** in SummonerFix (`bugfix.c`, switch `[Fixes] AimedAttackSkill`) and in the fixed build
+(`combat.cpp`, `owner->get_skill`). Re-read first (**Observed**): `[esi]` at the three sites is the attacker, the
+same pointer the function already uses for the attacker's own skill `0xd` (`mov ecx, [esi]` at `0x465f0e`) and as the
+status source (`[edx + 0x80]` after `mov edx, [esi]` at `0x4663e5`). The patch turns `mov ecx, [0x5fcc88]`
+(`8B 0D 88 CC 5F 00`) at `0x4663c0`, `0x466468` and `0x466510` into `mov ecx, [esi]` and four nops. *Inferred:* with
+the selection unchanged the attacker is the selected character, so normal play does not change; only a selection
+switch before the hit lands does. Not yet run in game.
+
 **G14. The container handle is read for every item.** The loop pushes `ebp`, the container's net handle from
 `data + 4`, for each taken item (`push ebp` at `0x488f00`), not the item handles that `mp_send_container_close`
 appends after the count (`0x488e08`..`0x488e2a`). So `container_remove_item` gets the container itself. It does
@@ -1216,6 +1224,15 @@ the saved amount (1 if it is not positive). After the fix the same save gave 30 
 
 **G41. A silent limit of 32.** The gold-pile loop stops at 32 (`cmp ebp, 0x20; jge` at `0x4d24e3`) and the save still
 succeeds. The level does not recreate monster drops, so piles 33 and later are lost on load.
+
+**Fixed 2026-11-10** in SummonerFix (`bugfix.c`, switch `[Fixes] GoldPilesSaved`) and in the fixed build
+(`level_scripts.cpp`). Re-read first (**Observed**): the `CONT` chunk is `0x18b4` bytes (`savegame_layout_item_objects`),
+which is exactly 8 + 40 x (12 + 4 + 1 + 16 x 8) + 4 + 32 x 16: room for 40 containers of 16 items and then 32 piles. So
+32 is the worst case, not the room left, and `savegame_read_item_objects` reads as many piles as the count says (no
+limit). The fix writes piles while one more 16-byte pile fits (`esi + 16 <= [edi + 0x1038]`, the chunk size the
+function's own end test uses): at least 32, up to 394 with no loose containers. The patch turns `cmp ebp, 0x20 ; jge`
+at `0x4d24e3` into a call to a stub that leaves the loop at `0x4d256f` when the chunk is full. Saves written this way
+load in the original exe too (*inferred* from the same reader). Not yet run in game.
 
 **G42. A length check that fails the load.** For every saved two-stage hash of the current level, the reader walks
 the doors and builds `level_script_name + door name` in a 64-byte buffer. Before each comparison it tests the
@@ -1373,6 +1390,16 @@ directly set `liangshan_flag_wave1`, but `Orenian Soldier#w1` stayed hidden at i
 with the test command `npckill` stayed "dying" (`+0x320` bit `0x8`) without reaching dead (`0x80`, which
 `script_object_is_dead` tests), so wave 2 never began. A real test needs the level played up to the defence (the
 temple and the ring). Not fixed until then.
+
+**Fixed 2026-11-10, still not reproduced** (SummonerFix `bugfix.c`, switch `[Fixes] LiangshanWave4`, and the fixed
+build, `level_script_liangshan.cpp`). Re-read first (**Observed**): `0x4f5299`..`0x4f52b9` test `#w3b` (`0x5a32f0`)
+and the mage (`0x5a32e0`) only; wave 3 sends `#w3a` (`0x5a3304`) as well. The fix belongs in the code, not in the
+data: the test is compiled into `lsf_liangshan_flag_wave4`, and `Liangshan_script.tbl` only defines the three
+enemies. The `call script_npc_is_dead` for `#w3b` at `0x4f529e` goes to a stub that also needs `#w3a` dead; the
+caller's own `push` / `add esp, 4` stay. When the level's script has no `#w3a` at all (`script_object_find` -1) the
+stub does not wait for it, so the defence cannot stall on a missing name (`script_npc_is_dead` returns false for a name
+it does not find). Test save 16 (moved to the shrine on 2026-11-08) now reaches the defence, so the in-game test can
+be made; it has not been run yet.
 
 **G140. A stale slot.** When a cutscene takes off an item, the record's slot is set from the item type's slot:
 weapon 4 or two-handed 9 goes back to hand 5, shield 5 to hand 6 (`0x4dcd55`..`0x4dcd87`); torso 6 or heavy 8
@@ -1878,7 +1905,7 @@ the 64-bit build both paid Hero's Platemail and 20,000 XP; without the fix, noth
 | K18 | Latent: paging out the popup model slot 18 can drop another slot's item model | `item_page_out_all` `0x46ca50` | **Observed** code, *inferred* effect | No |
 | K19 | The launcher's Speed tab ("Default Detail Level") has no effect on the game's detail settings | `GameInit` `0x43df40`, `summoner_cfg_load` `0x43e250` | **Observed** code and launcher strings, *inferred* effect | No |
 | K20 | Brass, Steel and Iron Golems show no hit effect when struck (stone golems do) | `combat_spawn_hit_vfx` `0x4669c0` | **Observed** code, retail data and in game (2026-10-16, `[Debug] TraceHitVfx`) | Fixed (`bugfix.c`) |
-| K30 | Tall bosses (Tentacle Beast, Evil Urath, Luminar, Machival, Giant Salamanka, Titus, Pyrul) get their size class's height: health bar and floating text sit too low, and clicking the upper body misses | `character_size_height` `0x4542f0` | **Observed** code, *inferred* effect | No: left as it is (decided 2026-10-17) |
+| K30 | Tall bosses (Tentacle Beast, Evil Urath, Luminar, Machival, Giant Salamanka, Titus, Pyrul) get their size class's height: health bar and floating text sit too low, and clicking the upper body misses | `character_size_height` `0x4542f0` | **Observed** code (re-read 2026-11-10), *inferred* effect | No: left as it is (decided 2026-10-17); an opt-in fix for the bar, texts and picking, `[Fixes] BossHeight`, off by default (2026-11-10, not yet run in game) |
 | K40 | With 128 map labels saved, deleting or editing a label is not saved, and the old label comes back on the next visit or load | `savegame_automap_label_remove` `0x4d1390` | **Observed** code and by function call (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] MapLabelsFull`) |
 | K50 | With the OpenGL renderer, the smallest mipmaps of the 16-bit water textures are built from the top half of the larger level only | `gl_build_mipmaps` `0x54e0e0` | **Observed** code and retail data, *inferred* effect | No |
 | K51 | Latent: with the OpenGL renderer, a tint on a 2D bitmap, line or polygon wraps bright colours round to dark | `gr_opengl_apply_tint` `0x54f9a0` | **Observed** code, *inferred* effect | No |
@@ -1886,7 +1913,7 @@ the 64-bit build both paid Hero's Platemail and 20,000 XP; without the fix, noth
 | K60 | With the Direct3D renderer, the depth clear misses the last column and the last row of the clip area, so those pixels keep the previous frame's depth | `gr_d3d_zbuffer_clear` `0x5355e0` | **Observed** code, *inferred* effect | No |
 | K61 | A dropped item's 5-second highlight gets no blue at all: it is yellow instead of the pale gold in the data | `world_tint_gold_object` `0x43a600` | **Observed** code and in game (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] LootHighlightColour`) |
 | K62 | In the multiplayer chat, a kick message shows the kicked player's name where the reason should be | `chat_process_irc_message` `0x4ac240` | **Observed** code | No |
-| K63 | Clicking a character tests the horizontal distance squared against the radius: small and normal-sized characters can be clicked further from their middle, characters with a radius above 1 only nearer to it | `pick_test_character` `0x43c620` | **Observed** code, *inferred* effect | No (kept: the project owner finds the longer reach fine, 2026-10-18) |
+| K63 | Clicking a character tests the horizontal distance squared against the radius: small and normal-sized characters can be clicked further from their middle, characters with a radius above 1 only nearer to it | `pick_test_character` `0x43c620` | **Observed** code (re-read 2026-11-10), *inferred* effect | No (kept: the project owner finds the longer reach fine, 2026-10-18); an opt-in fix, `[Fixes] ClickRadius`, off by default (2026-11-10, not yet run in game) |
 | K64 | With the OpenGL renderer, a start without `summoner.cfg` (a fresh install) switches on the low-resolution textures | `summoner_cfg_load` `0x43e250`, `gr_get_video_memory_mb` `0x5079f0` | **Observed** code, *inferred* effect | Fixed (`bugfix.c`) |
 | K80 | A knock-down that hits the selected character while it casts shows "Knocked Down!", but the character stays on its feet | `ai_knock_down_local` `0x4742b0`, `ai_set_mode` `0x473320` | **Observed** code and in game (2026-10-18) | Fixed (`bugfix.c`, `[Fixes] KnockDownMessage`) |
 | K90 | With the OpenGL renderer, the gamma (brightness) slider does not change the brightness | `gr_set_gamma` `0x506a90`, `gr_opengl_tmapper` `0x550080` | **Observed** code, *inferred* effect | Fixed (`gamma.c`) |
@@ -2134,6 +2161,16 @@ picking; the line-of-sight and overlap use may also change what a boss can see o
 **Decision 2026-10-17:** SummonerFix leaves this as it is. The low bar may be deliberate (it keeps tall bosses' health
 bars on screen), and a fix would also change line of sight and overlap.
 
+**Opt-in fix 2026-11-10 (off by default, the decision stands):** SummonerFix `bugfix.c`, switch `[Fixes]
+BossHeight=1`, and the fixed build (`Character::shown_height`, read from the same key). Re-read first (**Observed**:
+`fstp st(0)` at `0x45430f`, then the size table at `0x454323`). To meet the decision's second point, only the six
+calls that place the health bar (`0x48496d`), the speech text (`0x484bc5`), the float texts (`0x485476`, `0x485617`,
+`0x48572b`) and the pick sphere (`0x43c6f3`) get the boss height; line of sight, overlap, guard sight and the
+conversation camera keep the size-class height. **Observed** in `levelrender_draw_health_bars`: a boss's bar gets no
+`+ 0.75` above the height (other characters do: `cmp [esi + 0xc], 9 ; je` at `0x48497a`), which fits a boss height meant to reach the head. The
+first point remains: the projected bar is not clamped to the screen, so the Tentacle Beast's (15) or Evil Urath's (8)
+can leave the top of the view with the camera close (*inferred*). Not yet run in game.
+
 **K40. Remove returns at the limit.** `savegame_automap_label_remove` returns at once when the list holds 128 labels
 (`cmp eax, 0x80; jge` at `0x4d13ca`), and so does `savegame_automap_labels_reset_level` (`0x4d1526`). The test was
 probably meant for the add. Deleting a label (`automap_handle_click`, `0x402bf3`) removes it from the live table
@@ -2226,6 +2263,15 @@ for 0.47 the limit is 0.69, and for 0.15 the sphere test (0.30) is what stops it
 `charinfo_boss_radius` (`0x4542ca`), so a boss radius above 1 gets a narrower test than intended. Type 3 objects
 and type 11 (`0x43c6c2`, r = 2.0, limit 1.0) go through the same code. *Inferred:* the effect on clicks was not
 tested. Found in the `NOTES-target-chattracker-multispell.md` notes.
+
+**Opt-in fix 2026-11-10 (off by default; kept by decision 2026-10-18):** SummonerFix `bugfix.c`, switch `[Fixes]
+ClickRadius=1`, and the fixed build (`gametarget.cpp`, read from the same key). Re-read first (**Observed**:
+`fld [esp+0x14] ; fadd st, st(1) ; fcomp [esp+0x48]` at `0x43c7ad`, `D9 44 24 14 D8 C1 D8 5C 24 48`). The ten bytes
+become a call to a stub that compares `sqrt(dx^2 + dz^2)` with the halved radius and leaves the status word for the
+`fnstsw` at `0x43c7b7`; the halved radius itself (stored at `[esp+0x48]` and kept as the best pick's radius,
+`0x43c7f5`) does not change. With the fix a normal character (size radius 0.47) needs a click within 0.47 instead of
+0.69 of its middle, so clicking gets harder for most characters; that is why the owner kept the original. Not yet
+run in game.
 
 **K64. OpenGL reports a constant 8 MB.** `summoner_cfg_load` sets texture quality 2 (`0x43e2e0`) and, when
 `summoner.cfg` is missing (`jne 0x43e36c` at `0x43e32e`) or shorter than 64 bytes (`0x43e366`..`0x43e36a`), lowers it

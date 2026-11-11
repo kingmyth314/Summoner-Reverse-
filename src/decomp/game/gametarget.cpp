@@ -1018,7 +1018,12 @@ obj *pick_test_character(vector3 *hit)
             off.z = 0.0f;
         } else {
             r = ((Character *)o)->size_radius() * 2.0f;
+#ifdef FIXED_BUILD
+            // part of FIXED_BUILD K30: the pick sphere's centre at half a boss's own height.
+            float height = ((Character *)o)->shown_height() * 0.5f;
+#else
             float height = ((Character *)o)->size_height() * 0.5f;
+#endif
             off.x = 0.0f;
             off.z = 0.0f;
             off.y = height;
@@ -1035,6 +1040,16 @@ obj *pick_test_character(vector3 *hit)
             r *= 0.5f;
             float h2 = dz2;
             h2 += dx2;
+#ifdef FIXED_BUILD
+            // FIXED_BUILD: K63 ClickRadius. With [Fixes] ClickRadius=1 the horizontal distance itself is compared
+            // with the radius (the original compares its square: a limit of sqrt(r)). Off by default: the owner kept
+            // K63 (2026-10-18; the longer reach on normal characters is fine).
+            static int click_radius_fix = -1;
+            if (click_radius_fix < 0)
+                click_radius_fix = exp_ini_int("Fixes", "ClickRadius", 0) != 0;
+            if (click_radius_fix)
+                h2 = (float)sqrt(h2);
+#endif
             if (h2 < r && d2 < best_d
                 && (!best || !(distance(&o->pos, &best->pos) * 0.5f < best_r))) {
                 best_d = d2;

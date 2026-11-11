@@ -1493,6 +1493,22 @@ float Character::size_height()
     return character_size_heights[info->size];
 }
 
+#ifdef FIXED_BUILD
+// FIXED_BUILD: K30 BossHeight. Not in Sum.exe. The height that places a character's health bar, speech and float
+// texts and its pick cylinder: a boss's own height (the Luminar 5.5, Evil Urath 8, the Tentacle Beast 15) when
+// [Fixes] BossHeight=1, else size_height() as the original. Off by default: the owner kept K30 (2026-10-17), and
+// line of sight, overlap, guard sight and the conversation camera keep size_height() either way.
+float Character::shown_height()
+{
+    static int on = -1;
+    if (on < 0)
+        on = exp_ini_int("Fixes", "BossHeight", 0) != 0;
+    if (on && type == 9)
+        return charinfo_boss_height(info);
+    return size_height();
+}
+#endif
+
 // 0x454330  Confidence: exact (the radius ?: temporaries at ebp-0xa4 / -0xa8; the NULL test is made
 // twice, as in the code). Frame: result -4, a -0x10, b -0x1c, m -0x40, this -0xa0. Centre to centre, minus
 // both radii; with a target point (char_info +0x18a bone) the distance to that bone, radii not taken

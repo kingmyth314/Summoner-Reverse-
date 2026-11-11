@@ -1892,7 +1892,13 @@ int savegame::write_item_objects()
     piles_off = off;
     *(int *)(item_objects.data + off) = 0;
     off += 4;
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: G41 GoldPilesSaved. As many piles as the chunk has room for (16 bytes each), not 32: the chunk is
+    // sized for 40 full containers and 32 piles, so 32 is only the worst case; the reader has no limit.
+    for (o = obj_active_list.next; o != &obj_active_list && off + 16 <= item_objects.size; o = o->next) {
+#else
     for (o = obj_active_list.next; o != &obj_active_list && piles < SAVEGAME_MAX_GOLD_PILES; o = o->next) {
+#endif
         if (o->type != OBJ_TYPE_ITEM)
             continue;
         it = (item_obj *)o;
