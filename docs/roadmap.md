@@ -360,6 +360,11 @@ the plan for a fixed build and an experimental build that take them up is in
   build, OpenGL and Vulkan, run once under both: **Observed**, 4 samples; and since the evening of 2026-11-10 in
   SummonerFix for the original exe, a `ChoosePixelFormat` import hook, built, not yet run in the game), both in the config app ([SummonerFix](summonerfix/index.md#exclusive-fullscreen-and-anti-aliasing-2026-11-10),
   [Vulkan renderer](future/vulkan-renderer.md#exclusive-fullscreen-and-msaa-2026-11-10)).
+  **UI scale, built 2026-11-10, not yet run in the game:** `[Display] InterfaceScale` (50-100%, default 100) makes the
+  menus, HUD and panels smaller while the 3D world keeps the screen's resolution: `GameWidth=Auto` becomes taller at
+  the screen's shape and the 1024x768 layout is placed in it (HUD at the bottom, menus and full panels centred). Above
+  100% would need the interface laid out anew (the layout already fills 768 lines). The fixed, experimental and 64-bit
+  builds; not the original exe. Analysis and design: [Interface scale](future/interface-scale.md).
 
 ## Other planned work
 

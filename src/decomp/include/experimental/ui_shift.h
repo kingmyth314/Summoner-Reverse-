@@ -22,6 +22,7 @@ void ui_set_clip(int x, int y, int w, int h);
 }
 void ui_gr_get_clip(int *x, int *y, int *w, int *h);
 int ui_gr_screen_width();
+int ui_gr_screen_height();
 int ui_mouse_get_pos(int *x, int *y, int *z);
 
 #endif
@@ -38,6 +39,7 @@ int ui_mouse_get_pos(int *x, int *y, int *z);
 #define set_clip ui_set_clip
 #define gr_get_clip ui_gr_get_clip
 #define gr_screen_width ui_gr_screen_width
+#define gr_screen_height ui_gr_screen_height
 #define mouse_get_pos ui_mouse_get_pos
 
 #endif // FIXED_BUILD

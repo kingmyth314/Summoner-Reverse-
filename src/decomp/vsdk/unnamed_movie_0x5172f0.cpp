@@ -205,10 +205,15 @@ int movie_blit_frame(HBINK bink)
             gr_clear();
             // Centred in the menu layout: outside gameplay a game wider than 1024 (SummonerFix's GameWidth) shows its
             // 1024-wide menu layout centred, so the frame is centred in those 1024 pixels.
+            // The same in y for a game taller than 768 ([Display] InterfaceScale, 2026-11-10): the menu layout is
+            // centred in y, so the frame is centred in its 768 lines.
             int w = gr_screen_width();
             if (w > 1024 && gameseq_state_cur != 4)
                 w = 1024;
-            gr_bitmap(movie_gl_bitmap, (w - 640) / 2, (gr_screen_height() - 480) / 2, gr_mode_ui_bitmap);
+            int h = gr_screen_height();
+            if (h > 768 && gameseq_state_cur != 4)
+                h = 768;
+            gr_bitmap(movie_gl_bitmap, (w - 640) / 2, (h - 480) / 2, gr_mode_ui_bitmap);
             gr_flip();
         }
         goto next;

@@ -120,8 +120,11 @@ static void exclusive_choose()
 }
 
 // Game pixels -> window pixels for the current client size.
-// menu_shift: a centred 1024-wide menu layout (only that part of the game screen is shown).
-struct display_map { int cw, ch; double scale; int off_x, off_y; bool menu_shift; };
+// menu_shift: a centred 1024x768 menu layout (only that part of the game screen is shown).
+// off_y is from the bottom (glViewport's origin, and the Vulkan back end's mapping of it); off_y_top is the same
+// placement from the top (the mouse, the badge). They differ by the vertical centring of a 768-line layout in a
+// taller game ([Display] InterfaceScale, 2026-11-10): the picture moves down, so off_y_top grows and off_y shrinks.
+struct display_map { int cw, ch; double scale; int off_x, off_y, off_y_top; bool menu_shift; };
 static int display_center_menus = -1;   // [Display] CenterMenus, read at the first frame
 
 static bool get_map(display_map *m)
@@ -137,6 +140,7 @@ static bool get_map(display_map *m)
     m->scale = sx < sy ? sx : sy;
     m->off_x = (int)((m->cw - gr_screen.max_w * m->scale) / 2 + 0.5);
     m->off_y = (int)((m->ch - gr_screen.max_h * m->scale) / 2 + 0.5);
+    m->off_y_top = m->off_y;
     m->menu_shift = false;
     // Outside play (state 4) the interface is a fixed 1024-wide layout at the left of a wider game screen: the output
     // is shifted so that layout is centred, and the empty right part moves off screen. The mouse uses the same map.
@@ -149,6 +153,13 @@ static bool get_map(display_map *m)
     if (display_center_menus && gr_screen.max_w > 1024 && (gameseq_state_cur != 4 || full_panel)) {
         m->off_x += (int)((gr_screen.max_w - 1024) / 2.0 * m->scale + 0.5);
         m->menu_shift = gameseq_state_cur != 4;   // menus only, not the panels in play
+    }
+    // A game taller than 768 (InterfaceScale): the layout's 768 lines at the top are centred the same way in y.
+    if (display_center_menus && gr_screen.max_h > 768 && (gameseq_state_cur != 4 || full_panel)) {
+        int d = (int)((gr_screen.max_h - 768) / 2.0 * m->scale + 0.5);
+        m->off_y -= d;
+        m->off_y_top += d;
+        m->menu_shift = gameseq_state_cur != 4;
     }
     return true;
 }
@@ -521,8 +532,12 @@ BOOL modern_swap_buffers(HDC dc)
 {
     display_map m;
     if (get_map(&m)) {
-        int used_w = round_int((m.menu_shift ? 1024 : gr_screen.max_w) * m.scale), used_h = round_int(gr_screen.max_h * m.scale);
-        if (m.off_x > 0 || m.off_y > 0 || m.menu_shift || m.off_x + used_w < m.cw) {
+        // A menu shows only its 1024x768 layout: the layout's top 768 lines, bottom-up from off_y + (max_h - 768).
+        int lay_w = m.menu_shift && gr_screen.max_w > 1024 ? 1024 : gr_screen.max_w;
+        int lay_h = m.menu_shift && gr_screen.max_h > 768 ? 768 : gr_screen.max_h;
+        int used_w = round_int(lay_w * m.scale), used_h = round_int(lay_h * m.scale);
+        int used_y = m.off_y + round_int((gr_screen.max_h - lay_h) * m.scale);
+        if (m.off_x > 0 || used_y > 0 || m.menu_shift || m.off_x + used_w < m.cw) {
             GLfloat old[4];
             GLboolean scissor = glIsEnabled(GL_SCISSOR_TEST);
             glGetFloatv(GL_COLOR_CLEAR_VALUE, old);
@@ -530,14 +545,14 @@ BOOL modern_swap_buffers(HDC dc)
             glEnable(GL_SCISSOR_TEST);
             clear_rect(0, 0, m.off_x, m.ch);                                 // left bar
             clear_rect(m.off_x + used_w, 0, m.cw - m.off_x - used_w, m.ch);  // right bar
-            clear_rect(0, 0, m.cw, m.off_y);                                 // bottom bar
-            clear_rect(0, m.off_y + used_h, m.cw, m.ch - m.off_y - used_h);  // top bar
+            clear_rect(0, 0, m.cw, used_y);                                  // bottom bar
+            clear_rect(0, used_y + used_h, m.cw, m.ch - used_y - used_h);    // top bar
             if (!scissor)
                 glDisable(GL_SCISSOR_TEST);
             glClearColor(old[0], old[1], old[2], old[3]);
         }
         modern_brightness(display_wnd, m.cw, m.ch);   // before the badge and a capture, as in SummonerFix
-        modern_speed_badge(dc, m.cw, m.ch, m.off_x, m.off_y, m.scale);
+        modern_speed_badge(dc, m.cw, m.ch, m.off_x, m.off_y_top, m.scale);
         if (capture_wanted) {
             save_frame(&m, capture_path);
             InterlockedExchange((LONG *)&capture_wanted, 0);
@@ -557,7 +572,7 @@ BOOL modern_screen_to_client(HWND hwnd, POINT *p)
         p->y = agent_y;
     }
     if (ok && hwnd == display_wnd && get_map(&m)) {
-        int gx = (int)((p->x - m.off_x) / m.scale), gy = (int)((p->y - m.off_y) / m.scale);
+        int gx = (int)((p->x - m.off_x) / m.scale), gy = (int)((p->y - m.off_y_top) / m.scale);
         p->x = gx < 0 ? 0 : gx >= gr_screen.max_w ? gr_screen.max_w - 1 : gx;
         p->y = gy < 0 ? 0 : gy >= gr_screen.max_h ? gr_screen.max_h - 1 : gy;
     }
@@ -571,7 +586,7 @@ BOOL modern_client_to_screen(HWND hwnd, POINT *p)
     display_map m;
     if (hwnd == display_wnd && get_map(&m)) {
         p->x = m.off_x + round_int(p->x * m.scale);
-        p->y = m.off_y + round_int(p->y * m.scale);
+        p->y = m.off_y_top + round_int(p->y * m.scale);
         if (agent_cursor) {
             InterlockedExchange((LONG *)&agent_x, p->x);
             InterlockedExchange((LONG *)&agent_y, p->y);

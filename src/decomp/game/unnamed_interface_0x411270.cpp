@@ -335,7 +335,12 @@ void interface_init_global()
     status_character = NULL;
     interface_cur_screen = 0;
     ui_scale_640 = screen_w * 0.0015625f;
+#ifdef FIXED_BUILD
+    // fixed build: InterfaceScale. The fov is measured on the real screen's shape, not on ui_shift.h's 768 lines.
+    gr::set_clip(0, 0, gr_screen_width(), (int)(exp_ws_real_screen_height() * 0.875f + 0.5f));
+#else
     gr::set_clip(0, 0, gr_screen_width(), (int)(gr_screen_height() * 0.875f + 0.5f));
+#endif
     float fov = camera_fov;
     gr_setup_3d(&camera_view_orient, &camera_view_pos, fov, 1, 1);
     gr_get_view_fov(&h_fov, &interface_view_fov);
@@ -639,10 +644,14 @@ void interface_pulse_update(float frametime)
 #ifdef FIXED_BUILD
 // fixed build: widescreen. This function sizes the 3D view, so it is not interface drawing: the real screen
 // width (the 1024 layout width while a full-screen panel is open), an unshifted clip, and with SidePanelsOverWorld
-// the world kept full width behind a side panel. ui_shift.h's names are restored after the function.
+// the world kept full width behind a side panel. ui_shift.h's names are restored after the function. The height
+// likewise (InterfaceScale, 2026-11-10): the real one, so the view ends at the bottom-anchored HUD bar, and 768 for a
+// full-screen panel.
 #undef set_clip
 #undef gr_screen_width
+#undef gr_screen_height
 #define gr_screen_width exp_ws_view_width
+#define gr_screen_height exp_ws_view_height
 #define automap_get_panel_width() exp_ws_panel_width(automap_get_panel_width())
 #define spells_get_panel_width() exp_ws_panel_width(spells_get_panel_width())
 #define skills_get_panel_width() exp_ws_panel_width(skills_get_panel_width())
@@ -741,8 +750,10 @@ void interface_set_view_clip()
 #undef spells_get_panel_width
 #undef skills_get_panel_width
 #undef itemtrade_get_panel_width
+#undef gr_screen_height
 #define set_clip ui_set_clip
 #define gr_screen_width ui_gr_screen_width
+#define gr_screen_height ui_gr_screen_height
 #endif
 
 // 0x4123c0  Confidence: exact.
