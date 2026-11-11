@@ -299,6 +299,13 @@ char *irc_read_line()
 // NULL; JOIN and plain NOTICEs format a text and still return NULL.
 //   offset: how far the command starts in the line (the prefix length; -2 for our own lines, which have
 //   neither the ':' nor the space).
+// Closer under cl 8966 (387 -> 66): D26800 the one-line `return NULL` tests leave through `goto none;` (the
+// binary's shared NULL return; the nick / msg frame slots follow), D26801 the trailing-\1 strip in both arms of
+// the ':' test, D26802 the NICK format read before the second irc_get_word, D26803 the MOTD word fetched before
+// the strcpy, D26804 the CTCP PING reply returns NULL (0x4ac864: `xor eax, eax` after irc_process_input; the
+// decomp returned irc_process_input's result). Left: the {0} first-byte stores' schedule in the prologue, the
+// 311 / 319 / last strcpy tails not cross-jumped (the binary keeps `xor eax, eax` in 311's epilogue), one
+// `add esp` in the 353 loop.
 char *chat_process_irc_message(char *line, int mode)
 {
     char rest[IRC_MAX_LINE] = "";          // the parameters still to parse
@@ -316,7 +323,7 @@ char *chat_process_irc_message(char *line, int mode)
     char *tok;
 
     if (strlen(line) >= IRC_MAX_LINE)
-        return NULL;
+        goto none;
 
     if (mode == 0) {
         strcpy(rest, line);
@@ -343,19 +350,22 @@ char *chat_process_irc_message(char *line, int mode)
 
     word = irc_get_word(0, rest);
     if (!word[0])
-        return NULL;
+        goto none;
     strcpy(command, word);
     strcpy(rest, line + offset + strlen(command) + 2);
 
     if (!stricmp(command, "PRIVMSG")) {
         strcpy(target, irc_get_word(0, rest));
         strcpy(rest, line + offset + strlen(command) + strlen(target) + 4);
-        if (rest[0] == ':')
+        if (rest[0] == ':') {          // D26801
             strcpy(msg, irc_get_word(0, rest + 1));
-        else
+            if (msg[strlen(msg) - 1] == 1)
+                msg[strlen(msg) - 1] = 0;
+        } else {
             strcpy(msg, irc_get_word(0, rest));
-        if (msg[strlen(msg) - 1] == 1)
-            msg[strlen(msg) - 1] = 0;
+            if (msg[strlen(msg) - 1] == 1)
+                msg[strlen(msg) - 1] = 0;
+        }
         if (msg[0] == 1) {
             strcpy(rest, line + offset + strlen(command) + strlen(msg) + strlen(target) + 6);
             rest[strlen(rest) - 1] = 0;
@@ -371,10 +381,11 @@ char *chat_process_irc_message(char *line, int mode)
             }
             if (!stricmp(msg + 1, "PING")) {
                 sprintf(chat_irc_format_buf, "/NOTICE %s :\001PING %s\001", nick, rest);
-                return irc_process_input(chat_irc_format_buf, 1);
+                irc_process_input(chat_irc_format_buf, 1);
+                return NULL;                    // D26804: the binary returns NULL (0x4ac864)
             }
             if (!stricmp(msg + 1, "VERSION"))
-                return NULL;
+                goto none;
             strcpy(rest, irc_get_word(0, line + offset + strlen(command) + strlen(target) + 4) + 1);
             rest[strlen(rest) - 1] = 0;
             sprintf(chat_irc_format_buf, "** CTCP Message from %s (%s)", nick, rest);
@@ -389,22 +400,25 @@ char *chat_process_irc_message(char *line, int mode)
     }
 
     if (mode == 1)
-        return NULL;
+        goto none;
 
     if (!stricmp(command, "NOTICE")) {
         strcpy(target, irc_get_word(0, rest));
         strcpy(rest, line + offset + strlen(command) + strlen(target) + 4);
-        if (rest[0] == ':')
+        if (rest[0] == ':') {          // D26801
             strcpy(msg, irc_get_word(0, rest + 1));
-        else
+            if (msg[strlen(msg) - 1] == 1)
+                msg[strlen(msg) - 1] = 0;
+        } else {
             strcpy(msg, irc_get_word(0, rest));
-        if (msg[strlen(msg) - 1] == 1)
-            msg[strlen(msg) - 1] = 0;
+            if (msg[strlen(msg) - 1] == 1)
+                msg[strlen(msg) - 1] = 0;
+        }
         if (msg[0] == 1) {
             strcpy(rest, line + offset + strlen(command) + strlen(msg) + strlen(target) + 6);
             rest[strlen(rest) - 1] = 0;
             if (!stricmp(msg + 1, "PING"))
-                return NULL;
+                goto none;
             strcpy(rest, irc_get_word(0, line + offset + strlen(command) + strlen(target) + 4) + 1);
             rest[strlen(rest) - 1] = 0;
             sprintf(chat_irc_format_buf, XSTR("** CTCP Message from %s (%s)", 239), nick, rest);
@@ -462,7 +476,8 @@ char *chat_process_irc_message(char *line, int mode)
         irc_queue_command(IRC_CMD_NICK_CHANGED, nick_change, strlen(nick_change) + 1);
         irc_remove_user(nick);
         irc_add_user(irc_get_word(0, rest));
-        sprintf(chat_irc_format_buf, XSTR("*** %s is now known as %s", 242), nick, irc_get_word(0, rest));
+        char *fmt = XSTR("*** %s is now known as %s", 242);    // D26802
+        sprintf(chat_irc_format_buf, fmt, nick, irc_get_word(0, rest));
         return chat_irc_format_buf;
     }
 
@@ -473,7 +488,7 @@ char *chat_process_irc_message(char *line, int mode)
     }
 
     if (!stricmp(command, "MODE"))
-        return NULL;
+        goto none;
 
     // ERR_NOSUCHNICK
     if (!stricmp(command, "401")) {
@@ -509,7 +524,7 @@ char *chat_process_irc_message(char *line, int mode)
     // RPL_LIST
     if (!stricmp(command, "322")) {
         if (irc_list_state != 1)
-            return NULL;
+            goto none;
         strcpy(channel_topic, irc_get_word(3, rest));
         strcpy(tmp, irc_get_word(1, rest));
         irc_add_channel(tmp, atoi(irc_get_word(2, rest)), channel_topic);
@@ -521,7 +536,7 @@ char *chat_process_irc_message(char *line, int mode)
         return NULL;
     }
     if (!stricmp(command, "324"))
-        return NULL;
+        goto none;
     // RPL_TOPIC and TOPIC: the comparison with the joined channel is all that is left.
     if (!stricmp(command, "332")) {
         if (!stricmp(irc_cur_channel, target)) {
@@ -545,22 +560,23 @@ char *chat_process_irc_message(char *line, int mode)
         return chat_irc_format_buf;
     }
     if (!stricmp(command, "377") || !stricmp(command, "372") || !stricmp(command, "372")) {
+        word = irc_get_word(3, line);           // D26803
         strcpy(chat_irc_format_buf, "!MOTD$#!");
-        strcat(chat_irc_format_buf, irc_get_word(3, line));
+        strcat(chat_irc_format_buf, word);
         return chat_irc_format_buf;
     }
     if (!stricmp(command, "366"))
-        return NULL;
+        goto none;
     if (!stricmp(command, "333"))
-        return NULL;
+        goto none;
     if (!stricmp(command, "329"))
-        return NULL;
+        goto none;
     // RPL_NAMREPLY: the users of the channel, without the @ / + of operators and voiced users.
     if (!stricmp(command, "353")) {
         strcpy(rest, irc_get_word(3, line + offset + strlen(command) + 2));
         tok = strtok(rest, " ");
         if (!tok)
-            return NULL;
+            goto none;
         do {
             if (*tok == '@' || *tok == '+')
                 tok++;
@@ -570,27 +586,27 @@ char *chat_process_irc_message(char *line, int mode)
         return NULL;
     }
     if (!stricmp(command, "001"))
-        return NULL;
+        goto none;
     if (!stricmp(command, "002"))
-        return NULL;
+        goto none;
     if (!stricmp(command, "003"))
-        return NULL;
+        goto none;
     if (!stricmp(command, "004"))
-        return NULL;
+        goto none;
     if (!stricmp(command, "251"))
-        return NULL;
+        goto none;
     if (!stricmp(command, "254"))
-        return NULL;
+        goto none;
     if (!stricmp(command, "255"))
-        return NULL;
+        goto none;
     if (!stricmp(command, "265"))
-        return NULL;
+        goto none;
     if (!stricmp(command, "375"))
-        return NULL;
+        goto none;
     if (!stricmp(command, "372"))
-        return NULL;
+        goto none;
     if (!stricmp(command, "375"))
-        return NULL;
+        goto none;
     // ERR_ERRONEUSNICKNAME
     if (!stricmp(command, "432")) {
 #ifdef MODERN_BUILD
@@ -611,6 +627,7 @@ char *chat_process_irc_message(char *line, int mode)
         return NULL;
     }
     strcpy(chat_irc_format_buf, line);
+none:                                           // D26800
     return NULL;
 }
 
