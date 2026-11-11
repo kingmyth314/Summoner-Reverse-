@@ -109,7 +109,12 @@ see [Game tables](game-tables.md)):
 - **Observed:** the "identified" state is bit 0 of `ItemType +0x5c`, so one success identifies every
   item of that type, in shops too. A new game resets the bit from the `"not identified"` table flag
   (`item_types_reset_identified`, `0x44b250`). See [Characters](characters.md) for the skill list.
-- *Unknown:* the success roll inside `character_use_skill` for appraise.
+- *Unknown:* the success roll inside `character_use_skill` for appraise. **Answered 2026-11-10 (Observed,
+  `character_use_skill` `0x429410`):** there is no roll. Appraise (skill `0x14`, "Identifies items.") starts the
+  member's appraise cooldown and identifies the type when `appraise skill > sqrt(item value) / 710`; otherwise
+  nothing happens until the next try. So a skill of 0.10 identifies items worth less than 5,041 gold and 0.50 less than
+  126,025. Pick lock is a fixed test too: the lock opens when `pick lock skill + 0.05 >= lock` of the door
+  (`door_from_lobj`) or container, with the "Pick successful." / "Couldn't pick lock." messages for containers.
 
 ## Monster loot
 
@@ -119,7 +124,9 @@ formerly labelled `summon_turn_hostile`) and from the script commands `script_ob
 
 - **Observed:** the death handler skips it for type-7 characters and for characters with `+0x320`
   bit `0x100`. *Inferred:* those are party members and summons. In multiplayer only the host
-  (`mp_local_player +0x10` bit 0) rolls loot.
+  (`mp_local_player +0x10` bit 0) rolls loot. **Answered 2026-11-10 (Observed):** bit `0x100` is the summon flag
+  (`CF_SUMMON` in the source); no table keyword sets it, `summon_create` does (`or ebx, 0x103` at `0x47ed9c`). So
+  neither the party nor any summoned creature drops loot.
 
 ### Gold
 
@@ -144,12 +151,19 @@ if (frand() < Chance_to_drop_gold)                       // 0x599690, default 0.
 - **Observed:** the item's type flags gate it by `mp_game_difficulty` (`0x6513ec`): `"multi easy
   only"` (`0x20`) needs 0, `"multi medium only"` (`0x40`) needs 1, `"multi hard only"` (`0x80`)
   needs 2. The check runs in single player too. *Unknown:* whether `mp_game_difficulty` is always 0
-  in single player.
+  in single player. **Answered 2026-11-10:** it is 0 unless a multiplayer game was hosted or joined earlier in the
+  same run. **Observed:** the variable lies in `.bss` (zero at start), and only `mp_host_game` (`0x43ee73`) and
+  `mp_handle_acpt_jn` (`0x470b23`) write it; nothing resets it on the way back to single player. *Inferred:* after a
+  medium or hard network game, a single-player game started without quitting rolls its drops (and anything else that
+  reads the variable, such as `level_script_init` `0x4cc951`) with that difficulty until the exe is restarted. Not
+  tried in game.
 - **Observed:** each line rolls once. `r = frand()`, half the time `r = 1 - r`, then `r -= 0.01`.
   The item drops when `r <= chance`. *Inferred:* the chance is the table percent plus 1%, and 100
   always drops. A `"Rolling %d %d"` debug line is printed.
 - **Observed:** in single player a monster also drops the weapon in equipment slot 5 and the
-  weapon in slot 9, unless the item type has bit `0x2` at `+0x6a`.
+  weapon in slot 9, unless the item type has bit `0x2` at `+0x6a`. **Named 2026-11-10 (Observed,
+  `items.cpp` parser, `weapon_flag_names` `0x599010`):** `+0x6a` holds the weapon `+Flags:` bits "ranged" (1),
+  "no drop" (2), "prop only" (4) and "magical" (8), so bit `0x2` is `"no drop"`; 120 retail weapon entries carry it.
 - **Observed:** named bosses always drop a key item (`_stricmp` on the character's script name
   `+0x2f4`). See the table below.
 
@@ -260,6 +274,10 @@ Function and data addresses (no REA evidence ids).
 
 ## Open questions
 
-- *Unknown:* the appraise and pick-lock success formulas inside `character_use_skill`.
-- *Unknown:* whether `mp_game_difficulty` can be non-zero in single player.
-- *Unknown:* what `+0x320` bit `0x100` and `ItemType +0x6a` bit `0x2` are called in the tables.
+- *Unknown:* the appraise and pick-lock success formulas inside `character_use_skill`. *Answered 2026-11-10:* fixed
+  tests, no roll, see [Identification](#identification).
+- *Unknown:* whether `mp_game_difficulty` can be non-zero in single player. *Answered 2026-11-10:* only after a
+  network game in the same run (*inferred* path, not tried), see [Items](#items).
+- *Unknown:* what `+0x320` bit `0x100` and `ItemType +0x6a` bit `0x2` are called in the tables. *Answered
+  2026-11-10:* the summon flag (set in code, no keyword) and the weapon flag `"no drop"`, see
+  [Monster loot](#monster-loot) and [Items](#items).

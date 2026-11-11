@@ -152,6 +152,10 @@ Not in the table: 20 Bleargh ("Pick up a spoon", invalidated by `test_end_flag`)
   Vadagar, the Khosani Map, the Dakhanim Mirror, the Nhuvasarim Tome and its pages. Holding one unidentified, the
   hand-over topic did not appear (Wid, Saato, Kiva: **Observed**); marked identified, each quest closed. A player
   identifies items with the Lore skill ("Identifies items."); the code path of that skill was not traced (**Unknown**).
+  **Answered 2026-11-10 (Observed in the code):** the skill is "appraise" in `strings.tbl` (id 80, with "Identifies
+  items." as its description). `inventory_identify_item` picks the member with the best appraise skill, and
+  `character_use_skill` marks the type identified when `appraise > sqrt(item value) / 710`, with no roll
+  ([Shops and loot](shops-loot.md#identification)).
   The identified state is saved per item type (the ITEM chunk's bit array, `savegame_read_items`).
 - **Torva pays 125,000 gold** for his lute in act 1 (`+AdjustGP: 125000`, "All the gold I have is yours"), more than
   any other quest before act 4. The game does as the table says (**Observed**); whether the number is a slip is

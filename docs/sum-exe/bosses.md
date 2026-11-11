@@ -73,7 +73,8 @@ Tiger, Murod, Evil Urath, Luminar and the Tentacle Beast have no table. Their mo
 `tables.vpp` also holds a `murod_boss.tbl`, but no loader names it (the string is not in `Sum.exe`).
 **Observed.**
 
-The format, from the parser (**observed**; the meaning of `$Variation:` is *inferred*):
+The format, from the parser (**observed**; the meaning of `$Variation:` is *inferred*, observed since 2026-11-10,
+see below):
 
 ```
 #Boss Info
@@ -92,6 +93,12 @@ $Stage: ...
 #End
 ```
 
+- **Answered 2026-11-10 (Observed):** `$Variation:` is the id of the move to play. The boss AI hands the current
+  record's `+0x18` to the combat code (`boss_get_attack_move_id` `0x4a2070`, from `ai_combat_melee_attack` and
+  `ai_combat_ranged_attack`), and `living_combat_update_boss_attack` (`0x468360`) plays
+  `character_find_move(0, id)`: the attack move (category 0) of the boss's character table whose own `$Variation:`
+  has the same name. The 0xc2 names of `variation_names` (`"variation 1"`, `"area"`, ...) are shared with the
+  character and spell tables.
 - Keywords are case-insensitive (`TextFile__Accept`); the retail tables mix `$Offense point:` and
   `$offense point:`. **Observed.**
 - Each record is 0x20 bytes: offense point `+0x00`, range `+0x04` / `+0x08`, cosine `+0x0c`, "used" 1 at
@@ -175,7 +182,20 @@ through its own think function. **Observed.** A boss move then runs in `living_c
 Tests and resolvers exist for the Serpent (whip, special skill `0x53`), the Ghost (move class 4), Pyrul
 (classes 0 and 2), Titus (kind 3), Murod Oni (kind 4), Machival (kinds 3 and 7) and the Tentacle Beast.
 The Ghost's resolver returns false after its own hits, so the normal hit on the main target follows.
-**Observed.** `boss_move_in_range_dispatch` has cases for every boss except Evil Urath (`0xb1`); Luminar and
+**Observed.**
+
+**Answered 2026-11-10 (Observed in the code; not yet seen in game):** the Ghost's class-4 moves hit the main target
+twice when it stands in the attack cone. `ghost_attack_test` (`0x4bbae0`) records every member of
+`cur_character`'s AI group inside the cone whose simulated defence roll lets the hit through
+(`living_combat_test_defense`); the boss's main target is normally one of them. At the trigger `ghost_resolve_hit`
+(`0x4bbc20`) hits each recorded member through `living_combat_resolve_hit_vs`, and then, because the dispatcher
+returns false, `living_combat_resolve_hit` hits the main target again (only the move's range is tested there).
+Nothing clears the attacker's hit count between the two (`combat_apply_melee_hit` `0x465df0` reads it, never resets it),
+and every one of these hits uses the count left by the **last** member tested, not each member's own roll. Each
+pass also casts the move's `+Plus Spell:`, when it has one (`boss_counter_hit_dispatch`). To confirm in game before it goes on the
+[bug list](game-bugs.md).
+
+`boss_move_in_range_dispatch` has cases for every boss except Evil Urath (`0xb1`); Luminar and
 Murod use the plain edge distance. Evil Urath never needs one: its select function only casts seven spells
 (`0x55`-`0x5b`, `evil_urath_cast_spell` `0x4c43f0`) or leaps. **Observed.**
 
@@ -268,6 +288,10 @@ Notes, all **observed** unless marked:
   above 50 %) the tiger swaps the spear for the axe. That move 0 is the spear throw is *inferred*.
 - **Phoenix second life.** When the phoenix's HP reaches 0 for the first time, `phoenix_stage_transition_move`
   (`0x4995b0`) plays move (9, 1), then sets HP to 50 % of max, stage 3 and `phoenix_flags` bit `0x10`.
+  **Answered 2026-11-10 (Observed in the code):** the second life and PHNX-Escape are two different HP-0 events,
+  in that order. `phoenix_check_stage` (`0x499690`) starts the rebirth only at HP 0 *without* bit `0x10`;
+  `ls_rand_hills01_frame` (`0x4fa4a0`, level script `rand-hills01_v2`) plays PHNX-Escape and sets `phoenix_killed`
+  only at HP 0 *with* bit `0x10`, that is when the reborn phoenix reaches 0 again.
 - **All four riders** start at forced stage 3 in `Liangshan` and `Jadetemple`, and elsewhere at
   stage 1 mounted (`serpent_boss_load` `0x495960`, `phoenix_boss_load` `0x498420`, `tiger_boss_load`
   `0x49ad20`, `ghost_rider_boss_load` `0x4ba260`). The level scripts take them off their mounts
@@ -305,8 +329,8 @@ Notes, all **observed** unless marked:
 | Whip | Serpent | `serpent_whip_test` `0x497890`, `serpent_whip_resolve_hit` `0x4979b0` | hits a party member in whip reach **observed** |
 | `+Plus Spell:` hit | Serpent parts, Ghost | `boss_counter_hit_dispatch` `0x4a2230` | a boss melee move with flag `0x10` also hits its target with the move's spell, before the range test (see above) **observed** |
 | Minion revive | Ghost Rider | `ghost_revive_minions` `0x4bbc70`, `ghost_fire_attack` `0x4bb9a0`, `ghost_choose_attack` `0x4bac20` | spells `0x51`-`0x53` raise a counter (`0x24808c8`); the Ghost chooses a summon only while it is below 2 (`ghost_choose_attack` `0x4bad95`, `0x4baec1`). Every check-stage call (each frame) brings back every dead minion that is no longer active with `boss_resurrect_full` `0x4c3fb0` and decrements the counter for each, without testing that it is positive; when it falls from non-zero to exactly 0 the two summon timers are reset **observed** |
-| Ghost minions | Ghost Rider | `ghost_rider_boss_load` `0x4ba260` | six handles `0x24808b0`-`0x24808c4`: two species `0x43` (not in `masad`), two `0x45` and two `0x9c`; none extra in `jadetemple` **observed** |
-| Helper revive | Evil Joseph | `evil_joseph_spawn_helpers` `0x4c3500`, `evil_joseph_check_stage` `0x4c3f20` | four helpers (species `0xc0`, `0xca`, `0xcb`, `0xb0`); a dead helper is revived once its death effect ends, with no count limit **observed** |
+| Ghost minions | Ghost Rider | `ghost_rider_boss_load` `0x4ba260` | six handles `0x24808b0`-`0x24808c4`: two species `0x43` (not in `masad`), two `0x45` and two `0x9c`; none extra in `jadetemple` **observed**. Named 2026-11-10 from `species_table` (`0x580e60`): `0x43` Bone Servant, `0x45` Bone Mage, `0x9c` Bone Knight1 **observed** |
+| Helper revive | Evil Joseph | `evil_joseph_spawn_helpers` `0x4c3500`, `evil_joseph_check_stage` `0x4c3f20` | four helpers (species `0xc0`, `0xca`, `0xcb`, `0xb0`: named 2026-11-10 from `species_table`, the Blackfire, Poison and Blood Elementals and the Blade of Urath, the four summons `templeint2` refuses to the party, see [Summons](summons.md)); a dead helper is revived once its death effect ends, with no count limit **observed** |
 | Teleport | Machival | `machival_teleport` `0x4c1e20` | random `$tele_0N` navpoint, 70 s timer (2 s retry), synced with packet `0x1F` **observed** |
 | Teleport | Evil Joseph | `evil_joseph_find_teleports` `0x4c3720` | `$tele_0N` navpoints **observed** |
 | Leap | Evil Urath | `evil_urath_ai_leap_start` `0x4c4810` .. `_land` `0x4c4ca0` | sub-modes `0x23`-`0x26`: rise, fly to a `$balc01_0N` / `$temple_0N` / `$balc02_0N` navpoint, land **observed** |
@@ -317,7 +341,7 @@ Notes, all **observed** unless marked:
 | Grab | Luminar, Tentacle Beast | `luminar_ai_grab` `0x4c9b00`, `tentacle_beast_ai_grab` `0x4c6850` | Luminar's grab deals 96 HP and holds the victim; only the tentacle grab moves the leadership off the victim (`party_set_leader` at `0x4c69c7`), and the tentacles never grab (game bug G250); the camera goes back to the victim on release **observed** |
 | Beam and teleport | Luminar | `luminar_beam_start` `0x4ca230`, `luminar_teleport_out` `0x4c9da0` | beam in every stage, teleport only in stage 3 **observed** |
 | Tentacles | Tentacle Beast | `tentacle_beast_cycle_tentacles` `0x4c76d0`, `tentacle_beast_check_stage` `0x4c7360` | four tentacle records (no bound for a fifth, game bug C254); each rises and sinks on timers; a tentacle at HP 0 plays its death move and counts as lost, unless one swipe hit five targets (game bug G251) **observed** |
-| Rider flinch | Serpent, Phoenix, Tiger, Giant Salamanka | `serpent_rider_set_flinch` `0x4954c0`, `phoenix_rider_set_flinch` `0x498720`, `tiger_rider_set_flinch` `0x49a1a0` and others | files the flinch moves whose `$Action:` is `stage<N>_flinch_area` / `_status` into per-stage tables (Serpent `0x24523c0` / `0x24523cc`, Phoenix `0x24529dc` / `0x24529e8`, Tiger `0x2452c4c` / `0x2452c58`); the Serpent and Phoenix then copy stage 2 into stage 3, the Tiger copies stage 2 into stage 1. No other code references the riders' tables, so they are never used **observed** (Giant Salamanka not rechecked); other `stage<N>_flinch_*` names give a message that is never shown (game bug V211) |
+| Rider flinch | Serpent, Phoenix, Tiger, Giant Salamanka | `serpent_rider_set_flinch` `0x4954c0`, `phoenix_rider_set_flinch` `0x498720`, `tiger_rider_set_flinch` `0x49a1a0` and others | files the flinch moves whose `$Action:` is `stage<N>_flinch_area` / `_status` into per-stage tables (Serpent `0x24523c0` / `0x24523cc`, Phoenix `0x24529dc` / `0x24529e8`, Tiger `0x2452c4c` / `0x2452c58`); the Serpent and Phoenix then copy stage 2 into stage 3, the Tiger copies stage 2 into stage 1. No other code references the riders' tables, so they are never used **observed** (Giant Salamanka not rechecked). Checked again 2026-11-10 with a scan of every dword of the image (all sections, any alignment): addresses inside the six tables occur only as immediates in the three `*_rider_set_flinch` functions (`0x495558`..`0x4955cf`, `0x4987b8`..`0x49882f`, `0x49a238`..`0x49a2af`), and no data holds a pointer to them; the neighbouring addresses that other code uses are separate variables (`serpent_first_attack`, `phoenix_saved_move`, `tiger_target` and so on) **observed**; other `stage<N>_flinch_*` names give a message that is never shown (game bug V211) |
 
 ## Console commands
 
@@ -393,11 +417,18 @@ range ends.
 
 ## Open questions
 
-- What each `$Variation:` name selects (a move variation of the boss's animation set is *inferred*).
+- What each `$Variation:` name selects (a move variation of the boss's animation set is *inferred*). *Answered
+  2026-11-10:* the attack move with that id in the boss's character table, see [Boss table files](#boss-table-files).
 - Whether the Ghost's class-4 moves hit the main target twice (its own resolver, then `living_combat_resolve_hit`).
+  *Answered 2026-11-10 in the code:* yes, see [How a boss hit is resolved](#how-a-boss-hit-is-resolved); still to be
+  seen in game.
 - Whether anything reaches the riders' per-stage flinch tables through a pointer; no direct reference outside the three `*_rider_set_flinch` functions was found (2026-10-15).
-- The names of the ghost minion species `0x43`, `0x45`, `0x9c` and the Evil Joseph helpers.
-- Whether the Phoenix second life and the PHNX-Escape cutscene both happen at HP 0, and in which order.
+  *Answered 2026-11-10:* no, a whole-image scan finds no pointer, see the Rider flinch row of
+  [Special mechanics](#special-mechanics).
+- The names of the ghost minion species `0x43`, `0x45`, `0x9c` and the Evil Joseph helpers. *Answered 2026-11-10:*
+  see [Special mechanics](#special-mechanics).
+- Whether the Phoenix second life and the PHNX-Escape cutscene both happen at HP 0, and in which order. *Answered
+  2026-11-10:* the second life at the first HP 0, the Escape at the second, see [Stage machines](#stage-machines).
 
 ## Evidence
 

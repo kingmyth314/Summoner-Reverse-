@@ -5,6 +5,18 @@ nav_order: 6.48
 
 # Making the project public (checklist)
 
+{: .note }
+**Status on 2026-11-10: done.** The repository has been public since 2026-10-21, at **tier 2** (this repository
+with `src/decomp`, no executables), the owner's choice of that day ([Setup](setup.md) records the switch from
+private). Done: everything under "Must change before any tier" (the licence split into `LICENSE` and
+`src/decomp/NOTICE.md`, the README for new readers with credits and the legal section, the personal path removed from
+the files and from the whole history); since 2026-11-03 a CI workflow checks and builds every push without
+publishing anything (`.github/workflows/ci.yml`); the owner allowed the purpose-made test saves in `testsaves/` the
+same day; and on 2026-11-10 the `--game` option of the two check tools was documented ([Tools](tools.md)). Still
+open, for the owner ([Roadmap](roadmap.md), section E): a first SummonerFix release (the repository has no GitHub
+release yet; tier 1's executables are allowed, built ones of the game are not) and code signing. **Observed** in the
+repository and its docs. The rest of this page is the plan as written on 2026-10-21, kept as history.
+
 **Status:** assessment of 2026-10-21, with the advisor's review. This page is not legal advice.
 **Decided by the owner (2026-10-21): tier 2** (this repository with `src/decomp`, no executables), with the personal
 path removed from the files and from the history. Done the same day: the licence split (`LICENSE`,
@@ -76,7 +88,7 @@ Checked, and clean:
 ## Smaller cleanups
 
 - `tools/link-savecheck.mjs` and `link-screencheck.mjs` default to a test folder at `../../SummonerToolchain`; document
-  `--game` (they already take it).
+  `--game` (they already take it). *Done 2026-11-10* in [Tools](tools.md).
 - The docs and `DECISIONS.md` read as a working log ("worker 5", "the user", round numbers). A line in the README
   saying so is enough.
 - GitHub Pages: the `docs/` site can be served from a public repository at no cost.

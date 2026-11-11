@@ -138,6 +138,17 @@ bone too: `vfx_emitter_instance__get_transform` (`0x5612b0`) and `vif_emitter_up
   scoped. It calls `vfx_preload` then `vfx_instance_create` (`0x51d250`). **Observed.**
 - After a read, `vfx_relocate` (`0x51c9f0`) and `vfx_node_relocate` (`0x536bc0`) turn the file's offsets into
   pointers. So a `.vfx` file is a memory image with a relocation table. **Observed.**
+- **The `.rfx` file header (2026-11-10, Observed in the code and in all retail files).** `effect_base_read`
+  (`0x51c8b0`) reads the first 0x14 bytes into an `effect_base`-shaped record: `u16` node count `+0x00`, `u16`
+  version `+0x02` (`effect_base_load` refuses anything but 9), `int` table size `+0x04`, and the data size in the low
+  23 bits of `+0x08`; the stream read starts at 0x14. The rest of the header (the flag bits of `+0x08`, `+0x0c`,
+  `+0x10`) is leftover memory of the exporting tool and is ignored. Data starts with the node table: one
+  `{name hash, base pointer}` pair (8 bytes) per node, relocated by `vfx_relocate`. In all 193 retail files, file
+  size = 0x14 + table size + data size (for example `a2-outro.rfx`: 0x14 + 19,864 + 596 = 20,480). `effects.vpp`
+  holds only `.rfx` bundles, no loose `.vfx`; the `.vfx` names are the sources each bundle lists in `effects.arr`
+  (`preload.rfx` has 15 nodes). One file is odd: `dirt.rfx` (one node, `dirt.vfx`, category `level`) has
+  version 8, so `effect_base_load` would refuse it; no level, script or table names it, so it is never asked for
+  (*inferred* from the search). The layout inside a node (a `.vfx` proper) was not traced.
 - Streaming: `effect_stream_queue_add` (`0x4404a0`) queues up to 100 entries of 0x34 bytes (name, target `+0x2c`,
   mempool `+0x30`). `effect_stream_open_current` (`0x4406d0`) starts one asynchronous read at a time and
   `effect_stream_update` (`0x4408a0`, from `GameTick` and `effect_base_load`) polls it. The branch is picked by the
@@ -193,7 +204,11 @@ and meshes. Effect meshes are lit by `lights_select_nearest` and `lights_shade_v
 - 32 decal records of 0x128 bytes (`0x2480a48`..`0x2482f48`), threaded by `decals_reset` (`0x4bc640`).
   `decal_place` (`0x4bc320`) takes a record through `decal_recycle`, starts a GameTimer and clips the decal
   to the level with `decal_build_clip_planes` (`0x4bbf10`). **Observed.** Which record it reuses when all
-  32 are active was not traced. *Unknown.*
+  32 are active was not traced. *Unknown.* **Answered 2026-11-10 (Observed in the code):** the one with the least
+  time left. Each placed decal's node goes into an "age" ring before the first decal that has more time left
+  (a decal without a lifetime, such as the click marker, counts as `0x7fffffff` ms, so it sorts last), and with no
+  free record `decal_place` recycles the head of that ring (`decal_recycle` `0x4bc560`). The order is taken when a
+  decal is placed, not kept up to date afterwards.
 - Callers: `blood_splot_place` (`BloodSplot-large02/med02/small02.tga`), `move_target_draw_decal` (the
   click destination marker) and `place_ground_decal` (leader marker, ground pick). **Observed.**
 - `decals_draw_for_lobj` (`0x4bc6b0`) draws them on each level object, lit by `lights_select_nearest`.
@@ -248,7 +263,10 @@ The `light` record is 0x94 bytes; 400 of them live at `lights` (`0x2ca5de0`). **
   (`LPalaceInt.s3d`). Intensity is `+0x2c` times `level_light_scale`. The range is
   20000.0 unless flag 2 of `+0x40` gives one. **Observed.**
 - It runs at level load and from `levelrender_render_scene` when the byte `0x243e038` is set. No code that
-  sets that byte was found. *Unknown.*
+  sets that byte was found. *Unknown.* **Answered 2026-11-10 (Observed):** nothing sets it. A scan of every
+  dword of the image finds the address only in the read and the clear of `levelrender_render_scene` (`0x48236a`,
+  `0x482381`; `levelrender_lights_dirty` in `sum.symbols`, game bug V271), so the rebuild never runs after level load.
+  *Inferred:* Luminar's `level_light_scale` therefore never changes the level lights during the fight.
 - `luminar_ai_select_action` (`0x4c9410`) stores Luminar's HP fraction in `level_light_scale` (`0x59c358`);
   `luminar_free_bitmap` resets it to 1.0. *Inferred:* the level gets darker as Luminar is hurt, but only
   when the lights are rebuilt.
@@ -268,7 +286,10 @@ Until 2026-10-14 this family was named `shadow_*` (`shadow_slots`, `shadow_creat
 **Observed:**
 
 - `living_entity_init` calls `attached_light_create` (`0x520160`) with a bone position, colour from
-  `char_info +0x248..+0x250` and `+LightAtten:` (`+0x254`). Effect light nodes do the same through
+  `char_info +0x248..+0x250` and `+LightAtten:` (`+0x254`). **Named 2026-11-10 (Observed,
+  `characterinfo_parse_table`):** the three floats are `+LightColor:`, read after `+CharacterLightPos: "<bone>"` and
+  before `+LightAtten:`; `+CharacterLightPos:` also sets the "has light" flag. No retail character table uses these
+  keywords, so no character carries a light in the retail game. Effect light nodes do the same through
   `vfx_node_create_light` and `attached_light_create_from_vfx`, but pass the size channel as the raw 8.8 fixed
   value (256 times too large) as the range; `vfx_node_update_light` replaces it with the scaled value
   (`vfx_node__get_scale`) on the node's first update.
@@ -294,10 +315,14 @@ Until 2026-10-14 this family was named `shadow_*` (`shadow_slots`, `shadow_creat
 
 ## Open questions
 
-- Kinds 1, 5, 6 and 8 of effect objects, and the full `fx_frame` switch.
-- The layout of a `.vfx` file header and of `.rfx` bundles (no files were read).
-- Who sets the light rebuild byte `0x243e038`.
-- The field names of `char_info +0x248..+0x250` (light colour is *inferred*).
+- Kinds 1, 5, 6 and 8 of effect objects, and the full `fx_frame` switch. *Answered (before 2026-11-10, pointer
+  added 2026-11-10):* all kinds are in the table under "Layer 1: game effect objects" above.
+- The layout of a `.vfx` file header and of `.rfx` bundles (no files were read). *Answered 2026-11-10 for the
+  header and the bundle:* see [Layer 2](#layer-2-effect-files-vsdkgeom); the layout inside one `.vfx` node is still
+  open.
+- Who sets the light rebuild byte `0x243e038`. *Answered 2026-11-10:* nothing, see [Lights](#lights).
+- The field names of `char_info +0x248..+0x250` (light colour is *inferred*). *Answered 2026-11-10:*
+  `+LightColor:`, see "Character and effect light sources" under [Lights](#lights).
 
 ## Evidence
 

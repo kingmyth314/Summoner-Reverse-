@@ -78,6 +78,20 @@ Jade after Murod's death (`ls_jadetemple_murod_death_cs_end` `0x4f0880`). Script
 Blue Imp (`lsf_wc_nali_used` `0x4f6df0`) and Spirit of Laharah (`lsf_tiger2_dead` `0x4f0360`).
 The other rings are *unknown* here.
 
+**Answered 2026-11-10 (Observed in the retail tables; which source a given player meets is *inferred* from the
+story order):** the rings come from conversations (`+Gain Item:`), a level item and a monster drop:
+
+| Ring | Given by |
+|---|---|
+| Darkness | Yago in the Lenele palace (`LpalaceINT_dlg.tbl`, his second record `Yago#2`); a second copy from the Guardian of the Stone Portal in the Khosani stronghold (`Khosanistrng_v6_dlg.tbl`, "I give to you now the Ring of Darkness") |
+| Light | level item `Catacombs-004` at `$npc105`, which appears on the event `catacombs_boss_dead` (`level_items.tbl`); also the Guardian of the Stone Portal (`Khosanistrng_v5_dlg.tbl`, with the Ring of Stone) |
+| Stone | the Ikaemos Priest King's `+Drop: "Ring of Stone" 100`; also the Guardian of the Stone Portal (`Khosanistrng_v5_dlg.tbl`) |
+| Water | Ngaru's Ghost in the Wolong caverns (`wolongcaverns_dlg.tbl`) |
+| Forest | the Guardian of the Shrine in Liangshan (`Liangshan_dlg.tbl`) |
+| Four Winds | Jekhar in Wolong ("Aoqi said you had a gift for me?", `wolong2_dlg.tbl`) |
+
+The console command `gamestage` (`game_stage_set`) also hands out every ring up to the stage it sets.
+
 ## Ring power
 
 `character_add_xp` (`0x44fab0`) gives each ring worn in equipment slots 1 and 2 (`+0x758`,
@@ -160,7 +174,10 @@ existing handle (-1 = create a new creature). **Observed** steps:
    play the emerge instead (`ai_begin_emerge`, AI mode 6 SUMMONING, see [AI](ai.md)).
 
 A summon from a non-party caster gets flag `0x40000` when the caster's species is `0x5a` or
-`0xc9`. *Unknown* which creatures those are.
+`0xc9`. *Unknown* which creatures those are. **Answered 2026-11-10 (Observed, `species_table` `0x580e60`):**
+`0x5a` is the Ghost Rider and `0xc9` Evil Joseph, the two bosses that summon helpers (see
+[Bosses](bosses.md)). Flag `0x40000` keeps such a creature from being deleted with the inactive summons before a
+cutscene (`summon_stash_for_cutscene`) and keeps its model loaded when it goes (`Character::deinit`, `0x44edf0`).
 
 ## Level of the creature
 
@@ -229,6 +246,17 @@ out, `summon_emerge_update` (`0x4b4660`) makes the dragon cast its own spell at 
 Jade Dragon spell 104 (fire), Water 105 (ice), Four Winds 106 (energy), Forest 107. **Observed.**
 What removes the dragon afterwards is *unknown*.
 
+**Answered 2026-11-10 (Observed in the code; not watched in game):** the dragon removes itself. In the same
+branch of `summon_emerge_update` that casts the spell, it clears `obj_flags` bit 1 and sets bit 4 (`0x4b47d3`,
+`0x4b47e5`). Bit 4 marks an object for deletion: `objects_delete_marked` (`0x46b330`, called by
+`objects_do_frame`) calls `Character::deinit` (`0x44edf0`) on it. `deinit` takes the summon's `Player` out of the
+party (`party_remove_player`) and clears `cur_summon`. So the dragon is `cur_summon` from `summon_create` until its
+arrival effect has run out, and then for at most one more frame. No 30-second summon cooldown starts: that is set
+by the death handler (`character_on_death`), which this path does not call (*inferred* from the code, not timed).
+Noticed on the way (**Observed**, `spell_cast_launch_effects`): the Water and Forest Dragon spells (`0x69`,
+`0x6b`) also hit every party member except `cur_summon`, besides the enemies within 10 units; what that hit does to
+the party was not traced.
+
 ## Cutscenes, levels and saving
 
 - **Story cutscenes** stash the summon: `summon_stash_for_cutscene` (`0x448000`) saves it in
@@ -259,9 +287,12 @@ See [Console](console.md) for the full list.
 
 ## Open questions
 
-- Where the Rings of Darkness, Light, Stone, Water, Forest and Four Winds are given.
-- What happens to a dragon after its spell, and whether it ever counts as `cur_summon` for long.
-- Which creatures species `0x5a` and `0xc9` are.
+- Where the Rings of Darkness, Light, Stone, Water, Forest and Four Winds are given. *Answered 2026-11-10:* see the
+  table in [Summonable creatures](#summonable-creatures).
+- What happens to a dragon after its spell, and whether it ever counts as `cur_summon` for long. *Answered
+  2026-11-10:* it deletes itself once it has cast, see [Dragons](#dragons).
+- Which creatures species `0x5a` and `0xc9` are. *Answered 2026-11-10:* the Ghost Rider and Evil Joseph, see the
+  `summon_create` section.
 
 ## Evidence
 

@@ -52,6 +52,12 @@ only call into `ds_*` when `snd_backend` (`0x2cbf47c`) is 1 (**observed**).
 (**observed**). `EAX` sets the EAX flag (`0x60ad6f`); `No Sound` sets a local "no sound"
 flag. It then calls (**observed**):
 
+**Answered 2026-11-10 (Observed):** the same test also reads two more bytes, `0x60ad6d` and `0x60ad6e`
+(`LoadSettings` `0x43d95b`, `0x43d968`; labelled `cmdline_flag_60ad6d` / `_60ad6e` in the source). A scan of every
+dword of the image finds them referenced only by those two reads, so they are always 0 and the test reduces to
+`-directsound3d` / `-eax`. *Inferred:* the remains of two command-line switches that were removed from
+`cmdline_read_params`.
+
 ```
 snd_init(hwnd, 44100, 16, 2, ds3d_flag, eax_flag, no_sound, found("-dsinit"))
 ```
@@ -119,6 +125,10 @@ retries without 3D on the live object or starts without sound ([game bug C2](gam
 - Volume is `snd_group_volumes[group] * sound.volume * scale` (`snd_get_volume`,
   `0x520de0`). There are 4 groups (`0x2cb542c`). Group 0 is sound effects and group 1 is
   music (**observed** from the options callers); groups 2 and 3 are *unknown*.
+  **Answered 2026-11-10 (Observed):** groups 2 and 3 are never used. The thirteen calls of `snd_get_handle` pass
+  group 0, except `music_play` (`0x4690f9`), which passes 1; the four calls of `snd_set_group_volume` pass 0
+  (`options_set_sfx_volume`, `options_restore_volumes`, `summoner_cfg_load`) or 1 (`music_set_volume`). Groups 2
+  and 3 keep the volume 1.0 that `snd_init_group_volumes` (`0x5206c0`) gives every group.
 
 ## DirectSound buffers and channels
 
@@ -251,7 +261,7 @@ flag means multiplayer is *inferred*). Its callers are skill use and world click
 | File | Where | Format |
 |---|---|---|
 | Sound effects | `sounds.vpp` packfile | RIFF `.wav`, read with `mmio*` (`wav_open`, `0x5670a0`) (**observed**) |
-| Music | `music.vpp` packfile, streamed | RIFF `.wav` (**observed** code path); actual tags of the shipped files *unknown* |
+| Music | `music.vpp` packfile, streamed | RIFF `.wav` (**observed** code path); actual tags of the shipped files *unknown* (answered 2026-11-10 below: MS-ADPCM) |
 | Ambient sounds | `data\sounds\ambient\*.wav` (script editor list) | `.wav` (**observed** string) |
 | `sounds.tbl`, `music.tbl`, `feedback.tbl`, `_surfaces.tbl` | `tables.vpp` | text tables (**observed** names) |
 
@@ -261,13 +271,23 @@ Format tag 1 (PCM) is loaded directly. Format tag 2 (MS-ADPCM) is decoded with A
 (`ds_load_buffer_acm`, `0x55cbe0`); streams convert each chunk (`snd_stream_fill_acm`,
 `0x566630`) (**observed**). See [Packfiles](vsdk-packfile.md) for the `.vpp` layout.
 
+**Answered 2026-11-10 (Observed, the `fmt ` chunks of the `.wav` files in all eleven shipped packfiles read):**
+every packed sound is MS-ADPCM (format tag 2, 4 bits per sample). The 41 music files of `music.vpp` are stereo, 37 at
+22,050 Hz and 4 at 44,100 Hz (`iona01.wav`, `jade_temple.wav`, `Palace Theme II.wav`, `random_grass.wav`). The
+1,336 files of `sounds.vpp` are mono, 678 at 11,025 Hz and 658 at 22,050 Hz. The 77 cutscene soundtracks of
+`cutscene.vpp` are stereo, 73 at 22,050 Hz and 4 at 44,100 Hz (`UrathMyth1a`..`1d`). No other packfile holds a
+`.wav`. So every packed sound goes through the ACM path; loose files outside the packfiles were not checked.
+
 ## Open questions
 
 - *Unknown:* purpose of sound groups 2 and 3. (Sound slots 0-7 are reachable only by streams; see
-  [Sound table and groups](#sound-table-and-groups).)
+  [Sound table and groups](#sound-table-and-groups).) *Answered 2026-11-10:* unused, see
+  [Sound table and groups](#sound-table-and-groups).
 - *Unknown:* the flags at `0x60ad6d` and `0x60ad6e` also skip the `Soundcard` value, but
-  `cmdline_read_params` does not set them.
-- *Unknown:* whether the shipped music files are PCM or ADPCM.
+  `cmdline_read_params` does not set them. *Answered 2026-11-10:* nothing writes them, see [Start-up](#start-up);
+  why they exist stays open.
+- *Unknown:* whether the shipped music files are PCM or ADPCM. *Answered 2026-11-10:* all MS-ADPCM, see
+  [File formats](#file-formats).
 
 ## Evidence
 

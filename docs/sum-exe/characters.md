@@ -74,6 +74,15 @@ The tables drop every "hurt" move of a non-boss record when they load (see
 [Game tables](game-tables.md#character-info-and-moves)). *Inferred:* for every character except the
 bosses, all six hurt slots therefore come from these fallbacks.
 
+**Which slot a hurt character uses (traced 2026-11-10, Observed in the code):** `character_update_locomotion_anim`
+(`0x45a120`) takes the hurt set while `character_is_badly_hurt` (`0x4617f0`) is true: HP below 30 % of maximum, or
+slowed (status `0xd`). In combat stance (`+0x320` bit `0x1`) it walks with walk_hurt and runs with run_hurt; out of
+it, with norm_walk_hurt and norm_run_hurt. With the fallbacks above, a badly hurt non-boss in combat stance therefore
+walks and runs with the relaxed norm_walk / norm_run, and out of combat stance with the combat walk / run: the
+motion swaps stance, while standing still keeps it (stand_hurt and ready_hurt are not crossed). Whether that is meant
+stays *inferred*: all four motion fallbacks cross the same way, which looks deliberate (a hurt fighter drops its
+guard), but nothing in the code says so. To be looked at in game.
+
 Maximum HP is `base_max_hp + character_equip_bonus(0)`, with a minimum of 1. Maximum AP is
 `base_max_ap + character_equip_bonus(1)`, with a minimum of 0. `character_equip_bonus(stat)` adds up
 the modifiers of every equipped item. Each item type has two `{stat, value}` modifiers at `+0x40`.
@@ -94,6 +103,12 @@ the normal colour for none.
 | Speed | `character_get_skill(2)` x 1000 | skill byte 11 → 0.11 → 110% |
 | Damage | weapon item type `+0x68` (slot 5) | Short Sword: 35 |
 | Protection | `character_get_protection` x 100 | Tunic 0.07 + level 3 x 0.01 = 0.10 → 10 |
+
+**The rest of the panel (traced 2026-11-10, Observed in `status_draw_stats`):** after Protection the function only
+draws two bars: HP in dark red at `status_hp_bar_pos` and AP in dark blue at `status_ap_bar_pos`, each
+`status_bar_size` wide times the current / maximum fraction (clamped to 0..1). **Correction:** only the HP and AP
+maxima and the speed are drawn in the bonus colour (`status_set_bonus_color`); the HP / AP current values, Damage
+and Protection use the plain text colour.
 
 `character_get_skill(id)` (`0x462440`) returns `skill[id] x 0.01` plus the equipment's `+Skill Mod:`
 entries (`character_skill_equip_mod`, four `{skill, value}` entries at item type `+0x20`). **Observed**
@@ -346,9 +361,12 @@ The heroes are species 0 to 3. `species_is_hero` (`0x449a20`) is `species <= 3`;
 
 ## Open questions
 
-- The rest of the stat panel after protection (`0x42d58f` onwards).
+- The rest of the stat panel after protection (`0x42d58f` onwards). *Answered 2026-11-10:* the HP and AP bars, see
+  [Character screen stats](#character-screen-stats).
 - Whether the crossed hurt fallbacks (walk_hurt from norm_walk, norm_walk_hurt from walk) are meant.
-  Which locomotion slot the game picks for a hurt character was not traced.
+  Which locomotion slot the game picks for a hurt character was not traced. *Answered in part 2026-11-10:* the slot
+  choice is traced (the motion swaps stance for a badly hurt non-boss), see the locomotion paragraph under
+  [Character fields](#character-fields); whether it is meant needs a look in game.
 - Resolved: bytes 2 and 3 of each species group in `xp_level_table` are the "D" (random gain) flags of the HP
   and AP numbers (`experience_parse_level` `0x4899d0`, `experience_parse_stat_gain` `0x489a30`); no retail
   `experience.tbl` line sets them.
