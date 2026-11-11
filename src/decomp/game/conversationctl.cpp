@@ -558,8 +558,11 @@ int conversation_controller::frame()
             vector3 move;
             float len, mx, mz;
 
-            d.x = slide_x - cur_character->pos.x;
-            d.y = slide_z - cur_character->pos.z;
+            // D26600: d as the negated position plus the slide target (the binary's fchs / fadd), the
+            // scaled step through vector2's float * vector2 (the quotient kept on the FPU for both products).
+            d = vector2(-cur_character->pos.x, -cur_character->pos.z);
+            d.x += slide_x;
+            d.y += slide_z;
             len = d.len();
             if (len < 0.05f) {
                 mz = 0.0f;
@@ -570,9 +573,9 @@ int conversation_controller::frame()
                 mz = d.y;
                 mx = d.x;
             } else {
-                float s = reported_frametime / len;
-                mx = s * d.x;
-                mz = d.y * s;
+                vector2 m = (reported_frametime / len) * d;
+                mx = m.x;
+                mz = m.y;
             }
             move.x = mx;
             move.z = mz;
