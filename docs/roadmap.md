@@ -26,7 +26,7 @@ are the older roadmap and its history.
    a high and a low level.
 4. ~~**The speed key at high factors**~~ *Done 2026-11-10: a staged boss fight at 8x ends as at 1x, and the battle of Wolong plays on at 8x without errors.* Combat, AI and scripts at 4x and 8x were never play-tested
    ([fast travel](#turn-the-frame-rate-speed-bug-into-a-fast-travel-speed-control)).
-5. **The 310 functions that do not match** byte for byte (5,613 of 5,926 do). *Inferred:* worth it mainly where a
+5. *Round of 2026-11-10 (eight workers): 5 new matches, 13 closer, none lost, 5,618 now; see the [plan](decomp-plan.md).* **The 310 functions that did not match** byte for byte (5,613 of 5,926 did). *Inferred:* worth it mainly where a
    function is also in a fix's path.
 
 ### B. Bugs to fix next

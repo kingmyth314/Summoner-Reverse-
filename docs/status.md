@@ -12,7 +12,7 @@ how to reproduce each line: [Reproduce and play](quickstart.md).
 
 | Build | Command | Output | Passes | Open |
 |---|---|---|---|---|
-| Byte-match reference | `node tools/vc6-sweep.mjs --check src/decomp/vc6-matches.txt` (VC6 SP5) | a report | 5,613 of 5,926 compiled functions give Sum.exe's bytes; 7,725 functions decompiled in all | the 310 that differ are listed per unit in the sweep's report ([plan](decomp-plan.md)) |
+| Byte-match reference | `node tools/vc6-sweep.mjs --check src/decomp/vc6-matches.txt` (VC6 SP5) | a report | 5,618 of 5,926 compiled functions give Sum.exe's bytes; 7,725 functions decompiled in all | the 305 that differ are listed per unit in the sweep's report ([plan](decomp-plan.md)) |
 | Shipped (VC6) | `link-build --config shipped` | `Sum-rebuilt.exe` | plays the game; save and memory comparison over 28 levels | none known |
 | Fixed (VC6) | `link-build --config fixed` | `Sum-fixed.exe` | 53 fixes in the source: 46 game bugs, 4 timing and start-up bugs, 2 launcher settings, movies under OpenGL; since 2026-11-01 also the experimental features that do not change how the game plays (widescreen, game options, controller, frame cap, vsync, hi-res interface, level reverb, dgVoodoo) | per-fix reproductions; a real controller (the controller code is driven by agent mode's `pad` since 2026-11-03) ([fixed build](fixed-build.md)) |
 | Experimental (VC6) | `link-build --config experimental` | `Sum-exp.exe` | the fixed build plus autosave and the Tentacle grab | vsync and the autosave rules checked 2026-11-03 ([fixed build](fixed-build.md#checked-2026-11-03)) |

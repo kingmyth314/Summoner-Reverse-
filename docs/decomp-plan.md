@@ -762,6 +762,18 @@ binary tests a dword (every caller passes 0 or 1), and `gr_get_frustum_planes` r
 change was read for behaviour by two review agents: all equivalent. `link-build` caches objects by the source's date,
 so after a header change the three configurations need `--recompile`.
 
+**Seventh round 2026-11-10 (eight workers, D26400-D27199).** All 310 differing functions, in eight batches of whole
+files. 5,613 -> 5,618, none lost (strict sweep with `--check`), 13 functions closer. The new matches:
+`tiger_path_to_target` (D26400, the vectors assigned with `operator=` rather than initialised: the per-function inline
+budget of D15802), `ai_state::serpent_illusion_update` (D26700: VC6 keeps a divide by a negative constant when the sum
+is stored in the dividend's own variable), `avoid_seglist_add_segment` and `avoid_merge_shared_segments` (D26900,
+D26901: loop and declaration forms), and `ui_inputbox::process` (D27100: nested then-blocks put the failure exits last).
+One decompilation error was found and repaired on the way: `chat_process_irc_message` returned
+`irc_process_input`'s result for a CTCP PING where Sum.exe returns NULL (D26804, multiplayer chat only). Two header
+proposals were left for later (D26501: two boss range tests returning `bool`; D27102: two message-box globals as fields).
+The workers' notes are `src/decomp/NOTES-match-2026-11-10-w1.md` to `-w8.md`. *Inferred* from the notes: what remains
+is mostly register choice, instruction scheduling and block layout that earlier rounds also could not move.
+
 The
 `Confidence:` markers follow the sweep (`tools/decomp-confidence.mjs`): every compared function that matches is
 `exact`, none that differs is. The other 1,819 written functions are not compared (`tools/decomp-uncompared.mjs`):

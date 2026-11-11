@@ -15250,3 +15250,458 @@ temporaries of ix_ray_parallelogram 0x53af40 (D15902) and the explicit construct
 (D7805) and gr_light_desc 0x50f3e0 (D8900) take the named-local / placement-new / no-call forms the clang build
 already had. Same behaviour in each (the values are the ones VC6 produced); the strict sweep is unchanged (5,613,
 0 lost). The classification of every catalogued device is in docs/matching-devices.md.
+
+
+## Byte-match round 2026-11-10 (eight workers, D26400-D27199)
+
+The 310 functions that differed, in eight batches of whole files. Each worker's table, tried forms and do-not-repeat lists are in src/decomp/NOTES-match-2026-11-10-w1.md .. w8.md; the decision paragraphs are copied here.
+
+**D26400 (game/unnamed_tiger_0x499e50.cpp). tiger_path_to_target 0x49b520 is exact.** The binary expands some
+vector3 members inline and calls the COMDAT copies of others: the (x, y, z) constructor 0x43b580 three times, the
+copy constructor 0x410cd0 twice (each time for the copy that an inlined `operator=` returns, `return *this`, and
+the caller throws away) and `operator=` 0x413190 once (for goal). That is the per-function inline budget of
+D15802 / D15803 / D24204: once it is spent, VC6 calls the remaining candidates out of line. Two findings decided
+the source:
+- The discarded copies show that the vectors are assigned, not initialised: `vector3 d, side, dir, goal;` at the
+  top, then `d = t->pos - self->pos; d.y = 0;`, `side = ...`, `dir = side - self->pos;`, `goal = dir * 3.5f +
+  side;`. With initialisations (the old source) every member was expanded (distance 139).
+- side's y is t->pos.y itself and its x / z are `-d.z * 0.75 + t.x` / `d.x * 0.75 + t.z` computed from a stored
+  temporary: the perpendicular `vector3(-d.z, 0, d.x)` scaled by 0.75 and added to t->pos (VC6 folds the y
+  component `0 * 0.75 + t.y` to `t.y`). Written in one statement, `side = vector3(-d.z, 0, d.x) * 0.75f +
+  t->pos;`, the budget ran out one candidate late (distance 77: dir's statement fully expanded). In two
+  statements, `side = vector3(-d.z, 0, d.x); side = side * 0.75f + t->pos;`, the extra operator= spends the
+  budget the binary spent and every out-of-line call, the frame (0x54) and the instructions are the binary's.
+
+Forms on the way (distance): all-assign with side as the old per-component constructor (141), with d as
+`vector3(x, 0, z)` (141), `#pragma inline_depth(1..8)` around the old or the assigned form (145, no effect),
+`inline_depth(0)` (150: everything out of line), side as one statement (77), `t->pos + perp * 0.75f` (77), a named
+perp local (77), `goal = side + dir * 3.5f` (77), `dir *= 3.5f; goal = dir + side` (103), the declarations
+spread to first use in any of the 8 combinations (77 / 86: declarations cost no budget), `float len` for the
+length (77), a `vector3 pos = self->pos` copy (97), d as the difference of two `vector3(x, 0, z)` (65), d copied
+through a local (67), `d = t->pos; d -= self->pos` (104).
+
+Behaviour: the same values. d's y is computed (t.y - self.y) and then overwritten with 0, as before; side.y is
+`0 * 0.75f + t.y`, which equals t.y for every t.y except -0 (it becomes +0), and side.y only feeds dir.y (cleared)
+and goal.y (the path goal's height, where the sign of a zero does not matter). Under VC6 the folded code reads
+t.y directly, as the binary does. (Inferred for clang: it may keep the add.)
+
+**D26401 (game/gameplay.cpp; closer, 45 -> 29). state_game_enter 0x438130:** in both party placement loops the
+binary calls living_from_handle before it pushes place_at_party_start's argument (`push [edx+0xc]; call
+living_from_handle; mov ecx, [esi+0x1c]; ...; push ecx`). With the call in the object expression
+(`living_from_handle(h)->place_at_party_start(x)`) 8966 pushes x first. `Character *c = living_from_handle(...);
+c->place_at_party_start(...);` gives the binary's order in the multiplayer loop (45 -> 35); in the single-player
+loop also `c->place_at_party_start(slot); slot++;` (the binary pushes EDI and increments it after the call; with
+`slot++` in the argument 8966 copies it to EAX first): 35 -> 29. `for (...; p = p->next, slot++)` or the
+increment without the local: 31. Left: only the default case's `new_game = false` block, which the binary places
+after the multiplayer failure branch (see 2026-10-21e); default first, cases 5 / 6 first, and no break after the
+default: all 29. Same behaviour: the same calls with the same arguments in the same order of side effects.
+
+**D26402 (notes only). Tried, still differing (do not repeat).**
+- conversation_execute_action 0x4d5990 (51): a finding for the next try. In the binary kind 7's false call is
+  tail-merged with its own true call (`push 0; jmp` into the code after `push 1`), and kind 9's false call is
+  merged with kind 11's false call and then into kind 11's true tail; 8966 merges kind 7's false call with kind
+  9's instead. Kinds 10 and 12 stay whole calls in both. `set(..., count ? true : false)` and `count != 0 ? true :
+  false` as one call give setne (288).
+- state_game_frame 0x438f30 (92): not retried (D25002's forms; not merged).
+- tiger_ai_frame 0x49bed0 (104), tiger_combat_update 0x49b6e0 (71), tiger_anim_remap_in 0x49c130 (36): looked at
+  only; register choice (EBP zero; the fire flag; the loop register rotation) as the earlier notes say.
+- seg2d_intersect 0x53d8f0 (62): the binary keeps every local in a dead argument slot (dx1 in a's, den in b's,
+  dy1 in d.y's, fy / fx in c.y / c.x) and has no frame; D15306's header change (the vector2 parameters as plain
+  floats) is still the proposal.
+- savegame::read_items 0x4d2b70 (81): the binary loads the hash (`mov esi, [eax + 4*ebp + 8]`) before the helper's
+  four name_hash_nocase calls; register / strength reduction, as 2026-10-21d says.
+- savegame::hot_button_set (6), level_add_navpoint (4), wav_open (4), packfile_read_directory (4),
+  xp_level_up_gains (2), assess_format_info (28), snd_stream_fill_silence (51), cutscene_script_load (25),
+  ix_box_oriented_box_oriented (32), mp_charselect_handle_click (281), two_stage_set (178): looked at the aligned
+  listings; the differences are the ones the earlier notes list as exhausted. Not retried.
+- Not looked at: the three gr_*_render_character_mesh (700-900), gr_d3d_copy_bitmap_to_surface (883),
+  gr_d3d_create_texture_section (15), ix_sphere_polygon_edge (126), ix_ray_quad (4), skeleton::read (50),
+  vfx_channel::eval (6), the remaining level_scripts savegame functions (register choice per earlier notes).
+
+Hint for the lead: the inline budget (D15802) may explain more of the functions that call 0x43b580 / 0x410cd0 /
+0x413190 out of line. `node tools/asm.mjs callers 0x43b580` lists them; conversation_camera_compute_shot (32
+calls), blood_splot_place, pyrul_fire_attack, ai_avoid_characters, world_pick_under_mouse and
+character_clip_move_to_navmesh are game functions. The test that found this one: count the out-of-line calls per
+statement in the binary, then add or remove one inline candidate (an extra `operator=` statement) before the
+statement where ours expands one too many.
+
+**D26500 (vsdk/gr_direct3d.cpp; closer only). gr_d3d_set_state 0x534a40: fog off falls into case 3.**
+```
+switch (fog_type) {
+case 0: case 1: case 2:
+    if (gr_fog_enabled) {
+        gr_d3d_set_render_state(D3DRENDERSTATE_FOGENABLE, TRUE);
+        break;
+    }
+    // fall through
+case 3:
+    gr_d3d_set_render_state(D3DRENDERSTATE_FOGENABLE, FALSE);
+    break;
+}
+```
+replaces `if (gr_fog_enabled) set(TRUE); else set(FALSE); break; case 3: set(FALSE);`. The binary has one
+`set(FOGENABLE, FALSE)` block, at the very end of the function (0x5353a1). Case 3 (`cmp eax, 3; je`) and the
+fog-off test (`je`) both jump to it. The if / else form gave 8966 two copies: case 3's inline after the compare
+chain, and the else's. With the fall-through, there is one block and it comes last, as in the binary. A `goto` to a
+label on case 3 gives the same code (314). Not better: case 3 written first (326), `if (!gr_fog_enabled)` with the
+branches swapped (327). Same behaviour: fog types 0-2 with fog off and type 3 make the same single call; other
+values make none. **Observed** (compiled, aligned); that it is the original form is **Inferred**.
+
+Left (the whole remaining difference): the binary keeps the constant 1 in EBX (`mov ebx, 1` after the six getters,
+`push ebx` at the very start before the early-return test), and every `push 1` and both `gr_d3d_vertex_* = true`
+stores use EBX / BL. 8966 at /Ox pushes the immediate. The frame offsets of the other locals then differ by the
+4 bytes of that push. Tried: `#pragma optimize("s", on)` around the function (EBX = 1 appears, but the whole
+function changes, 943), `"t", off` (943), `"y", off` (352), the early return as an `if (!(mode == cur)) { ... }`
+block (314), `= 1` for the two bools (314). This is the "constant in a callee-saved register" left open since
+D7203 (ls_ikaemostopint_init) and D15403 (a goto moved 1 into EBX in version_check_run). Every case in Sum.exe
+that I found with a constant in a register (buysell_update_category_buttons and others) has the uses inside a loop.
+gr_d3d_set_state has no loop, so the trigger is still unknown.
+
+**D26501 (proposal, include/engine/ai/boss_ai.h). tiger_move_in_range and giant_salamanka_target_in_reach return
+bool.** This is D7603 (3) again, with new evidence. In boss_move_in_range_dispatch 0x4a0ea0 the binary returns the
+tiger / salamanka results with no `neg / sbb / neg` conversion. It also returns serpent / tentacle /
+boss_move_target_in_range (bool) with no zero extension. Its only caller, living_combat_resolve_hit, tests `al`
+(0x467eb0). So every callee has the dispatcher's own type, bool. D7603 checked that tiger's and salamanka's units
+keep their matches with bool (`return d < reach;`). New: the Luminar / Murod case written `return r > d;`
+(`float r = boss->info->attack_radius;` before the call) gives the binary's `mov eax, 1` (as
+boss_move_target_in_range does for its bool). The `if (...) return true; break;` form gives `mov al, 1`. What still
+differs in that case is the compare: the binary does `fld r; fcomp st(1); test ah, 0x41; fstp st(0)` and 8966
+`fcomp r; test ah, 1`. The binary's shared false is `xor eax, eax`; ours is `xor al, al`. Not applied: the header
+change alone does not give a match.
+
+**D26600 (game/conversationctl.cpp; closer only). conversation_controller::frame 0x4da010, 365 -> 318.** In the
+approach-1 slide branch (Observed in Sum.exe 0x4da23e-0x4da2e1):
+1. `d = vector2(-cur_character->pos.x, -cur_character->pos.z); d.x += slide_x; d.y += slide_z;` instead of
+   `d.x = slide_x - pos.x; d.y = slide_z - pos.z;`. The binary loads pos.z and pos.x, negates each (`fchs`) and
+   adds slide_x / slide_z (`fadd [esi+0x18]`, `fadd [esi+0x1c]`); the subtraction form compiles to `fld; fsub`.
+   365 -> 326. Same values: -a + b is b - a exactly in IEEE arithmetic. Left: 8966 stores -z to a temporary and
+   negates x first (binary: z first, no temporary). Tried (all worse or equal): the vector2 constructor with the
+   two sums (357 as an initialiser, 332 assigned), `vector2(-x, -z) + vector2(slide_x, slide_z)` (337 assigned, 353
+   as an initialiser), `vector2(slide_x, slide_z) - vector2(x, z)` (336), `vector2(slide_x, slide_z) +
+   vector2(-x, -z)` (334), field stores `d.y = -z; d.x = -x;` then the adds (354), `d.x = -x; d.y = -z;` then the
+   adds (358), the adds y first (350), `d.x = d.x + slide_x` / `slide_x + d.x` (326), `d = d + vector2(...)` (334),
+   a `vector3 n = -cur_character->pos` (330), d declared with the negated constructor (344).
+2. `vector2 m = (reported_frametime / len) * d; mx = m.x; mz = m.y;` instead of `float s = reported_frametime / len;
+   mx = s * d.x; mz = d.y * s;`. The binary keeps the quotient on the FPU (`fld st(0)`, `fmul`) and spills the
+   y product through one frame slot (`fstp [esp+0x14]; mov edx, [esp+0x14]`), which this form reproduces; the
+   float local was stored (`fst s`) and reloaded. 326 -> 318. Same behaviour up to the x87 precision of the
+   quotient: the old form multiplied y by the stored float s, the binary (and the new form) multiplies both
+   components by the unrounded quotient, so the new form is the binary's arithmetic. Left: the binary computes the
+   y product as `fld d.y; fmul st, st(2)` (ours `fxch; fmul d.y`). Tried: `vector2 m(s * d.x, d.y * s)`, the same
+   assigned, `m(d.x * s, d.y * s)`, `m = s * d` with a local s, field stores, a constructor without s (all 317-318),
+   no s with the division written twice (327), s at the block's top (326), mz before mx (321).
+The frame is 0x3c now (binary 0x48, 0x40 before). Still differs, Observed: the binary calls the vector3 (x, y, z)
+constructor (0x43b580) out of line for the three `pos + centre_offset` sums of the approach-0 case (inline budget,
+D16104 / D23900); ours expands them. Unused vector3 locals as budget spenders (after the approach-0 goal call):
+up to 28 change nothing (318; three in a `{ }` block 320), 30 gives 310 (a copy constructor goes out of line, not
+the 3-float constructor), 32-40 are worse; after the direction normalise or the dir sum only 40 changes it (341);
+at the top of case 0 or of the function, 40 changes nothing. Not kept. Also tried for the
+not-arrived tail (the binary places `if (!conversation_dest_found) approach = 0; return 0;` after the give-up
+block): else-block, inverted condition, nested ifs; all 318.
+
+**D26601 (notes only). conversation_controller::camera_compute_shot 0x4d8f50 (403).** Observed: the out-of-line
+call profile is the binary's except for one swap. The binary calls vector3::operator+ (0x45b680) out of line for
+the two top sums `speaker->pos + speaker->centre_offset` and `cur_character->pos + cur_character->centre_offset`
+and expands the default branch's `side * 0.5f`; 8966 expands the two sums (calling the 3-float constructor) and
+calls the member `vector3::operator*(float)` out of line for `side * 0.5f`. All other counts match (10 copy
+constructors, 6 operator=, 32 3-float constructors, 6 operator-, one `float * vector3`, 12 size_height).
+Unused vector3 locals change the distance by count only, not by position (top, middle, before the side choice,
+at the end: identical): 2-3 give 300, 5-6 give 285, 7 gives 311, 8-10 give 409, more is worse; none makes the top
+sums out-of-line calls. The constructor-initialiser form of the two sums gives 403, assigning them after a
+declaration 661. Not kept (dummies are not evidence). Inferred: the original spends the budget differently around
+the top of the function; the inline order is not source order.
+
+**D26602 (notes only). Retried without result (new forms only).**
+- nw_ras_init 0x5178c0 (0): `goto fail` with the label in the first GetProcAddress block and the two loop
+  failures as `goto fail` (10: the block moves out of line, as D17704 found for other label places).
+- nw_WorkReliable 0x517e00 (17): the dead `cmp eax, 0x258` (D24504): NW_DEBUG_CHECK as `if (!(x)) f()` /
+  `if (x) f()` / `if (x) f(); else f();` with an empty static inline f, `__assume(x)`, an inline function taking
+  the int, an inline returning it, the check on data_len instead of recv_len: all 17. The merged-branches form
+  (D24504) again 48, with a `ushort s` seq local 48, without the len local 45, with the test inverted 48. The
+  ping load order: a send_time local before the sample increment (270), after it (17), `-(int)send_time + last`
+  (17), a pointer to the ping slot (17), `num_ping_samples = num_ping_samples + 1` (17), the ping store before the
+  increment (246). The IAMHERE status store as a comma in the first argument (17). The status store after the
+  reply call scores 15, but only because the aligner moves the store; it is not the binary's order. Not kept.
+- Character::say 0x461dc0 (9): `&quoted[offsets[i]]` (9), the test as `total + lens[i] + 1` (9), `>= 0x100`
+  (11), the total after strncat with either test (21), the total before strcat (36), a `char *t = r->text` (9).
+- script_editor_default_action_navpoint 0x4e8cf0 (17): `found = np` (17), found initialised NULL with or without
+  the branch store (17 / 26), found initialised from np (26), early `return np` / `return NULL` for the empty table
+  (21-44), `break` with one return (17), a while loop (17).
+- Not retried, verdicts stand: pcx_read_bitmap, cmdline_take_argument, m2v_skip_extension_and_user_data,
+  nw_buffer_pop, script_write_level_script, camera_blend, StringPool::Add, mp_handle_actv_gm, obstacles_debug_render,
+  script_editor_door_sound_inputbox_cb, ui_slider::create_scrollbar, vfx_instance::process / init_nodes,
+  script_editor_action_type_allowed, script_create, level_items_write_table, cutscene_parse_table,
+  tga_rle_encode_row, mp_read_spell_targets, nw_NewCloseSocket. Looked at only: script_editor_draw_navpoints
+  (cutscene loop's induction pointer, D22202), shadow_record_add (inline budget, D16704).
+
+**D26700 (game/unnamed_serpent_0x495290.cpp). ai_state::serpent_illusion_update 0x496d60 is a byte match.** The
+copies' fade is written on one variable that holds the base alpha and then the faded value:
+```
+int a = 255;
+if (i != 0)
+    a = 230;
+a += (rem - 300) * a / -1000;
+```
+in place of a separate `base` and `int a = (rem - 300) * base / -1000 + base;`. With a separate base, 8966 rewrites
+`base + x / -1000` as `base - x / 1000` (magic 0x10624dd3 and `sub`); the binary divides by -1000 (magic
+0xef9db22d) and adds. Standalone probes (Observed, /O2) show the rule: 8966 keeps the negative divisor when the
+quotient is not added to another value (`return x / -1000`, a compare), when the sum is formed through a pointer
+store or an if / else, and in every form tried where the variable that receives the sum is also the dividend's
+factor (`a += (r - 300) * a / -1000`, `a = (r - 300) * a / -1000 + a`, even `a -= (r - 300) * a / 1000`, which it
+turns into the add of the negative divide). The pointer and if / else forms keep the divide but change the
+function's register allocation (distance 89-90); the one-variable form gives the binary's code exactly (also
+`a = (rem - 300) * a / -1000 + a` and `a -= (rem - 300) * a / 1000`; the `+=` form keeps the -1000 visible). Same
+behaviour: a is the base when the product is formed, so the value is `base + (rem - 300) * base / -1000` as
+before, and the clamp and the store are unchanged. Earlier forms (D20501's list, the 16 standalone forms of
+round 2026-10-22: split statements, `x * -b`, `-x * b`, `b - -(...)`, `(300 - 1300)`, constants, inline helpers)
+all kept two variables, which is why they were rewritten. Inferred: the original source kept the alpha in one
+variable, as the binary's single ECX (base, then sum, then clamp) also suggests. This new device is worth trying
+wherever a binary has a divide by a negative constant that 8966 turns into a subtract.
+
+**D26800 (game/multi_chattracker.cpp; closer). chat_process_irc_message 0x4ac240: every one-line
+`if (...) return NULL;` leaves through `goto none;`, with `none: return NULL;` after the final
+`strcpy(chat_irc_format_buf, line)`.** 26 sites (the length test, the empty word, `mode == 1`, VERSION, the
+NOTICE PING, MODE, the 322 state test, 324, 366 / 333 / 329, the 353 empty list and the numerics 001 ... 375).
+Observed: Sum.exe jumps from each of these tests to one shared NULL epilogue (`je 0x4ad1d2`, which has its own
+`xor eax, eax`). With `return NULL` 8966 knows EAX is 0 after `test eax, eax / je` and gives every such return its
+own copy of the epilogue without the xor, so it cannot share it (about 200 of the 272). With the goto the tests
+jump to one block, and as a side effect the frame slots of `nick` and `msg` (and `nick_change`) come out in the
+binary's order (8966 orders /O2 slots by use; declaration order did not move them: swapped nick / msg
+declarations 389, nick_change first or before rest 387). Only one-liners: also turning the block-ending
+`return NULL`s into gotos is worse (103); gotos only after line 480 give 81, after 340 81. Same behaviour: the
+label is the function's last statement, `return NULL`. Inferred: the original probably had these tests in some
+form that reaches a common return (an else-if chain or a result variable), not 26 gotos; the goto form is the one
+measured.
+
+**D26801 (game/multi_chattracker.cpp; closer). The trailing `\1` strip of msg written in both arms of
+`if (rest[0] == ':')`** (PRIVMSG and NOTICE). Sum.exe tests `cmp byte [rest], ':' / jne` with the then-arm first
+and the strip duplicated after each `strcpy(msg, ...)`. The plain form (one strip after the if / else) lays the
+else-arm first (`je`), and the inverted test or a `?:` argument do not change it (387 / 386). Same behaviour:
+the same statements on each path.
+
+**D26802 (game/multi_chattracker.cpp; closer). NICK: `char *fmt = XSTR(..., 242);` before
+`sprintf(chat_irc_format_buf, fmt, nick, irc_get_word(0, rest));`.** Sum.exe loads `localize_strings[242]` into
+ESI before the irc_get_word call (`mov esi, [0x25cd8a4]`, 0x4ad0..); with the macro in the argument list 8966
+loads it after the call, into EDX, and the EAX / ECX / EDX rotation is off from there to the end of the
+function. Same behaviour: nothing between the two reads writes localize_strings.
+
+**D26803 (game/multi_chattracker.cpp; closer). The MOTD case fetches the word first: `word = irc_get_word(3,
+line); strcpy(buf, "!MOTD$#!"); strcat(buf, word);`.** Sum.exe calls irc_get_word before the inline strcpy
+(`push ebx / push 3 / call` then `mov edx, eax` held across it). `strcat(strcpy(buf, "!MOTD$#!"),
+irc_get_word(3, line))` is 71, the word local 66. Same behaviour: irc_get_word reads line and writes its own
+buffer, not chat_irc_format_buf.
+
+**D26804 (game/multi_chattracker.cpp; behaviour fix in the decomp). The CTCP PING reply of PRIVMSG returns NULL.**
+Observed: Sum.exe at 0x4ac85c calls irc_process_input("/NOTICE ... PING ...", 1), then `add esp, 0x18 / xor eax,
+eax` (0x4ac864) and returns 0. The decomp returned irc_process_input's result. Now `irc_process_input(...);
+return NULL;`. This changes the shipped-configuration behaviour to the binary's (the return value of a
+PRIVMSG PING line is NULL, nothing is shown). Inferred: harmless either way in practice (the /NOTICE goes through
+chat_process_irc_message in mode 1, which returns NULL for NOTICE), but the source now says what the exe does.
+Not a game bug (the exe was always right); a decompilation error, for docs/hybrid-review.md if the lead wants it.
+
+**D26805 (notes only). chat_process_irc_message, left at 66.**
+- The prologue: Sum.exe stores the first bytes of the two `{0}` buffers (prefix, nick) after the seven fills
+  (`mov byte [esp+0xc34], 0` / `[esp+0x784], 0` scheduled late); ours stores them in declaration order. Tried
+  `{'\0'}`, `{NULL}` (66), `= {}` (C2059).
+- The 311 / 319 / last strcpy tails: Sum.exe cross-jumps the 319 and the final strcpy into 311's tail
+  (`jmp 0x4ad1c6`) and 311's epilogue keeps `xor eax, eax` (it is the shared NULL block at 0x4ad1d2). Ours keeps
+  EAX = 0 known after the inline strcpy and drops the xor, so the tails are not merged; `goto none` in 311 / 319
+  (or in any one of the other block-ending returns) changes nothing (79 at the time), 444 / 545 worse (101).
+- The 353 loop: Sum.exe has `add esp, 4` after irc_add_user and `add esp, 8` after strtok; ours merges them
+  (`add esp, 12`). `for (tok = strtok(...); tok; tok = strtok(NULL, " "))` 69, `while (tok)` 69, the for with
+  `goto none` 66, `while ((tok = strtok(NULL, " ")) != NULL)` 66.
+
+**D26900 (game/unnamed_avoidance_0x4a6710.cpp). avoid_seglist_add_segment 0x4a8680 is exact.** Six changes,
+each found by the aligned listing (Observed: each moved the distance, 262 -> 246 -> 129 -> 101 -> 8 -> 4 -> 0):
+1. The two corner searches compare through `p = &sl->corners[i].pos` (the binary's loop pointer is at `pos`, +0x270,
+   not at `pos.y`), and the new corners are stored through `p` too (246).
+2. In the wall blocks the new corner is addressed as `sl->corners[nc - 1]` after `idx = nc++`: the binary computes
+   the address from the incremented count (`lea ecx, [eax + 0x22c]`, 0x270 - 0x44). This also gives the binary's
+   frame, 0x1c (129).
+3. `nc = sl->num_corners; ns = sl->num_segs;` before `ia = -1; ib = -1;`: ib then takes sl's dead argument slot, as
+   in the binary (101).
+4. `p = &sl->corners[nc].pos; ia = nc++;` (the pointer taken before the increment): nc goes to ESI and sl to EDI as
+   in the binary (8).
+5. `int idx` declared in each wall block: the second block's idx takes wall_a's dead argument slot (4).
+6. Each search as `i = nc - 1; if (i >= 0) { do { ... } while (--i >= 0); }`: the binary's loop bottom is
+   `test; jl exit; jmp top`, which the `for` form (`jge top; jmp exit`) does not give (0).
+Same behaviour: the do / while with its guard runs the same iterations as the `for`; `p` is the same corner taken
+before or after the increment; corners[nc - 1] after `idx = nc++` is corners[idx]. Devices: the pointer-local
+operand order (D17202), dead argument slots for block locals (D25400), the do / while loop shape (D18300).
+
+**D26901 (game/unnamed_avoidance_0x4a6710.cpp). avoid_merge_shared_segments 0x4a8b80 is exact.** D22802 had noted
+that c / cc / l use different slots in the two branches; declaring them in the branches alone changed nothing
+(Observed, also in 2026-10-21e). Together with the call hoisting they match:
+1. `ml = refs[k].list; e = avoid_ref_entry(&refs[k]);` before the calc_shared_corner_offset call, and the call
+   given `ml` and `e`: the binary loads k's list into EDI and calls avoid_ref_entry before pushing any argument
+   (128 -> 100); with c / cc / l block-scoped in each branch, 66.
+2. `int n = refs[k -/+ 1].index - 1; sp = &l->segs[n]; if (sp->b != c) sp = &l->segs[n - 1];`: the binary's
+   `dec eax` before the scaling, and its two `lea`s at +0x18 / +0x4 from one base (56).
+3. `if (!avoid_ref_entry(&refs[k])->side)` without the local e (e is now assigned only in the branches): w moves to
+   EBP and &refs[k] to EBX as in the binary (0 distance, but the frame offsets still differed).
+4. `pf_edge *done[40]; avoid_seg_ref_entry refs[40];`: read from the binary's frame (done at frame +0x24, refs at
+   +0xc4, frame 0x2a4). With done[43] the frame size was right but refs sat 12 bytes higher.
+Same behaviour: the calls and their arguments are the same and in the same order (the k entry is fetched after the
+copy, as before, since the old code fetched it while pushing the arguments). done holds at most one wall per
+segment of sl, and a segment list has at most 30 segments (AVOID_SEGLIST_MAX), so 40 entries are enough; refs
+only grows (avoid_collect_segment_refs has no bound check, so the larger array is not less safe).
+
+**D26902 (game/new_status.cpp; closer only). status_handle_click 0x42bb00, 237 -> 191.** `int dx, dy, dz;` at
+function scope instead of in the closing block: the frame becomes the binary's 0x1c and the `key` reloads in the
+returns line up. Left: the skill-row loop's register permutation (the binary has rows / i / i * font_h in
+EBP / EDI / ESI; ours EDI / ESI / EBP). Tried on top, no change: a separate `j` for the row loop, rows declared at
+its assignment; worse: a second font height local (196). Same behaviour.
+
+**D26903 (notes only).**
+- avoid_poly_add_search_nodes 0x4aa400 (8): a plain `float d = 0.0f; if (!overlap) return d;` (at the top, first
+  declared, also as the overlap call's margin, also as the last return): all 8, VC6 propagates the constant. The
+  binary's store / reload needs a slot whose address escapes (see 2026-10-22).
+- avoid_prim_overlap 0x4a6e00 (13): the dead `fst [esp+0x1c]` (into b's argument slot) is the third test's u
+  term `fabs(b->axis_b.dot(*u))`, not the v term. kw assigned to the u term instead (in four spellings, with
+  and without the first two projections swapped): 23. The swapped projections alone: 13.
+- ls_khosanilab_puzzle_trace_beam 0x4f7b50 (63): a's block moved after b / c / the dead end (`if (!open(a))
+  {...continue;} a...`, three forms: 128, the instruction count then equals the binary's); one shared check /
+  turn_dirs tail after an if / else (90, 189); `cur = next` once at the loop end (129, 211). The binary keeps
+  case a's copy of the tail and both b and c jump into it (b at `cur = next`, c at the dir compare); 8966
+  keeps the last copy.
+- avoid_add_primitive 0x4a9eb0 (355): tb / kb / ca / sum block-scoped per branch (the frame goes to 0x20 or
+  stays 0x30; 347-359). The binary is 59 instructions longer in the circle branch (not common-subexpressed).
+- avoid_merge_obstacle_polys 0x4a73f0 (233): out[32..35] and a block-scope edge move the frame size but not the
+  distance; the slot layout was not worked out.
+- gr_opengl_read_backbuffer 0x5502c0 (56): byte-index forms of the swap (`row[j * 4 + k]`, `j += 4`; 68, 90),
+  the bottom byte read first (71, 85); the row pointers computed from i in the loop (`buf + i * w * 4`,
+  `buf + (h - 1 - i) * w * 4`; 60: gives the binary's preheader after the h / 2 test, but 8966 then steps
+  bottom as an offset from top instead of keeping two pointers).
+- Not retried (each has 25+ forms in earlier notes): fx_create_spell_effect_facing, mp_handle_swi_path,
+  goal_do_travel, decals_draw_for_lobj, spline::eval, vif_emitter_update, localize_load_names,
+  LineFile::detect_eol / read_line, vif_record_get_bounds, gr_opengl_bitmap, fx_missile_hit. Not attempted:
+  the large structural ones (fx_frame, fx_update_missile, fx_find_spawn_point, avoid_clip_segments,
+  avoid_create_obstacle_polys, party_spread_attackers, gl_build_mipmaps, lobj_raycast_bsp,
+  script_build_avoid_spline, decal_build_clip_planes, journal_handle_click, character_learn_chain_skill,
+  pick_attack_target, ai_choose_attack_slot, gr_opengl_set_mode, vif_compact_particles,
+  script_action_walk_to, script_action_replace_armor).
+
+**D27000 (game/spells.cpp; closer). spell_target_value 0x47f2a0: 164 -> 150.** Four of the cases are written as
+one `return cond ? x : y;` in place of `if (cond) return x; return y;`: heal (`max > hp ? 1 : 0`), resurrect
+(`dead ? 0 : 1`), blind (`flags & 0x80 ? 0 : 1`), power leech (`ap <= 0 ? 0 : 1`). With the ternary 8966 keeps
+heal's 1.0 inline after the compare and jumps to the 0.0 block, as the binary does (`jne 0x47f38c`), and it
+cross-jumps resurrect and blind into one test tail, as the binary cross-jumps both into not_boss's `jne`. Same
+values. About 80 of the remaining 150 are the jump table's DD / DB lines, which the scorer compares as
+instructions in every function that has a table (**Observed** in the alignment). What is left in the code: the
+binary's not_boss block falls into its own 1.0 return and jumps to cure's 0.0; ours falls into 0.0 and jumps to the
+default 1.0, and 8966 lays life drain out before not_boss (the binary after it, jumping back with `jg`).
+Tried, worse or equal: a `float value` result with breaks (228, also with `default: break`), `default: return
+1.0f;` with no final return (164), each ternary alone (155-169), not_boss as a ternary as well (155), cure as a
+ternary as well (`return (... has_status(STATUS_SLOW)) ? 1.0f : 0.0f;`: 162),
+every ternary written with 1.0 as the first value (`!dead ? 1 : 0` ...: 166-168), life drain as one test with
+not_boss's condition and no goto (`level > 1 && type != 9 && !(flags & 0x40)`, either polarity, if or ternary,
+nested if: 155-173).
+
+**D27001 (game/spells.cpp; closer). summon_create 0x47e900: 255 -> 125.** The binary's frame is 0x6c, ours was
+0x7c. Mapping our named slots to the binary's (helper `v/slots.mjs`, below) showed why: the binary puts the
+`p -= orient.fvec * value` temporary in the slot of the facing vector, which is dead after `set_from_forward`,
+and keeps `placed` in the dead `pos` argument slot. 8966 does neither while the facing is a named function-scope
+`vector3 dir`. Written as `orient.set_from_forward(caster->pos - *pos);` (a temporary bound to the `const
+vector3 &` parameter), the frame becomes 0x6c and every slot of the function the binary's; `dir` declared in a
+block of its own around the call gives the same 125. Same behaviour: dir had no other use. What is left (about
+110 of 125) is the ring xp chain: 8966 cross-jumps the identical `push 4 / mov ecx, savegame_state / call get_int
+/ mov esi, eax` tails, the binary keeps every branch whole (and pushes EAX for the constant 4 in the species-4
+branch). Tried on top, all 125: the chain as one nested ternary, as separate ifs each ending in `goto have_xp`,
+and with braces on every branch. Before D27001 (all 255): the block locals (species, p, placed) at function
+scope, p alone or placed alone at function scope, p / placed swapped, the dragon block's locals at function scope
+(257), dir declared after orient.
+**Device (new for this unit, the same family as D25400): a named local that is dead after its first call keeps
+its slot for the whole function under 8966; where the binary reuses that slot for a later temporary, the local
+was a temporary (or block-scoped) in the original.** Check the frame size first: when ours is larger, map the
+slots (`v/slots.mjs`) and look for a binary temporary sitting in a named local's slot.
+
+**D27002 (game/spells.cpp; closer). spell_cast_execute 0x47c5d0: 809 -> 717.** The frame was 0x13c against the
+binary's 0x12c. (1) The missile case (0x18 ...) declares `vector3 bone_pos; matrix bone_orient;` inside each of
+the two branches that use them (weapon / armour trigger, item) instead of at the top of the case. (2) The 0x68
+case declares `matrix hit_orient = c->orient;` before `vector3 hit_pos = c->pos;`. With both the frame is 0x12c
+and every mapped slot is the binary's (req at -156, the prepare temporaries at -64, where / st / i / found / bone /
+orient / created / m: all the binary's offsets) except the item missile's dir (ours -284, the binary -272). (1)
+alone gives 763 (frame 0x12c), (2) alone 804; the trigger branch's `matrix hit_orient = t->orient;` initialised
+at its declaration gives 787 alone, 789 with (1), 780 with (1) and (2). Same behaviour: declarations only. What is left is code: the 0x04 / 0x15 / 0x16 party loop's
+where store and tail (the binary duplicates the hit-sound epilogue into this case), the item missile's
+start / dir arithmetic order (as in D27003) and several push orders.
+
+**D27003 (game/spells.cpp; closer). spell_cast_launch_effects 0x47d420: 673 -> 663.** (1) The item missile's
+start as `req->caster->pos + req->caster->centre_offset` (as spell_cast_execute writes it): the binary computes
+the start into a temporary and copies x / z, adding the bone height to y, which this order gives (665; the
+binary's slot for the temporary is still 12 bytes off). (2) The missile case in a block of its own, with
+`vector3 bone_pos; matrix bone_orient;` at its top instead of in the two branches (663). Note the opposite
+placement from D27002: here the binary has bone_pos at the case's top (one slot, -60, for both branches).
+Not kept: `matrix m = t->orient;` initialised at declaration gives 654, but 8966 then drops the copy of the
+unused matrix (2833 bytes against the binary's 2965; the binary makes the copy), so the assignment form stays.
+Tried: the 20 groupings and operand orders of the dir expression (`a + b - c - d`, `(a + b) - (c + d)`,
+`(a - c) + (b - d)` ... with either operand order in each sum): 665-693; spell_hit h declared last, `played` /
+`where` / `i` declaration orders (the binary has where at the bottom of the frame and ours i; no declaration order
+moves it: 8966 orders by use).
+
+**D27100 (vsdk/unnamed_inputbox_0x5521a0.cpp). ui_inputbox::process 0x552310 is exact.** The binary lays out the
+failure exits of the typed-character path after the success path: `is_char_allowed` fails with `je` to a
+`return key` block at the very end (0x5525a9), and the length test fails with `jge` to the `send_event(0x16);
+return 0;` block before it (0x55258b). Written as nested then-blocks,
+```
+if (is_char_allowed((char)c)) {
+    if ((int)strlen(text) < max_length) {
+        ... strcpy, gr_get_string_size, the FIT_WIDTH test, strcpy(text, buf); send_event(0x15); return 0;
+    }
+    send_event(0x16, UI_USE_ID);
+    return 0;
+}
+return key;
+```
+8966 gives that layout (the early-return form put both exits inline). The backspace case is the same device on a
+smaller scale: `if (strlen(text) != 0) { remove the last character; send_event(0x15); return 0; }
+ui_play_sound(5); return 0;` puts the removal inline after `je` (the binary's order); `== 0` with the sound first
+had it the other way round. Same behaviour: the same tests with the branches swapped, every path returns the same
+value after the same calls.
+
+**D27101 (vsdk/unnamed_inputbox_0x5521a0.cpp; closer only). ui_inputbox::set_valid_chars 0x552870 (183 -> 173) and
+set_invalid_chars 0x552c50 (182 -> 172).** The binary keeps one stack slot for lo (`mov byte [esp+0x10], dl`, read
+back as `mov ecx, [esp+0x10]; and ecx, 0xff` for the memset address) in all three range blocks, and its frame is
+0x8c. The block-scope `char lo / hi` of INPUTBOX_MARK_RANGE gave three slots and a 0x94 frame. Declaring `char
+lo, hi;` once at function scope (the macro now assigns them) gives the binary's frame, slot and prologue. Same
+behaviour: lo and hi are written before every read in each expansion.
+Left: the binary does not cross-jump the three range blocks. In the digit and capital blocks the `state = 0` store
+(`xor esi, esi`) is scheduled inside the memset (before `rep stosb`), their `lo > hi` exits jump into the small-letter
+block's `state = 0; jmp` tail, and each block has its own memset. 8966 merges the three memset tails (with the
+shared lo slot it merges the whole block after the lo store; with three slots it merged from `mov eax, 0x01010101`).
+The final else-switch differs the same way (8966 merges case 1's `allowed[c] = 1; state = 8` with case 5's). Tried,
+none stops the merge: `state = 0` inside both branches of the `lo <= hi` test (in all three blocks, or only in the
+digit / capital ones with a second macro), `state = 0` before the range code (284), a file-local `static inline`
+range helper (221: the separate slots come back).
+
+**D27102 (notes only). Tried without a match.**
+- ui_message_box_show 0x413e40 (49): the binary stores the flags word, re-reads its low byte (`mov cl, byte
+  [0x5bd504]`), loads `mov al, 1` and tests `test al, cl` and then `test byte [game_flags], al`. A plain byte
+  read through `*(unsigned char *)&ui_message_box_flags` is forwarded from the stored value (no change); the
+  volatile byte read of D20407 gives the binary's size (469) and the `mov al, 1` / `test [game_flags], al` pair, and
+  it fixes the `interface_cur_screen` switch registers, but 8966 sinks the re-read below the callback and mouse_mode
+  stores and swaps the flags / callback stores (48). `1 & x` operand order: no change.
+  **Header proposal (not applied):** with `unsigned int flags; void (*callback)(int);` as two more fields of
+  ui_message_box_state (they sit at 0x5bd504 / 0x5bd508, right after hover_button 0x5bd500, as the comment at the
+  struct already suspects), the plain `ui_message_box.flags & 1` test gives `mov al, 1` and the
+  `test [game_flags], al` without volatile, with the stores in the binary's order (flags, then callback); left is
+  that the test byte comes from the stored register (`mov cl, dl`) instead of the binary's reload. This needs
+  interface.h's `extern unsigned int ui_message_box_flags` (used by other units) to become a field, so it is a
+  header change for the lead.
+- items_parse_table 0x44a090 (51): the only real code difference is the register rotation of the armour-texture
+  switch's case blocks. All 24 source orders of the four case blocks (case -1, 0, 2/5, 3) were measured
+  (with a scratch script): 0231 and 0312 give 45, the binary's source order gives 51, the rest 47-59. The rotation follows
+  the source order (each block takes the next registers after the previous block's), and the binary has the layout
+  of order 0123 with the registers of 0231 for blocks 2 and 3 and ECX for block 1; no order gives both. Not kept
+  (the 45 forms move the block layout away from the binary's). Also tried: `case 5: case 2:`, `tex =
+  t->armour_textures[heavy][hero]` for part -1 (both 51).
+- gr_setup_3d 0x50dec0 (2): the 0.98 / 65536 as an if / else (4); a comma expression in the second test (2).
+  With D26001's list: exhausted.
+- inputbox, the other units: read the alignments of all 39 functions. The rest are the cases the earlier lists
+  describe and that no new device here touches: register choice or scheduling (Crc32::update, snow_start,
+  item_page_out_all, pickup_draw_item_list, fx_recb0::spawn / get_fade / render_d3d, seg2d_point_near_middle,
+  travel_steer_update's operand orders), the kept `lea` of a link field (mp_player_alloc, vfx_instance_create,
+  D24507), the final flags reload of gr_project_vertex, the `fiadd` of init_particle (D25602), the second Glide
+  test of gr_setup_3d (D26001), effects_parse_arr_line's entry exit target, and the large ai_move functions
+  (avoid_characters, follow_path, mode_traveling_frame, turn_towards, ai_find_nearest_wall_hit: EBX pushed and
+  used for 0, ternaries as branches, many scheduling differences; not attempted in depth).

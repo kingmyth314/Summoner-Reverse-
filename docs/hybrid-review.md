@@ -36,6 +36,9 @@ by hand. The scratch scripts were not kept. The group reports below are the agen
 "I"); the agent command sequences use SummonerFix's agent mode ([SummonerFix](summonerfix/index.md)).
 
 {: .note }
+Found later, while byte matching (2026-11-10, **Observed** in the disassembly): `chat_process_irc_message` `0x4ac240` returned `irc_process_input`'s result for a CTCP PING, where Sum.exe returns NULL (`xor eax, eax` at `0x4ac864`). Repaired (D26804); multiplayer chat only, not run.
+
+{: .note }
 Since the review: the quicksave chain counted as never run only because `tools/hybrid-test.mjs` wrote its coverage
 file before the quicksave; it now writes it afterwards.
 

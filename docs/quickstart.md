@@ -40,7 +40,7 @@ node tools/vc6-sweep.mjs --check src/decomp/vc6-matches.txt
 ```
 
 Compiles every unit with VC6 SP5 and compares each function with `Summoner\Sum.exe`. **Expect:**
-`259 units: 5613 match, 2 wrong target, 310 differ, 1 not found` and `5613 matched there, 5613 now, 0 lost`.
+`259 units: 5618 match, 2 wrong target, 305 differ, 1 not found` and `5618 matched there, 5618 now, 0 lost` (5,613 and 310 before the round of 2026-11-10).
 A different `Sum.exe` than the one above may lose a few matches (the no-CD bytes are already accounted for).
 
 ## Step 2: build the 32-bit exes (VC6)

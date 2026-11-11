@@ -107,7 +107,7 @@ on purpose. The rule:
 - **Experimental build:** with every experimental switch off it must pass the fixed build's checks; each feature is
   then tested on its own.
 - **Invariant, every commit:** `tools/vc6-sweep.mjs --check src/decomp/vc6-matches.txt` (with `VC6_STRICT=1`) on the
-  `shipped` configuration; the strict match count (5,613 since 2026-10-22) must not drop. The fixed and experimental code must never
+  `shipped` configuration; the strict match count (5,618 since 2026-11-10) must not drop. The fixed and experimental code must never
   change what the reference configuration compiles to.
 
 ## First steps

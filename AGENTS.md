@@ -7,7 +7,7 @@ For AI agents and anyone who wants the facts without the history. Humans: start 
 
 A reverse engineering of **Summoner** (Volition, 2000), PC v1.40 `Sum.exe` (32-bit, Visual C++ 6.0 SP5):
 - `src/decomp/`: the whole game rewritten in C++, one file per original translation unit. Every function carries
-  its Sum.exe address and a confidence comment. 5,613 of 5,926 compiled functions match the original bytes.
+  its Sum.exe address and a confidence comment. 5,618 of 5,926 compiled functions match the original bytes.
 - `src/summonerfix/`: `dinput.dll`, a patch DLL that makes the original exe run on Windows 10/11.
 - `docs/`: everything found, as a GitHub Pages site (Jekyll, Just the Docs).
 - `tools/`: Node.js 24 scripts (`.mjs`) and PowerShell scripts that build, compare and play-test.
@@ -63,7 +63,7 @@ The 64-bit **player build** is `--config experimental --compiler clang --arch x6
 cross-check of the setting names; GitHub Actions (`.github/workflows/ci.yml`) runs it without the sweep on every push
 and builds SummonerFix, the save editor and the 64-bit exes. 2 stays manual.
 
-1. `VC6_STRICT=1 node tools/vc6-sweep.mjs --check src/decomp/vc6-matches.txt` must end with `0 lost` (5,613).
+1. `VC6_STRICT=1 node tools/vc6-sweep.mjs --check src/decomp/vc6-matches.txt` must end with `0 lost` (5,618).
    Code for the other builds goes under its define, so the shipped configuration's bytes never change.
 2. The configurations you touched build with `unresolved 0; multiply defined 0`.
 3. `node tools/docs-check.mjs` reports no broken link or missing front matter.
