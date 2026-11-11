@@ -53,6 +53,7 @@ static void LoadConfig(void)
     g_cfg.centerMenus = GetPrivateProfileIntA("Display", "CenterMenus", 1, g_cfg.iniPath);
     g_cfg.centerHud = GetPrivateProfileIntA("Display", "CenterHud", 1, g_cfg.iniPath);
     g_cfg.sidePanelsOverWorld = GetPrivateProfileIntA("Display", "SidePanelsOverWorld", 1, g_cfg.iniPath);
+    g_cfg.antialiasing = GetPrivateProfileIntA("Display", "Antialiasing", 0, g_cfg.iniPath);
     g_cfg.maxFps = GetPrivateProfileIntA("Game", "MaxFPS", 0, g_cfg.iniPath);
     g_cfg.captureEvery = GetPrivateProfileIntA("Debug", "CaptureEvery", 0, g_cfg.iniPath);
 
@@ -78,6 +79,12 @@ static void LoadConfig(void)
         g_cfg.renderer == RENDERER_DIRECT3D ? "Direct3D" : g_cfg.renderer == RENDERER_GLIDE ? "Glide" : "OpenGL",
         g_cfg.exclusive ? "exclusive fullscreen" : g_cfg.borderless ? "borderless fullscreen" : "window", g_cfg.windowWidth, g_cfg.windowHeight, g_cfg.maxFps,
         g_cfg.soundcard);
+    // [Display] Antialiasing: a multisampled pixel format for the OpenGL renderer (display.c). Direct3D and Glide (also
+    // through dgVoodoo 2, which has its own anti-aliasing setting) never get the hook: the key does nothing there.
+    if (g_cfg.antialiasing > 1)
+        Log("config: Antialiasing=%d %s", g_cfg.antialiasing,
+            g_cfg.renderer == RENDERER_OPENGL ? "(OpenGL: a multisampled pixel format is asked for)"
+                                              : "ignored: only the OpenGL renderer has it");
     if (g_cfg.autoSize) {
         int sw, sh;
         DisplayDesktopSize(&sw, &sh);

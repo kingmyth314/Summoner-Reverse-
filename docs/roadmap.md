@@ -357,7 +357,8 @@ the plan for a fixed build and an experimental build that take them up is in
   **Built 2026-11-10, not yet run in the game:** `[Display] Mode=Exclusive` (the display mode set and
   given back on Alt+Tab, in SummonerFix's OpenGL output and the 64-bit build; under Vulkan also
   `VK_EXT_full_screen_exclusive` where the driver has it) and `[Display] Antialiasing=2|4|8` (MSAA in the 64-bit
-  build, OpenGL and Vulkan), both in the config app ([SummonerFix](summonerfix/index.md#exclusive-fullscreen-and-anti-aliasing-2026-11-10),
+  build, OpenGL and Vulkan, run once under both: **Observed**, 4 samples; and since the evening of 2026-11-10 in
+  SummonerFix for the original exe, a `ChoosePixelFormat` import hook, built, not yet run in the game), both in the config app ([SummonerFix](summonerfix/index.md#exclusive-fullscreen-and-anti-aliasing-2026-11-10),
   [Vulkan renderer](future/vulkan-renderer.md#exclusive-fullscreen-and-msaa-2026-11-10)).
 
 ## Other planned work
