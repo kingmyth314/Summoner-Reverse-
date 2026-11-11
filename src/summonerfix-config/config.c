@@ -1048,8 +1048,8 @@ static void OpenCheatWindow(void)
 }
 
 // The "Display" window: [Display] Renderer, Mode, GameWidth / GameHeight, WindowWidth / WindowHeight, the exclusive
-// mode (ExclusiveWidth / ExclusiveHeight / ExclusiveRefresh), the three wide-screen switches, Antialiasing (the 64-bit
-// builds) and the Vulkan renderer's RenderScale / FsrSharpness, so a player never edits summonerfix.ini
+// mode (ExclusiveWidth / ExclusiveHeight / ExclusiveRefresh), the three wide-screen switches, Antialiasing (OpenGL in
+// SummonerFix and every build, Vulkan) and the Vulkan renderer's RenderScale / FsrSharpness, so a player never edits summonerfix.ini
 // for them. The game size list: "Match my screen" (GameWidth=Auto, screensize.h) and the 768-high size for each
 // common screen shape, computed as Auto computes it, named by the screens of that shape in the Steam hardware survey
 // (2026); the interface is laid out for 768 lines, and the 3D world is drawn at the screen's own resolution in any
@@ -1088,7 +1088,7 @@ static const DispChoice k_fsrSharpness[] = {
     {"0", "0 (strongest)"}, {"0.2", "0.2 (default)"}, {"0.5", "0.5"}, {"1", "1"}, {"2", "2 (softest)"},
 };
 #define FSR_SHARP_COUNT (int)(sizeof k_fsrSharpness / sizeof k_fsrSharpness[0])
-// [Display] Antialiasing rows (the 64-bit builds, OpenGL and Vulkan; 2026-11-10): multisampling.
+// [Display] Antialiasing rows (OpenGL in SummonerFix and every build, Vulkan; 2026-11-10): multisampling.
 static const DispChoice k_antialiasing[] = {
     {"0", "Off"}, {"2", "2x MSAA"}, {"4", "4x MSAA"}, {"8", "8x MSAA"},
 };
@@ -1451,7 +1451,7 @@ static LRESULT CALLBACK DispWndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         SendMessageA(fe, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
         Label(w, "degrees, 40-110 (empty = the game's 73.74; wide screens see more)", 220, 308, 330);
         DispCheck(w, ID_DISPBADGE, "Show \"FAST x3\" while the speed key's fast mode is on", 334);
-        Label(w, "64-bit builds only (OpenGL and Vulkan):", 10, 366, DISP_WND_W - 20);
+        Label(w, "OpenGL and Vulkan (not Direct3D or Glide):", 10, 366, DISP_WND_W - 20);
         Label(w, "Anti-aliasing:", 10, 390, 130);
         DispCombo(w, ID_DISPAA, 150, 387, 220);
         Label(w, "Vulkan renderer only (the 64-bit builds):", 10, 422, DISP_WND_W - 20);

@@ -57,7 +57,11 @@ GitHub releases; copy `3DfxGlide2x.dll` (for Glide) or `MSDDraw.dll` and `MS
 next to `Sum.exe`, with `dgVoodoo.conf` (set it with `dgVoodooCpl.exe`: watermark off; for Direct3D any card);
 set `[Display] Renderer=Glide` or `Direct3D` in `summonerfix.ini`. Removing the DLLs and setting
 `Renderer=OpenGL` goes back. Under Glide and Direct3D, SummonerFix's OpenGL-only parts are off (widescreen, scaled
-output, the controller, agent mode's cursor and captures; section 3).
+output, the controller, agent mode's cursor and captures; section 3). `[Display] Antialiasing` (2026-11-10) is one of
+them: SummonerFix's multisampled pixel format is a `ChoosePixelFormat` hook installed only with `Renderer=OpenGL`, so
+under dgVoodoo the key does nothing and the log says `config: Antialiasing=N ignored: only the OpenGL renderer has
+it` (Inferred from the code, not run). dgVoodoo's own anti-aliasing setting in `dgVoodooCpl.exe` is the one to use
+there (not verified here).
 
 **Not yet tested** (section 5): the logo and credits movies (T7), gamma (T4), Alt-Tab (T6), other resolutions (T8),
 a long run (T9), screen-by-screen comparisons with OpenGL (T3), and dgVoodoo's own fullscreen output.

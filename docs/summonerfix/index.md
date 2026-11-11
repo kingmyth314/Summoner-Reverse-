@@ -330,14 +330,54 @@ here has been run yet: every claim is **Inferred** from the code and the API doc
   build also takes full-screen exclusive (`VK_EXT_full_screen_exclusive`) where the driver offers it:
   [Vulkan renderer](../future/vulkan-renderer.md#exclusive-fullscreen-and-msaa-2026-11-10).
 
-**`[Display] Antialiasing=0|2|4|8`** (the 64-bit build only, OpenGL and Vulkan): multisampling. Under OpenGL the
+**`[Display] Antialiasing=0|2|4|8`** (OpenGL: SummonerFix with the original exe since 2026-11-10, evening, and the
+64-bit build; Vulkan: the 64-bit build): multisampling. Under OpenGL the
 host asks the driver for a multisampled pixel format (`WGL_ARB_pixel_format` with `WGL_ARB_multisample`, through a
 hidden window's throwaway context) in place of `gr_opengl_set_pixel_format`'s `ChoosePixelFormat`, with fewer samples
 when the driver has no format with as many, and the original's format when it has none. The game draws into the
 window's default framebuffer as before; reading a multisampled default framebuffer back (`glReadPixels`: the save
 thumbnail, screenshots, agent captures; `glCopyTexSubImage2D`: the brightness pass) resolves it, so they need no
-change (Inferred, from the OpenGL specification; to be checked in the game). SummonerFix does not have it: the
-original exe would need a `ChoosePixelFormat` hook doing the same; left for the owner to decide.
+change (Inferred, from the OpenGL specification; to be checked in the game). The 64-bit build's OpenGL path was run
+once on 2026-11-10 (**Observed**: pixel format 38, 4 samples, smooth edges; [Fixed build](../fixed-build.md)).
+
+{: .important }
+2026-11-10, evening: the sentence "SummonerFix does not have it ... left for the owner to decide" no longer holds.
+SummonerFix has the key now (below).
+
+*SummonerFix (2026-11-10, built, not yet run in the game).* `display.c` hooks `Sum.exe`'s import of
+`GDI32!ChoosePixelFormat` (import slot `0x57e04c`; its only call, `call dword ptr [0x57e04c]` at `0x54f6c0`, is in
+`gr_opengl_set_pixel_format` `0x54f680`, which then calls `SetPixelFormat` through `0x57e044`; **Observed** in the
+import table and the disassembly) when `Antialiasing` is above 1, and answers with the format found the same way as
+the 64-bit host (`FindMultisampleFormat`, a port of `find_multisample_format`: the original's request, double-buffered
+RGBA with at least 16-bit colour and depth, fully accelerated, with `WGL_SAMPLES_ARB` 8, 4 or 2 and fewer on a
+refusal). The search runs once and the format is reused when the game sets up its context again. `wglCreateContext`
+and the other `wgl` functions come from `opengl32.dll` with `GetProcAddress`, and the probe window's own plain format
+uses SummonerFix's `ChoosePixelFormat`, not the hooked import. The hybrid game's `gr_opengl_set_pixel_format` calls
+through `Sum.exe`'s import slot (`tools/hybrid-build.mjs`), so it is caught too, and a 32-bit clang exe running with
+SummonerFix passes `modern_choose_pixel_format` through to it (`modern_host()` is false), so only one search runs
+(both Inferred from the code). The log (`summonerfix.log`) names the case: `config: Antialiasing=4 (OpenGL: a
+multisampled pixel format is asked for)`, then `antialiasing: pixel format N, S samples (4 asked for), colour C, depth
+D bits`, or `antialiasing: no multisampled pixel format; drawing without`, or `antialiasing: the driver has no
+wglChoosePixelFormatARB`.
+
+What SummonerFix itself draws or reads in OpenGL, checked against a multisampled default framebuffer (each
+**Inferred** from the code and the OpenGL specification until the in-game test):
+
+| Part | What it does to the framebuffer | Under MSAA |
+|---|---|---|
+| Save thumbnail (`Hook_glReadPixels`) | `glReadPixels` of the back buffer (the game's `gr_opengl_read_backbuffer` sets `glReadBuffer(GL_BACK)`) | resolved on read; nothing to change |
+| Agent `capture` and `[Debug] CaptureEvery` (`SaveFrame`) | `glReadBuffer(GL_BACK)`, `glReadPixels` | resolved on read |
+| Brightness shader pass (`gamma.c`) | `glCopyTexSubImage2D` from the back buffer into a texture, then a full-window quad back | the copy is resolved; the quad covers every sample of every pixel |
+| Bars and the centred menus' right strip (`Hook_SwapBuffers`) | `glScissor` + `glClear` | a clear writes every sample |
+| FAST badge (`DrawSpeedIndicator`) | a quad and `glBitmap` text lists | drawn into the multisampled buffer like the game's own drawing |
+| Hi-res interface | not in SummonerFix (`[Experimental] HiResInterface` is the rebuilt exes' `experimental/hires.cpp`, texture uploads only) | nothing to check |
+
+No part binds a framebuffer object (none is used anywhere in SummonerFix or the OpenGL renderer; **Observed**, by
+search), and nothing switches `GL_MULTISAMPLE` (on by default); the game's `gr_opengl_set_antialias` (`0x550630`) is
+empty. Under `Renderer=Direct3D` or `Glide`, also through dgVoodoo 2, `DisplayInstall` is not run, so the hook is never
+installed and the key does nothing; the log says `config: Antialiasing=4 ignored: only the OpenGL renderer has it`
+([dgVoodoo 2](../future/dgvoodoo.md)). With dgVoodoo's `DDraw.dll` merely present and `Renderer=OpenGL`, the
+multisampled format applies as without it (dgVoodoo does not wrap OpenGL; not verified here).
 
 ### Frame limiter: 2x speed
 
@@ -420,7 +460,8 @@ Tested 2026-11-01 (2560x1440 screen, work area 2560x1392):
 display reports with its refresh rate, largest first (`ExclusiveWidth`, `ExclusiveHeight`, `ExclusiveRefresh`; an
 ini value the display does not list is kept as its own row); a new **Anti-aliasing** list (Off, 2x, 4x, 8x MSAA:
 `Antialiasing`, the 64-bit builds) sits above the Vulkan rows. The window is 82 pixels taller. Built, not yet
-driven (Inferred).
+driven (Inferred). Later the same day the row's heading became "OpenGL and Vulkan (not Direct3D or Glide):", since
+SummonerFix now has the key too.
 
 `SummonerFixConfig.exe` (source: `src/summonerfix-config/config.c`) is installed next to `Sum.exe`. It lists the game's keyboard actions, including the four chain-attack slots (held modifier keys) and SummonerFix's own speed-up and open-this-window hotkeys, with their default keys and any extra keys bound to them:
 
@@ -566,7 +607,7 @@ picks its own "selected" character, not a cheats matter.
 | `[Display] Renderer` | `OpenGL` | `OpenGL`, `Direct3D` or `Glide`; the 64-bit build also `Vulkan` (others treat it as `OpenGL`) |
 | `[Display] Mode` | `Fullscreen` | OpenGL output: `Fullscreen` (borderless, monitor size), `Window`, or `Exclusive` (2026-11-10: borderless with the display mode set, given back and the game minimised while it is not in front; see [Exclusive fullscreen](#exclusive-fullscreen-and-anti-aliasing-2026-11-10)). Older exes and SummonerFix builds read `Exclusive` as `Fullscreen` |
 | `[Display] ExclusiveWidth`, `ExclusiveHeight`, `ExclusiveRefresh` | 0, 0, 0 | `Mode=Exclusive`'s display mode; 0 = the desktop's size or refresh (2026-11-10) |
-| `[Display] Antialiasing` | 0 | The 64-bit build only (OpenGL and Vulkan): multisampling, 0 (off), 2, 4 or 8 samples (2026-11-10). SummonerFix ignores it |
+| `[Display] Antialiasing` | 0 | Multisampling, 0 (off), 2, 4 or 8 samples (2026-11-10): OpenGL in SummonerFix and every build, Vulkan in the 64-bit build; nothing under Direct3D or Glide (dgVoodoo included). See [Exclusive fullscreen and anti-aliasing](#exclusive-fullscreen-and-anti-aliasing-2026-11-10) |
 | `[Display] WindowWidth`, `WindowHeight` | 1600, 1200 | Client size for `Mode=Window` (resizable); shrunk to fit the work area, keeping its shape (2026-11-01) |
 | `[Display] GameWidth`, `GameHeight` | `Auto`, 768 | The game's internal layout resolution. `Auto` (since 2026-10-24): 768 high and as wide as the primary screen's aspect (1366x768 at 16:9, 1228x768 at 16:10, 1834x768 at 3440x1440, 1024x768 at 4:3); or two numbers, e.g. 1366 and 768. Set in the config app with **Display / resolution...** |
 | `[Display] CenterMenus` | 1 | With a wider `GameWidth`, centre the 1024-wide menus |

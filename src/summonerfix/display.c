@@ -683,6 +683,137 @@ static int WINAPI Hook_GetSystemMetrics(int index)
     return real_GetSystemMetrics(index);
 }
 
+// [Display] Antialiasing=2|4|8 (2026-11-10): a multisampled pixel format for the game's window, as the 64-bit build's
+// host does it (src/decomp/modern/display.cpp, find_multisample_format). gr_opengl_set_pixel_format (0x54f680) asks
+// ChoosePixelFormat for double-buffered RGBA with 16-bit colour and depth and sets the answer with SetPixelFormat; this
+// hook answers with a WGL_ARB_multisample format instead. Nothing else changes: the default framebuffer is resolved
+// whenever it is read (glReadPixels for the thumbnail and captures, glCopyTexSubImage2D for the brightness pass), and
+// the bar clears and the badge draw into it like any other drawing. SummonerFix never binds a framebuffer object.
+#define WGL_DRAW_TO_WINDOW_ARB 0x2001
+#define WGL_ACCELERATION_ARB 0x2003
+#define WGL_SUPPORT_OPENGL_ARB 0x2010
+#define WGL_DOUBLE_BUFFER_ARB 0x2011
+#define WGL_PIXEL_TYPE_ARB 0x2013
+#define WGL_COLOR_BITS_ARB 0x2014
+#define WGL_DEPTH_BITS_ARB 0x2022
+#define WGL_FULL_ACCELERATION_ARB 0x2027
+#define WGL_TYPE_RGBA_ARB 0x202B
+#define WGL_SAMPLE_BUFFERS_ARB 0x2041
+#define WGL_SAMPLES_ARB 0x2042
+typedef int(WINAPI *PFN_ChoosePixelFormat)(HDC, const PIXELFORMATDESCRIPTOR *);
+typedef BOOL(WINAPI *PFN_wglChoosePixelFormatARB)(HDC, const int *, const FLOAT *, UINT, int *, UINT *);
+typedef HGLRC(WINAPI *PFN_wglCreateContext)(HDC);
+typedef BOOL(WINAPI *PFN_wglMakeCurrent)(HDC, HGLRC);
+typedef BOOL(WINAPI *PFN_wglDeleteContext)(HGLRC);
+typedef HDC(WINAPI *PFN_wglGetCurrentDC)(void);
+typedef HGLRC(WINAPI *PFN_wglGetCurrentContext)(void);
+typedef PROC(WINAPI *PFN_wglGetProcAddressA)(LPCSTR);
+static PFN_ChoosePixelFormat real_ChoosePixelFormat;
+static HMODULE g_opengl;
+static int g_aaFormat; // the multisampled format found, 0 = none
+static BOOL g_aaTried;
+
+// wglChoosePixelFormatARB needs a current context, and a window's pixel format can be set only once: a hidden window
+// gets a plain format (gdi32's own ChoosePixelFormat, not the hooked import of Sum.exe) and a throwaway context to
+// ask through, and the format found is for the game's DC.
+static int FindMultisampleFormat(HDC dc, int want)
+{
+    PFN_wglCreateContext pCreate = NULL;
+    PFN_wglMakeCurrent pMake = NULL;
+    PFN_wglDeleteContext pDelete = NULL;
+    PFN_wglGetCurrentDC pCurDc = NULL;
+    PFN_wglGetCurrentContext pCurRc = NULL;
+    PFN_wglGetProcAddressA pGpa = NULL;
+    if (g_opengl) {
+        pCreate = (PFN_wglCreateContext)(void *)GetProcAddress(g_opengl, "wglCreateContext");
+        pMake = (PFN_wglMakeCurrent)(void *)GetProcAddress(g_opengl, "wglMakeCurrent");
+        pDelete = (PFN_wglDeleteContext)(void *)GetProcAddress(g_opengl, "wglDeleteContext");
+        pCurDc = (PFN_wglGetCurrentDC)(void *)GetProcAddress(g_opengl, "wglGetCurrentDC");
+        pCurRc = (PFN_wglGetCurrentContext)(void *)GetProcAddress(g_opengl, "wglGetCurrentContext");
+        pGpa = (PFN_wglGetProcAddressA)(void *)GetProcAddress(g_opengl, "wglGetProcAddress");
+    }
+    if (!pCreate || !pMake || !pDelete || !pCurDc || !pCurRc || !pGpa) {
+        Log("antialiasing: opengl32.dll's wgl functions missing; drawing without");
+        return 0;
+    }
+    HINSTANCE inst = GetModuleHandleA(NULL);
+    WNDCLASSA wc;
+    memset(&wc, 0, sizeof wc);
+    wc.lpfnWndProc = DefWindowProcA;
+    wc.hInstance = inst;
+    wc.lpszClassName = "SummonerFixPixelFormatProbe";
+    RegisterClassA(&wc);
+    HWND probe = CreateWindowA(wc.lpszClassName, "", WS_POPUP, 0, 0, 1, 1, NULL, NULL, inst, NULL);
+    HDC pdc = probe ? GetDC(probe) : NULL;
+    int found = 0, samples = 0;
+    if (pdc) {
+        PIXELFORMATDESCRIPTOR pfd;
+        memset(&pfd, 0, sizeof pfd);
+        pfd.nSize = sizeof pfd;
+        pfd.nVersion = 1;
+        pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+        pfd.iPixelType = PFD_TYPE_RGBA;
+        pfd.cColorBits = 24;
+        pfd.cDepthBits = 16;
+        HGLRC rc = NULL;
+        int pf = ChoosePixelFormat(pdc, &pfd);
+        if (pf && SetPixelFormat(pdc, pf, &pfd))
+            rc = pCreate(pdc);
+        HDC oldDc = pCurDc();
+        HGLRC oldRc = pCurRc();
+        if (rc && pMake(pdc, rc)) {
+            PFN_wglChoosePixelFormatARB choose = (PFN_wglChoosePixelFormatARB)(void *)pGpa("wglChoosePixelFormatARB");
+            // The original's request (double-buffered RGBA, 16-bit colour and depth at least), accelerated,
+            // multisampled; fewer samples when the driver has no format with as many.
+            for (int n = want; choose && n >= 2 && !found; n /= 2) {
+                const int attrs[] = {WGL_DRAW_TO_WINDOW_ARB, 1, WGL_SUPPORT_OPENGL_ARB, 1, WGL_DOUBLE_BUFFER_ARB, 1,
+                                     WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB, WGL_ACCELERATION_ARB,
+                                     WGL_FULL_ACCELERATION_ARB, WGL_COLOR_BITS_ARB, 16, WGL_DEPTH_BITS_ARB, 16,
+                                     WGL_SAMPLE_BUFFERS_ARB, 1, WGL_SAMPLES_ARB, n, 0};
+                int fmt = 0;
+                UINT count = 0;
+                if (choose(dc, attrs, NULL, 1, &fmt, &count) && count > 0 && fmt > 0) {
+                    found = fmt;
+                    samples = n;
+                }
+            }
+            if (!choose)
+                Log("antialiasing: the driver has no wglChoosePixelFormatARB");
+        }
+        pMake(oldDc, oldRc);
+        if (rc)
+            pDelete(rc);
+        ReleaseDC(probe, pdc);
+    }
+    if (probe)
+        DestroyWindow(probe);
+    UnregisterClassA(wc.lpszClassName, inst);
+    if (found) {
+        PIXELFORMATDESCRIPTOR got;
+        DescribePixelFormat(dc, found, sizeof got, &got);
+        Log("antialiasing: pixel format %d, %d samples (%d asked for), colour %d, depth %d bits", found, samples,
+            want, got.cColorBits, got.cDepthBits);
+    } else {
+        Log("antialiasing: no multisampled pixel format; drawing without");
+    }
+    return found;
+}
+
+static int WINAPI Hook_ChoosePixelFormat(HDC dc, const PIXELFORMATDESCRIPTOR *pfd)
+{
+    if (g_cfg.antialiasing > 1) {
+        // The same format each time: gr_opengl_init_context sets it again when the context is made again.
+        if (!g_aaTried) {
+            g_aaTried = TRUE;
+            int want = g_cfg.antialiasing >= 8 ? 8 : g_cfg.antialiasing >= 4 ? 4 : 2;
+            g_aaFormat = FindMultisampleFormat(dc, want);
+        }
+        if (g_aaFormat)
+            return g_aaFormat;
+    }
+    return real_ChoosePixelFormat(dc, pfd);
+}
+
 void DisplayInstall(HMODULE exe)
 {
     // These hooks recognise their callers by return address: the hybrid game must leave those functions original.
@@ -691,6 +822,7 @@ void DisplayInstall(HMODULE exe)
     KeepOriginal(VA_WNDPROC_SETPOS_ACTIVATE, 1);
     KeepOriginal(VA_WNDPROC_SETPOS_DEACTIVATE, 1);
     HMODULE gl = LoadLibraryA("opengl32.dll");
+    g_opengl = gl;
     p_glScissor = (PFN_glScissor)GetProcAddress(gl, "glScissor");
     p_glClear = (PFN_glClear)GetProcAddress(gl, "glClear");
     p_glClearColor = (PFN_glClearColor)GetProcAddress(gl, "glClearColor");
@@ -712,6 +844,9 @@ void DisplayInstall(HMODULE exe)
     real_glViewport = HookImport(exe, "OPENGL32.dll", "glViewport", Hook_glViewport);
     real_glReadPixels = (PFN_glReadPixels)HookImport(exe, "OPENGL32.dll", "glReadPixels", (void *)Hook_glReadPixels);
     real_SwapBuffers = HookImport(exe, "GDI32.dll", "SwapBuffers", Hook_SwapBuffers);
+    if (g_cfg.antialiasing > 1)
+        real_ChoosePixelFormat = (PFN_ChoosePixelFormat)HookImport(exe, "GDI32.dll", "ChoosePixelFormat",
+                                                                    (void *)Hook_ChoosePixelFormat);
     real_SetWindowLongA = HookImport(exe, "USER32.dll", "SetWindowLongA", Hook_SetWindowLongA);
     real_SetWindowPos = HookImport(exe, "USER32.dll", "SetWindowPos", Hook_SetWindowPos);
     real_ScreenToClient = HookImport(exe, "USER32.dll", "ScreenToClient", Hook_ScreenToClient);
