@@ -280,6 +280,7 @@ Guardian's dialogue).
 | K300 | Spell hit sounds where spells land | `SpellHitSoundPosition` | `spell_cast_execute (0x47d348)` | `game/spells.cpp` |
 | K272 | Blob shadow sizes from shadows.tbl (**opt-in trial**: only with `[Fixes] ShadowSizes=1`) | `ShadowSizes` | `shadow_draw_character (0x487630)` | `game/unnamed_shadow_table_0x487440.cpp` |
 | launcher | 1024x768 by default when the launcher wrote no settings | `ResolutionDefault` | `LoadSettings (0x43d7f0)` | `game/summoner.cpp` |
+| movies | Movies in Direct3D's window mode (`Windowed=1`): Bink writes the locked surface's own format, not always RGB565 (2026-11-10, not yet run; [dgVoodoo 2](future/dgvoodoo.md)) | `MovieSurfaceFormat` | `movie_blit_frame (0x517430)` | `vsdk/unnamed_movie_0x5172f0.cpp` |
 | K260 | World sounds follow the volume slider | `WorldSoundVolume` | `snd_play_3d (0x521480)` | `vsdk/unnamed_snd_0x5204c0.cpp` |
 | K292 | Conversation more/end hover | `ConversationHover` | `dialogue_topic_entry::draw (0x4d6e70)` | `game/unnamed_dialogue_box_0x4d6660.cpp` |
 | G132 | Liangshan: Wentao waits for wave 3 (2026-11-10) | `LiangshanWave4` | `lsf_liangshan_flag_wave4 (0x4f5280)` | `game/level_script_liangshan.cpp` |

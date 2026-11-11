@@ -1490,6 +1490,61 @@ static void NextRankFixesInstall(void)
 
 // [Fixes] Key=0 turns one of the fixes below off (default on, except the keys FixDefault lists); the no-sound crash
 // fix is always on (2026-10-17).
+// Movie frames in the Direct3D surface's own pixel format (not a numbered bug; docs/future/dgvoodoo.md, Timeslip's
+// "Bink corruption in 32-bit mode"). movie_blit_frame (0x517430) copies each Bink frame into the locked back buffer
+// with BinkCopyToBuffer(..., BINKSURFACE565 | BINKCOPYALL) (push 0x8000000a at 0x5174f1). Fullscreen Direct3D (window
+// mode 201) asks SetDisplayMode(w, h, 16) at 0x53983f, but the game's window mode (200, [Display] Windowed=1) creates
+// the render target without DDSD_PIXELFORMAT, so it has the desktop's format, 32-bit on a current desktop, and the
+// 2-byte pixels land in a 4-byte surface. Fix ([Fixes] MovieSurfaceFormat): the game's BinkCopyToBuffer import goes
+// to a wrapper that, under Direct3D (gr_screen.mode 0x66) and for the 565 type, asks d3d_back_surface for its pixel
+// format and passes the Bink surface type for it. A 16-bit 565 surface (fullscreen) keeps the game's call unchanged.
+// Glide (its LFB is locked in 565 write mode, which Glide converts) and OpenGL (the original exe copies nothing there)
+// never reach the substitution.
+#define VA_GR_SCREEN_MODE 0x25d8d3cu   // gr_screen.mode: 0x66 Direct3D, 0x67 Glide, 0x68 OpenGL
+#define VA_D3D_BACK_SURFACE 0x2dc6c44u // IDirectDrawSurface7 *d3d_back_surface
+typedef struct {
+    DWORD dwSize, dwFlags, dwFourCC, dwRGBBitCount, dwRBitMask, dwGBitMask, dwBBitMask, dwRGBAlphaBitMask;
+} SfPixelFormat;                       // DDPIXELFORMAT
+typedef int(WINAPI *PFN_BinkCopyToBuffer)(void *, void *, int, unsigned, unsigned, unsigned, unsigned);
+static PFN_BinkCopyToBuffer g_realBinkCopy;
+static volatile int *g_grScreenMode;
+static void *volatile *g_d3dBackSurface;
+static unsigned g_movieTypeLogged = 0xffffffffu;
+static unsigned MovieSurfaceType(void)
+{
+    void *surf = *g_d3dBackSurface;
+    if (!surf)
+        return 0xa;
+    typedef HRESULT(WINAPI * GetPixelFormatFn)(void *, SfPixelFormat *);
+    GetPixelFormatFn getpf = (GetPixelFormatFn)(*(void ***)surf)[21]; // IDirectDrawSurface7::GetPixelFormat (+0x54)
+    SfPixelFormat pf;
+    memset(&pf, 0, sizeof pf);
+    pf.dwSize = sizeof pf;
+    unsigned type = 0xa; // BINKSURFACE565: the game's own choice when nothing better is known
+    if (getpf(surf, &pf) == 0 && (pf.dwFlags & 0x40)) { // DDPF_RGB
+        if (pf.dwRGBBitCount == 32)
+            type = pf.dwRBitMask == 0xff ? 4 : 3;          // BINKSURFACE32R (R, G, B, x) or BINKSURFACE32 (B, G, R, x)
+        else if (pf.dwRGBBitCount == 24)
+            type = pf.dwRBitMask == 0xff ? 2 : 1;          // BINKSURFACE24R or BINKSURFACE24
+        else if (pf.dwRGBBitCount == 16 && pf.dwGBitMask == 0x3e0)
+            type = 9;                                      // BINKSURFACE555
+    }
+    if (type != g_movieTypeLogged) {
+        g_movieTypeLogged = type;
+        Log("movie frame: Direct3D back buffer %lu bpp, masks R 0x%lx G 0x%lx B 0x%lx -> Bink surface type %u%s",
+            pf.dwRGBBitCount, pf.dwRBitMask, pf.dwGBitMask, pf.dwBBitMask, type, type == 0xa ? " (the game's 565)" : "");
+    }
+    return type;
+}
+static int WINAPI Fix_BinkCopyToBuffer(void *bink, void *dest, int pitch, unsigned height, unsigned x, unsigned y,
+                                       unsigned flags)
+{
+    if (*g_grScreenMode == 0x66 && (flags & 0xf) == 0xa)
+        flags = (flags & ~0xfu) | MovieSurfaceType();
+    return g_realBinkCopy(bink, dest, pitch, height, x, y, flags);
+}
+
+// [Fixes] Key=0 turns one of the fixes below off (default on); the no-sound crash fix is always on (2026-10-17).
 // [Fixes] Enabled=0 (the config app's "Fix bugs in the original game") turns every one of them off.
 static BOOL FixOn(const char *key)
 {
@@ -2031,4 +2086,13 @@ void BugFixesInstall(void)
         PatchBytes(VA_SHADOW_RECORD_CALL, o, r, 5, "blob shadows sized from shadows.tbl (K272, opt-in)");
     }
     NextRankFixesInstall(); // K30, K63, G132, G13, G41
+    if (FixOn("MovieSurfaceFormat")) {
+        g_grScreenMode = (volatile int *)(UINT_PTR)SumVa(VA_GR_SCREEN_MODE);
+        g_d3dBackSurface = (void *volatile *)(UINT_PTR)SumVa(VA_D3D_BACK_SURFACE);
+        if (g_grScreenMode && g_d3dBackSurface)
+            g_realBinkCopy = (PFN_BinkCopyToBuffer)HookImport(GetModuleHandleA(NULL), "binkw32.dll",
+                                                              "_BinkCopyToBuffer@28", Fix_BinkCopyToBuffer);
+        if (!g_realBinkCopy)
+            Log("movie frames in the Direct3D surface's format: not installed");
+    }
 }

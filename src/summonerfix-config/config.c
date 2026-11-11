@@ -144,6 +144,7 @@ static const FixOption k_fixes[] = {
     {"ComputerSpeedDefault", "Launcher Speed tab sets the details"},
     {"DamageDice", "Damage dice 1 to die (off: as shipped)"},
     {"ShadowSizes", "Shadow sizes from shadows.tbl (trial)"},
+    {"MovieSurfaceFormat", "Movies in windowed Direct3D"},
 };
 #define FIX_COUNT (int)(sizeof k_fixes / sizeof k_fixes[0])
 // The fixes that are off unless turned on (the owner kept these bugs; src/summonerfix/bugfix.c FixDefault).

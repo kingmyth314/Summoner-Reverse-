@@ -80,6 +80,23 @@ HBINK movie_bink_handle;                             // 0x26b63e4
 static unsigned char *movie_gl_pixels;
 static int movie_gl_bitmap = -1;
 
+// FIXED_BUILD: movies MovieSurfaceFormat (not a numbered bug; docs/future/dgvoodoo.md): the original copies the frame
+// as RGB565 into the locked Direct3D back buffer whatever its format. Fullscreen asks for a 16-bit mode, but the window
+// mode (200, [Display] Windowed=1) renders into a surface in the desktop's format, 32-bit today, so the movie came out
+// as garbage. The Bink surface type now follows the locked surface's pixel format (565 stays 565).
+static unsigned int movie_d3d_surface_type(const DDPIXELFORMAT *pf)
+{
+    if (!(pf->dwFlags & DDPF_RGB))
+        return BINKSURFACE565;
+    if (pf->dwRGBBitCount == 32)
+        return pf->dwRBitMask == 0xff ? 4 : 3;       // BINKSURFACE32R (R, G, B, x) or BINKSURFACE32 (B, G, R, x)
+    if (pf->dwRGBBitCount == 24)
+        return pf->dwRBitMask == 0xff ? 2 : 1;       // BINKSURFACE24R or BINKSURFACE24
+    if (pf->dwRGBBitCount == 16 && pf->dwGBitMask == 0x3e0)
+        return 9;                                    // BINKSURFACE555
+    return BINKSURFACE565;
+}
+
 static void movie_gl_release()
 {
     if (movie_gl_bitmap >= 0) {
@@ -144,6 +161,9 @@ int movie_blit_frame(HBINK bink)
     void *dest;
     int pitch;
     int skipped;
+#ifdef FIXED_BUILD
+    unsigned int surface = BINKSURFACE565;
+#endif
 
     BinkDoFrame(bink);
     switch (gr_screen.mode) {
@@ -167,6 +187,9 @@ int movie_blit_frame(HBINK bink)
             goto next;
         dest = desc.lpSurface;
         pitch = desc.lPitch;
+#ifdef FIXED_BUILD
+        surface = movie_d3d_surface_type(&desc.ddpfPixelFormat);
+#endif
         break;
 #ifdef FIXED_BUILD
     case GR_OPENGL:
@@ -195,8 +218,13 @@ int movie_blit_frame(HBINK bink)
     }
     if (dest == NULL)
         goto next;
+#ifdef FIXED_BUILD
+    skipped = BinkCopyToBuffer(bink, dest, pitch, 480, (gr_screen_width() - 640) / 2,
+                               (gr_screen_height() - 480) / 2, surface | BINKCOPYALL);
+#else
     skipped = BinkCopyToBuffer(bink, dest, pitch, 480, (gr_screen_width() - 640) / 2,
                                (gr_screen_height() - 480) / 2, BINKSURFACE565 | BINKCOPYALL);
+#endif
     switch (gr_screen.mode) {
     case GR_GLIDE:
         glide_grLfbUnlock(GR_LFB_WRITE_ONLY, GR_BUFFER_BACKBUFFER);
