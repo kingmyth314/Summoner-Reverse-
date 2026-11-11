@@ -54,8 +54,8 @@ K1 (the harness could not make a number key use a hot button, filled through `sa
   a switch, `[Game] SpeedBadge`.
 - Display: exclusive fullscreen, anti-aliasing, field of view, interface scale. *2026-11-10:* `[Display]
   FieldOfView` (SummonerFix and the rebuilt builds), `Antialiasing` (64-bit, OpenGL and Vulkan) run in the game;
-  `Mode=Exclusive` built, its Alt+Tab behaviour needs a person (section E); interface scale and MSAA for SummonerFix
-  in progress.
+  `Mode=Exclusive` built, its Alt+Tab behaviour needs a person (section E); `InterfaceScale` (50-100 %, the rebuilt exes; [Interface scale](future/interface-scale.md)) and MSAA for SummonerFix
+  run in the game the same night; above 100 % would need a new interface layout.
 - **Undo the matching devices** in `FIXED_BUILD` ([below](#after-the-code-fully-recompiles)), so the fixed source
   reads plainly. *Done 2026-11-10 for the 7 undefined or compiler-dependent ones* (`PLAIN_SOURCE`, D26300;
   [Matching devices](matching-devices.md)); the VC6 fixed build had two functions ending without a return.
@@ -360,7 +360,7 @@ the plan for a fixed build and an experimental build that take them up is in
   build, OpenGL and Vulkan, run once under both: **Observed**, 4 samples; and since the evening of 2026-11-10 in
   SummonerFix for the original exe, a `ChoosePixelFormat` import hook, built, not yet run in the game), both in the config app ([SummonerFix](summonerfix/index.md#exclusive-fullscreen-and-anti-aliasing-2026-11-10),
   [Vulkan renderer](future/vulkan-renderer.md#exclusive-fullscreen-and-msaa-2026-11-10)).
-  **UI scale, built 2026-11-10, not yet run in the game:** `[Display] InterfaceScale` (50-100%, default 100) makes the
+  **UI scale, built 2026-11-10, run in the 64-bit build the same night:** `[Display] InterfaceScale` (50-100%, default 100) makes the
   menus, HUD and panels smaller while the 3D world keeps the screen's resolution: `GameWidth=Auto` becomes taller at
   the screen's shape and the 1024x768 layout is placed in it (HUD at the bottom, menus and full panels centred). Above
   100% would need the interface laid out anew (the layout already fills 768 lines). The fixed, experimental and 64-bit
