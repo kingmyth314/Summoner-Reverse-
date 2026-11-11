@@ -31,7 +31,10 @@ overlapping spell areas turn out to be reachable in a retail fight).
 live, not latent: the user hit it in an ordinary boss fight (summoning during the Ghost Rider's dismount), and it
 crashes to the desktop. Impact 4 (a crash, losing progress since the last save), reach: any fight with a scripted
 cutscene while the elemental is summoned. Ease 1: a NULL test on the summon's current move in
-`summon_stash_for_cutscene` (`0x44807e`), or giving the elemental's emerge a fallback. Not yet fixed in SummonerFix.
+`summon_stash_for_cutscene` (`0x44807e`), or giving the elemental's emerge a fallback. Not yet fixed in SummonerFix. *Corrected 2026-11-10:* fixed the next
+day, 2026-10-21 (SummonerFix `[Fixes] SummonStashNoMove` and `FIXED_BUILD`), but it was missing from the
+"Fixed since the ranking" list below, and the fix has not been run in game (Smart App Control blocked unsigned DLLs then); the in-game
+check is on the [roadmap](../roadmap.md#what-is-left-review-of-2026-11-10).
 
 **Added 2026-11-09:** G313 (the King of Talas stays hidden in Saanavarh until the late act 4 visit, so his quest
 cannot end before it), found while playing the side quests. Not ranked: it was fixed at once (SummonerFix

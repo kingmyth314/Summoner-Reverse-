@@ -8,6 +8,70 @@ nav_order: 6.5
 Ideas and planned work that are not started yet. Each item lists what we already know, so
 work can start from evidence instead of from scratch.
 
+## What is left (review of 2026-11-10)
+
+A pass over the whole project with the advisor, after the test saves, side quests and agent commands were finished.
+Each item says what it rests on: **Observed** (read or run on 2026-11-10) or **Inferred**. The sections further down
+are the older roadmap and its history.
+
+### A. Waiting on the owner
+
+1. **A player's test of the 64-bit build** ([Current state](status.md#next), item 1). *Observed:* it has not been
+   reported yet. *Inferred:* the copy in the owner's game folder (installed 2026-11-07) predates the G313 fix
+   (`[Fixes] TriggeredShow`, 2026-11-09), so a fresh install first.
+2. **Code signing.** Smart App Control blocks the unsigned `dinput.dll`; the options (SignPath for open source, Azure
+   Artifact Signing, an OV certificate) are the owner's choice.
+3. **A first SummonerFix release.** *Observed:* the repository has no GitHub release; players can only build it. It
+   is within the tier the owner chose on 2026-10-21 ([Public release](public-release.md)), and goes with item 2.
+4. **Variable refresh** needs a DisplayPort connection ([Vulkan renderer](future/vulkan-renderer.md)).
+5. **A real controller.** The controller code has only been driven through agent mode's `pad`.
+
+### B. Checks still owed (agent mode can do them)
+
+1. **C317's fix has never run in game** (*Observed* in [SummonerFix](summonerfix/index.md): built and reviewed,
+   2026-10-21). Reproduce: the Mist Elemental summoned just before the Ghost Rider's dismount cutscene, with
+   `SummonStashNoMove` off (crash) and on.
+2. **Per-fix reproductions for the fixed build**: listed as open for its 53 fixes on [Current state](status.md)
+   ([Fixed build](fixed-build.md)).
+3. **The `pf_check_direct_walk` look-ahead** (game-bug candidate, not yet seen in game; see
+   [After the code fully recompiles](#after-the-code-fully-recompiles)): an AI character's path through a closed door on
+   a high and a low level.
+4. **The speed key at high factors**: combat, AI and scripts at 4x and 8x were never play-tested
+   ([fast travel](#turn-the-frame-rate-speed-bug-into-a-fast-travel-speed-control)).
+5. **The 310 functions that do not match** byte for byte (5,613 of 5,926 do). *Inferred:* worth it mainly where a
+   function is also in a fix's path.
+
+### C. Bugs to fix next
+
+*Observed* from [`bug-priorities.json`](sum-exe/bug-priorities.json) minus the fixed list: 280 ranked bugs are not
+fixed, and only 4 still score 9 or more:
+- **G15**, damage dice roll 0 to die-1, healing dice 1 to die (priority 15, the only impact-3 bug left). To decide
+  first: a slip or the designers' intent.
+- **K1** (a hot button lights for one frame), **K19** (the launcher's Speed tab is overwritten), **K272** (one blob
+  shadow for everyone; `shadows.tbl` loaded and unused), priority 10 each.
+- Then K30 (tall bosses' health bar and click area), K63 (character click radius), G132 (Liangshan's wave 4 tests two
+  of three enemies), G13, G41.
+
+### D. Features still open
+
+- The speed key's on-screen indicator.
+- Display: exclusive fullscreen, anti-aliasing, field of view, interface scale.
+- **Undo the matching devices** in `FIXED_BUILD` ([below](#after-the-code-fully-recompiles)), so the fixed source
+  reads plainly.
+- A DirectSound wrapper with EAX, so that `LevelReverb` can be heard (untried; sound stays on DirectSound, the owner's
+  choice of 2026-11-01).
+- Timeslip's Bink fix, only for the original exe under Direct3D or Glide (low).
+- Multiplayer in the 64-bit build (last, the owner's order).
+
+### E. Documentation
+
+- Fixed in this review: [Current state](status.md) and `AGENTS.md` still carried the date 2026-11-05; C317 was missing
+  from the fixed list on [Bug fix priorities](sum-exe/bug-priorities.md) (corrected there).
+- 25 *Unknown* tags and eight "Open questions" sections remain in the Sum.exe pages (bosses, camera, characters,
+  cutscenes, effects, shops and loot, sound, summons); answered ones should move into the page body.
+- [Public release](public-release.md) still reads as a plan; the repository has been public since 2026-10-21.
+- `tools/link-savecheck.mjs` and `link-screencheck.mjs`: `--game` is not in their rows in [Tools](tools.md).
+
 ## Custom key bindings for player actions
 
 **Requested 2026-10-12.** Let players bind their own keys to in-game actions.

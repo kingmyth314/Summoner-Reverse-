@@ -3,7 +3,7 @@ title: Current state
 nav_order: 1.6
 ---
 
-# Current state (2026-11-05)
+# Current state (2026-11-10)
 
 What exists, what passes and what is open, one row per part. The pages linked hold the evidence and the history;
 how to reproduce each line: [Reproduce and play](quickstart.md).
@@ -34,6 +34,8 @@ how to reproduce each line: [Reproduce and play](quickstart.md).
 | Multiplayer | documented (66 packet types); not ported to 64-bit | [Multiplayer](sum-exe/multiplayer.md) |
 
 ## Next
+
+The whole list of what is left, from the review of 2026-11-10: [Roadmap](roadmap.md#what-is-left-review-of-2026-11-10).
 
 1. A player's test of the 64-bit build; before it, a run of every rebuilt exe against the test saves (load, play a
    short stretch, compare with the original).

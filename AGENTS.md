@@ -1,7 +1,7 @@
 # AGENTS.md - working in this repository
 
 For AI agents and anyone who wants the facts without the history. Humans: start at [README.md](README.md) and
-[docs/quickstart.md](docs/quickstart.md). State on 2026-11-05: [docs/status.md](docs/status.md).
+[docs/quickstart.md](docs/quickstart.md). State on 2026-11-10: [docs/status.md](docs/status.md).
 
 ## What this is
 
