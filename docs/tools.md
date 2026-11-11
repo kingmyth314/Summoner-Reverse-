@@ -145,7 +145,8 @@ It also cross-checks the setting names that tie the parts together:
 - every `// FIXED_BUILD: <id> <Key>` / `// EXPERIMENTAL_BUILD: <id> <Key>` marker names a setting some code reads; a key
   that resembles one (`reverb` for `LevelReverb`, the slip of 2026-11-01) is an error, one that resembles none is a fix
   with no switch, listed (three: `ResolutionDefault`, `CustomResolution`, `MoviesOpenGL`);
-- SummonerFix's `FixOn` keys and the config app's fix list are the same set;
+- SummonerFix's `FixOn` keys (and, since 2026-11-10, its opt-in `FixOptIn` keys, which the source builds read through
+  `exp_fix_opt_in`) and the config app's fix list are the same set;
 - every key SummonerFix stands down for (`RebuiltFixInSource`) has a marker;
 - every key the config app writes is read by SummonerFix or the game;
 - every non-debug key read is in `src/summonerfix/summonerfix.ini` (a warning).

@@ -290,7 +290,36 @@
 // tests the mouse against the entry's box, but its last test compares the mouse x with box y + text height
 // (mov edx, [esp+h] ; add ecx, edx ; cmp eax, ecx with eax the x; "more" 0x4d6fe8, "end" 0x4d707c). Fix ([Fixes]
 // ConversationHover): add ecx, [esp+h] ; cmp [esp+y], ecx, the mouse y as the click test does.
+//
+// Hot button lit for one frame (cosmetic; game-bugs K1). hud_handle_keys lights a hot button used with a number key
+// and sets hud_hot_button_timer to 100 ms (0x40dd1c), but hud_frame clears the light when the timer is valid *or*
+// elapsed (jne 0x40cf74 at 0x40cf64 after GameTimer__valid), so a running timer clears it on the next frame.
+// Fix ([Fixes] HotButtonHighlight): je 0x40cf88 there, so a valid timer goes on to the elapsed test and an invalid one
+// (which never elapses) skips it.
+//
+// Launcher Speed tab overwritten (cosmetic; game-bugs K19). GameInit presets fog and three detail options from the
+// registry's ComputerSpeed (the launcher's Speed tab, "the default Detail Level"), then summoner_cfg_load stores
+// every default again (0x43e295..0x43e320) before it reads summoner.cfg, so the presets never last. Fix ([Fixes]
+// ComputerSpeedDefault): jmp 0x43e327 over those stores. The constructor stored the same defaults at start-up and
+// nothing writes the options before GameInit, so the presets now stay when there is no summoner.cfg; a full
+// summoner.cfg (written when the player applies the options) still replaces everything.
+//
+// Damage dice one point short (gameplay; game-bugs G15; OPT-IN, off by default). The spell handlers negate the
+// table's die for damage, and spell_roll_amount rolls floor(frand() x die + 1) per die: 1..die for healing, but
+// 0..-(die - 1) for damage (and +1, a heal, when rand() returns 0). Whether the designers meant it is not known, so
+// the fix is off unless [Fixes] DamageDice=1: the die load before the loop (0x47f513) jumps to a stub that rolls
+// with the die's size and remembers the sign, and the first instruction after the loop (0x47f553) negates the sum
+// for a damage die, so a damage die rolls -1..-die.
+//
+// Every character gets the same blob shadow (cosmetic; game-bugs K272; OPT-IN, off by default). shadows.tbl's
+// $Radius and $Scale are parsed into 0x22fb720 and never read; shadow_draw_character passes the constants 0.15 /
+// 1.0 / 5.0 for everyone. The table's header says $Radius is "the radius of the shadow bitmap around the object"
+// and $Scale "the fudge factor to make the character's shadow look right from the overhead view". With [Fixes]
+// ShadowSizes=1 the call of shadow_record_add (0x48769f) goes through a stub that, for a mesh the table names,
+// opens the projector to a half width of radius x scale on the ground (half angle atan(that / the anchor's height
+// above the feet), at most 1.2) and keeps the far plane 2 m below the feet (at least 5).
 #include "summonerfix.h"
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -375,6 +404,17 @@
 #define VA_SERPENT_ASLEEP_ARG 0x49667fu     // mov eax, [esp+0x2c] ; and eax, 0xff ; push eax (the index argument)
 #define VA_SERPENT_ASLEEP_CALL 0x49668eu    // call serpent_part_is_asleep
 #define VA_SERPENT_PART_IS_ASLEEP 0x496060u
+#define VA_HOT_BUTTON_VALID_TEST 0x40cf64u  // jne 0x40cf74 in hud_frame (after GameTimer__valid)
+#define VA_CFG_LOAD_DEFAULTS 0x43e295u      // the first default store in summoner_cfg_load
+#define VA_DICE_LOAD 0x47f513u              // fild [ebp+0x14] ; dec eax ; fstp [esp+8] in spell_roll_amount
+#define VA_DICE_LOOP 0x47f51bu              // lea esi, [eax+1] (the roll loop)
+#define VA_DICE_AFTER 0x47f553u             // mov al, [No_resist]
+#define VA_DICE_AFTER_NEXT 0x47f558u
+#define VA_NO_RESIST 0x941705u              // bool
+#define VA_SHADOW_RECORD_CALL 0x48769fu     // call shadow_record_add in shadow_draw_character
+#define VA_SHADOW_RECORD_ADD 0x4a3ef0u      // cdecl (pos, orient, fov, near, far, bitmap, frame, full_alpha)
+#define VA_SHADOW_ENTRIES 0x22fb720u        // shadows.tbl records, 0x50 bytes: name, +0x44 radius, +0x48 scale
+#define VA_SHADOWS_NUM_ENTRIES 0x22fedd0u
 #define VA_SCREENSHOT_NUMBER 0x4325adu      // mov eax, [esp] ; lea ecx, [esp+0x258] in screenshot_save
 #define VA_PRINT_SCREEN_AS_TARGA 0x5fc022u  // bool
 #define VA_FX_DISABLE_INSTANCE 0x48d674u    // mov eax, [esi+0xa0] ; mov ecx, [eax+8] in fx_disable_by_effect_name
@@ -1019,6 +1059,77 @@ __asm__(".text\n"
         "    popal\n"
         "    jmp *_g_serpentAsleepVa\n");
 
+// G15 (opt-in): the roll loop of spell_roll_amount with the die's size; the sum is negated after the loop for a
+// damage (negative) die. Stub 1 replaces fild [ebp+0x14] ; dec eax ; fstp [esp+8] (count > 0 and die != 0 here);
+// stub 2 replaces mov al, [No_resist] after the loop. The function does not recurse, so one flag will do.
+__attribute__((used)) static volatile DWORD g_diceNeg, g_diceLoopVa, g_diceAfterVa, g_noResistVa;
+void DamageDiceLoadStub(void);
+void DamageDiceAfterStub(void);
+__asm__(".text\n"
+        "_DamageDiceLoadStub:\n"
+        "    movl 0x14(%ebp), %ecx\n" // the die (ecx is reloaded before its next use)
+        "    movl $0, _g_diceNeg\n"
+        "    testl %ecx, %ecx\n"
+        "    jge 1f\n"
+        "    negl %ecx\n"
+        "    movl $1, _g_diceNeg\n"
+        "1:  pushl %ecx\n"
+        "    fildl (%esp)\n"
+        "    popl %ecx\n"
+        "    decl %eax\n"
+        "    fstps 8(%esp)\n"
+        "    jmp *_g_diceLoopVa\n"
+        "_DamageDiceAfterStub:\n"
+        "    cmpl $0, _g_diceNeg\n"
+        "    je 2f\n"
+        "    movl $0, _g_diceNeg\n"
+        "    flds 4(%esp)\n" // the sum
+        "    fchs\n"
+        "    fstps 4(%esp)\n"
+        "2:  movl _g_noResistVa, %eax\n"
+        "    movb (%eax), %al\n"
+        "    jmp *_g_diceAfterVa\n");
+
+// K272 (opt-in): shadow_draw_character's projector sized from shadows.tbl. c is the character (esi at the call),
+// args the call's eight arguments (pos, orient, fov, near, far, bitmap, frame, full_alpha); fov and far are changed
+// in place for a mesh the table names.
+__attribute__((used)) static void __cdecl ShadowSizesAdjust(const BYTE *c, DWORD *args)
+{
+    const BYTE *inst = *(const BYTE *const *)(c + 0x314);
+    const char *mesh = inst ? *(const char *const *)(inst + 0x3c) : NULL;
+    if (!mesh)
+        return;
+    const BYTE *entries = (const BYTE *)(UINT_PTR)SumVa(VA_SHADOW_ENTRIES);
+    int n = *(volatile int *)(UINT_PTR)SumVa(VA_SHADOWS_NUM_ENTRIES);
+    for (int i = 0; i < n && i < 0xaf; i++) {
+        const BYTE *e = entries + 0x50 * i;
+        if (_stricmp((const char *)e, mesh))
+            continue;
+        float radius = *(const float *)(e + 0x44), scale = *(const float *)(e + 0x48);
+        float height = ((const float *)(UINT_PTR)args[0])[1] - *(const float *)(c + 0x14);
+        if (height <= 0.5f || radius <= 0.0f)
+            return;
+        float fov = atanf(radius * scale / height), farDist = height + 2.0f;
+        if (fov > 1.2f)
+            fov = 1.2f;
+        if (farDist < *(const float *)&args[4])
+            farDist = *(const float *)&args[4];
+        memcpy(&args[2], &fov, 4);
+        memcpy(&args[4], &farDist, 4);
+        return;
+    }
+}
+__attribute__((used)) static volatile DWORD g_shadowRecordAddVa;
+void ShadowSizesStub(void);
+__asm__(".text\n"
+        "_ShadowSizesStub:\n"
+        "    leal 4(%esp), %eax\n" // the arguments, above the return address
+        "    pushl %eax\n"
+        "    pushl %esi\n"
+        "    call _ShadowSizesAdjust\n"
+        "    addl $8, %esp\n"
+        "    jmp *_g_shadowRecordAddVa\n"); // returns to shadow_draw_character
+
 // Boss music presets (K130, K150), called from the two level inits.
 typedef int(__attribute__((thiscall)) * GetFlagFn)(void *, int, const char *);
 static int CurLevelFlag(const char *name)
@@ -1245,6 +1356,22 @@ static BOOL FixOn(const char *key)
     if (GetPrivateProfileIntA("Fixes", key, 1, g_cfg.iniPath))
         return TRUE;
     Log("fix %s is off ([Fixes] %s=0)", key, key);
+    return FALSE;
+}
+
+// An opt-in fix (2026-11-10: G15 DamageDice, K272 ShadowSizes): off unless its key is 1. For a fix whose intent or
+// look is not settled; the owner decides whether it becomes a normal (default on) fix.
+static BOOL FixOptIn(const char *key)
+{
+    if (!GetPrivateProfileIntA("Fixes", "Enabled", 1, g_cfg.iniPath))
+        return FALSE;
+    if (RebuiltFixInSource(key)) {
+        Log("fix %s: in this exe's source (FIXED_BUILD, which reads [Fixes] %s itself), patch not applied", key, key);
+        return FALSE;
+    }
+    if (GetPrivateProfileIntA("Fixes", key, 0, g_cfg.iniPath))
+        return TRUE;
+    Log("fix %s is off (opt-in: [Fixes] %s=1 turns it on)", key, key);
     return FALSE;
 }
 
@@ -1716,5 +1843,43 @@ void BugFixesInstall(void)
         static const BYTE thisOrig[2] = {0x8B, 0xCE}; // mov ecx, esi
         static const BYTE thisRepl[2] = {0x8B, 0xCB}; // mov ecx, ebx
         PatchBytes(VA_INFERNO_HIT_THIS, thisOrig, thisRepl, 2, "Phoenix Inferno hits each member once (G215)");
+    }
+
+    if (FixOn("HotButtonHighlight")) {
+        static const BYTE o[2] = {0x75, 0x0E}; // jne 0x40cf74 (valid: clear)
+        static const BYTE r[2] = {0x74, 0x22}; // je 0x40cf88 (invalid: keep; valid: the elapsed test decides)
+        PatchBytes(VA_HOT_BUTTON_VALID_TEST, o, r, 2, "a hot button used by number key stays lit for 100 ms (K1)");
+    }
+
+    if (FixOn("ComputerSpeedDefault")) {
+        static const BYTE o[10] = {0xC7, 0x05, 0xC8, 0xAC, 0x60, 0x00, 0x00, 0x00, 0x80, 0x3F}; // mov [config_sfx_volume], 1.0
+        static const BYTE r[10] = {0xE9, 0x8D, 0x00, 0x00, 0x00, 0x90, 0x90, 0x90, 0x90, 0x90}; // jmp 0x43e327 (File__open)
+        PatchBytes(VA_CFG_LOAD_DEFAULTS, o, r, 10, "the launcher's Speed tab presets stay without a summoner.cfg (K19)");
+    }
+
+    if (FixOptIn("DamageDice")) {
+        g_diceLoopVa = SumVa(VA_DICE_LOOP);
+        g_diceAfterVa = SumVa(VA_DICE_AFTER_NEXT);
+        g_noResistVa = SumVa(VA_NO_RESIST);
+        static const BYTE o1[8] = {0xDB, 0x45, 0x14, 0x48, 0xD9, 0x5C, 0x24, 0x08}; // fild [ebp+0x14] ; dec eax ; fstp [esp+8]
+        BYTE r1[8] = {0xE9, 0, 0, 0, 0, 0x90, 0x90, 0x90};
+        DWORD rel = (DWORD)(UINT_PTR)DamageDiceLoadStub - (SumVa(VA_DICE_LOAD) + 5);
+        memcpy(r1 + 1, &rel, 4);
+        static const BYTE o2[5] = {0xA0, 0x05, 0x17, 0x94, 0x00}; // mov al, [No_resist]
+        BYTE r2[5] = {0xE9};
+        rel = (DWORD)(UINT_PTR)DamageDiceAfterStub - (SumVa(VA_DICE_AFTER) + 5);
+        memcpy(r2 + 1, &rel, 4);
+        if (PatchBytes(VA_DICE_LOAD, o1, r1, 8, "damage dice roll -1..-die (G15, opt-in)"))
+            PatchBytes(VA_DICE_AFTER, o2, r2, 5, "damage dice: the sum negated (G15, opt-in)");
+    }
+
+    if (FixOptIn("ShadowSizes")) {
+        g_shadowRecordAddVa = SumVa(VA_SHADOW_RECORD_ADD);
+        DWORD s = SumVa(VA_SHADOW_RECORD_CALL);
+        BYTE o[5] = {0xE8}, r[5] = {0xE8};
+        DWORD ro = SumVa(VA_SHADOW_RECORD_ADD) - (s + 5), rn = (DWORD)(UINT_PTR)ShadowSizesStub - (s + 5);
+        memcpy(o + 1, &ro, 4);
+        memcpy(r + 1, &rn, 4);
+        PatchBytes(VA_SHADOW_RECORD_CALL, o, r, 5, "blob shadows sized from shadows.tbl (K272, opt-in)");
     }
 }

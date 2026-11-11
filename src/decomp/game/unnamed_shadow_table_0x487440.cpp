@@ -31,6 +31,10 @@
 #include "engine/rendering/unnamed_shadows_0x4a37d0.h"
 #include "engine/rendering/unnamed_decals_0x4bbe80.h"
 #include "summoner/player/player.h"
+#ifdef FIXED_BUILD
+#include <math.h>
+#include "experimental/experimental.h"   // [Fixes] ShadowSizes (opt-in)
+#endif
 
 #define SHADOW_DEG_TO_RAD 0.017453f   // 0x57ef38 (shared __real@ constant)
 
@@ -100,6 +104,38 @@ void shadow_draw_character(Character *c, float radius, const vector3 *offset)
             return;
     }
     shadow_get_character_anchor(c, &pos, &orient);
+#ifdef FIXED_BUILD
+    // FIXED_BUILD: K272 ShadowSizes (opt-in: off unless [Fixes] ShadowSizes=1, a proposal to compare in game). The
+    // table's own header: "$Radius: the radius of the shadow bitmap around the object", "$Scale: ... the fudge
+    // factor to make the character's shadow look right from the overhead view". So the blob (Shadow01.tga, drawn
+    // over the projector's square) gets a half width of radius x scale on the ground: the projector's half angle is
+    // atan(that / the anchor's height above the character's feet). The far plane keeps 2 m below the feet (as the
+    // 5 m does for an anchor about 3 m up), so a tall character's shadow is not cut off. A mesh the table does not
+    // name keeps the original projector.
+    static int sized = -1;
+    if (sized < 0)
+        sized = exp_fix_opt_in("ShadowSizes");
+    if (sized) {
+        const char *mesh = c->instance->character->name;
+        int i;
+        for (i = 0; i < shadows_num_entries; i++) {
+            if (_stricmp(shadow_entries[i].name, mesh) == 0)
+                break;
+        }
+        float height = pos.y - c->pos.y;
+        if (i < shadows_num_entries && height > 0.5f && shadow_entries[i].radius > 0.0f) {
+            float half = shadow_entries[i].radius * shadow_entries[i].scale;
+            float fov = (float)atan(half / height);
+            float far_dist = height + 2.0f;
+            if (fov > 1.2f)
+                fov = 1.2f;
+            if (far_dist < shadow_far)
+                far_dist = shadow_far;
+            shadow_record_add(&pos, &orient, fov, shadow_near, far_dist, shadow_bm, NULL, false);
+            return;
+        }
+    }
+#endif
     shadow_record_add(&pos, &orient, shadow_fov, shadow_near, shadow_far, shadow_bm, NULL, false);
 }
 

@@ -42,6 +42,11 @@ int exp_ini_string(const char *section, const char *key, const char *def, char *
     return (int)GetPrivateProfileStringA(section, key, def, out, n, exp_ini());
 }
 
+int exp_fix_opt_in(const char *key)
+{
+    return exp_ini_int("Fixes", "Enabled", 1) != 0 && exp_ini_int("Fixes", key, 0) != 0;
+}
+
 void exp_log(const char *fmt, ...)
 {
     static int enabled = -1;

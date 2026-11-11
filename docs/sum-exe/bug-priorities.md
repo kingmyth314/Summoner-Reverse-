@@ -42,6 +42,15 @@ withdrawn (the test command had reached a hidden character; [Game bugs](game-bug
 **Fixed since the ranking:** G4, G215, C250, G8, G12, G40, G170, G301, C210 with G212, G270, G211, G210, G100, K292, K5, G6, G32, K130, K150, K100, K6, K3, K4, K110, K12, K191, K61, K80, C310, G271, G241, K300, K40, G229, C2, G2, K193, C272, G253, G252, G31 and G213 (2026-10-17 and 18, SummonerFix `bugfix.c`, all reproduced in game first (C210: the doubled count, not the crash); C270, G50, G30, G5, K131 and K9 were withdrawn instead (they did not happen); each fix can be switched off in `[Fixes]`: `SaveOverwriteQuestion`, `PhoenixInferno`, `LuminarBeamTarget`, `SummonKeepsLeader`, `SpellRecoveryTimes`, `GoldPileAmount`, `MessageBoxPause`, `CanisTenGold`, `AiBlessCount`, `AreaCasterGone`, `SupportAiTarget`, `DetectionCone`, `LeechDrain`, `ConversationHover`, `SaveListThumbnail`, `ZaneEncounter`, `MountedRiders`, `BossMusic`, `RingSixtyThousand`, `MapLabelLimit`, `ShopCategoryButtons`, `InventoryCategoryButtons`, `AmbientSounds`, `PickupScrollbar`, `EdgeTurnAfterDrag`, `LootHighlightColour`, `KnockDownMessage`, `LongInstallPath`, `EffectSlotSpell`, `AreaSpellDistances`, `SpellHitSoundPosition`, `MapLabelsFull`, `SupportSpellPick`, `PrimarySoundBuffer`, `QpcFrequency`, `ScreenshotNumbers`, `EffectSearchGuard`, `BossAnchorsAlive`, `MurodBackBiteTimer`, `BossSpellInRange`, `SerpentSleepTest`).
 The same data is in [`bug-priorities.json`](bug-priorities.json).
 
+{: .note }
+**2026-11-10, four more from the top of the list:** K1 (`HotButtonHighlight`) and K19 (`ComputerSpeedDefault`)
+fixed, re-checked in the code first, not yet seen in game. G15 (`DamageDice`) and K272 (`ShadowSizes`) got **opt-in**
+fixes, off by default: for G15 the code reads as a slip but whether the designers balanced the damage tables on the
+short rolls is not known, so the 2026-10-17 decision to leave it stays the default until the owner decides; for
+K272 the table's own comments say how the sizes apply, but the look has to be compared in game first. The evidence
+is in the four paragraphs of [Game bugs](game-bugs.md). The JSON keeps its 2026-10-16 ranking, as for the earlier
+fixes.
+
 ## Method
 
 **Scope.** All 355 bugs on the bugs page as of 2026-10-16, minus 26 that SummonerFix players never meet (see

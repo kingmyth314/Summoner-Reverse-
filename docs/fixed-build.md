@@ -172,6 +172,7 @@ In the test folder at 1366x768 on a 143 Hz screen, with test saves. **Observed**
 | G6 | Zane's encounters as intended | `ZaneEncounter` | `ls_worldmap1_pick_encounter_stage4 (0x4fc4b0)` | `game/level_script_worldmap.cpp` |
 | G8 | Control stays when a summon goes | `SummonKeepsLeader` | `party_remove_player (0x4335a0)` | `game/player.cpp` |
 | G12 | Spell cooldowns from spells.tbl | `SpellRecoveryTimes` | `spells_parse_table (0x47a190)` | `game/spells.cpp` |
+| G15 | Damage dice roll 1 to die (**opt-in**: only with `[Fixes] DamageDice=1`, read through `exp_fix_opt_in`) | `DamageDice` | `spell_roll_amount (0x47f4d0)` | `game/spells.cpp` |
 | G32 | AI sees mounted Phoenix / Ghost | `MountedRiders` | `boss_species_mounted_stage (0x4a2480)` | `game/boss_ai.cpp` |
 | G40 | Gold piles keep their amount on load | `GoldPileAmount` | `savegame::read_item_objects (0x4d31e0)` | `game/level_scripts.cpp` |
 | G100 | Leech drains HP | `LeechDrain` | `Character::get_hit_by_spell (0x45dea0)` | `game/living_entity.cpp` |
@@ -187,6 +188,8 @@ In the test folder at 1366x768 on a 143 Hz screen, with test saves. **Observed**
 | G300 | Robe of Restoration heals its wearer | `RobeOfRestoration` | `living_combat::trigger_reflex_ability (0x467670)` | `game/combat.cpp` |
 | G301 | Canis takes 10 gold, as offered | `CanisTenGold` | `ls_lenele2ab_action (0x4f1220)` | `game/level_script_lenele2ab.cpp` |
 | G313 | The King of Talas appears in Saanavarh | `TriggeredShow` | `script_entry_start (0x4dd0b0)` | `game/script_internal.cpp` |
+| K1 | Number-key hot buttons light 100 ms | `HotButtonHighlight` | `hud_frame (0x40cf40)` | `game/new_hud.cpp` |
+| K19 | Launcher Speed tab presets stay without a summoner.cfg | `ComputerSpeedDefault` | `summoner_cfg_load (0x43e250)` | `game/summoner.cpp` |
 | K3 | Shop sell list category buttons | `ShopCategoryButtons` | `buysell_category_first_index (0x404f70)` | `game/new_buysell.cpp` |
 | K4 | Identify list category buttons | `InventoryCategoryButtons` | `inventory_category_first_index (0x4153d0)` | `game/new_inventory.cpp` |
 | K5 | Scrolled save list pictures | `SaveListThumbnail` | `saveload_load_thumbnail (0x425c10)` | `game/new_saveload.cpp` |
@@ -204,6 +207,7 @@ In the test folder at 1366x768 on a 143 Hz screen, with test saves. **Observed**
 | K191 | No edge turn right after a drag | `EdgeTurnAfterDrag` | `camera_process_input (0x434660)` | `game/unnamed_input_0x4343a0.cpp` |
 | K193 | Screenshots never overwrite each other | `ScreenshotNumbers` | `screenshot_save (0x4324f0)` | `game/unnamed_frame_0x4323e0.cpp` |
 | K300 | Spell hit sounds where spells land | `SpellHitSoundPosition` | `spell_cast_execute (0x47d348)` | `game/spells.cpp` |
+| K272 | Blob shadow sizes from shadows.tbl (**opt-in trial**: only with `[Fixes] ShadowSizes=1`) | `ShadowSizes` | `shadow_draw_character (0x487630)` | `game/unnamed_shadow_table_0x487440.cpp` |
 | launcher | 1024x768 by default when the launcher wrote no settings | `ResolutionDefault` | `LoadSettings (0x43d7f0)` | `game/summoner.cpp` |
 | K260 | World sounds follow the volume slider | `WorldSoundVolume` | `snd_play_3d (0x521480)` | `vsdk/unnamed_snd_0x5204c0.cpp` |
 | K292 | Conversation more/end hover | `ConversationHover` | `dialogue_topic_entry::draw (0x4d6e70)` | `game/unnamed_dialogue_box_0x4d6660.cpp` |
