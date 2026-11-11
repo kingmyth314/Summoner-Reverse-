@@ -40,6 +40,15 @@ typedef unsigned int   uint;
 #define MODERN_FINAL
 #endif
 
+// PLAIN_SOURCE: the plain C++ form of a matching device that is undefined or compiler-dependent behaviour (a
+// missing return read from EAX, a type-punned read, an aliasing pragma, a VC6-only extension). The shipped
+// configuration keeps the matching form, which is the byte-match reference; the fixed, experimental and clang
+// builds take the plain form (docs/matching-devices.md, "Undefined and compiler-dependent devices"). Keyed off the
+// build defines, not the compiler: the 32-bit clang build defines _MSC_VER too (D26300).
+#if defined(FIXED_BUILD) || defined(MODERN_BUILD) || defined(__clang__)
+#define PLAIN_SOURCE 1
+#endif
+
 // The 32-bit clang build compiles with VC6's stdarg.h, whose va_start takes the address of the last named
 // parameter; clang does not keep that parameter where the macro expects in a static variadic function (agent mode's
 // output and the crash handler's hprintf came out wrong). clang's builtins give the same x86 va_list (a char

@@ -62,9 +62,12 @@ In this order:
    [Bug fix priorities](sum-exe/bug-priorities.md). C317 first (the Mist Elemental crashes the game when a cutscene
    starts: live, a crash, a one-line NULL test in `summon_stash_for_cutscene`). C317 should also become a SummonerFix
    patch now, since players of the original game use SummonerFix, not this build.
-4. **Undo the matching devices** ([Roadmap](roadmap.md), D12900, D15400, D11703, D15902, D16500, D14204): plain C++
+4. **Undo the matching devices** ([Roadmap](roadmap.md), D12900, D15400, D11702, D15902, D16500, D14204): plain C++
    in place of code written to reproduce the original's bytes. They change no behaviour, so they are done when a
-   function is touched anyway, not as a project of their own.
+   function is touched anyway, not as a project of their own. Since 2026-11-10 the 7 that are undefined or
+   compiler-dependent behaviour have their plain form in this build (`PLAIN_SOURCE`, D26300; the list is in
+   [Matching devices](matching-devices.md#undefined-and-compiler-dependent-devices-2026-11-10)). This item cited
+   D11703 until 2026-11-10; the int read as a float is D11702.
 5. **Not included until seen in game:** candidates such as `pf_check_direct_walk`'s look-ahead (D15600). A fix needs
    a reproduction first ([verification rule](sum-exe/game-bugs.md)).
 

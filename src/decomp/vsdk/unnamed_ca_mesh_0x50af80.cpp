@@ -94,7 +94,9 @@ void ca_render_morph_vertices(vim_submesh *sm)
         anim = ci->state_anim;
     memcpy(ca_morph_vertices, sm->block0, sm->size0 * sizeof(vector3));
 
-    float *mv = (float *)ca_morph_vertices;
+#ifndef PLAIN_SOURCE
+    float *mv = (float *)ca_morph_vertices;   // D16701 device: a float view of the vector3 array
+#endif
     skeleton *s = ca_render_character->skeletons[anim];
     for (int i = 0; i < s->num_morphs; i++) {
         int v = ((short *)sm->vertex_extra)[s->morph_ids[i]];
@@ -104,9 +106,15 @@ void ca_render_morph_vertices(vim_submesh *sm)
         float frame = (float)(ci->times[anim] - s->start) / (s->end - s->start)
                       * s->num_morph_frames;
         if ((int)frame >= s->num_morph_frames - 1) {
+#ifdef PLAIN_SOURCE
+            ca_morph_vertices[v].x = m->keys[m->num_keys - 1].v.x;
+            ca_morph_vertices[v].y = m->keys[m->num_keys - 1].v.y;
+            ca_morph_vertices[v].z = m->keys[m->num_keys - 1].v.z;
+#else
             mv[v * 3] = m->keys[m->num_keys - 1].v.x;
             mv[v * 3 + 1] = m->keys[m->num_keys - 1].v.y;
             mv[v * 3 + 2] = m->keys[m->num_keys - 1].v.z;
+#endif
             continue;
         }
 
@@ -125,9 +133,15 @@ void ca_render_morph_vertices(vim_submesh *sm)
         anim_vec_key *p = &m->keys[key - 1];
         float t = (k->time - frame) / (k->time - p->time);
         float u = 1.0f - t;
+#ifdef PLAIN_SOURCE
+        ca_morph_vertices[v].x = u * k->v.x + t * p->v.x;
+        ca_morph_vertices[v].y = u * k->v.y + t * p->v.y;
+        ca_morph_vertices[v].z = u * k->v.z + t * p->v.z;
+#else
         mv[v * 3] = u * k->v.x + t * p->v.x;
         mv[v * 3 + 1] = u * k->v.y + t * p->v.y;
         mv[v * 3 + 2] = u * k->v.z + t * p->v.z;
+#endif
     }
 }
 

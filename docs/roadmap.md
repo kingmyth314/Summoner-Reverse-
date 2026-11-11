@@ -285,6 +285,14 @@ the plan for a fixed build and an experimental build that take them up is in
   `#ifdef _MSC_VER` (D15902), a volatile dword read that stops a byte narrowing (D16500) and `#pragma optimize("w", on)`
   over the net unit (D14204). A fixed build should replace them with plain C++ that does the same thing, keeping the
   matching source as the reference.
+  **2026-11-10: the part that matters is done.** The devices are now classified in
+  [Matching devices](matching-devices.md#undefined-and-compiler-dependent-devices-2026-11-10): 7 are undefined or
+  compiler-dependent behaviour (the two `send_event` missing returns, the int read as a float, the `float *` view,
+  the `/Ow` pragma, the `&(a+b)` temporaries, two explicit constructor calls), and every build but the shipped one
+  now compiles a plain form of each under `PLAIN_SOURCE` (D26300; strict sweep 0 lost, **Observed**). The other 68
+  catalogued devices are well-defined C++ (among them D12900 and D16500 above) and stay as the matching reference;
+  plain forms for them remain optional, for when a function is touched anyway. The int read as a float is D11702,
+  not D11703 as this item said until 2026-11-10.
 - **`pf_check_direct_walk`'s look-ahead (game-bug candidate, not yet seen in game).** The AI's check for a closed door
   on the path ahead clips each step to a few units of look-ahead (stopping distance + head height + 2, in
   `ai_follow_path`). The length it clips is `|(to.x - from.x, to.y, to.z - from.z)|`: the binary uses the node's

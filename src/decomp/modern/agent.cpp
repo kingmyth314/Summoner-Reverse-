@@ -848,7 +848,8 @@ static void run_line(char *line)
         }
     } else if (!_stricmp(c, "open") && argc >= 2) {
         // open ADDR: ADDR is the container's address in this process, as items prints it (below 2 GB in both builds).
-        open_target = (container *)(size_t)strtoull(argv[1], NULL, 16);
+        // strtoul, not strtoull: VC6's stdlib.h (the 32-bit clang build's headers) has no strtoull.
+        open_target = (container *)(size_t)strtoul(argv[1], NULL, 16);
         out("open %s: %s", argv[1], run_sync(open_body, NULL) ? "requested" : "no window");
     } else if (!_stricmp(c, "npcdead") && argc >= 2) {
         char name[64];

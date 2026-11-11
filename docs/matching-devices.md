@@ -124,16 +124,68 @@ self-assignments, and the `#pragma optimize("w")`, which it skips.
 
 | Device | Decision |
 |---|---|
-| An int read as a float to keep a zero in a frame slot. | D11703 |
+| An int read as a float to keep a zero in a frame slot. | D11702 |
 | `vector3::len` returns `(double)(float)sqrt(...)`, reproducing every unoptimised caller's double store. | D12900 |
 | `#pragma optimize("w", on)` from 0x518ce0 to the end of the net unit. | D14204 |
 | `ui_window::send_event` and `ui_gadget::send_event` fall off their end and return whatever is in AL. **Undefined behaviour.** | D15400, D21001 |
 | `&(a+b)` temporaries under `#ifdef _MSC_VER` (a VC6 extension). | D15902 |
 | A volatile dword read, to stop a byte narrowing. | D16500 |
-| A `float *` view of a buffer. | D16704 |
+| A `float *` view of a buffer. | D16701 |
 | A `volatile float *` for three zero stores. | D18205 |
 | `*(volatile int *)&g = v`, to keep a global store above the next call's pushes. | round 2026-10-20 |
 | Unused locals (`dir`, `frame_m`, `pivot`, `norm`, `delta`), a `gain = gain;` and the file-local helpers `ghs_assign_max` / `ghs_assign_min` in four `/Od` `Character` functions; their exact local names belong to the match too. | D25500, D25501, D25504 |
+
+{: .important }
+Corrected 2026-11-10: this table cited D11703 for the int read as a float and D16704 for the `float *` view. The
+decisions that record them are D11702 (`snd_calc_volume_3d`, `sound_emitter_calc_volume`) and D16701
+(`ca_render_morph_vertices`); D11703 is the `/Od` local renaming of `living_entity.cpp`, D16704 the door pose of
+`shadow_transform_to_lobj`. **Observed** (DECISIONS.md and the comments at the functions).
+
+## Undefined and compiler-dependent devices (2026-11-10)
+
+**Summary:** of the 73 devices in the tables above, 5 are undefined or compiler-dependent behaviour (class a); with
+two more found by searching the source (explicit constructor calls), 7 in all. Since 2026-11-10 every build but the
+shipped one compiles a plain form of each, under `PLAIN_SOURCE` (D26300). The other 68 are well-defined C++ (class
+b) and stay as they are: the source remains the matching reference, and only class (a) can be miscompiled.
+
+`PLAIN_SOURCE` is defined in `include/vsdk/vsdk.h` when `FIXED_BUILD`, `MODERN_BUILD` or `__clang__` is, so in the
+fixed, experimental and clang builds, never in the shipped configuration that the sweep compiles. Before
+2026-11-10 the clang builds already had most of these plain forms (under `__clang__` or `MODERN_BUILD`); the VC6
+fixed build did not, so its two `send_event` functions still fell off their end. **Observed**: the strict sweep
+after the change, 5,613 matched, 0 lost; the fixed (VC6), fixed (32-bit clang) and experimental (64-bit clang)
+builds link with `unresolved 0; multiply defined 0`.
+
+### Class (a): plain form under `PLAIN_SOURCE`
+
+| Device | Why it is class (a) | Plain form | Decision |
+|---|---|---|---|
+| `ui_window::send_event` 0x52aff0 falls off its end; AL holds 0 from the tested NULL callback. | Undefined behaviour (a `bool` function with no return). | `return false;` | D15400 |
+| `ui_gadget::send_event` 0x52c330 falls off its end after a handled event; AL holds the callback's nonzero result. | Undefined behaviour, as above. | `return true;` | D21001 |
+| `v = *(float *)&zero` with `int zero = 0` in `snd_calc_volume_3d` 0x520fa0 and `sound_emitter_calc_volume` 0x5210b0. | A type-punned read (an `int` read through a `float` lvalue: strict aliasing). | `v = 0.0f;` (the bits of int 0 are float +0.0) | D11702 |
+| `float *mv = (float *)ca_morph_vertices`, written as `mv[v * 3 + c]`, in `ca_render_morph_vertices` 0x50b150. | Pointer arithmetic through a `float *` across `vector3` objects (outside the object it points into). | `ca_morph_vertices[v].x / .y / .z` | D16701 |
+| `#pragma optimize("w", on)` from `nw_accept_reliable` 0x518ce0 to the end of the net unit. | An aliasing assumption given to the optimiser (`/Ow`); correct only if the code never aliases as it excludes. | The pragma is skipped: the unit's `/O2`. | D14204 |
+| `plane pl(&o, &(o + d), &(o + *b))` in `ix_ray_parallelogram` 0x53af40. | The address of a temporary: a VC6 extension, ill-formed C++. | Two named `vector3` locals. | D15902 |
+| An explicit constructor call, `((GameTimer *)&timer)->GameTimer::GameTimer()` in `living_combat` 0x4681b0 and `((vector3 *)&_unk0c)->vector3::vector3()` in `gr_light_desc` 0x50f3e0. Not in the tables above. | An MSVC extension, ill-formed C++. | A placement new; for the empty `vector3()` no call. | D7805, D8900 |
+
+The behaviour is the same in each case (**Inferred** from the code: each plain form computes the value the VC6 form
+produced, as the decisions describe). No in-game difference is expected.
+
+### Class (b): left as they are
+
+The other 68 rows of the tables: frame layout (12), register choice (13), control flow (18), calls and inlining (9),
+x87 floats (6), data layout (5) and five of the ten matching aids. Some of these read oddly but are defined C++:
+
+- `vector3::len` returning `(double)(float)sqrt(...)` (D12900) is a no-op conversion back to float. It is a header
+  inline, so changing it would move x87 rounding in every caller of the VC6 fixed build for no gain.
+- The `volatile` reads and stores (D16500, D18205, the init flags of round 2026-10-20) are well-defined: each
+  `volatile` lvalue has the object's own type (`game_flags`, `d3d_init_done`, `glide_init_done` are `int`).
+- The self-assignments and unused locals (D10702, D25500-D25504) do nothing.
+
+Not counted as devices, and not changed: the `*(int *)&f` copies of float bits into byte buffers in the save and
+script code (`level_scripts.cpp`, `ai.cpp`, `spells.cpp`) are the original's serialisation, and the uninitialised
+reads named in the source comments (for example `skeleton.cpp`, `vfile`, the script editor) are game bugs, not
+devices. The clang builds compile with `-fno-strict-aliasing` and `-Werror=return-type` (**Observed** in
+`tools/link-build.mjs`), so neither a type pun nor a missing return can be miscompiled there silently.
 
 ## What is not merged
 
