@@ -15,7 +15,7 @@ Result: 2 new matches, 1 closer; the strict sweep over the changed units reports
 | game/unnamed_avoidance_0x4a6710.cpp | 0x4a8b80 | avoid_merge_shared_segments | D26901 | c / cc / l / n block-scoped per branch; the k entry and k's list fetched into locals before the call; `n = index - 1` local; the side test on the call result; `done[40]`, `refs[40]` | 128 / match |
 | game/new_status.cpp | 0x42bb00 | status_handle_click | D26902 | the wheel delta's dx / dy / dz at function scope (frame 0x18 -> 0x1c) | 237 / 191 |
 
-**D26900 (game/unnamed_avoidance_0x4a6710.cpp). avoid_seglist_add_segment 0x4a8680 is exact.** Five changes,
+**D26900 (game/unnamed_avoidance_0x4a6710.cpp). avoid_seglist_add_segment 0x4a8680 is exact.** Six changes,
 each found by the aligned listing (Observed: each moved the distance, 262 -> 246 -> 129 -> 101 -> 8 -> 4 -> 0):
 1. The two corner searches compare through `p = &sl->corners[i].pos` (the binary's loop pointer is at `pos`, +0x270,
    not at `pos.y`), and the new corners are stored through `p` too (246).
