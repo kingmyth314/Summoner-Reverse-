@@ -15,18 +15,36 @@ typedef unsigned char JSAMPLE;
 typedef JSAMPLE *JSAMPROW;
 typedef JSAMPROW *JSAMPARRAY;
 typedef unsigned int JDIMENSION;
-typedef int boolean;
+typedef int boolean;                      // int in Sum.exe's library (raw_data_in..CCIR601_sampling are 4 bytes
+                                          // each); link-build.mjs builds libjpeg so (jconfig.vc says unsigned char)
 
 typedef enum { JCS_UNKNOWN, JCS_GRAYSCALE, JCS_RGB, JCS_YCbCr, JCS_CMYK, JCS_YCCK } J_COLOR_SPACE;
 typedef enum { JDCT_ISLOW, JDCT_IFAST, JDCT_FLOAT } J_DCT_METHOD;
+
+// 64-bit (MODERN_BUILD x64): the library's objects are larger (8-byte method and table pointers): error manager
+// 0xa8, compress object 0x208 with the fields below at their natural 64-bit offsets (dct_method +0x114). Measured
+// on 2026-11-10 from jpeglib.h 6b with an int boolean, clang x86_64-w64-mingw32. Before, the 32-bit tail sizes
+// made jpeg_std_error write past jerr and jpeg_CreateCompress's size check end the process (Print Screen,
+// docs/future/modern-port.md).
+#ifdef _WIN64
+#include <stddef.h>
+#define JPEG_ERR_TAIL 0xa0
+#define JPEG_COMPRESS_TAIL 0xf0
+#else
+#define JPEG_ERR_TAIL 0x80
+#define JPEG_COMPRESS_TAIL 0xb0
+#endif
 
 // The error manager (0x84 bytes: jpeg_write_file's frame puts it between the compress object and the row
 // table). Only its size matters here.
 struct jpeg_error_mgr {
     void *error_exit;                     // +0x00 method pointers, then the message state
-    ubyte _unk04[0x80];
+    ubyte _unk04[JPEG_ERR_TAIL];
 };
 LAYOUT_CHECK_32(jpeg_error_mgr, sizeof(jpeg_error_mgr) == 0x84);
+#ifdef _WIN64
+LAYOUT_CHECK(jpeg_error_mgr_64, sizeof(jpeg_error_mgr) == 0xa8);
+#endif
 
 // The compression object (0x178 bytes, jpeg_CreateCompress's third argument).
 struct jpeg_compress_struct {
@@ -60,9 +78,13 @@ struct jpeg_compress_struct {
     boolean CCIR601_sampling;             // +0xbc
     int smoothing_factor;                 // +0xc0
     J_DCT_METHOD dct_method;              // +0xc4
-    ubyte _unkc8[0xb0];                   // +0xc8 the rest of the object
+    ubyte _unkc8[JPEG_COMPRESS_TAIL];     // +0xc8 the rest of the object (x64: +0x118)
 };
 LAYOUT_CHECK_32(jpeg_compress_struct, sizeof(jpeg_compress_struct) == 0x178);
+#ifdef _WIN64
+LAYOUT_CHECK(jpeg_compress_dct_64, offsetof(jpeg_compress_struct, dct_method) == 0x114);
+LAYOUT_CHECK(jpeg_compress_struct_64, sizeof(jpeg_compress_struct) == 0x208);
+#endif
 
 // libjpeg entry points (IJG names; addresses in Sum.exe). The library is C, so the C++ caller wrapped
 // the IJG header in extern "C" (the calls go to the plain names).
