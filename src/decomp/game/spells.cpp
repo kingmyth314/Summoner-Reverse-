@@ -1204,13 +1204,12 @@ void spell_cast_execute(Character *caster, int spell, int target, vector3 *pos, 
         break;
 
     case 0x18: case 0x19: case 0x1a: case 0x20: case 0x4e: case 0x5b: { // missiles
-        vector3 bone_pos;
-        matrix bone_orient;
-
         t = living_from_handle(target);
         if (t == NULL)
             return;
         if (st == 3 || st == 4) {
+            vector3 bone_pos;                   // D27002: in each branch (frame 0x12c)
+            matrix bone_orient;
             // a weapon / armour trigger: the hit at once, at the target's centre raised by its root bone
             t->instance->get_bone_transform(&bone_pos, &bone_orient,
                                             t->instance->character->mesh->skin->root_bone);
@@ -1220,6 +1219,8 @@ void spell_cast_execute(Character *caster, int spell, int target, vector3 *pos, 
             hit_orient = t->orient;
             t->get_hit_by_spell(spell, caster->handle, &hit_pos, &hit_orient, st, (ItemType *)a, 0.0f, true);
         } else if (st == 5) {
+            vector3 bone_pos;
+            matrix bone_orient;
             // an item: a missile from the caster's centre (raised by its root bone) at the target
             caster->instance->get_bone_transform(&bone_pos, &bone_orient,
                                                  caster->instance->character->mesh->skin->root_bone);
@@ -1374,8 +1375,8 @@ void spell_cast_execute(Character *caster, int spell, int target, vector3 *pos, 
     case 0x68:                                                  // monsters within 10 of `where`
         for (c = living_list.live_next; c != &living_list; c = c->live_next) {
             if ((c->type == 5 || c->type == 9) && distance_squared(&c->pos, &where) < 100.0f) {
+                matrix hit_orient = c->orient;  // D27002: declared before hit_pos
                 vector3 hit_pos = c->pos;
-                matrix hit_orient = c->orient;
                 hit_pos.y = 0.77f;
                 c->get_hit_by_spell(0x68, caster->handle, &hit_pos, &hit_orient, st, (ItemType *)a, 0.0f, true);
             }
@@ -1454,15 +1455,16 @@ void spell_cast_launch_effects(spell_cast_request *req)
         }
         break;
 
-    case 0x18: case 0x19: case 0x1a: case 0x20: case 0x4d: case 0x4e: case 0x5b:   // missiles
+    case 0x18: case 0x19: case 0x1a: case 0x20: case 0x4d: case 0x4e: case 0x5b: { // missiles
+        vector3 bone_pos;                       // D27003: at case scope
+        matrix bone_orient;
+
         t = living_from_handle(req->target);
         if (t == NULL)
             return;
         if (req->source_type == 3 || req->source_type == 4) {
             // a weapon / armour trigger: the hit at once, at the target's centre raised by its root bone
             spell_hit h;
-            vector3 bone_pos;
-            matrix bone_orient;
             matrix m;
 
             t->instance->get_bone_transform(&bone_pos, &bone_orient,
@@ -1485,12 +1487,9 @@ void spell_cast_launch_effects(spell_cast_request *req)
             break;
         if (req->source_type == 5) {
             // an item: a missile from the caster's centre (raised by its root bone) at the target
-            vector3 bone_pos;
-            matrix bone_orient;
-
             req->caster->instance->get_bone_transform(&bone_pos, &bone_orient,
                                                       req->caster->instance->character->mesh->skin->root_bone);
-            vector3 start = req->caster->centre_offset + req->caster->pos;
+            vector3 start = req->caster->pos + req->caster->centre_offset;   // D27003: pos first
             start.y += bone_pos.y;
             vector3 dir = (t->pos + t->centre_offset) - (req->caster->pos + req->caster->centre_offset);
             dir.normalize_safe();
@@ -1516,6 +1515,7 @@ void spell_cast_launch_effects(spell_cast_request *req)
             played = true;
         }
         break;
+    }
 
     case 0x0c: case 0x65: case 0x67:
         if (spell_effect_pool_full()) {
@@ -2025,12 +2025,11 @@ int spell_fire_missile(int spell, int missile, Character *caster, Character *tar
 // emerge effect, the +Misc effect: and the multiplayer handle.
 void summon_create(Character *caster, vector3 *pos, int layer, int spell, int existing)
 {
-    vector3 dir = caster->pos - *pos;
     matrix orient;
     Character *s;
     int ci, level, xp, i;
 
-    orient.set_from_forward(dir);
+    orient.set_from_forward(caster->pos - *pos);   // D27001: a temporary, not a named dir (frame 0x6c)
     if (existing == -1) {
         int species;
         vector3 p;
@@ -2222,10 +2221,8 @@ void summon_dismiss(int handle)
 float spell_target_value(Character *target, int spell)
 {
     switch (spell) {
-    case 0x00: case 0x04:                                 // heal, vitalize
-        if (target->get_max_stat(0) > target->hp)
-            return 1.0f;
-        return 0.0f;
+    case 0x00: case 0x04:                                 // heal, vitalize (D27000: ternaries)
+        return target->get_max_stat(0) > target->hp ? 1.0f : 0.0f;
     case 0x01:                                            // cure
         if (target->has_status(STATUS_BLIND) || target->has_status(STATUS_BLIND) ||
             target->has_status(STATUS_SILENCE) || target->has_status(STATUS_CURSE) ||
@@ -2235,13 +2232,9 @@ float spell_target_value(Character *target, int spell)
             return 1.0f;
         return 0.0f;
     case 0x03: case 0x05:                                 // resurrect, revive
-        if (target->flags & CF_DEAD)
-            return 0.0f;
-        return 1.0f;
+        return (target->flags & CF_DEAD) ? 0.0f : 1.0f;
     case 0x07: case 0x09:                                 // blind, black cloud
-        if (target->info->flags & 0x80)
-            return 0.0f;
-        return 1.0f;
+        return (target->info->flags & 0x80) ? 0.0f : 1.0f;
     case 0x08:                                            // silence
         if (target->info->flags & 0x100)
             return 0.0f;
@@ -2258,9 +2251,7 @@ float spell_target_value(Character *target, int spell)
     case 0x0f:                                            // lightning
         return 1.0f - target->get_resistance(2);
     case 0x11:                                            // power leech
-        if (target->ap <= 0)
-            return 0.0f;
-        return 1.0f;
+        return target->ap <= 0 ? 0.0f : 1.0f;
     case 0x19: case 0x1a: case 0x1c: case 0x1d: case 0x1e:   // fire
         return 1.0f - target->get_resistance(0);
     case 0x20: case 0x21: case 0x23:                      // ice
