@@ -21,7 +21,7 @@ are the older roadmap and its history.
    `SummonStashNoMove` off (crash) and on.
 2. *Begun 2026-11-10:* C317, G8, G40, G41, K19 and K193 run with and without the fix ([Fixed build](fixed-build.md#checked-2026-11-10-fixes-run-in-the-game)); the run found and repaired empty JPEG screenshots in every rebuilt exe. **Per-fix reproductions for the fixed build**: listed as open for its 53 fixes on [Current state](status.md)
    ([Fixed build](fixed-build.md)).
-3. **The `pf_check_direct_walk` look-ahead** (game-bug candidate, not yet seen in game; see
+3. *Run 2026-11-10: not confirmed (no character walked into a closed door at y = -56.6; see the item below).* **The `pf_check_direct_walk` look-ahead** (game-bug candidate, not yet seen in game; see
    [After the code fully recompiles](#after-the-code-fully-recompiles)): an AI character's path through a closed door on
    a high and a low level.
 4. ~~**The speed key at high factors**~~ *Done 2026-11-10: a staged boss fight at 8x ends as at 1x, and the battle of Wolong plays on at 8x without errors.* Combat, AI and scripts at 4x and 8x were never play-tested
@@ -323,6 +323,15 @@ the plan for a fixed build and an experimental build that take them up is in
   intended distance, often under one unit, so a closed door ahead is noticed late or not at all. Near height 0 it works
   as intended. To confirm in game before any fix: walk an AI character's path through a closed door on a high and on a
   low level and compare.
+
+  *Run 2026-11-10 (Observed), original exe, the new agent commands `doors` and `dooropen`:* the leader nudged past
+  a door so that the companions' paths cross it, the door closed with `dooropen I 0` before they reach it (a closing
+  door counts as open until it is below 0.4, about 3 seconds here). In the Iona catacombs (party at y = -56.6, the
+  skull door 15 of `03-carados.sav`) Joseph and Rosalind stopped 4.1 units short of the closed door; closed later
+  (still opening by the 0.4 test when they arrived) they walked through. In Lenele (y = 1, door 0 of `pt-34`) Jekhar
+  walked up to the already closed door and stopped 2.5 units short. No one walked into a closed door on the high
+  level, which the candidate predicts. The two runs differ in timing, so this is no clean comparison, but nothing seen
+  supports the candidate; it stays out of the bug list.
 - **Wider display options.** Today: any `GameWidth` / `GameHeight` (resolution table slot 2), borderless or
   window output, centred menus and HUD, brightness. Done 2026-10-24: `GameWidth=Auto` (the default) fits the 768-high
   layout to the screen's shape, and the config app's **Display / resolution...** window lists the sizes, the renderer,
