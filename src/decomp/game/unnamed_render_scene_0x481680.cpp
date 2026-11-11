@@ -1567,7 +1567,7 @@ void levelrender_draw_health_bars(levelrender_entry *e)
         return;
     p = e->object->pos;
 #ifdef FIXED_BUILD
-    // FIXED_BUILD: K30 BossHeight. A boss's own height when [Fixes] BossHeight=1 (Character::shown_height).
+    // part of FIXED_BUILD K30: a boss's own height when [Fixes] BossHeight=1 (Character::shown_height).
     p.y = c->shown_height() + p.y;
 #else
     p.y = c->size_height() + p.y;
