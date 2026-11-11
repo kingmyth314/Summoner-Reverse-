@@ -24,7 +24,7 @@ are the older roadmap and its history.
 3. **The `pf_check_direct_walk` look-ahead** (game-bug candidate, not yet seen in game; see
    [After the code fully recompiles](#after-the-code-fully-recompiles)): an AI character's path through a closed door on
    a high and a low level.
-4. ~~**The speed key at high factors**~~ *Done 2026-11-10 for one staged boss fight at 8x, same outcome as at 1x; a large melee at 8x not yet.* Combat, AI and scripts at 4x and 8x were never play-tested
+4. ~~**The speed key at high factors**~~ *Done 2026-11-10: a staged boss fight at 8x ends as at 1x, and the battle of Wolong plays on at 8x without errors.* Combat, AI and scripts at 4x and 8x were never play-tested
    ([fast travel](#turn-the-frame-rate-speed-bug-into-a-fast-travel-speed-control)).
 5. **The 310 functions that do not match** byte for byte (5,613 of 5,926 do). *Inferred:* worth it mainly where a
    function is also in a fix's path.
@@ -112,7 +112,7 @@ for example as a hotkey to speed up walking long distances.
 
 **Implemented 2026-10-13 (lever 1); mechanism verified 2026-10-14** (game clock runs 3.0x with the key held): hold `[Game] SpeedKey` (default F11) to set `frametime_divisor` (`0x5a5748`) to `1 / SpeedFactor` (default 3, range 1-8). It is polled every 15 ms by SummonerFix and only applies while the game has focus. The key can be changed in `SummonerFixConfig.exe`. Still open: an on-screen indicator, and play-testing combat/AI/scripts at high factors.
 
-*Played 2026-11-10 (Observed), original exe with SummonerFix:* the Undead Rider fight (`testsaves/04-undead-rider.sav`, party immortal, the speed key held through agent mode's `speedkey 1`) at `SpeedFactor=8` and at 1. At 8 the divisor `0x5a5748` reads 0.125, the rider's stage cutscenes come one after another (each still at normal speed: cutscenes run on `timeGetTime`) and the fight is over after about 25 seconds; at 1 after about 56 seconds. Both end with the rider gone and Joseph at the same spot (-26.54, -1.19, 14.66), with no error in the log. A `FAST x8` label already shows in the top-left corner while the key is held. *Not checked:* a long fight with many AI characters at 8.
+*Played 2026-11-10 (Observed), original exe with SummonerFix:* the Undead Rider fight (`testsaves/04-undead-rider.sav`, party immortal, the speed key held through agent mode's `speedkey 1`) at `SpeedFactor=8` and at 1. At 8 the divisor `0x5a5748` reads 0.125, the rider's stage cutscenes come one after another (each still at normal speed: cutscenes run on `timeGetTime`) and the fight is over after about 25 seconds; at 1 after about 56 seconds. Both end with the rider gone and Joseph at the same spot (-26.54, -1.19, 14.66), with no error in the log. A `FAST x8` label already shows in the top-left corner while the key is held. The same day, a melee at 8: the battle of Wolong (`14-general-pijian.sav`, three heroes against Pijian's soldiers) played on through its cutscene to the next stage of the battle in 90 seconds, with soldiers fighting on both sides and no error in the log. *Not checked:* whether the outcome of a long melee differs at 8 (AI decisions that run per frame, not per second, see above).
 
 What is known so far:
 
