@@ -823,19 +823,23 @@ int ai_state::tiger_choose_attack()
     return 0;
 }
 
-// 0x49b520  Confidence: unsure (the vector temporaries: the vector3 constructors and copies are called
-// out of line here). A path for self to a point 3.5 m past the point 0.75 m beside the target; NULL when
-// the target is closer than 3 m.
+// 0x49b520  Confidence: exact (VC6 byte match, m-1110 w1, D26400: the vectors assigned with operator=, the
+// side offset built in its own statement; VC6's inline budget then calls the binary's constructors and copies
+// out of line). A path for self to a point 3.5 m past the point 0.75 m beside the target; NULL when the
+// target is closer than 3 m.
 ai_path *tiger_path_to_target(Character *self, Character *t)
 {
-    vector3 d(t->pos.x - self->pos.x, 0, t->pos.z - self->pos.z);
+    vector3 d, side, dir, goal;
+    d = t->pos - self->pos;
+    d.y = 0;
     if (d.normalize_safe_length() < 3.0f)
         return NULL;
-    vector3 side(-d.z * 0.75f + t->pos.x, t->pos.y, d.x * 0.75f + t->pos.z);
-    vector3 dir = side - self->pos;
+    side = vector3(-d.z, 0, d.x);
+    side = side * 0.75f + t->pos;
+    dir = side - self->pos;
     dir.y = 0;
     dir.normalize();
-    vector3 goal = dir * 3.5f + side;
+    goal = dir * 3.5f + side;
     return self->ai.path_find_new(&self->pos, self->layer, &goal, t->layer, self->info->size, 0.0f);
 }
 

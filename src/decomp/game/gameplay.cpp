@@ -483,13 +483,20 @@ void state_game_enter()
     }
     level_script_init(!loaded_save);
     if (!loaded_save) {
+        // D26401: the character in a local (the binary calls living_from_handle before it pushes the
+        // argument), and slot++ as its own statement (pushed before the increment).
         if (game_flags & GF_MULTIPLAYER) {
-            for (mp_player *p = mp_player_list.next; p != &mp_player_list; p = p->next)
-                living_from_handle(p->object->handle)->place_at_party_start(p->id);
+            for (mp_player *p = mp_player_list.next; p != &mp_player_list; p = p->next) {
+                Character *c = living_from_handle(p->object->handle);
+                c->place_at_party_start(p->id);
+            }
         } else {
             int slot = 0;
-            for (Player *p = party_list.next; p != &party_list; p = p->next)
-                living_from_handle(p->handle)->place_at_party_start(slot++);
+            for (Player *p = party_list.next; p != &party_list; p = p->next) {
+                Character *c = living_from_handle(p->handle);
+                c->place_at_party_start(slot);
+                slot++;
+            }
         }
         if ((game_flags & GF_SINGLE_PLAYER) && party_inventory_count <= 0) {
             party_inventory_add_by_name("Health Tonic", 3, -1, 1);
