@@ -19,7 +19,7 @@ are the older roadmap and its history.
 1. ~~**C317's fix has never run in game**~~ *Done 2026-11-10:* crash without the fix, none with it, original and 64-bit exe ([SummonerFix](summonerfix/index.md)). (*Observed* in [SummonerFix](summonerfix/index.md): built and reviewed,
    2026-10-21). Reproduce: the Mist Elemental summoned just before the Ghost Rider's dismount cutscene, with
    `SummonStashNoMove` off (crash) and on.
-2. **Per-fix reproductions for the fixed build**: listed as open for its 53 fixes on [Current state](status.md)
+2. *Begun 2026-11-10:* C317, G8, G40, G41, K19 and K193 run with and without the fix ([Fixed build](fixed-build.md#checked-2026-11-10-fixes-run-in-the-game)); the run found and repaired empty JPEG screenshots in every rebuilt exe. **Per-fix reproductions for the fixed build**: listed as open for its 53 fixes on [Current state](status.md)
    ([Fixed build](fixed-build.md)).
 3. **The `pf_check_direct_walk` look-ahead** (game-bug candidate, not yet seen in game; see
    [After the code fully recompiles](#after-the-code-fully-recompiles)): an AI character's path through a closed door on

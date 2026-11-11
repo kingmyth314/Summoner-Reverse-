@@ -163,6 +163,40 @@ size. Marker `// FIXED_BUILD: display FieldOfView` (both places), so `Sum-fixed.
 SummonerFix installs its own version only in the original exe (`gameopts.c` is not run in a rebuilt exe), so the
 two never both apply.
 
+### Checked 2026-11-10: fixes run in the game
+
+In the test folder with test saves, agent mode; each fix run with the bug present (the original exe, the fix off) and
+with the fix (the 64-bit player build, whose source has it, and where noted the original with SummonerFix's patch).
+**Observed** unless marked:
+
+| Bug | How | Without the fix | With the fix |
+|---|---|---|---|
+| C317 | `pt-31`, `summon 45`, one second later `callstr 4361d0 Nar-KhosaniStronghold` | access violation at `0x44807e` | the cutscene plays (original with the patch; 64-bit) |
+| G8 | `pt-31`, F7 selects Rosalind, `summon 45`, then `call0 463140` (`kill_summon`) | Joseph leads | Rosalind keeps control (64-bit) |
+| G40 | `pt-31`, `goldpile 777`, `savenow`, load that save, `savenow` | the second save holds the pile with 1 gold | 777 (64-bit) |
+| G41 | `pt-31`, 40 piles of 1001 to 1040 gold, `savenow`, load, `savenow` | piles 1001 to 1032 kept, 8 lost | all 40 (original with the patch; 64-bit) |
+| K19 | no `summoner.cfg`, `[Registry] ComputerSpeed` 0 or 2, at the main menu `peek` 0x60acdc, 0x60acec, 0x60acf0 | 2/2/0 whatever the speed | 0/0/0 at speed 0, 1/2/2 at speed 2 (original with the patch; 64-bit at speed 2) |
+| K193 | a dummy `screen999.jpg`, then three screenshots | all three write `screen1000.jpg` | `screen1000`, `1001`, `1002` (64-bit and `Sum-fixed.exe`, after the libjpeg repair below) |
+
+Found on the way: every rebuilt exe wrote an **empty JPEG screenshot** (0 bytes), because libjpeg was built with a
+`boolean` of one byte while the game's code uses four, and in the 64-bit build `jpeg_min.h` also had 32-bit sizes; the
+library's size check stopped the write. Repaired the same day ([Modern port](future/modern-port.md)); `Sum-fixed.exe`
+and the 64-bit exe then wrote 80 KB JPEGs, like the original's 81 KB.
+
+The opt-in fixes, for the owner's decision (**Observed**, original exe with the patch):
+- **G15 `DamageDice`:** lightning at power 100 on a party member (`spellhit`, `No_resist` set): 15 hits with the
+  fix off took 22 to 40 HP each, mean 31.6; 7 hits with it on took 40 to 65, mean 50.9 (she died then).
+- **K272 `ShadowSizes`:** in the sewer (`02-iron-golem.sav`) a darker, wider patch under the party, over part of the
+  selection ring; 1.8 % of the picture differs. Subtle in that light; no clipping seen.
+
+The new display options, run once (**Observed**): `[Display] FieldOfView=90` in the original exe with SummonerFix (14
+draw-list sites moved, vertical angle 52.41 -> 66.55, a visibly wider view) and in the 64-bit build;
+`Antialiasing=4` in the 64-bit build under OpenGL (pixel format with 4 samples, smooth edges) and under Vulkan (4
+samples, the validation layer on and silent, a save written, the speed badge drawn). *Not checked:* clicking at a wide
+field of view (picking), exclusive fullscreen (Alt+Tab needs a person), and K1, G13 and G132 (the agent keys do not
+reach an empty hot button; the Liangshan wave enemies only take damage once the defence has started through the
+Guardian's dialogue).
+
 ## How a fix is written
 
 ```cpp
