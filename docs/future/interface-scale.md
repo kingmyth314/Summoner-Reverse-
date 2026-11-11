@@ -12,7 +12,7 @@ by giving the game a taller resolution at the screen's shape (75% on a 16:9 scre
 and placing the unchanged 1024x768 layout inside it: the HUD at the bottom, menus and full-screen panels centred.
 A size **above** 100% is not possible without rewriting the interface (below). The vc6 sweep after the change: 5,618 matched, 0 lost (Observed 2026-11-10). Implemented 2026-11-10 in the
 64-bit player build and the 32-bit fixed and experimental builds (through SummonerFix's display layer for those);
-the original `Sum.exe` keeps 100%. Written and built, **not yet run in the game** (the test recipe is at the end).
+the original `Sum.exe` keeps 100%. Written and built; run in the game on 2026-11-10 (the 64-bit build, OpenGL and Vulkan; see the end).
 
 ## How the display and the interface interact today (Observed in the source, 2026-11-10)
 
@@ -145,3 +145,18 @@ capture `(s/2 (dx + lx), s/2 (dy + ly))` with `dx = (W - 1024) / 2`, `dy = (H - 
    since world clicks use the raw position.
 4. The 32-bit fixed or experimental exe needs its `.addr` table for SummonerFix's rebuilt mode, so use a build from
    the main checkout (where the hybrid table exists), with the SummonerFix of this change.
+
+## Run 2026-11-10 (Observed)
+
+The 64-bit player build in the test folder (2560x1440 screen, `GameWidth=Auto`):
+- `InterfaceScale=100`: `widescreen: 1366x768, interface shift 171, 0`, as before the change.
+- `InterfaceScale=75`: `registry: InterfaceScale 75%`, `widescreen: 1820x1024, interface shift 398, 256`. The main menu
+  and the Load screen centred with bars, clicked at the positions from the formula above; a save loaded; the HUD bar
+  smaller on the bottom edge with the world above it; a click on the third portrait selected Rosalind; I opened the
+  inventory, centred; a click on the ground walked Rosalind forward (z 38.5 -> 27.3).
+- The same at 75% under Vulkan with the validation layer on: no messages; the map panel opened on the left above the
+  HUD bar.
+
+Not checked: whether the cursor's tip and a ground click land on the exact spot (only the direction was seen), the
+world map's labels, conversations, and 50%. The recipe's "screen 2 after the portrait" was wrong: a portrait click
+selects the hero, it opens no screen.
