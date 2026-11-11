@@ -39,8 +39,9 @@ static void read_size()
         // [Display] InterfaceScale (docs/future/interface-scale.md): a taller size at the same shape, in which
         // experimental/widescreen.cpp and modern/display.cpp place the 1024x768 interface (bottom-anchored HUD,
         // centred menus and panels). Only the builds with that placement (FIXED_BUILD) read it.
+        // CenterHud=0 turns that placement off, and the scale with it (the HUD would float mid-screen).
         int scale = DisplayClampScale(modern_ini_int("Display", "InterfaceScale", 100));
-        if (scale < 100) {
+        if (scale < 100 && modern_ini_int("Display", "CenterHud", 1)) {
             DisplaySizeForScreenScaled(scale, &reg_width, &reg_height);
             modern_log("registry: InterfaceScale %d%%", scale);
         }

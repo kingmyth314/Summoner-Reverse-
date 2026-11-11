@@ -53,9 +53,12 @@ The config app said as much: "all sizes are 768 high". `GameHeight` above 768 wa
 ## What an interface scale can mean here
 
 **Smaller than 100%: feasible.** A taller game resolution at the screen's shape (`768 * 100 / scale` lines) makes the
-layout cover `scale` percent of the screen height; the 3D view is unchanged because its aspect is the screen's
-(`gr_screen.aspect` follows `width / height`, and `GameWidth` grows with `GameHeight`), and its pixels are the
-window's anyway. Only the placement in y has to be added, by the same two mechanisms as in x.
+layout cover `scale` percent of the screen height. The 3D view keeps the window's pixels and the screen's aspect
+(`gr_screen.aspect` follows `width / height`, and `GameWidth` grows with `GameHeight`), but it is not identical: on the
+HUD screens it is `height - bar`, so with a smaller bar it covers more of the screen (16:9 at 75%: 1820x928 game
+pixels, 98% of the height, against 1366x672, 87.5%), and `camera_fov`, which `interface_set_view_clip` derives from that
+clip every frame, follows the slightly wider clip (Inferred from the code). Only the placement in y has to be added,
+by the same two mechanisms as in x.
 
 **Larger than 100%: not feasible without rewriting the interface.** At 100% the 768-line layout already fills the
 screen height. A larger interface would have to drop or overlap parts of the layout (the HUD bar is at the bottom of
@@ -99,7 +102,9 @@ both need it. It is a rewrite of the 2D path, for the same result as the taller 
 - **Movies** outside play are centred in the 768 lines as in the 1024 columns (`unnamed_movie_0x5172f0.cpp`).
 - **The field of view** is measured once by `interface_init_global` on a `width x 0.875 height` clip; it keeps the real
   height (`exp_ws_real_screen_height`), so the 3D view and `[Display] FieldOfView` are the same at every scale.
-- `[Display] CenterHud=0` turns the in-play placement off (the original placement); `CenterMenus=0` the menus'.
+- `[Display] CenterHud=0` turns the in-play placement off (the original placement), and with it the taller size, so
+  `InterfaceScale` then does nothing; `CenterMenus=0` turns off the menus' centring.
+- The config app's "Match my screen: W x H" row shows the 100% size whatever `InterfaceScale` is (cosmetic).
 - Screenshots above 1024 lines: Print Screen writes a Targa there (game-bugs C290), in these builds too
   (`experimental/gameopts.cpp`), so 50-74% are safe.
 
@@ -135,4 +140,8 @@ capture `(s/2 (dx + lx), s/2 (dy + ly))` with `dx = (W - 1024) / 2`, `dy = (H - 
 2. `InterfaceScale=75`: the same with the 75% positions; the log (`experimental.log` with `[Debug] ExperimentalLog=1`)
    says `widescreen: 1820x1024, interface shift 398, 256`, and `modern.log` `registry: InterfaceScale 75%`.
 3. Check: the HUD bar at the bottom edge, the 3D world above it to the top; the inventory and main menu centred with
-   black bars; the cursor's tip on what it clicks; a world click still walks the party to the spot under the cursor.
+   black bars; each click confirmed by `info` (the load screen; screen 2 after the portrait); the cursor's tip on what
+   it clicks; one click on the ground at 75% walks the party to the spot under the cursor (`party` before and after),
+   since world clicks use the raw position.
+4. The 32-bit fixed or experimental exe needs its `.addr` table for SummonerFix's rebuilt mode, so use a build from
+   the main checkout (where the hybrid table exists), with the SummonerFix of this change.

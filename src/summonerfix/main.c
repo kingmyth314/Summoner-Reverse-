@@ -171,7 +171,8 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID reserved)
         // [Display] InterfaceScale (docs/future/interface-scale.md): with GameWidth=Auto, a taller game at the screen's
         // shape, for an exe that places its 1024x768 interface in it (its .fixes file lists InterfaceScale: the fixed
         // and experimental builds). The original exe keeps the 768-high size: it would leave the HUD mid-screen.
-        if (g_cfg.autoSize && g_cfg.renderer == RENDERER_OPENGL && RebuiltFixInSource("InterfaceScale")) {
+        // CenterHud=0 turns that placement off, and the scale with it.
+        if (g_cfg.autoSize && g_cfg.renderer == RENDERER_OPENGL && g_cfg.centerHud && RebuiltFixInSource("InterfaceScale")) {
             int scale = DisplayClampScale(GetPrivateProfileIntA("Display", "InterfaceScale", 100, g_cfg.iniPath));
             if (scale < 100) {
                 DisplaySizeForScreenScaled(scale, &g_cfg.width, &g_cfg.height);

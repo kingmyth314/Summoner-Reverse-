@@ -76,6 +76,7 @@ runs without SummonerFix, had no controller and no game options either.
 | Level reverb (K261, a bug of the original) | `[Experimental] LevelReverb` | yes |
 | dgVoodoo 2 (Direct3D and Glide) | `[Display] Renderer`, `Windowed` | yes |
 | Field of view | `[Display] FieldOfView` | yes, since 2026-11-10 ([below](#field-of-view-2026-11-10)) |
+| Interface scale (a smaller interface in a taller game) | `[Display] InterfaceScale` | yes, since 2026-11-10, built, not yet run ([Interface scale](future/interface-scale.md)) |
 | Autosave | `[Experimental] Autosave` ... | no: a new feature, experimental only |
 | Tentacle Beast grab and throw | `[Experimental] TentacleGrab` | no: changes a boss fight, experimental only |
 
