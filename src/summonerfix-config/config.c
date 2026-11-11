@@ -51,7 +51,7 @@ enum { ID_LIST = 100, ID_CHANGE, ID_CLEAR, ID_RESET, ID_CLOSE, ID_STATUS, ID_SKI
        ID_PADOPEN, ID_PADENABLED, ID_PADSAVE, ID_PADRESET, ID_PADCLOSE,
        ID_EXPOPEN, ID_EXPAUTOSAVE, ID_EXPLEVEL, ID_EXPVSYNC, ID_EXPHIRES, ID_EXPREVERB, ID_EXPLOG, ID_EXPSAVE, ID_EXPRESET, ID_EXPCLOSE,
        ID_DISPOPEN, ID_DISPRENDER, ID_DISPOUTPUT, ID_DISPSIZE, ID_DISPWIN, ID_DISPMENUS, ID_DISPHUD, ID_DISPPANELS,
-       ID_DISPSCALE, ID_DISPSHARP, ID_DISPSAVE, ID_DISPRESET, ID_DISPCLOSE, ID_CHEATOPEN };
+       ID_DISPSCALE, ID_DISPSHARP, ID_DISPSAVE, ID_DISPRESET, ID_DISPCLOSE, ID_CHEATOPEN, ID_DISPEXCL, ID_DISPAA };
 
 // [ConsoleKeys] Key=command entries (keys that run a developer console command). Shown as list rows after the
 // hotkeys; Change key / Clear work on them, and "Bind key..." adds one for the command typed in the box.
@@ -1023,8 +1023,9 @@ static void OpenCheatWindow(void)
     ShowWindow(g_cheatWnd, SW_SHOW);
 }
 
-// The "Display" window: [Display] Renderer, Mode, GameWidth / GameHeight, WindowWidth / WindowHeight, the three
-// wide-screen switches and the Vulkan renderer's RenderScale / FsrSharpness, so a player never edits summonerfix.ini
+// The "Display" window: [Display] Renderer, Mode, GameWidth / GameHeight, WindowWidth / WindowHeight, the exclusive
+// mode (ExclusiveWidth / ExclusiveHeight / ExclusiveRefresh), the three wide-screen switches, Antialiasing (the 64-bit
+// builds) and the Vulkan renderer's RenderScale / FsrSharpness, so a player never edits summonerfix.ini
 // for them. The game size list: "Match my screen" (GameWidth=Auto, screensize.h) and the 768-high size for each
 // common screen shape, computed as Auto computes it, named by the screens of that shape in the Steam hardware survey
 // (2026); the interface is laid out for 768 lines, and the 3D world is drawn at the screen's own resolution in any
@@ -1032,7 +1033,7 @@ static void OpenCheatWindow(void)
 // or the survey's common sizes when it reports none.
 static HWND g_dispWnd;
 #define DISP_WND_W 560
-#define DISP_WND_H 400
+#define DISP_WND_H 482
 typedef struct { int sw, sh; const char *shape; } DispSize;
 static const DispSize k_dispSizes[] = {
     {4, 3, "4:3, the original layout"},
@@ -1063,9 +1064,19 @@ static const DispChoice k_fsrSharpness[] = {
     {"0", "0 (strongest)"}, {"0.2", "0.2 (default)"}, {"0.5", "0.5"}, {"1", "1"}, {"2", "2 (softest)"},
 };
 #define FSR_SHARP_COUNT (int)(sizeof k_fsrSharpness / sizeof k_fsrSharpness[0])
+// [Display] Antialiasing rows (the 64-bit builds, OpenGL and Vulkan; 2026-11-10): multisampling.
+static const DispChoice k_antialiasing[] = {
+    {"0", "Off"}, {"2", "2x MSAA"}, {"4", "4x MSAA"}, {"8", "8x MSAA"},
+};
+#define ANTIALIAS_COUNT (int)(sizeof k_antialiasing / sizeof k_antialiasing[0])
+// [Display] Mode rows ("Show the game:").
+static const char *const k_outputModes[] = {"Fullscreen", "Window", "Exclusive"};
+// The exclusive display modes (Mode=Exclusive): row 0 the desktop's (0 x 0 at 0 Hz), then the primary display's modes
+// with their refresh rates, largest first, plus the ini's own when the display does not list it.
+static int g_exclW[128], g_exclH[128], g_exclHz[128], g_exclCount;
 static int g_dispSizeW[DISP_SIZE_COUNT + 2], g_dispSizeH[DISP_SIZE_COUNT + 2]; // per list row; 0 x 0 = Auto
 static int g_dispWinW[64], g_dispWinH[64], g_dispWinCount;
-static char g_dispScaleIni[16], g_dispSharpIni[16]; // the ini's own value when no row matches it, else ""
+static char g_dispScaleIni[16], g_dispSharpIni[16], g_dispAaIni[16]; // the ini's own value when no row matches it, else ""
 
 static HWND DispCombo(HWND parent, int id, int x, int y, int w)
 {
@@ -1130,6 +1141,65 @@ static void DispListWindowSizes(void)
     }
 }
 
+// The exclusive modes list: row 0 "the desktop's", then each (width, height, refresh) the primary display reports, no
+// smaller than 640 x 480, largest first; then the ini's own when the display does not list it. Returns the row of
+// (w, h, hz).
+static int DispFillExclusive(HWND c, int w, int h, int hz)
+{
+    SendMessageA(c, CB_RESETCONTENT, 0, 0);
+    g_exclCount = 1;
+    g_exclW[0] = g_exclH[0] = g_exclHz[0] = 0;
+    DEVMODEA dm;
+    for (DWORD i = 0; g_exclCount < 127; i++) {
+        ZeroMemory(&dm, sizeof dm);
+        dm.dmSize = sizeof dm;
+        if (!EnumDisplaySettingsA(NULL, i, &dm))
+            break;
+        int mw = (int)dm.dmPelsWidth, mh = (int)dm.dmPelsHeight, mz = (int)dm.dmDisplayFrequency, seen = 0;
+        if (mw < 640 || mh < 480 || mz <= 1)
+            continue;
+        for (int k = 1; k < g_exclCount; k++)
+            if (g_exclW[k] == mw && g_exclH[k] == mh && g_exclHz[k] == mz)
+                seen = 1;
+        if (seen)
+            continue;
+        int k = g_exclCount++;
+        while (k > 1 && (g_exclW[k - 1] < mw || (g_exclW[k - 1] == mw && (g_exclH[k - 1] < mh ||
+                                                                             (g_exclH[k - 1] == mh && g_exclHz[k - 1] < mz))))) {
+            g_exclW[k] = g_exclW[k - 1];
+            g_exclH[k] = g_exclH[k - 1];
+            g_exclHz[k] = g_exclHz[k - 1];
+            k--;
+        }
+        g_exclW[k] = mw;
+        g_exclH[k] = mh;
+        g_exclHz[k] = mz;
+    }
+    int sel = -1;
+    for (int k = 0; k < g_exclCount; k++)
+        if (g_exclW[k] == w && g_exclH[k] == h && g_exclHz[k] == hz)
+            sel = k;
+    if (sel < 0 && (w > 0 || hz > 0)) {
+        g_exclW[g_exclCount] = w;
+        g_exclH[g_exclCount] = h;
+        g_exclHz[g_exclCount] = hz;
+        sel = g_exclCount++;
+    }
+    char row[64];
+    for (int k = 0; k < g_exclCount; k++) {
+        if (!k)
+            lstrcpynA(row, "The desktop's (no mode change)", sizeof row);
+        else if (g_exclW[k] <= 0)
+            snprintf(row, sizeof row, "The desktop's size at %d Hz", g_exclHz[k]);
+        else if (g_exclHz[k] <= 0)
+            snprintf(row, sizeof row, "%d x %d, the display's refresh", g_exclW[k], g_exclH[k]);
+        else
+            snprintf(row, sizeof row, "%d x %d at %d Hz", g_exclW[k], g_exclH[k], g_exclHz[k]);
+        SendMessageA(c, CB_ADDSTRING, 0, (LPARAM)row);
+    }
+    return sel < 0 ? 0 : sel;
+}
+
 // A RenderScale / FsrSharpness list: its rows, plus the ini's own value as a last row when no row has it (kept in
 // iniOwn, so Save writes it back unchanged). Row 0 of the table is never the default for FsrSharpness, so the default
 // is looked up by value.
@@ -1139,7 +1209,7 @@ static void DispFillChoice(HWND c, const char *key, const DispChoice *rows, int 
     SendMessageA(c, CB_RESETCONTENT, 0, 0);
     for (int i = 0; i < count; i++)
         SendMessageA(c, CB_ADDSTRING, 0, (LPARAM)rows[i].label);
-    const char *def = !strcmp(key, "FsrSharpness") ? "0.2" : "1";
+    const char *def = !strcmp(key, "FsrSharpness") ? "0.2" : !strcmp(key, "Antialiasing") ? "0" : "1";
     GetPrivateProfileStringA("Display", key, def, buf, sizeof buf, g_ini);
     if (defaults)
         lstrcpynA(buf, def, sizeof buf);
@@ -1185,7 +1255,19 @@ static void DispFill(HWND w, BOOL defaults)
     SendMessageA(r, CB_SETCURSEL, ri, 0);
 
     GetPrivateProfileStringA("Display", "Mode", "Fullscreen", buf, sizeof buf, g_ini);
-    SendMessageA(GetDlgItem(w, ID_DISPOUTPUT), CB_SETCURSEL, (!defaults && !lstrcmpiA(buf, "Window")) ? 1 : 0, 0);
+    int oi = 0;
+    for (int i = 0; i < 3; i++)
+        if (!defaults && !lstrcmpiA(buf, k_outputModes[i]))
+            oi = i;
+    SendMessageA(GetDlgItem(w, ID_DISPOUTPUT), CB_SETCURSEL, oi, 0);
+    int ew = defaults ? 0 : (int)GetPrivateProfileIntA("Display", "ExclusiveWidth", 0, g_ini);
+    int eh = defaults ? 0 : (int)GetPrivateProfileIntA("Display", "ExclusiveHeight", 0, g_ini);
+    int ez = defaults ? 0 : (int)GetPrivateProfileIntA("Display", "ExclusiveRefresh", 0, g_ini);
+    if (ew <= 0 || eh <= 0)
+        ew = eh = 0;
+    HWND ex = GetDlgItem(w, ID_DISPEXCL);
+    SendMessageA(ex, CB_SETCURSEL, DispFillExclusive(ex, ew, eh, ez < 0 ? 0 : ez), 0);
+    DispFillChoice(GetDlgItem(w, ID_DISPAA), "Antialiasing", k_antialiasing, ANTIALIAS_COUNT, g_dispAaIni, defaults);
 
     // Game size: row 0 is Auto; then the fixed list; then the ini's own size if it is none of them.
     HWND s = GetDlgItem(w, ID_DISPSIZE);
@@ -1253,7 +1335,17 @@ static void DispSave(HWND w)
     int ri = (int)SendMessageA(GetDlgItem(w, ID_DISPRENDER), CB_GETCURSEL, 0, 0);
     WritePrivateProfileStringA("Display", "Renderer", k_renderers[ri < 0 ? 0 : ri], g_ini);
     int oi = (int)SendMessageA(GetDlgItem(w, ID_DISPOUTPUT), CB_GETCURSEL, 0, 0);
-    WritePrivateProfileStringA("Display", "Mode", oi == 1 ? "Window" : "Fullscreen", g_ini);
+    WritePrivateProfileStringA("Display", "Mode", k_outputModes[oi >= 0 && oi < 3 ? oi : 0], g_ini);
+    int ei = (int)SendMessageA(GetDlgItem(w, ID_DISPEXCL), CB_GETCURSEL, 0, 0);
+    if (ei >= 0 && ei < g_exclCount) {
+        snprintf(buf, sizeof buf, "%d", g_exclW[ei]);
+        WritePrivateProfileStringA("Display", "ExclusiveWidth", buf, g_ini);
+        snprintf(buf, sizeof buf, "%d", g_exclH[ei]);
+        WritePrivateProfileStringA("Display", "ExclusiveHeight", buf, g_ini);
+        snprintf(buf, sizeof buf, "%d", g_exclHz[ei]);
+        WritePrivateProfileStringA("Display", "ExclusiveRefresh", buf, g_ini);
+    }
+    DispSaveChoice(GetDlgItem(w, ID_DISPAA), "Antialiasing", k_antialiasing, ANTIALIAS_COUNT, g_dispAaIni);
     int si = (int)SendMessageA(GetDlgItem(w, ID_DISPSIZE), CB_GETCURSEL, 0, 0);
     if (si <= 0 || !g_dispSizeW[si]) {
         WritePrivateProfileStringA("Display", "GameWidth", "Auto", g_ini);
@@ -1297,6 +1389,7 @@ static LRESULT CALLBACK DispWndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         HWND o = DispCombo(w, ID_DISPOUTPUT, 150, 69, 280);
         SendMessageA(o, CB_ADDSTRING, 0, (LPARAM) "Fullscreen (borderless, your screen's resolution)");
         SendMessageA(o, CB_ADDSTRING, 0, (LPARAM) "In a window");
+        SendMessageA(o, CB_ADDSTRING, 0, (LPARAM) "Fullscreen, exclusive (OpenGL and Vulkan)");
         Label(w, "Game resolution:", 10, 104, 130);
         DispCombo(w, ID_DISPSIZE, 150, 101, 390);
         Label(w, "The 3D world is always drawn at full resolution. This sets the", 150, 128, 400);
@@ -1304,18 +1397,24 @@ static LRESULT CALLBACK DispWndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         Label(w, "Window size:", 10, 172, 130);
         DispCombo(w, ID_DISPWIN, 150, 169, 160);
         Label(w, "(when shown in a window)", 320, 172, 200);
-        DispCheck(w, ID_DISPMENUS, "Centre the menus on wide screens", 202);
-        DispCheck(w, ID_DISPHUD, "Centre the HUD and in-game screens on wide screens", 224);
-        DispCheck(w, ID_DISPPANELS, "Keep the world full width behind the map, spells and skills panels", 246);
-        Label(w, "Vulkan renderer only (the 64-bit builds):", 10, 280, DISP_WND_W - 20);
-        Label(w, "Render scale:", 10, 304, 130);
-        DispCombo(w, ID_DISPSCALE, 150, 301, 220);
-        Label(w, "FSR sharpening:", 10, 336, 130);
-        DispCombo(w, ID_DISPSHARP, 150, 333, 220);
-        Label(w, "(below scale 1 only)", 380, 336, 170);
-        Button(w, ID_DISPSAVE, "&Save", 10, 366, 100);
-        Button(w, ID_DISPRESET, "&Defaults", 120, 366, 100);
-        Button(w, ID_DISPCLOSE, "Close", 230, 366, 100);
+        Label(w, "Exclusive mode:", 10, 204, 130);
+        DispCombo(w, ID_DISPEXCL, 150, 201, 220);
+        Label(w, "(when fullscreen, exclusive)", 380, 204, 170);
+        DispCheck(w, ID_DISPMENUS, "Centre the menus on wide screens", 234);
+        DispCheck(w, ID_DISPHUD, "Centre the HUD and in-game screens on wide screens", 256);
+        DispCheck(w, ID_DISPPANELS, "Keep the world full width behind the map, spells and skills panels", 278);
+        Label(w, "64-bit builds only (OpenGL and Vulkan):", 10, 310, DISP_WND_W - 20);
+        Label(w, "Anti-aliasing:", 10, 334, 130);
+        DispCombo(w, ID_DISPAA, 150, 331, 220);
+        Label(w, "Vulkan renderer only (the 64-bit builds):", 10, 366, DISP_WND_W - 20);
+        Label(w, "Render scale:", 10, 390, 130);
+        DispCombo(w, ID_DISPSCALE, 150, 387, 220);
+        Label(w, "FSR sharpening:", 10, 422, 130);
+        DispCombo(w, ID_DISPSHARP, 150, 419, 220);
+        Label(w, "(below scale 1 only)", 380, 422, 170);
+        Button(w, ID_DISPSAVE, "&Save", 10, 446, 100);
+        Button(w, ID_DISPRESET, "&Defaults", 120, 446, 100);
+        Button(w, ID_DISPCLOSE, "Close", 230, 446, 100);
         DispFill(w, FALSE);
         return 0;
     }

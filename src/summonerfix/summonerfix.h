@@ -13,6 +13,8 @@ typedef struct {
     Renderer renderer;
     int windowed;       // Direct3D/Glide: game window mode 200 instead of 201
     int borderless;     // OpenGL output: 1 = borderless fullscreen, 0 = window
+    int exclusive;      // OpenGL output: Mode=Exclusive, borderless with the display mode set (2026-11-10)
+    int exclusiveWidth, exclusiveHeight, exclusiveRefresh; // its mode; 0 = the desktop's
     int windowWidth;    // OpenGL output window client size when borderless == 0
     int windowHeight;
     int maxFps;         // 0 = game default (120)

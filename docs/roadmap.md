@@ -232,8 +232,12 @@ the plan for a fixed build and an experimental build that take them up is in
   window output, centred menus and HUD, brightness. Done 2026-10-24: `GameWidth=Auto` (the default) fits the 768-high
   layout to the screen's shape, and the config app's **Display / resolution...** window lists the sizes, the renderer,
   fullscreen or window and the window sizes the monitor reports ([SummonerFix](summonerfix/index.md)); the
-  experimental build has vsync and a frame-rate cap. Candidates: exclusive fullscreen, anti-aliasing, field of view,
-  UI scale.
+  experimental build has vsync and a frame-rate cap. Candidates: ~~exclusive fullscreen, anti-aliasing~~, field of
+  view, UI scale. **Built 2026-11-10, not yet run in the game:** `[Display] Mode=Exclusive` (the display mode set and
+  given back on Alt+Tab, in SummonerFix's OpenGL output and the 64-bit build; under Vulkan also
+  `VK_EXT_full_screen_exclusive` where the driver has it) and `[Display] Antialiasing=2|4|8` (MSAA in the 64-bit
+  build, OpenGL and Vulkan), both in the config app ([SummonerFix](summonerfix/index.md#exclusive-fullscreen-and-anti-aliasing-2026-11-10),
+  [Vulkan renderer](future/vulkan-renderer.md#exclusive-fullscreen-and-msaa-2026-11-10)).
 
 ## Other planned work
 

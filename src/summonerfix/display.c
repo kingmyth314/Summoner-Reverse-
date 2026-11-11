@@ -450,10 +450,97 @@ static LONG OutputStyle(void)
     return g_cfg.borderless ? (LONG)(WS_POPUP | WS_VISIBLE) : (LONG)(WS_OVERLAPPEDWINDOW | WS_VISIBLE);
 }
 
+// [Display] Mode=Exclusive (2026-11-10): the borderless window with the display mode of the window's monitor set to
+// ExclusiveWidth x ExclusiveHeight at ExclusiveRefresh Hz (0: the desktop's), given back while the game is not in
+// front (it is minimised then), as the 64-bit build's host does (src/decomp/modern/display.cpp).
+static int g_exclusiveWanted;  // a mode other than the desktop's was asked for and the display offers it
+static int g_exclusiveSet;     // that mode is on now
+static DEVMODEA g_exclusiveMode;
+static char g_exclusiveDevice[CCHDEVICENAME];
+
+static int ExclusiveOn(void)
+{
+    return g_cfg.exclusive && g_cfg.renderer == RENDERER_OPENGL;
+}
+
+static void ExclusiveLeave(void)
+{
+    if (!g_exclusiveSet)
+        return;
+    ChangeDisplaySettingsExA(g_exclusiveDevice, NULL, NULL, 0, NULL);
+    g_exclusiveSet = 0;
+}
+
+static void ExclusiveEnter(void)
+{
+    if (!g_exclusiveWanted || g_exclusiveSet)
+        return;
+    LONG r = ChangeDisplaySettingsExA(g_exclusiveDevice, &g_exclusiveMode, NULL, CDS_FULLSCREEN, NULL);
+    if (r != DISP_CHANGE_SUCCESSFUL) {
+        Log("exclusive: mode %lux%lu failed (%ld); the desktop's mode stays", g_exclusiveMode.dmPelsWidth,
+            g_exclusiveMode.dmPelsHeight, r);
+        g_exclusiveWanted = 0;
+        return;
+    }
+    g_exclusiveSet = 1;
+    static int atExit;
+    if (!atExit) {
+        atExit = 1;
+        atexit(ExclusiveLeave);
+    }
+}
+
+static void ExclusiveChoose(HWND w)
+{
+    MONITORINFOEXA mi;
+    mi.cbSize = sizeof mi;
+    if (!GetMonitorInfoA(MonitorFromWindow(w, MONITOR_DEFAULTTOPRIMARY), (MONITORINFO *)&mi))
+        return;
+    lstrcpynA(g_exclusiveDevice, mi.szDevice, sizeof g_exclusiveDevice);
+    DEVMODEA cur;
+    ZeroMemory(&cur, sizeof cur);
+    cur.dmSize = sizeof cur;
+    if (!EnumDisplaySettingsA(g_exclusiveDevice, ENUM_CURRENT_SETTINGS, &cur))
+        return;
+    ZeroMemory(&g_exclusiveMode, sizeof g_exclusiveMode);
+    g_exclusiveMode.dmSize = sizeof g_exclusiveMode;
+    int sized = g_cfg.exclusiveWidth > 0 && g_cfg.exclusiveHeight > 0;
+    g_exclusiveMode.dmPelsWidth = sized ? (DWORD)g_cfg.exclusiveWidth : cur.dmPelsWidth;
+    g_exclusiveMode.dmPelsHeight = sized ? (DWORD)g_cfg.exclusiveHeight : cur.dmPelsHeight;
+    g_exclusiveMode.dmDisplayFrequency = g_cfg.exclusiveRefresh > 0 ? (DWORD)g_cfg.exclusiveRefresh : cur.dmDisplayFrequency;
+    g_exclusiveMode.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY;
+    if (g_exclusiveMode.dmPelsWidth == cur.dmPelsWidth && g_exclusiveMode.dmPelsHeight == cur.dmPelsHeight &&
+        g_exclusiveMode.dmDisplayFrequency == cur.dmDisplayFrequency) {
+        Log("exclusive: the desktop's mode %lux%lu at %lu Hz (no mode change)", cur.dmPelsWidth, cur.dmPelsHeight,
+            cur.dmDisplayFrequency);
+        return;
+    }
+    DWORD tried = g_exclusiveMode.dmDisplayFrequency;
+    if (ChangeDisplaySettingsExA(g_exclusiveDevice, &g_exclusiveMode, NULL, CDS_TEST, NULL) != DISP_CHANGE_SUCCESSFUL) {
+        g_exclusiveMode.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT; // the size at the display's default refresh
+        if (ChangeDisplaySettingsExA(g_exclusiveDevice, &g_exclusiveMode, NULL, CDS_TEST, NULL) != DISP_CHANGE_SUCCESSFUL) {
+            Log("exclusive: mode %lux%lu is not offered by %s; the desktop's mode stays", g_exclusiveMode.dmPelsWidth,
+                g_exclusiveMode.dmPelsHeight, g_exclusiveDevice);
+            return;
+        }
+        Log("exclusive: %lu Hz is not offered at %lux%lu; the display's default refresh", tried,
+            g_exclusiveMode.dmPelsWidth, g_exclusiveMode.dmPelsHeight);
+        g_exclusiveMode.dmDisplayFrequency = 0;
+    }
+    Log("exclusive: mode %lux%lu at %lu Hz on %s", g_exclusiveMode.dmPelsWidth, g_exclusiveMode.dmPelsHeight,
+        g_exclusiveMode.dmDisplayFrequency, g_exclusiveDevice);
+    g_exclusiveWanted = 1;
+}
+
 static LONG WINAPI Hook_SetWindowLongA(HWND w, int index, LONG value)
 {
     if (CallerIsGrInit(__builtin_return_address(0))) {
         if (index == GWL_STYLE) {
+            if (ExclusiveOn() && !g_wnd) {
+                // Before GrInit's SetWindowPos, which takes the monitor's (new) rectangle.
+                ExclusiveChoose(w);
+                ExclusiveEnter();
+            }
             g_wnd = w;
             Log("game window %p: style 0x%08lX -> 0x%08lX", (void *)w, value, OutputStyle());
             value = OutputStyle();
@@ -480,12 +567,27 @@ static BOOL WINAPI Hook_SetWindowPos(HWND w, HWND after, int x, int y, int cx, i
 {
     DWORD from = ReturnVa(__builtin_return_address(0));
     if (from == VA_WNDPROC_SETPOS_DEACTIVATE) {
+        if (ExclusiveOn() && w == g_wnd && g_wnd) {
+            // Exclusive: the desktop's mode back and the window minimised, without activating anything (the
+            // program being switched to is).
+            ExclusiveLeave();
+            ShowWindow(w, SW_SHOWMINNOACTIVE);
+            Log("exclusive: focus lost, minimised");
+            return TRUE;
+        }
         // Losing focus: don't re-activate. Send the (screen-covering, borderless) window to the back so
         // the program being switched to is actually visible.
         return real_SetWindowPos(w, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
     }
-    if (from == VA_WNDPROC_SETPOS_ACTIVATE)
+    if (from == VA_WNDPROC_SETPOS_ACTIVATE) {
         flags |= SWP_NOACTIVATE; // already being activated; keep our geometry below
+        if (ExclusiveOn() && w == g_wnd && g_wnd) {
+            ExclusiveEnter();
+            if (IsIconic(w))
+                ShowWindow(w, SW_RESTORE);
+            Log("exclusive: focus back");
+        }
+    }
     if (w == g_wnd && g_wnd && !(flags & SWP_NOSIZE)) {
         HMONITOR mon = MonitorFromWindow(w, MONITOR_DEFAULTTOPRIMARY);
         MONITORINFO mi;

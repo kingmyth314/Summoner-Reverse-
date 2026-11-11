@@ -8,8 +8,11 @@
 //
 // Settings (summonerfix.ini): [Display] Renderer=Vulkan selects this back end; [Display] VulkanPresent = Auto (the
 // default: the game's vsync setting), Fifo, Mailbox or Immediate; [Display] RenderScale (0.5-2, default 1) draws the
-// game at that multiple of the window's size and scales it into the window (modern/vk_post.cpp); [Debug]
-// VulkanValidation=1 loads the Khronos validation layer (the Vulkan SDK) and logs its messages to summonerfix.log.
+// game at that multiple of the window's size and scales it into the window (modern/vk_post.cpp); [Display]
+// Antialiasing (2, 4, 8; 2026-11-10) draws into a multisampled image that each rendering pass resolves into the target;
+// [Display] Mode=Exclusive (2026-11-10) adds VK_EXT_full_screen_exclusive where the driver offers it (the display mode
+// itself is modern/display.cpp's); [Debug] VulkanValidation=1 loads the Khronos validation layer (the Vulkan SDK) and
+// logs its messages to summonerfix.log.
 
 #ifdef _WIN64
 #include <string.h>
@@ -170,6 +173,55 @@ static bool vk_has_layer(const char *name)
     return found;
 }
 
+static bool vk_instance_caps2;                 // VK_KHR_get_surface_capabilities2 is enabled
+
+static bool vk_has_instance_extension(const char *name)
+{
+    PFN_vkEnumerateInstanceExtensionProperties enum_ext = (PFN_vkEnumerateInstanceExtensionProperties)
+        vk_get_instance_proc(NULL, "vkEnumerateInstanceExtensionProperties");
+    uint32_t n = 0;
+    if (!enum_ext || enum_ext(NULL, &n, NULL) != VK_SUCCESS || n == 0)
+        return false;
+    VkExtensionProperties *props = new VkExtensionProperties[n];
+    bool found = false;
+    if (enum_ext(NULL, &n, props) == VK_SUCCESS)
+        for (uint32_t i = 0; i < n && !found; i++)
+            found = !strcmp(props[i].extensionName, name);
+    delete[] props;
+    return found;
+}
+
+static bool vk_has_device_extension(const char *name)
+{
+    uint32_t n = 0;
+    if (vkEnumerateDeviceExtensionProperties(vkc.gpu, NULL, &n, NULL) != VK_SUCCESS || n == 0)
+        return false;
+    VkExtensionProperties *props = new VkExtensionProperties[n];
+    bool found = false;
+    if (vkEnumerateDeviceExtensionProperties(vkc.gpu, NULL, &n, props) == VK_SUCCESS)
+        for (uint32_t i = 0; i < n && !found; i++)
+            found = !strcmp(props[i].extensionName, name);
+    delete[] props;
+    return found;
+}
+
+// The surface description VK_EXT_full_screen_exclusive takes: application controlled, on the window's monitor. The
+// same chain goes into the swapchain and into the surface queries made for it.
+struct vk_fse_chain {
+    VkSurfaceFullScreenExclusiveInfoEXT info;
+    VkSurfaceFullScreenExclusiveWin32InfoEXT win32;
+};
+
+static void vk_fse_chain_init(vk_fse_chain *c)
+{
+    memset(c, 0, sizeof *c);
+    c->info.sType = VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT;
+    c->info.fullScreenExclusive = VK_FULL_SCREEN_EXCLUSIVE_APPLICATION_CONTROLLED_EXT;
+    c->info.pNext = &c->win32;
+    c->win32.sType = VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_WIN32_INFO_EXT;
+    c->win32.hmonitor = MonitorFromWindow(vkc.hwnd, MONITOR_DEFAULTTOPRIMARY);
+}
+
 static bool vk_create_instance()
 {
     PFN_vkCreateInstance create_instance = (PFN_vkCreateInstance)vk_get_instance_proc(NULL, "vkCreateInstance");
@@ -181,8 +233,18 @@ static bool vk_create_instance()
     if (want_validation && !use_validation)
         vk_log("VulkanValidation=1 but %s is not installed (the Vulkan SDK)", validation);
 
-    const char *extensions[3] = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
-                                  VK_EXT_DEBUG_UTILS_EXTENSION_NAME };
+    const char *extensions[4] = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME };
+    uint32_t n_ext = 2;
+    // [Display] Mode=Exclusive: VK_EXT_full_screen_exclusive (a device extension) needs this instance extension.
+    vkc.fse_wanted = modern_display_exclusive();
+    vk_instance_caps2 = vkc.fse_wanted && vk_has_instance_extension(VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
+    if (vk_instance_caps2)
+        extensions[n_ext++] = VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME;
+    else if (vkc.fse_wanted)
+        vk_log("full-screen exclusive: the instance has no %s; staying borderless (the display mode is still set)",
+               VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
+    if (use_validation)
+        extensions[n_ext++] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
     VkApplicationInfo app = {};
     app.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     app.pApplicationName = "Summoner";
@@ -191,7 +253,7 @@ static bool vk_create_instance()
     VkInstanceCreateInfo ci = {};
     ci.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     ci.pApplicationInfo = &app;
-    ci.enabledExtensionCount = use_validation ? 3 : 2;
+    ci.enabledExtensionCount = n_ext;
     ci.ppEnabledExtensionNames = extensions;
     ci.enabledLayerCount = use_validation ? 1 : 0;
     ci.ppEnabledLayerNames = &validation;
@@ -305,13 +367,40 @@ static bool vk_create_device()
     qi.queueFamilyIndex = vkc.queue_family;
     qi.queueCount = 1;
     qi.pQueuePriorities = &priority;
-    const char *extensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+    const char *extensions[2] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+    uint32_t n_ext = 1;
+    // [Display] Mode=Exclusive: the extension when the driver has it and the surface supports it on this monitor.
+    if (vk_instance_caps2 && vkGetPhysicalDeviceSurfaceCapabilities2KHR) {
+        if (!vk_has_device_extension(VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME)) {
+            vk_log("full-screen exclusive: %s not offered by this driver; staying borderless (the display mode is "
+                   "still set)", VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME);
+        } else {
+            vk_fse_chain chain;
+            vk_fse_chain_init(&chain);
+            VkPhysicalDeviceSurfaceInfo2KHR si = {};
+            si.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR;
+            si.pNext = &chain.info;
+            si.surface = vkc.surface;
+            VkSurfaceCapabilitiesFullScreenExclusiveEXT fse = {};
+            fse.sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_FULL_SCREEN_EXCLUSIVE_EXT;
+            VkSurfaceCapabilities2KHR caps = {};
+            caps.sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_2_KHR;
+            caps.pNext = &fse;
+            if (vkGetPhysicalDeviceSurfaceCapabilities2KHR(vkc.gpu, &si, &caps) == VK_SUCCESS &&
+                fse.fullScreenExclusiveSupported) {
+                extensions[n_ext++] = VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME;
+                vkc.fse_available = true;
+            } else {
+                vk_log("full-screen exclusive: the surface does not support it on this monitor; staying borderless");
+            }
+        }
+    }
     VkDeviceCreateInfo di = {};
     di.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     di.pNext = &enable;
     di.queueCreateInfoCount = 1;
     di.pQueueCreateInfos = &qi;
-    di.enabledExtensionCount = 1;
+    di.enabledExtensionCount = n_ext;
     di.ppEnabledExtensionNames = extensions;
     VkResult r = vkCreateDevice(vkc.gpu, &di, NULL, &vkc.device);
     if (r != VK_SUCCESS) {
@@ -322,10 +411,91 @@ static bool vk_create_device()
     VK_DEVICE_FUNCS(VK_LOAD_DEVICE)
 #undef VK_LOAD_DEVICE
     vkGetDeviceQueue(vkc.device, vkc.queue_family, 0, &vkc.queue);
+    if (vkc.fse_available && (!vkAcquireFullScreenExclusiveModeEXT || !vkReleaseFullScreenExclusiveModeEXT))
+        vkc.fse_available = false;
+    vkc.fse_use = vkc.fse_available;
+    return true;
+}
+
+// [Display] Antialiasing: 0 or 1 off, else 2, 4 or 8 samples (more is taken as 8), lowered to what the GPU offers for
+// both colour and depth attachments.
+static void vk_choose_samples()
+{
+    vkc.samples = VK_SAMPLE_COUNT_1_BIT;
+    int want = modern_ini_int("Display", "Antialiasing", 0);
+    if (want <= 1)
+        return;
+    VkSampleCountFlags offered = vkc.gpu_props.limits.framebufferColorSampleCounts &
+                                 vkc.gpu_props.limits.framebufferDepthSampleCounts;
+    int n = want >= 8 ? 8 : want >= 4 ? 4 : 2;
+    while (n > 1 && !(offered & (VkSampleCountFlags)n))
+        n /= 2;
+    vkc.samples = (VkSampleCountFlagBits)n;
+    vk_log("antialiasing: %d samples asked for, %d used (the GPU offers mask 0x%x)", want, n, (unsigned)offered);
+}
+
+// The multisampled image the game draws into (target_extent, vkc.samples); every rendering pass resolves it into the
+// target. False when it cannot be made (the caller turns antialiasing off).
+static bool vk_create_msaa_image()
+{
+    VkImageCreateInfo ii = {};
+    ii.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    ii.imageType = VK_IMAGE_TYPE_2D;
+    ii.format = vkc.swap_format;
+    ii.extent.width = vkc.target_extent.width;
+    ii.extent.height = vkc.target_extent.height;
+    ii.extent.depth = 1;
+    ii.mipLevels = 1;
+    ii.arrayLayers = 1;
+    ii.samples = vkc.samples;
+    ii.tiling = VK_IMAGE_TILING_OPTIMAL;
+    ii.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    if (vkCreateImage(vkc.device, &ii, NULL, &vkc.msaa_image) != VK_SUCCESS) {
+        vkc.msaa_image = VK_NULL_HANDLE;
+        return false;
+    }
+    VkMemoryRequirements req;
+    vkGetImageMemoryRequirements(vkc.device, vkc.msaa_image, &req);
+    VkMemoryAllocateInfo ai = {};
+    ai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    ai.allocationSize = req.size;
+    ai.memoryTypeIndex = vk_memory_type(req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    if (ai.memoryTypeIndex == UINT32_MAX || vkAllocateMemory(vkc.device, &ai, NULL, &vkc.msaa_memory) != VK_SUCCESS) {
+        vkDestroyImage(vkc.device, vkc.msaa_image, NULL);
+        vkc.msaa_image = VK_NULL_HANDLE;
+        vkc.msaa_memory = VK_NULL_HANDLE;
+        return false;
+    }
+    vkBindImageMemory(vkc.device, vkc.msaa_image, vkc.msaa_memory, 0);
+    VkImageViewCreateInfo vi = {};
+    vi.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    vi.image = vkc.msaa_image;
+    vi.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    vi.format = vkc.swap_format;
+    vi.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    vi.subresourceRange.levelCount = 1;
+    vi.subresourceRange.layerCount = 1;
+    if (vkCreateImageView(vkc.device, &vi, NULL, &vkc.msaa_view) != VK_SUCCESS) {
+        vkc.msaa_view = VK_NULL_HANDLE;
+        return false;   // the image and memory go with vk_destroy_swapchain_images
+    }
     return true;
 }
 
 // ---- swapchain ----
+static void vk_destroy_msaa_image()
+{
+    if (vkc.msaa_view)
+        vkDestroyImageView(vkc.device, vkc.msaa_view, NULL);
+    if (vkc.msaa_image)
+        vkDestroyImage(vkc.device, vkc.msaa_image, NULL);
+    if (vkc.msaa_memory)
+        vkFreeMemory(vkc.device, vkc.msaa_memory, NULL);
+    vkc.msaa_view = VK_NULL_HANDLE;
+    vkc.msaa_image = VK_NULL_HANDLE;
+    vkc.msaa_memory = VK_NULL_HANDLE;
+}
+
 static void vk_destroy_swapchain_images()
 {
     for (uint32_t i = 0; i < vkc.image_count; i++) {
@@ -342,6 +512,7 @@ static void vk_destroy_swapchain_images()
     vkc.depth_view = VK_NULL_HANDLE;
     vkc.depth_image = VK_NULL_HANDLE;
     vkc.depth_memory = VK_NULL_HANDLE;
+    vk_destroy_msaa_image();
 }
 
 static VkImageView vk_make_view(VkImage image, VkFormat format, VkImageAspectFlags aspect)
@@ -367,11 +538,25 @@ static VkPresentModeKHR vk_choose_present_mode()
     char want[32];
     modern_ini_str("Display", "VulkanPresent", "Auto", want, sizeof want);
     uint32_t n = 0;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(vkc.gpu, vkc.surface, &n, NULL);
     VkPresentModeKHR modes[16];
-    if (n > 16)
-        n = 16;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(vkc.gpu, vkc.surface, &n, modes);
+    if (vkc.fse_use && vkGetPhysicalDeviceSurfacePresentModes2EXT) {
+        // Full-screen exclusive: the modes offered for a swapchain with that surface description.
+        vk_fse_chain chain;
+        vk_fse_chain_init(&chain);
+        VkPhysicalDeviceSurfaceInfo2KHR si = {};
+        si.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR;
+        si.pNext = &chain.info;
+        si.surface = vkc.surface;
+        vkGetPhysicalDeviceSurfacePresentModes2EXT(vkc.gpu, &si, &n, NULL);
+        if (n > 16)
+            n = 16;
+        vkGetPhysicalDeviceSurfacePresentModes2EXT(vkc.gpu, &si, &n, modes);
+    } else {
+        vkGetPhysicalDeviceSurfacePresentModesKHR(vkc.gpu, vkc.surface, &n, NULL);
+        if (n > 16)
+            n = 16;
+        vkGetPhysicalDeviceSurfacePresentModesKHR(vkc.gpu, vkc.surface, &n, modes);
+    }
     bool has[4] = { false, false, false, false };   // immediate, mailbox, fifo, fifo relaxed
     for (uint32_t i = 0; i < n; i++)
         if ((int)modes[i] >= 0 && (int)modes[i] < 4)
@@ -444,6 +629,15 @@ static bool vk_create_swapchain()
     si.presentMode = vkc.present_mode;
     si.clipped = VK_TRUE;
     si.oldSwapchain = old;
+    vk_fse_chain chain;
+    bool fse = vkc.fse_available && vkc.fse_use;
+    if (fse) {
+        vk_fse_chain_init(&chain);
+        si.pNext = &chain.info;
+    }
+    if (old && vkc.fse_acquired)
+        vkReleaseFullScreenExclusiveModeEXT(vkc.device, old);
+    vkc.fse_acquired = false;
     VkResult r = vkCreateSwapchainKHR(vkc.device, &si, NULL, &vkc.swapchain);
     if (old) {
         vk_destroy_swapchain_images();
@@ -452,7 +646,26 @@ static bool vk_create_swapchain()
     if (r != VK_SUCCESS) {
         vk_log("vkCreateSwapchainKHR failed (%d)", (int)r);
         vkc.swapchain = VK_NULL_HANDLE;
+        if (fse) {
+            vk_log("full-screen exclusive: retrying the swapchain without it");
+            vkc.fse_use = false;
+            return vk_create_swapchain();
+        }
         return false;
+    }
+    if (fse) {
+        // Application controlled: exclusive only once acquired. It fails when the window is not in front or does
+        // not cover the monitor; the swapchain is then made again without it (the desktop presents it, borderless).
+        VkResult a = vkAcquireFullScreenExclusiveModeEXT(vkc.device, vkc.swapchain);
+        if (a == VK_SUCCESS) {
+            vkc.fse_acquired = true;
+            vk_log("full-screen exclusive: acquired (%ux%u)", extent.width, extent.height);
+        } else {
+            vk_log("full-screen exclusive: not acquired (%d); presenting borderless until the window is activated "
+                   "again", (int)a);
+            vkc.fse_use = false;
+            return vk_create_swapchain();
+        }
     }
     vkc.extent = extent;
     vkc.image_count = 0;
@@ -476,6 +689,17 @@ static bool vk_create_swapchain()
         vkc.render_scale = 1.0f;
         vk_post_resize();
     }
+    // [Display] Antialiasing: the multisampled image at the target's size. If it cannot be made (memory: 8 samples at
+    // RenderScale 2 on a large screen is over a gigabyte with the depth), antialiasing is turned off for the session
+    // and the pipelines made again for one sample.
+    if (vkc.samples > VK_SAMPLE_COUNT_1_BIT && !vk_create_msaa_image()) {
+        vk_log("antialiasing: the %d-sample image (%ux%u) could not be made; antialiasing off", (int)vkc.samples,
+               vkc.target_extent.width, vkc.target_extent.height);
+        vk_destroy_msaa_image();
+        vkc.samples = VK_SAMPLE_COUNT_1_BIT;
+        if (!vk_draw_set_samples() || !vk_post_set_samples())
+            vk_log("remaking the pipelines for one sample failed");
+    }
     VkImageCreateInfo ii = {};
     ii.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     ii.imageType = VK_IMAGE_TYPE_2D;
@@ -485,7 +709,7 @@ static bool vk_create_swapchain()
     ii.extent.depth = 1;
     ii.mipLevels = 1;
     ii.arrayLayers = 1;
-    ii.samples = VK_SAMPLE_COUNT_1_BIT;
+    ii.samples = vkc.samples;   // as many as the colour attachment the game draws into
     ii.tiling = VK_IMAGE_TILING_OPTIMAL;
     ii.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
     vkCreateImage(vkc.device, &ii, NULL, &vkc.depth_image);
@@ -498,8 +722,8 @@ static bool vk_create_swapchain()
     vkAllocateMemory(vkc.device, &ai, NULL, &vkc.depth_memory);
     vkBindImageMemory(vkc.device, vkc.depth_image, vkc.depth_memory, 0);
     vkc.depth_view = vk_make_view(vkc.depth_image, vkc.depth_format, VK_IMAGE_ASPECT_DEPTH_BIT);
-    vk_log("swapchain %ux%u, %u images, present mode %d", extent.width, extent.height, vkc.image_count,
-           (int)vkc.present_mode);
+    vk_log("swapchain %ux%u, %u images, present mode %d, %d sample(s)%s", extent.width, extent.height,
+           vkc.image_count, (int)vkc.present_mode, (int)vkc.samples, vkc.fse_acquired ? ", full-screen exclusive" : "");
     if (vkc.scene_image)
         vk_log("scene image %ux%u (RenderScale %.2f)", vkc.target_extent.width, vkc.target_extent.height,
                vkc.render_scale);
@@ -578,6 +802,8 @@ static void vk_shutdown()
                 vkDestroySemaphore(vkc.device, vk_render_done[i], NULL);
         memset(vk_render_done, 0, sizeof vk_render_done);
         vk_destroy_swapchain_images();
+        if (vkc.swapchain && vkc.fse_acquired)
+            vkReleaseFullScreenExclusiveModeEXT(vkc.device, vkc.swapchain);
         if (vkc.swapchain)
             vkDestroySwapchainKHR(vkc.device, vkc.swapchain, NULL);
         vkDestroyDevice(vkc.device, NULL);
@@ -622,6 +848,7 @@ bool vk_init(HWND hwnd)
         return false;
     }
     vkc.depth_format = vk_choose_depth_format();
+    vk_choose_samples();   // before the pipelines, which are made for the sample count
     vk_choose_surface_format();
     if (!vk_create_frames() || !vk_draw_init() || !vk_tcache_init() || !vk_post_init()) {
         vk_log("setting up the frames, textures or pipelines failed");
@@ -670,6 +897,15 @@ void vk_resume_rendering()
     color.loadOp = vk_frame_cleared ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_CLEAR;
     color.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     color.clearValue.color.float32[3] = 1.0f;
+    if (vkc.msaa_view) {
+        // [Display] Antialiasing: the game draws into the multisampled image, kept across passes (load, store), and
+        // each pass resolves it into the target as it ends, so a read-back, the brightness copy and the scale pass
+        // find the resolved picture there.
+        color.imageView = vkc.msaa_view;
+        color.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+        color.resolveImageView = vk_target_view();
+        color.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    }
     VkRenderingAttachmentInfo depth = {};
     depth.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
     depth.imageView = vkc.depth_view;
@@ -725,6 +961,12 @@ void vk_begin_frame()
     GetClientRect(vkc.hwnd, &rc);
     if (rc.right - rc.left <= 0 || rc.bottom - rc.top <= 0)
         return;   // minimised
+    if (vkc.fse_reacquire) {
+        // The window is in front again (vk_window_active): a new swapchain tries full-screen exclusive again.
+        vkc.fse_reacquire = false;
+        vkc.fse_use = true;
+        vkc.extent.width = 0;
+    }
     if (!vkc.swapchain || (uint32_t)(rc.right - rc.left) != vkc.extent.width ||
         (uint32_t)(rc.bottom - rc.top) != vkc.extent.height) {
         vkDeviceWaitIdle(vkc.device);
@@ -742,7 +984,13 @@ void vk_begin_frame()
         vk_stats.fence_ms += t1 - t0;
         vk_stats.acquire_ms += vk_now_ms() - t1;
     }
-    if (r == VK_ERROR_OUT_OF_DATE_KHR) {
+    if (r == VK_ERROR_OUT_OF_DATE_KHR || r == VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT) {
+        // Full-screen exclusive lost (another program took the display): a new swapchain tries to acquire it again
+        // and goes borderless if it cannot.
+        if (r == VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT) {
+            vk_log("full-screen exclusive: lost at acquire");
+            vkc.fse_acquired = false;
+        }
         vkDeviceWaitIdle(vkc.device);
         if (!vk_create_swapchain())
             return;
@@ -766,6 +1014,12 @@ void vk_begin_frame()
         vk_image_barrier(f->cmd, vkc.scene_image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, 0,
                          VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
+    // The multisampled image was drawn into and resolved by the last frame.
+    if (vkc.msaa_image)
+        vk_image_barrier(f->cmd, vkc.msaa_image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
+                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+                         VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+                         VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
     vk_image_barrier(f->cmd, vkc.depth_image, VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
                      VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
                      VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT,
@@ -997,7 +1251,11 @@ void vk_end_frame()
     VkResult r = vkQueuePresentKHR(vkc.queue, &pi);
     if (vk_timing)
         vk_stats.present_ms += vk_now_ms() - t0;
-    if (r == VK_ERROR_OUT_OF_DATE_KHR || r == VK_SUBOPTIMAL_KHR)
+    if (r == VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT) {
+        vk_log("full-screen exclusive: lost at present");
+        vkc.fse_acquired = false;
+    }
+    if (r == VK_ERROR_OUT_OF_DATE_KHR || r == VK_SUBOPTIMAL_KHR || r == VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT)
         vkc.extent.width = 0;   // recreated at the next frame
     vk_recording = false;
     vk_frame_index = (vk_frame_index + 1) % VK_FRAMES;
@@ -1096,11 +1354,34 @@ void vk_gr_opengl_flip()
     vk_gr_opengl_tcache_frame();
 }
 
+// modern/display.cpp's focus handling under [Display] Mode=Exclusive: losing the focus gives the display back at
+// once (the window is minimised next); gaining it only marks the swapchain to be made again at the next frame, as the
+// window may be inside a frame's recording here (WM_ACTIVATE from the game's message pump).
+void vk_window_active(bool active)
+{
+    if (!vkc.device || !vkc.fse_available)
+        return;
+    if (!active) {
+        if (vkc.swapchain && vkc.fse_acquired) {
+            vkReleaseFullScreenExclusiveModeEXT(vkc.device, vkc.swapchain);
+            vk_log("full-screen exclusive: released (focus lost)");
+        }
+        vkc.fse_acquired = false;
+        vkc.fse_reacquire = false;
+    } else {
+        vkc.fse_reacquire = true;
+    }
+}
+
 #else
 bool vk_init(HWND hwnd)
 {
     modern_log("vulkan: this exe was built without the Vulkan SDK (VULKAN_SDK); using OpenGL");
     return false;
+}
+
+void vk_window_active(bool)
+{
 }
 #endif
 #endif

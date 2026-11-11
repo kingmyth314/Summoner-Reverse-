@@ -3,7 +3,12 @@
 // SummonerFix's display layer (src/summonerfix/display.c) written into the source: the game keeps rendering in its
 // own pixel coordinates (gr_screen.max_w x max_h), and
 //   - its window is borderless full screen on its monitor ([Display] Mode=Fullscreen, the default) or a window of
-//     [Display] WindowWidth x WindowHeight (Mode=Window),
+//     [Display] WindowWidth x WindowHeight (Mode=Window); Mode=Exclusive (2026-11-10) is the borderless window with
+//     the display mode set to [Display] ExclusiveWidth x ExclusiveHeight at ExclusiveRefresh Hz (0: the desktop's),
+//     given back while the window is not in front (it is minimised then), and under Vulkan full-screen exclusive
+//     (VK_EXT_full_screen_exclusive, modern/vk_device.cpp) where the driver offers it,
+//   - [Display] Antialiasing (2, 4, 8) asks OpenGL for a multisampled pixel format (modern_choose_pixel_format);
+//     reading a multisampled window back (thumbnails, captures, the brightness pass) resolves it,
 //   - every glViewport is scaled into a centred, aspect-correct area of the window,
 //   - the bars outside it are cleared before each swap,
 //   - the mouse is mapped between window pixels and game pixels,
@@ -23,6 +28,9 @@
 #ifdef FIXED_BUILD
 #include "experimental/experimental.h"
 #endif
+#ifdef _WIN64
+#include "modern/vk.h"
+#endif
 
 #ifndef GL_BGR_EXT
 #define GL_BGR_EXT 0x80E0
@@ -31,6 +39,85 @@
 static HWND display_wnd;
 static bool display_borderless = true;
 static int display_window_w = 1600, display_window_h = 1200;
+
+// ---- [Display] Mode=Exclusive ----
+static bool display_exclusive;                 // Mode=Exclusive
+static bool display_mode_wanted;               // a display mode other than the desktop's was asked for and is valid
+static bool display_mode_set;                  // that mode is on now (given back while the window is not in front)
+static DEVMODEA display_dm;
+
+bool modern_display_exclusive()
+{
+    return display_exclusive;
+}
+
+static void exclusive_leave()
+{
+    if (!display_mode_set)
+        return;
+    ChangeDisplaySettingsA(NULL, 0);   // the desktop's mode from the registry
+    display_mode_set = false;
+}
+
+static void exclusive_enter()
+{
+    if (!display_mode_wanted || display_mode_set)
+        return;
+    LONG r = ChangeDisplaySettingsA(&display_dm, CDS_FULLSCREEN);
+    if (r != DISP_CHANGE_SUCCESSFUL) {
+        modern_log("modern display: exclusive mode %lux%lu at %lu Hz failed (%ld); the desktop's mode stays",
+                   display_dm.dmPelsWidth, display_dm.dmPelsHeight, display_dm.dmDisplayFrequency, r);
+        display_mode_wanted = false;
+        return;
+    }
+    display_mode_set = true;
+    static bool at_exit;
+    if (!at_exit) {
+        at_exit = true;
+        atexit(exclusive_leave);   // CDS_FULLSCREEN is temporary anyway; this gives it back before the process ends
+    }
+}
+
+// The mode to set: the desktop's, with ExclusiveWidth / ExclusiveHeight / ExclusiveRefresh where they are above 0.
+// A size the display does not offer at the asked refresh is tried at its default refresh, then dropped.
+static void exclusive_choose()
+{
+    DEVMODEA cur;
+    memset(&cur, 0, sizeof cur);
+    cur.dmSize = sizeof cur;
+    display_mode_wanted = false;
+    if (!EnumDisplaySettingsA(NULL, ENUM_CURRENT_SETTINGS, &cur))
+        return;
+    int w = modern_ini_int("Display", "ExclusiveWidth", 0), h = modern_ini_int("Display", "ExclusiveHeight", 0);
+    int hz = modern_ini_int("Display", "ExclusiveRefresh", 0);
+    memset(&display_dm, 0, sizeof display_dm);
+    display_dm.dmSize = sizeof display_dm;
+    display_dm.dmPelsWidth = w > 0 && h > 0 ? (DWORD)w : cur.dmPelsWidth;
+    display_dm.dmPelsHeight = w > 0 && h > 0 ? (DWORD)h : cur.dmPelsHeight;
+    display_dm.dmDisplayFrequency = hz > 0 ? (DWORD)hz : cur.dmDisplayFrequency;
+    display_dm.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY;
+    if (display_dm.dmPelsWidth == cur.dmPelsWidth && display_dm.dmPelsHeight == cur.dmPelsHeight &&
+        display_dm.dmDisplayFrequency == cur.dmDisplayFrequency) {
+        modern_log("modern display: exclusive at the desktop's mode %lux%lu at %lu Hz (no mode change)",
+                   cur.dmPelsWidth, cur.dmPelsHeight, cur.dmDisplayFrequency);
+        return;
+    }
+    DWORD tried = display_dm.dmDisplayFrequency;
+    if (ChangeDisplaySettingsA(&display_dm, CDS_TEST) != DISP_CHANGE_SUCCESSFUL) {
+        display_dm.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT;   // the size at the display's default refresh
+        if (ChangeDisplaySettingsA(&display_dm, CDS_TEST) != DISP_CHANGE_SUCCESSFUL) {
+            modern_log("modern display: exclusive mode %lux%lu is not offered by the display; the desktop's mode stays",
+                       display_dm.dmPelsWidth, display_dm.dmPelsHeight);
+            return;
+        }
+        modern_log("modern display: %lu Hz is not offered at %lux%lu; the display's default refresh", tried,
+                   display_dm.dmPelsWidth, display_dm.dmPelsHeight);
+        display_dm.dmDisplayFrequency = 0;
+    }
+    modern_log("modern display: exclusive mode %lux%lu at %lu Hz", display_dm.dmPelsWidth, display_dm.dmPelsHeight,
+               display_dm.dmDisplayFrequency);
+    display_mode_wanted = true;
+}
 
 // Game pixels -> window pixels for the current client size.
 // menu_shift: a centred 1024-wide menu layout (only that part of the game screen is shown).
@@ -124,6 +211,13 @@ void modern_window_setup(HWND hwnd)
     display_window_w = modern_ini_int("Display", "WindowWidth", 1600);
     display_window_h = modern_ini_int("Display", "WindowHeight", 1200);
     display_wnd = hwnd;
+    if (!lstrcmpiA(mode, "Exclusive")) {
+        // Before the window's rectangle: the screen's size is the new mode's.
+        if (!display_exclusive)
+            exclusive_choose();
+        display_exclusive = true;
+        exclusive_enter();
+    }
     RECT r;
     window_rect(hwnd, &r);
     ShowWindow(hwnd, SW_SHOWNORMAL);
@@ -132,7 +226,8 @@ void modern_window_setup(HWND hwnd)
     SetWindowPos(hwnd, HWND_TOP, r.left, r.top, r.right - r.left, r.bottom - r.top, SWP_SHOWWINDOW | SWP_FRAMECHANGED);
     SetActiveWindow(hwnd);
     SetForegroundWindow(hwnd);
-    modern_log("modern display: %s %ldx%ld at %ld,%ld, game %dx%d", display_borderless ? "borderless" : "window",
+    modern_log("modern display: %s %ldx%ld at %ld,%ld, game %dx%d",
+               display_exclusive ? "exclusive" : display_borderless ? "borderless" : "window",
                r.right - r.left, r.bottom - r.top, r.left, r.top, gr_screen.max_w, gr_screen.max_h);
 }
 
@@ -143,14 +238,131 @@ bool modern_window_activate(HWND hwnd, bool active)
 {
     if (!modern_host() || hwnd != display_wnd || !display_wnd)
         return false;
-    if (!active) {
+#ifdef _WIN64
+    if (display_exclusive && modern_vk_active)
+        vk_window_active(active);   // full-screen exclusive released now, acquired again at the next frame
+#endif
+    if (!active && display_exclusive) {
+        // Exclusive: the desktop's mode back and the window minimised (not activating anything: the program being
+        // switched to is), as full-screen games do; activation (the taskbar, Alt+Tab) restores both.
+        exclusive_leave();
+        ShowWindow(hwnd, SW_SHOWMINNOACTIVE);
+        modern_log("modern display: exclusive: focus lost, minimised");
+    } else if (!active) {
         SetWindowPos(hwnd, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
     } else {
+        if (display_exclusive) {
+            exclusive_enter();
+            if (IsIconic(hwnd))
+                ShowWindow(hwnd, SW_RESTORE);
+            modern_log("modern display: exclusive: focus back");
+        }
         RECT r;
         window_rect(hwnd, &r);
         SetWindowPos(hwnd, HWND_TOP, r.left, r.top, r.right - r.left, r.bottom - r.top, SWP_NOACTIVATE);
     }
     return true;
+}
+
+// ---- [Display] Antialiasing under OpenGL ----
+// WGL_ARB_pixel_format / WGL_ARB_multisample (the extension specifications' values).
+#define WGL_DRAW_TO_WINDOW_ARB 0x2001
+#define WGL_ACCELERATION_ARB 0x2003
+#define WGL_SUPPORT_OPENGL_ARB 0x2010
+#define WGL_DOUBLE_BUFFER_ARB 0x2011
+#define WGL_PIXEL_TYPE_ARB 0x2013
+#define WGL_COLOR_BITS_ARB 0x2014
+#define WGL_DEPTH_BITS_ARB 0x2022
+#define WGL_FULL_ACCELERATION_ARB 0x2027
+#define WGL_TYPE_RGBA_ARB 0x202B
+#define WGL_SAMPLE_BUFFERS_ARB 0x2041
+#define WGL_SAMPLES_ARB 0x2042
+typedef BOOL (WINAPI *wgl_choose_pixel_format_fn)(HDC, const int *, const FLOAT *, UINT, int *, UINT *);
+
+static int gl_aa_format;                       // the multisampled format found, 0 = none
+static bool gl_aa_tried;
+
+// wglChoosePixelFormatARB needs a current context, and a window's pixel format can be set only once: a hidden
+// window gets a plain format and a throwaway context to ask through, and the format found is for the game's DC.
+static int find_multisample_format(HDC dc, int want)
+{
+    HINSTANCE inst = GetModuleHandleA(NULL);
+    WNDCLASSA wc;
+    memset(&wc, 0, sizeof wc);
+    wc.lpfnWndProc = DefWindowProcA;
+    wc.hInstance = inst;
+    wc.lpszClassName = "SummonerPixelFormatProbe";
+    RegisterClassA(&wc);
+    HWND probe = CreateWindowA(wc.lpszClassName, "", WS_POPUP, 0, 0, 1, 1, NULL, NULL, inst, NULL);
+    HDC pdc = probe ? GetDC(probe) : NULL;
+    int found = 0, samples = 0;
+    if (pdc) {
+        PIXELFORMATDESCRIPTOR pfd;
+        memset(&pfd, 0, sizeof pfd);
+        pfd.nSize = sizeof pfd;
+        pfd.nVersion = 1;
+        pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+        pfd.iPixelType = PFD_TYPE_RGBA;
+        pfd.cColorBits = 24;
+        pfd.cDepthBits = 16;
+        HGLRC rc = NULL;
+        int pf = ChoosePixelFormat(pdc, &pfd);
+        if (pf && SetPixelFormat(pdc, pf, &pfd))
+            rc = wglCreateContext(pdc);
+        HDC old_dc = wglGetCurrentDC();
+        HGLRC old_rc = wglGetCurrentContext();
+        if (rc && wglMakeCurrent(pdc, rc)) {
+            wgl_choose_pixel_format_fn choose =
+                (wgl_choose_pixel_format_fn)(void *)wglGetProcAddress("wglChoosePixelFormatARB");
+            // The original's request (double-buffered RGBA, 16-bit depth at least), accelerated, multisampled; fewer
+            // samples when the driver has no format with as many.
+            for (int n = want; choose && n >= 2 && !found; n /= 2) {
+                const int attrs[] = { WGL_DRAW_TO_WINDOW_ARB, 1, WGL_SUPPORT_OPENGL_ARB, 1, WGL_DOUBLE_BUFFER_ARB, 1,
+                                      WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB, WGL_ACCELERATION_ARB,
+                                      WGL_FULL_ACCELERATION_ARB, WGL_COLOR_BITS_ARB, 16, WGL_DEPTH_BITS_ARB, 16,
+                                      WGL_SAMPLE_BUFFERS_ARB, 1, WGL_SAMPLES_ARB, n, 0 };
+                int fmt = 0;
+                UINT count = 0;
+                if (choose(dc, attrs, NULL, 1, &fmt, &count) && count > 0 && fmt > 0) {
+                    found = fmt;
+                    samples = n;
+                }
+            }
+            if (!choose)
+                modern_log("modern display: antialiasing: the driver has no wglChoosePixelFormatARB");
+        }
+        wglMakeCurrent(old_dc, old_rc);
+        if (rc)
+            wglDeleteContext(rc);
+        ReleaseDC(probe, pdc);
+    }
+    if (probe)
+        DestroyWindow(probe);
+    UnregisterClassA(wc.lpszClassName, inst);
+    if (found) {
+        PIXELFORMATDESCRIPTOR got;
+        DescribePixelFormat(dc, found, sizeof got, &got);
+        modern_log("modern display: antialiasing: pixel format %d, %d samples (%d asked for), colour %d, depth %d bits",
+                   found, samples, want, got.cColorBits, got.cDepthBits);
+    } else {
+        modern_log("modern display: antialiasing: no multisampled pixel format; drawing without");
+    }
+    return found;
+}
+
+int WINAPI modern_choose_pixel_format(HDC dc, const PIXELFORMATDESCRIPTOR *pfd)
+{
+    int want = modern_host() ? modern_ini_int("Display", "Antialiasing", 0) : 0;
+    if (want > 1) {
+        // The same format each time: gr_opengl_init_context sets it again when the context is made again.
+        if (!gl_aa_tried) {
+            gl_aa_tried = true;
+            gl_aa_format = find_multisample_format(dc, want >= 8 ? 8 : want >= 4 ? 4 : 2);
+        }
+        if (gl_aa_format)
+            return gl_aa_format;
+    }
+    return ChoosePixelFormat(dc, pfd);
 }
 
 void modern_gl_viewport(int x, int y, int w, int h)

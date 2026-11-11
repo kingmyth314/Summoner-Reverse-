@@ -43,6 +43,10 @@ static void LoadConfig(void)
     char mode[32];
     GetPrivateProfileStringA("Display", "Mode", "Fullscreen", mode, sizeof mode, g_cfg.iniPath);
     g_cfg.borderless = lstrcmpiA(mode, "Window") != 0;
+    g_cfg.exclusive = !lstrcmpiA(mode, "Exclusive");
+    g_cfg.exclusiveWidth = GetPrivateProfileIntA("Display", "ExclusiveWidth", 0, g_cfg.iniPath);
+    g_cfg.exclusiveHeight = GetPrivateProfileIntA("Display", "ExclusiveHeight", 0, g_cfg.iniPath);
+    g_cfg.exclusiveRefresh = GetPrivateProfileIntA("Display", "ExclusiveRefresh", 0, g_cfg.iniPath);
     g_cfg.windowWidth = GetPrivateProfileIntA("Display", "WindowWidth", 1600, g_cfg.iniPath);
     g_cfg.windowHeight = GetPrivateProfileIntA("Display", "WindowHeight", 1200, g_cfg.iniPath);
     g_cfg.maxTextureSize = GetPrivateProfileIntA("Display", "MaxTextureSize", 2048, g_cfg.iniPath);
@@ -72,7 +76,7 @@ static void LoadConfig(void)
     Log("config: game %dx%d, renderer %s, output %s (window %dx%d), max FPS %d, sound '%s'", g_cfg.width,
         g_cfg.height,
         g_cfg.renderer == RENDERER_DIRECT3D ? "Direct3D" : g_cfg.renderer == RENDERER_GLIDE ? "Glide" : "OpenGL",
-        g_cfg.borderless ? "borderless fullscreen" : "window", g_cfg.windowWidth, g_cfg.windowHeight, g_cfg.maxFps,
+        g_cfg.exclusive ? "exclusive fullscreen" : g_cfg.borderless ? "borderless fullscreen" : "window", g_cfg.windowWidth, g_cfg.windowHeight, g_cfg.maxFps,
         g_cfg.soundcard);
     if (g_cfg.autoSize) {
         int sw, sh;

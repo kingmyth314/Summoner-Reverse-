@@ -16,6 +16,9 @@
 //            0 = the strongest, default 0.2);
 //   above 1  a box filter over each window pixel's footprint (modern/shaders/downscale.frag): supersampling.
 // The interface is scaled with the rest, so below 1 the menus are softer than at 1.
+// [Display] Antialiasing (2026-11-10): the game's pass draws into vkc.msaa_image and resolves into the target at each
+// pass's end, so everything here reads the resolved target; the brightness pass and the badge drawn inside the game's
+// pass use a pipeline with the multisampled count (vk_post_set_samples), the window passes one sample.
 
 #if defined(_WIN64) && defined(MODERN_VULKAN)
 #include <string.h>
@@ -161,7 +164,9 @@ static VkPipeline vk_post_make_pipeline(const unsigned int *spv, size_t size, bo
     rs.lineWidth = 1.0f;
     VkPipelineMultisampleStateCreateInfo ms = {};
     ms.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    ms.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    // Inside the game's rendering pass (with_depth) the colour attachment is the multisampled image under [Display]
+    // Antialiasing; the window passes draw into single-sample images.
+    ms.rasterizationSamples = with_depth && vkc.samples ? vkc.samples : VK_SAMPLE_COUNT_1_BIT;
     VkPipelineDepthStencilStateCreateInfo ds = {};
     ds.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     VkPipelineColorBlendAttachmentState att = {};
@@ -219,6 +224,14 @@ bool vk_post_init()
     vk_rcas_pipeline = vk_post_make_pipeline(vk_spv_fsr_rcas_frag, sizeof vk_spv_fsr_rcas_frag, false);
     vk_down_pipeline = vk_post_make_pipeline(vk_spv_downscale_frag, sizeof vk_spv_downscale_frag, false);
     return vk_post_pipeline && vk_post_pipeline_window && vk_easu_pipeline && vk_rcas_pipeline && vk_down_pipeline;
+}
+
+bool vk_post_set_samples()
+{
+    if (vk_post_pipeline)
+        vkDestroyPipeline(vkc.device, vk_post_pipeline, NULL);
+    vk_post_pipeline = vk_post_make_pipeline(vk_spv_post_frag, sizeof vk_spv_post_frag, true);
+    return vk_post_pipeline != VK_NULL_HANDLE;
 }
 
 bool vk_post_resize()

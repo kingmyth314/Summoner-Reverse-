@@ -19,6 +19,9 @@ extern bool modern_vk_active;                  // vk_dispatch.cpp: the Vulkan ba
 bool vk_init(HWND hwnd);                       // device and swapchain for the game's window; false = use OpenGL
 void vk_init_context(HWND hwnd);               // gr_opengl_init_context's place
 void vk_gr_init(HWND hwnd);                    // gr_opengl_init's place
+// modern/display.cpp's WM_ACTIVATE under [Display] Mode=Exclusive: full-screen exclusive released on focus loss,
+// acquired again (a new swapchain) at the next frame after activation. Does nothing without the extension.
+void vk_window_active(bool active);
 
 #define DECLARE_VK(ret, name, params, args) ret vk_##name params;
 GL_REDIRECT_ENTRIES(DECLARE_VK)
