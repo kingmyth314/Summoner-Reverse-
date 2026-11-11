@@ -678,6 +678,17 @@ intro movies (2026-10-25). The main menu sets state 1 before it plays them, and 
     current character, position, layer, HP and flags (`+0x320`), the same line in both hosts. Before it, test
     scripts read the party with `peek` at 32-bit structure offsets, which give nonsense in the 64-bit exe.
     **Observed** 2026-11-10: save 18 loaded in the original and in the 64-bit exe printed the same four lines;
+  - `doors [RADIUS]` (2026-11-10, for the `pf_check_direct_walk` candidate in the [roadmap](roadmap.md)) prints the
+    level's doors within RADIUS (default 60, horizontal) of the current character, nearest first, at most 40, one
+    line each, the same in both hosts:
+    `door I lobj J OBJECT pos X Y Z layer L open|closed[ opening|closing] edges E dist D dy DY lock K name NAME`.
+    I is the index into the door array, the one the navigation walls carry; the position is the middle of the
+    door's navigation walls (y from the door's floor point), or the level object's position when it has none
+    (`edges 0`); open is `door_is_open(door, 0.4)`, the test the pathfinder makes; dy is the height above the
+    current character; NAME is the level script's name for the door (`-` none). It runs on the game thread. Layout:
+    [AI, Doors on a path](sum-exe/ai.md#doors-on-a-path-2026-11-10). `dooropen I 1|0` opens door I with
+    `door_set_open(lobj, -1, 1, 1)` (locks ignored, with the sound) or closes it with `door_set_closed(lobj)`, the
+    functions of the console's `door_open` / `door_close`, on the game thread. **Inferred** (built, not yet run);
   - `items [R]` lists the item objects (type 3) and containers (type 11) within R (default 15) of the current
     character with their address, distance and contents, and `open ADDR` opens such a container as a click does
     (`pickup_container` and `interface_set_screen(4)`). For loot that is hard to see, for example the Ring of Light
