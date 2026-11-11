@@ -10,7 +10,9 @@ turned into CRLF for CRLF files, `--align` prints each variant's differing lines
 with the unit's flags to see what 8966 does with one construct.
 
 Result: 1 new match (strict), 0 closer. Sweep `--only unnamed_serpent_0x495290` with `--check`: 39 matched there,
-40 now, 0 lost. The other 14 units are unchanged. `node tools/link-build.mjs --config fixed` in the worktree:
+40 now, 0 lost. The other 14 units are unchanged; the sweep over all 15 units with `--check` (after the
+vc6-matches.txt update): 529 match, 37 differ, 1 not found (WinMain), 529 matched there, 529 now, 0 lost.
+`node tools/link-build.mjs --config fixed` in the worktree:
 259 units, unresolved 0, multiply defined 0.
 
 ## New matches
