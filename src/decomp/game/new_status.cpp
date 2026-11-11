@@ -508,12 +508,15 @@ int status_frame(int key)
 }
 
 // 0x42bb00  Confidence: likely (the first font height call's result is dead in the binary; the order of the
-// key cases follows the body layout ESC/R, B, I, Q; the row y is i * font_h, strength-reduced in the binary).
+// key cases follows the body layout ESC/R, B, I, Q; the row y is i * font_h, strength-reduced in the binary;
+// D26902: the wheel delta's dx / dy / dz at function scope give the binary's 0x1c frame, 237 -> 191; left: the
+// skill-row loop's register permutation).
 // Left click on a row with points: the left half of the +/- pair raises, the right half lowers (mode 4, acted on
 // in status_handle_skill_buttons). Right click on a chain row: popup of the four modifier keys (mode 5).
 int status_handle_click(int key)
 {
     int i, rows;
+    int dx, dy, dz;
     int font_h = gr_get_font_height(-1);
 
     status_hover_row = -1;
@@ -628,15 +631,11 @@ int status_handle_click(int key)
         return 0;
     }
 
-    {
-        int dx, dy, dz;
-
-        mouse_get_delta(&dx, &dy, &dz);
-        if (dz > 0)
-            status_page_up();
-        else if (dz < 0)
-            status_page_down();
-    }
+    mouse_get_delta(&dx, &dy, &dz);
+    if (dz > 0)
+        status_page_up();
+    else if (dz < 0)
+        status_page_down();
     return key;
 }
 
