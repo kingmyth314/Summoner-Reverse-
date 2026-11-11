@@ -14,7 +14,9 @@ nav_order: 1.5
 > rates at least as good; saves are unaffected; minimise, focus loss, window resizing and the intro movie work. Merged
 > into `main` on 2026-10-27 (the earlier `main` is tagged `main-before-l4`). After it, on 2026-10-27:
 > `[Display] RenderScale` (0.5-2: below 1 the game draws smaller and AMD's FSR 1 upscales it, above 1 it draws larger
-> and is scaled down), and frame-pacing measurements for variable refresh.
+> and is scaled down), and frame-pacing measurements for variable refresh. 2026-11-10: `[Display] Antialiasing`
+> (MSAA) and `Mode=Exclusive` (`VK_EXT_full_screen_exclusive`), built, not yet run in the game
+> ([Exclusive fullscreen and MSAA](#exclusive-fullscreen-and-msaa-2026-11-10)).
 
 The first module of L4, the idiomatic rewrite ([modern port](modern-port.md)). The 64-bit player build gets a
 Vulkan renderer beside the game's own OpenGL one. OpenGL stays the reference: every milestone is compared with it.
@@ -103,6 +105,7 @@ a frame suspend the rendering pass, copy, and resume, so they are ordered with t
 After M5: present-mode options for variable refresh, an off-screen image for upscaling (FSR 1 first), full-colour
 textures as an option. Since 2026-10-27: frame pacing measured ([Variable refresh](#variable-refresh-2026-10-27-frame-pacing)),
 RenderScale with FSR 1 done ([RenderScale](#renderscale-2026-10-27-fsr-1-and-supersampling)); full-colour textures open.
+**2026-11-10:** MSAA and exclusive fullscreen ([below](#exclusive-fullscreen-and-msaa-2026-11-10)).
 **2026-11-01:** the textures turned out to be full colour already; the movies were the one 16-bit path, now 24-bit
 ([Full colour](#full-colour-2026-11-01-textures-already-movies-now)).
 
@@ -114,6 +117,8 @@ RenderScale with FSR 1 done ([RenderScale](#renderscale-2026-10-27-fsr-1-and-sup
 | `[Display] VulkanPresent` | `Auto` (default), `Fifo`, `Mailbox`, `Immediate` | the swapchain's present mode. `Auto` follows `[Experimental] VSync` as the OpenGL build does: Fifo with vsync, else Mailbox, or Immediate where Mailbox is not offered (this PC, 2026-10-26) |
 | `[Display] RenderScale` | `1` (default), `0.5` to `2` | the game draws into an image of the window's size times this, then it is scaled into the window: below 1 with FSR 1 (EASU, then RCAS sharpening), above 1 with a box filter (supersampling, smoother edges). 1, or within 1% of it, draws into the window as before. The interface is scaled with the rest, so below 1 the menus are softer. Vulkan only (OpenGL ignores it); 2026-10-27 |
 | `[Display] FsrSharpness` | `0.2` (default), `0` to `2` | RCAS's sharpening below RenderScale 1, in stops: 0 the strongest, each stop half as strong |
+| `[Display] Antialiasing` | `0` (default), `2`, `4`, `8` | multisampling (MSAA): the game draws into a multisampled image that each rendering pass resolves into the target. Lowered to what the GPU offers; combines with RenderScale (the multisampled image has the scene image's size). OpenGL in the 64-bit build has it too (a multisampled pixel format). 2026-11-10 |
+| `[Display] Mode=Exclusive` | with `ExclusiveWidth`, `ExclusiveHeight`, `ExclusiveRefresh` (0 = the desktop's) | the display mode is set (the host, `modern/display.cpp`, for both renderers), and under Vulkan `VK_EXT_full_screen_exclusive` is acquired where the driver offers it, else the swapchain is presented as in borderless mode. 2026-11-10 |
 | `[Debug] VulkanValidation` | `0` (default), `1` | the Khronos validation layer (Vulkan SDK), its messages in `summonerfix.log` |
 | `[Debug] VulkanTiming` | `0` (default), `1` | each frame slower than 25 ms in `summonerfix.log`: the textures made in it (count, size, time) and the waits for the GPU (count, time); M5, 2026-10-26. Since 2026-10-27 also the waits for the frame slot's fence, the swapchain image and the present, and every 240 frames a `present:` line: the time between presents (mean, sd, min, max, frames over 1.5 times the mean) |
 
@@ -484,3 +489,69 @@ window at game width 1024, under both renderers, against the exe before the chan
 - Mean colours agree within the frame-to-frame difference (for example 147.6/148.4/151.8 against
   150.5/149.1/154.6), and the red underline of the THQ logo stays red. So red and blue are not swapped.
 - The dark box around the logo shows visible steps at 565 and smooth edges at 24 bits.
+
+### Exclusive fullscreen and MSAA, 2026-11-10
+
+Two of the roadmap's display candidates ([Future projects](../roadmap.md#after-the-code-fully-recompiles)). On
+2026-10-27 the owner chose RenderScale over MSAA as the first anti-aliasing; MSAA is now added beside it, not in its
+place. **Built (`unresolved 0; multiply defined 0`, no new clang warning), not yet run in the game: everything below
+is Inferred** from the code and the Vulkan specification until the in-game test, which must run with `[Debug]
+VulkanValidation=1`.
+
+**MSAA (`[Display] Antialiasing=2|4|8`, `vk_device.cpp`, `vk_draw.cpp`, `vk_post.cpp`):**
+- The sample count is read once in `vk_init` and lowered to what the GPU offers for both colour and depth
+  attachments (`framebufferColorSampleCounts & framebufferDepthSampleCounts`); the log says what was asked for and
+  what is used. 0 or 1: no multisampled image, and every path is as before.
+- With it, `vk_create_swapchain` makes a **multisampled colour image** of the target's size (the swapchain image's,
+  or the scene image's under RenderScale) and the depth image gets as many samples. The target itself
+  (`vk_target_image`) stays single-sample.
+- Every rendering pass of the game (`vk_resume_rendering`) draws into the multisampled image, which keeps its
+  contents across passes (load, store), and **resolves it into the target when the pass ends** (dynamic rendering's
+  `VK_RESOLVE_MODE_AVERAGE_BIT`). Everything that reads the target already ends the pass first: the read-backs
+  (`vk_read_image`: the save thumbnail, screenshots), the brightness pass's copy, the RenderScale pass, and the agent
+  capture (which reads the swapchain image after them). So they all see the resolved picture with no change of
+  their own, and the 2D interface is drawn into the same multisampled image as the 3D.
+- Pipelines: the game's (`vk_draw.cpp`) and the brightness / badge pipeline drawn inside the game's pass are made
+  for the sample count; the window passes (FSR, the box filter, the badge after scaling) stay single-sample.
+- If the multisampled image cannot be made (memory: 8 samples at RenderScale 2 on a 2560x1440 screen is about 470 MB
+  for the colour and as much for the depth), antialiasing is turned off for the session, the pipelines are made again
+  for one sample, and the log says so.
+- **Cost (Inferred):** a resolve of the whole image at the end of every pass. The renderer ends the pass for every
+  texture upload inside a frame, so a frame that loads many textures (a level load) resolves many times; in play
+  few frames do. `[Debug] VulkanTiming=1` shows it as slow frames. If that is too slow, the alternative is an
+  explicit `vkCmdResolveImage` only before a read-back, the brightness copy and the frame's end.
+- The game's own anti-aliasing setting (`options_set_antialias` 0x41f9d0, `gr_set_antialias`) is untouched: under
+  OpenGL it reaches `gr_opengl_set_antialias` (0x550630), which is empty in the original, and the Vulkan version is
+  empty too (Observed in the code). The key is separate from it; making that option switch MSAA would need the
+  sample count changed at run time (new images and pipelines), left for the owner to decide.
+- What it does not smooth (Inferred): the inside of alpha-tested textures (foliage, fences): MSAA smooths polygon
+  edges only. Interface quads at a non-integer scale get coverage-blended edges instead of snapped ones; adjacent
+  quads that share an edge stay seamless.
+
+**Exclusive fullscreen (`[Display] Mode=Exclusive`):**
+- The display mode (`ExclusiveWidth` x `ExclusiveHeight` at `ExclusiveRefresh`, 0 = the desktop's) is set by the
+  host for both renderers (`modern/display.cpp`, [SummonerFix](../summonerfix/index.md#exclusive-fullscreen-and-anti-aliasing-2026-11-10)),
+  before the back end starts, so the swapchain is made at the new size.
+- Vulkan has no display-mode call on Windows; what it adds is `VK_EXT_full_screen_exclusive`, application
+  controlled. `vk_create_instance` enables `VK_KHR_get_surface_capabilities2` when the instance has it,
+  `vk_create_device` enables the extension when the device has it and the surface reports
+  `fullScreenExclusiveSupported` for the window's monitor. The swapchain then carries
+  `VkSurfaceFullScreenExclusiveInfoEXT` (application controlled) and `VkSurfaceFullScreenExclusiveWin32InfoEXT`
+  (the monitor), the present modes are asked for with the same description
+  (`vkGetPhysicalDeviceSurfacePresentModes2EXT`), and `vkAcquireFullScreenExclusiveModeEXT` follows its creation.
+- **Why borderless stays when the extension is not there:** without it Vulkan on Windows presents through the
+  desktop compositor, which for a window covering the whole monitor already uses a direct flip where the driver
+  can (Inferred, from Microsoft's documentation of flip-model presentation; not measured here). So the game keeps the
+  borderless window, at the exclusive display mode when one is set, and the log says which case applies:
+  `full-screen exclusive: acquired`, `... not offered by this driver`, `... the surface does not support it`, or
+  `... not acquired (n)`.
+- A failed acquire (the window not in front, or not covering the monitor) makes the swapchain again without the
+  extension's description: the game goes on borderless. `VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT` from the
+  acquire or the present is handled as an out-of-date swapchain: a new one tries to acquire again; after the third
+  loss without an activation in between (something taking the display each time) the game stays borderless until
+  the window is activated again. The present mode is chosen for each swapchain, as the modes offered with and
+  without the extension's description may differ.
+- Focus: on losing it the host calls `vk_window_active(false)`, which releases exclusive mode at once, then gives
+  the desktop's mode back and minimises the window; while minimised nothing is drawn (as before). On gaining it, the
+  host sets the mode again and restores the window, and `vk_window_active(true)` only marks the swapchain to be
+  made again at the next frame, which acquires again (`WM_ACTIVATE` can arrive inside a frame's recording).

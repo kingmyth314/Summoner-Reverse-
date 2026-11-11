@@ -290,6 +290,42 @@ scissored `glClear`. Mouse coordinates are mapped back to game pixels.
 
 **Observed:** main menu centred at 2560x1440 with black bars (frame capture, 2026-10-12).
 
+### Exclusive fullscreen and anti-aliasing, 2026-11-10
+
+From the roadmap's display candidates ([Future projects](../roadmap.md#after-the-code-fully-recompiles)). Nothing
+here has been run yet: every claim is **Inferred** from the code and the API documentation until the in-game test.
+
+**`[Display] Mode=Exclusive`** (SummonerFix's OpenGL output, and the 64-bit build's host,
+`src/decomp/modern/display.cpp`):
+- The window is the borderless one of `Mode=Fullscreen`. Before it is placed, the display mode of its monitor is set
+  to `ExclusiveWidth` x `ExclusiveHeight` at `ExclusiveRefresh` Hz (`ChangeDisplaySettingsEx` with
+  `CDS_FULLSCREEN`, a temporary change). A value of 0 keeps the desktop's; a mode equal to the desktop's is not set
+  at all. A refresh the display does not offer at that size falls back to its default refresh; a size it does not
+  offer leaves the desktop's mode (both tested first with `CDS_TEST` and logged).
+- Losing the focus (Alt+Tab, Windows key) gives the desktop's mode back and minimises the window without activating
+  anything. Gaining it (the taskbar, Alt+Tab) sets the mode again and restores the window, whose rectangle then
+  follows the monitor's new size. This replaces the "send the window to the back" of borderless mode in the same
+  hook (`SetWindowPos` from the game's window procedure; in the 64-bit build `modern_window_activate`).
+- At exit the desktop's mode is put back (`atexit`; Windows also undoes a `CDS_FULLSCREEN` change when the process
+  ends).
+- SummonerFix: only with `Renderer=OpenGL`, on the monitor the window is on. The 64-bit host: the primary monitor
+  (the host also compiles with VC6's headers, which have no monitor calls).
+- What it gains (Inferred): a lower resolution or another refresh rate than the desktop's, scaled by the display or
+  the GPU. Under OpenGL there is no API for exclusive ownership of the display; on Windows 10/11 a borderless window
+  that covers the monitor is already presented without the desktop compositor's copy where the driver can, so at the
+  desktop's own mode `Exclusive` differs from `Fullscreen` only in minimising on focus loss. Under Vulkan the 64-bit
+  build also takes full-screen exclusive (`VK_EXT_full_screen_exclusive`) where the driver offers it:
+  [Vulkan renderer](../future/vulkan-renderer.md#exclusive-fullscreen-and-msaa-2026-11-10).
+
+**`[Display] Antialiasing=0|2|4|8`** (the 64-bit build only, OpenGL and Vulkan): multisampling. Under OpenGL the
+host asks the driver for a multisampled pixel format (`WGL_ARB_pixel_format` with `WGL_ARB_multisample`, through a
+hidden window's throwaway context) in place of `gr_opengl_set_pixel_format`'s `ChoosePixelFormat`, with fewer samples
+when the driver has no format with as many, and the original's format when it has none. The game draws into the
+window's default framebuffer as before; reading a multisampled default framebuffer back (`glReadPixels`: the save
+thumbnail, screenshots, agent captures; `glCopyTexSubImage2D`: the brightness pass) resolves it, so they need no
+change (Inferred, from the OpenGL specification; to be checked in the game). SummonerFix does not have it: the
+original exe would need a `ChoosePixelFormat` hook doing the same; left for the owner to decide.
+
 ### Frame limiter: 2x speed
 
 **Observed.** The game's frame limiter double-counts its sleep, so on a fast PC game time
@@ -365,6 +401,13 @@ Tested 2026-11-01 (2560x1440 screen, work area 2560x1392):
 - **Observed:** with `Mode=Window` and 2000x1600, both the original game with SummonerFix and the 64-bit build open
   a 1707x1392 window at 426,0; Vulkan's swapchain is 1691x1353, which is 2000x1600 times 0.846. The main menu is drawn whole.
 - **Inferred, not run:** the common-size fallback. Every display tried reports its modes.
+
+**2026-11-10: exclusive fullscreen and anti-aliasing.** "Show the game" has a third row, **Fullscreen, exclusive**
+(`Mode=Exclusive`); a new **Exclusive mode** list holds "The desktop's (no mode change)" and every mode the primary
+display reports with its refresh rate, largest first (`ExclusiveWidth`, `ExclusiveHeight`, `ExclusiveRefresh`; an
+ini value the display does not list is kept as its own row); a new **Anti-aliasing** list (Off, 2x, 4x, 8x MSAA:
+`Antialiasing`, the 64-bit builds) sits above the Vulkan rows. The window is 82 pixels taller. Built, not yet
+driven (Inferred).
 
 `SummonerFixConfig.exe` (source: `src/summonerfix-config/config.c`) is installed next to `Sum.exe`. It lists the game's keyboard actions, including the four chain-attack slots (held modifier keys) and SummonerFix's own speed-up and open-this-window hotkeys, with their default keys and any extra keys bound to them:
 
@@ -508,7 +551,9 @@ picks its own "selected" character, not a cheats matter.
 | Key | Default | Meaning |
 |---|---|---|
 | `[Display] Renderer` | `OpenGL` | `OpenGL`, `Direct3D` or `Glide`; the 64-bit build also `Vulkan` (others treat it as `OpenGL`) |
-| `[Display] Mode` | `Fullscreen` | OpenGL output: `Fullscreen` (borderless, monitor size) or `Window` |
+| `[Display] Mode` | `Fullscreen` | OpenGL output: `Fullscreen` (borderless, monitor size), `Window`, or `Exclusive` (2026-11-10: borderless with the display mode set, given back and the game minimised while it is not in front; see [Exclusive fullscreen](#exclusive-fullscreen-and-anti-aliasing-2026-11-10)). Older exes and SummonerFix builds read `Exclusive` as `Fullscreen` |
+| `[Display] ExclusiveWidth`, `ExclusiveHeight`, `ExclusiveRefresh` | 0, 0, 0 | `Mode=Exclusive`'s display mode; 0 = the desktop's size or refresh (2026-11-10) |
+| `[Display] Antialiasing` | 0 | The 64-bit build only (OpenGL and Vulkan): multisampling, 0 (off), 2, 4 or 8 samples (2026-11-10). SummonerFix ignores it |
 | `[Display] WindowWidth`, `WindowHeight` | 1600, 1200 | Client size for `Mode=Window` (resizable); shrunk to fit the work area, keeping its shape (2026-11-01) |
 | `[Display] GameWidth`, `GameHeight` | `Auto`, 768 | The game's internal layout resolution. `Auto` (since 2026-10-24): 768 high and as wide as the primary screen's aspect (1366x768 at 16:9, 1228x768 at 16:10, 1834x768 at 3440x1440, 1024x768 at 4:3); or two numbers, e.g. 1366 and 768. Set in the config app with **Display / resolution...** |
 | `[Display] CenterMenus` | 1 | With a wider `GameWidth`, centre the 1024-wide menus |

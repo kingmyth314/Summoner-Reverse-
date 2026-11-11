@@ -32,7 +32,8 @@
     X(vkGetDeviceProcAddr) X(vkEnumerateDeviceExtensionProperties) X(vkCreateWin32SurfaceKHR) \
     X(vkDestroySurfaceKHR) X(vkGetPhysicalDeviceSurfaceSupportKHR) X(vkGetPhysicalDeviceSurfaceCapabilitiesKHR) \
     X(vkGetPhysicalDeviceSurfaceFormatsKHR) X(vkGetPhysicalDeviceSurfacePresentModesKHR) \
-    X(vkCreateDebugUtilsMessengerEXT) X(vkDestroyDebugUtilsMessengerEXT)
+    X(vkCreateDebugUtilsMessengerEXT) X(vkDestroyDebugUtilsMessengerEXT) \
+    X(vkGetPhysicalDeviceSurfaceCapabilities2KHR) X(vkGetPhysicalDeviceSurfacePresentModes2EXT)
 #define VK_DEVICE_FUNCS(X) \
     X(vkDestroyDevice) X(vkGetDeviceQueue) X(vkDeviceWaitIdle) X(vkQueueSubmit2) X(vkQueueWaitIdle) \
     X(vkCreateSwapchainKHR) X(vkDestroySwapchainKHR) X(vkGetSwapchainImagesKHR) X(vkAcquireNextImageKHR) \
@@ -50,7 +51,7 @@
     X(vkCmdBindPipeline) X(vkCmdBindDescriptorSets) X(vkCmdBindVertexBuffers) X(vkCmdBindIndexBuffer) \
     X(vkCmdPushConstants) X(vkCmdSetViewport) X(vkCmdSetScissor) X(vkCmdSetDepthTestEnable) \
     X(vkCmdSetDepthWriteEnable) X(vkCmdSetDepthCompareOp) X(vkCmdSetPrimitiveTopology) X(vkCmdSetCullMode) \
-    X(vkCmdDraw) X(vkCmdDrawIndexed)
+    X(vkCmdDraw) X(vkCmdDrawIndexed) X(vkAcquireFullScreenExclusiveModeEXT) X(vkReleaseFullScreenExclusiveModeEXT)
 #define VK_DECLARE_FUNC(name) extern PFN_##name name;
 VK_INSTANCE_FUNCS(VK_DECLARE_FUNC)
 VK_DEVICE_FUNCS(VK_DECLARE_FUNC)
@@ -90,6 +91,20 @@ struct vk_context {
     VkImage depth_image;
     VkDeviceMemory depth_memory;
     VkImageView depth_view;
+    // [Display] Antialiasing (2026-11-10): with more than one sample the game draws into msaa_image (target_extent,
+    // that many samples; the depth image has as many), and every rendering pass resolves it into the target when it
+    // ends, so the target (and every read-back of it) holds the resolved picture.
+    VkSampleCountFlagBits samples;
+    VkImage msaa_image;
+    VkDeviceMemory msaa_memory;
+    VkImageView msaa_view;
+    // [Display] Mode=Exclusive (2026-11-10): VK_EXT_full_screen_exclusive, application controlled, when the instance
+    // and the device offer it and the surface reports support for the window's monitor.
+    bool fse_wanted;                           // Mode=Exclusive
+    bool fse_available;                        // the extensions are enabled
+    bool fse_use;                              // chain it into the next swapchain (off after a failed acquire)
+    bool fse_acquired;                         // vkAcquireFullScreenExclusiveModeEXT succeeded for this swapchain
+    bool fse_reacquire;                        // the window was activated again: try once more at the next frame
     VkDebugUtilsMessengerEXT messenger;
     VkPresentModeKHR present_mode;
     int validation_errors;                     // counted by the debug messenger
@@ -167,7 +182,8 @@ struct vk_vertex {
 };
 bool vk_draw_init();                           // pipelines, samplers, descriptor layout; after the device
 void vk_draw_close();
-void vk_draw_frame_start();                    // binds the frame's state after vk_begin_frame
+bool vk_draw_set_samples();                    // remakes the pipelines for vkc.samples (the GPU is idle)
+void vk_draw_frame_start();                   // binds the frame's state after vk_begin_frame
 // Draws with the current gr::Mode state: a triangle fan (the OpenGL back end's GL_POLYGON), triangles with
 // indices (the draw lists), or lines (GL_LINE_STRIP).
 enum vk_primitive { VK_PRIM_FAN, VK_PRIM_TRIANGLES, VK_PRIM_LINES };
@@ -198,6 +214,7 @@ void vk_post_frame(VkCommandBuffer cmd);
 // After the swapchain is made: the scene image (and FSR's intermediate image) for the window's size, or none at a
 // render scale of 1. Sets vkc.target_extent, scene_image, scene_view. The GPU is idle.
 bool vk_post_resize();
+bool vk_post_set_samples();                    // remakes the pipeline drawn inside the game's pass for vkc.samples
 VkPipelineLayout vk_draw_pipeline_layout();
 extern VkDescriptorSetLayout vk_texture_layout;
 extern VkDescriptorSet vk_texture_set;

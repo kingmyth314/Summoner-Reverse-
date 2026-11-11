@@ -44,6 +44,8 @@
 #define glViewport modern_gl_viewport
 #define SwapBuffers modern_swap_buffers
 #define glReadPixels modern_gl_read_pixels
+// [Display] Antialiasing (2026-11-10): a multisampled pixel format for gr_opengl_set_pixel_format.
+#define ChoosePixelFormat modern_choose_pixel_format
 #endif
 
 // Original __FILE__ of this unit (0x5ad91c and 0x5ad988; string pooling is off).

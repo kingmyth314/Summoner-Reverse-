@@ -118,7 +118,8 @@ static bool vk_create_pipelines()
     rs.lineWidth = 1.0f;
     VkPipelineMultisampleStateCreateInfo ms = {};
     ms.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    ms.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    // [Display] Antialiasing: the game's draws go into the multisampled image (vk_device.cpp).
+    ms.rasterizationSamples = vkc.samples ? vkc.samples : VK_SAMPLE_COUNT_1_BIT;
     VkPipelineDepthStencilStateCreateInfo ds = {};
     ds.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     VkDynamicState dyn[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE,
@@ -275,13 +276,26 @@ bool vk_draw_init()
     return true;
 }
 
-void vk_draw_close()
+static void vk_destroy_pipelines()
 {
     for (int p = 0; p < VK_BLEND_PAIRS; p++)
         for (int c = 0; c < 2; c++)
             if (vk_pipelines[p][c])
                 vkDestroyPipeline(vkc.device, vk_pipelines[p][c], NULL);
     memset(vk_pipelines, 0, sizeof vk_pipelines);
+    bound_pipeline_pair = bound_pipeline_class = -1;
+}
+
+// [Display] Antialiasing: the sample count changed (the multisampled image could not be made). The GPU is idle.
+bool vk_draw_set_samples()
+{
+    vk_destroy_pipelines();
+    return vk_create_pipelines();
+}
+
+void vk_draw_close()
+{
+    vk_destroy_pipelines();
     if (vk_pipeline_layout)
         vkDestroyPipelineLayout(vkc.device, vk_pipeline_layout, NULL);
     if (vk_descriptor_pool)

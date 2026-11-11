@@ -7,7 +7,8 @@
 //
 //   host.cpp     settings (summonerfix.ini beside the exe, the same keys), the address table (<exe>.addr: Sum.exe
 //                address -> this exe's, for agent commands that take Sum.exe addresses), the save folder, the log
-//   display.cpp  the output window (borderless full screen or a window of the configured size), the game's 4:3 picture
+//   display.cpp  the output window (borderless full screen, exclusive with a display mode, or a window of the configured
+//                size), MSAA's pixel format, the game's 4:3 picture
 //                scaled into it (glViewport), the bars cleared, the mouse mapped back to game pixels, captures
 //   agent.cpp    agent mode ([Debug] Agent=1): SummonerFix's agent protocol and commands (tools/agent.mjs)
 #ifndef MODERN_MODERN_H
@@ -41,6 +42,10 @@ void modern_log(const char *fmt, ...);         // summonerfix.log beside the exe
 // ---- display.cpp ----
 void modern_window_setup(HWND hwnd);           // gr_init's windowed branch: the output window
 bool modern_window_activate(HWND hwnd, bool active);   // os_wndproc's WM_ACTIVATE: true = handled
+bool modern_display_exclusive();               // [Display] Mode=Exclusive (the Vulkan back end's full-screen exclusive)
+// gr_opengl_set_pixel_format's ChoosePixelFormat: with [Display] Antialiasing above 1 a multisampled format through
+// WGL_ARB_pixel_format / WGL_ARB_multisample, else (or when there is none) ChoosePixelFormat's own.
+int WINAPI modern_choose_pixel_format(HDC dc, const PIXELFORMATDESCRIPTOR *pfd);
 void modern_gl_viewport(int x, int y, int w, int h);
 // Game pixels -> window pixels (client size, scale, offset of the game's (0, 0), the 1024-wide menu centred); false
 // before the window exists or while SummonerFix is loaded.
