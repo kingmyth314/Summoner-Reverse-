@@ -118,7 +118,7 @@ Story joins (**observed** arguments; the level number is the level the member ar
 | Rosalind | 6 | `lsf_iona_ext_found_rosalind` (`0x4f753a`) |
 | Jekhar | 8 | `ls_lpalaceint_frame` (`0x4f2d0e`) |
 | Rosalind, Jekhar | 15 | `ls_rand_grassland01_init` (`0x4ee97f`, `0x4eea20`) |
-| Jekhar, Rosalind, Flece | 1 | `game_stage_set` (`0x4d44d1`, `0x4d4525`, `0x4d45b6`); *unknown* which stages |
+| Jekhar, Rosalind, Flece | 1 | `game_stage_set` (`0x4d44d1`, `0x4d4525`, `0x4d45b6`); *unknown* which stages. Answered 2026-11-10 (**observed**, the stage switch falls through): stage 1 or more adds Flece, 3 or more Rosalind, 5 or more Jekhar, each only while its `*_joined` byte is clear and not when the level was entered by loading a save; then (again not after a load) `party_set_level` and the rings of the stage. Callers: the `gamestage` console command and the init of almost every level script, each with its level's stage (for example `ls_catacombs_init` passes 3, `ls_eleh_init` 9). What that does on a normal level entry (whether `party_member_join` and `party_set_level` skip members and levels the party already has) was not traced |
 
 The console commands `jekhar`, `flece` and `rosalind` (`cmd_jekhar` and so on) also call
 `party_member_join`. **Observed.** A member joins at a fixed level, not at Joseph's. *Inferred* from
@@ -214,7 +214,12 @@ Solo mode is also turned on and off for you:
 | Leaving a level | `state_game_leave` (`0x438d55`) | turns solo mode off |
 | Loading a save | `savegame_read_living` (`0x4d30e4`) | restores it from bit 5 of the party state dword ([Savegame](savegame.md#lent-living-entities-and-per-character-state-observed)) |
 
-*Unknown:* whether a held member fights back when attacked directly.
+*Unknown:* whether a held member fights back when attacked directly. **Answered in the code 2026-11-10
+(*Inferred*, not yet seen in game):** it should. When an enemy starts a melee attack on a member,
+`ai_alert_guards_of_target` (`0x4bfed0`) calls `ai_retaliate_on_hit` (`0x4b5790`) on the victim, which gives it an
+attack goal on the attacker (priority 1000) unless its current target is much nearer. That function tests the
+player-control flag, multiplayer ownership and the attacker's enmity, but not the hold flag, and hold only blocks the
+follow goal (type 2) and the group's orders.
 
 ## Following and formation
 
@@ -245,6 +250,12 @@ facing (**observed** values; "behind" is *inferred* from the matrix row used):
 - If the path is 7 units or longer, it re-paths next to the leader when the edge distance is over 3
   units, and gives up the goal when it is over 100 units.
 - A path to `cur_character` longer than 20 units sets AI flag `0x8000000`. *Unknown* effect.
+  **Corrected and answered 2026-11-10 (Observed):** the flag is set when the path is **shorter** than 20 units
+  (`fcomp` with 20.0, `test ah, 0x1`, then `or dword ptr [esi+0x50], 0x8000000` at `0x4b5dcf`), and `ai_think`
+  clears it on each think. It means "near the leader". `ai_travel_steer_update` (`0x4b3c80`) reads it: in single
+  player, while the leader travels, its speed is capped by the slowest awake member's speed, and by 0.8 of that while
+  any member that is not a summon and not held lacks the flag. So the leader slows down until the stragglers are
+  within 20 units of path.
 
 `ai_think_party_update` also makes a member step 2.5 units aside when a character that started
 moving in the last 200 ms comes at it from within 3.2 units. *Inferred* from the vector tests.

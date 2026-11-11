@@ -111,10 +111,19 @@ Flags at `+0x0c` (**observed** unless marked):
   `level_layer_vis_flags` (`0x22ea4a4`). When the leader enters a layer with value 1,
   `level_set_current_layer` asks for mode 3; value 0 asks for mode 4. This is skipped while
   flag `0x1` is clear or a sequence runs. **Observed.** What `$low_camera` stores is *unknown*
-  (it writes a register value that was not traced).
+  (it writes a register value that was not traced). **Answered 2026-11-10 (Observed):** the register is `ebp`, which
+  `level_vis_parse` zeroes at its entry (`0x486d74`) and again after each set list (`0x486fb6`), so it is 0 at the
+  store (`0x486e1a`) on every path. `$low_camera` stores 0, the same as no keyword: it is optional and changes
+  nothing.
 - **Detail level.** A flag in the detail record (`+0x24` or `+0x25`) sets `+0x008`. While it is
   set, a request for mode 3 is only remembered in `+0x009`; clearing it later applies mode 3.
   **Observed.** *Inferred:* low detail settings keep the player's own camera in high-view areas.
+  **Answered 2026-11-10 (Observed):** the record is the level's line of `detail_levels.tbl`
+  (`detail_levels_parse_table`). `detail_apply_level_settings` (`0x487370`) copies `+0x24` (keyword
+  `+UnlockMedium`) when the fog quality option is 1, `+0x25` (`+UnlockHigh`, also set by `+UnlockMedium`) for any
+  other non-zero fog quality, and 0 at fog quality 0 or for a level without a line (`0x4873ae`..`0x4873e3`). None of
+  the 42 retail lines has `+UnlockMedium` or `+UnlockHigh` (only `+NoSmallMeshCulling`), so `+0x008` is always 0
+  in the retail game and the forced high view always applies.
 - **Leader change.** `camera_set_target` always stores the new target, but does more only while
   flag `0x1` is set (not during a shot, a conversation or slew). Then it snaps the camera when the new target is more
   than 10 units from the old one, or when there was none. Closer, it stores the new follow eye in `+0x150` and enters mode 5: the eye
@@ -152,6 +161,14 @@ editor has a window open ([Script editor](script-editor.md)). On the world map o
 - zoom += rate × frametime, then clamped to `[0.3, camera_zoom_max]`. Held Down at speed 1 zooms
   from 0.3 to 1.0 in 0.7 s.
 - elevation is clamped to `[-2, 9]`. On the world map elevation is fixed at 12 and zoom at 1.0.
+
+**The auto-turn byte `0x5943fd`** (answered 2026-11-10, **Observed**): it is a setting of its own, not part of the
+skill-`0x26` pick filter. The filters are indexed by the surface type of the face under the cursor
+(`lobj_face_get_surface`), and `<level>_surfaces.tbl` has five surface type names (`surface_type_names`
+`0x59a31c`, read with a count of 5), so a filter uses bytes 0 to 4; the skill-`0x26` filter is `0x5943f8`..`0x5943fc`
+and the byte after it is separate. The source labels it `world_mouse_auto_turn` (initial value 1). Its only
+reference in the image is the read in `world_pick_under_mouse` (`0x43b52e`), so the auto-turn toward a mouse-move
+target is always on.
 
 ## Following and smoothing
 
@@ -231,6 +248,11 @@ position and a rotation about the y axis. So summon cutscenes (the dragons, see
 [Summons](summons.md)) are filmed around wherever the summon appears. **Observed** order;
 *inferred* purpose. Until 2026-10-15 this function was called `camera_set_focus_override`.
 
+**`game_flags` bit `0x800`** (answered 2026-11-10, **Observed**): `camera_end_sequence` clears it
+(`and ah, -0x9` at `0x479815`), and that is the only instruction in the image that touches the bit. Of the 632
+instructions that reference `game_flags` (`0x5fbfd8`), none sets `0x800` or tests it, and no whole-word store
+writes a constant with it. In v1.40 the bit is always clear and the clear is a leftover.
+
 `camera_cut_to_view_stub` (`0x479430`) has an empty body. Three level-script helpers
 (`lsf_iona_ext_flag_chick_cam`, `lsf_iona_ext_flag_wood_cam`, `lsf_lenele_flag_cart_played`)
 pass it a navpoint view, so those scripted camera cuts never happen in retail. **Observed.**
@@ -272,11 +294,14 @@ See [Console](console.md).
 ## Open questions
 
 - What `+0x19c` is meant for (the low view lowers the eye by 1.5). (Flag `0x40` is answered above.)
-- What `$low_camera` stores, and which detail settings set `+0x008`.
+- What `$low_camera` stores, and which detail settings set `+0x008`. *Answered 2026-11-10:* 0, and only the
+  `+UnlockMedium` / `+UnlockHigh` keywords of `detail_levels.tbl`, which no retail line uses; see [Modes](#modes).
 - The byte at `0x5943fd` gates the auto-turn toward a mouse-move target in
   `world_pick_under_mouse` (`0x43b52e`). It is 1, it is never written, and it sits inside the
-  skill-`0x26` pick filter table `0x5943f8`. Whether it is a separate setting is *unknown*.
-- `game_flags` bit `0x800` cleared by `camera_end_sequence`.
+  skill-`0x26` pick filter table `0x5943f8`. Whether it is a separate setting is *unknown*. *Answered 2026-11-10:*
+  separate (the filter ends at `0x5943fc`), see [Input: turning and zoom](#input-turning-and-zoom).
+- `game_flags` bit `0x800` cleared by `camera_end_sequence`. *Answered 2026-11-10:* nothing sets or reads it in
+  v1.40, see [Taking the camera over](#taking-the-camera-over).
 
 ## Evidence
 

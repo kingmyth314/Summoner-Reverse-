@@ -8766,6 +8766,8 @@
 0x593c64  loading_screen_bm        data:int -                    O ; bm_load("Loading-Bkgrnd640.tga") in loading_screen_load_bitmap, drawn by LoadingScreenDraw, reset to -1 by level_load_report
 0x593f50  world_mouse_target_handle data:int -                    O ; init -1, handle (+0x80) of the character under the mouse stored by world_mouse_frame, used via living_from_handle by cmd_health, cmd_ai_state, ai_frame
 0x5943f0  world_pick_default_filter data:uint8[8] -                    O ; init 01 01 01 01, pointer stored into the pick filter 0x60aba4 by world_pick_set_skill_filter and world_pick_ground_point (checked: {1,1,1,1,1,0,0,0} byte table indexed by the face surface in world_pick_ground_point via world_pick_filter, second table at 0x5943f8) (type was uint8[])
+0x5943f8  world_pick_skill26_filter data:uint8[5] gametarget.cpp       O ; pick filter by surface type (0..4) that world_pick_set_skill_filter selects for skill 0x26: {0, 1, 1, 0, 0}
+0x5943fd  world_mouse_auto_turn    data:bool gametarget.cpp       O ; initial 1, read only by world_pick_under_mouse (0x43b52e) to gate the auto-turn toward a mouse-move target, never written, a separate setting, not part of world_pick_skill26_filter (2026-11-10)
 0x594418  world_hover_tint_r       data:float -                    O ; 0.75, red argument of world_hover_tint_character from world_mouse_frame and world_mouse_hover_target
 0x59441c  world_hover_tint_g       data:float -                    O ; 1.0, green argument of world_hover_tint_character
 0x594420  world_hover_tint_b       data:float -                    O ; 1.0, blue argument of world_hover_tint_character
@@ -9746,6 +9748,8 @@
 0x60ad50  cmdline_param_glide      data:CmdLineParam -                      O ; "-glide"
 0x60ad68  resolution_index         data:int -                      O ; row of resolution_table used by LoadSettings (mouse_init, gr_init) and the font choice
 0x60ad6c  cmdline_directsound3d    data:bool -                    O ; CmdLineParam__found of cmdline_param_directsound3d stored by cmdline_read_params, passed to sound init in LoadSettings
+0x60ad6d  cmdline_flag_60ad6d      data:bool summoner.cpp         O ; read by LoadSettings (0x43d95b) with cmdline_directsound3d / cmdline_eax before the Soundcard key, nothing in the image writes it (always 0, label ours)
+0x60ad6e  cmdline_flag_60ad6e      data:bool summoner.cpp         O ; read by LoadSettings (0x43d968) with cmdline_directsound3d / cmdline_eax before the Soundcard key, nothing in the image writes it (always 0, label ours)
 0x60ad6f  cmdline_eax              data:bool -                    O ; CmdLineParam__found of cmdline_param_eax stored by cmdline_read_params, forced 1 in LoadSettings, passed to sound init
 0x60ad74  console_sound_handle     data:int -                    O ; snd_play_streamed handle from cmd_play_sound, stopped by console_sound_stop
 0x60ad78  console_sound_buffer     data:void* -                    O ; value passed to snd_play_streamed by cmd_play_sound, cleared by console_sound_stop after snd_stop (checked: handle stored from snd_play_streamed by cmd_play_sound, tested and cleared by console_sound_stop)

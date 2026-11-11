@@ -136,6 +136,14 @@ If `cutscene_load_data` fails (for example a missing `.csc`), `cutscene_play` re
 input stays locked, the summon stays stashed and the music stays off. **Observed** code path; the
 in-game effect is *inferred*.
 
+**Can retail data reach it? (answered 2026-11-10)** Not in the story. **Observed** in the retail data: every
+`$Camera` file that `cutscene.tbl` names exists in `cutscene.vpp` except two: `test.csc`, of the entry "test" on the
+level "test", and `test1.csc`, of a second "Test" entry that sits inside a `/* ... */` block, which `TextFile`
+skips. All 94 `.csc` files pass the checks of `cutscene_load_files`: magic "CSCR", version `0x20000`, at least one
+shot. `cutscene_play` only takes an entry on the current level or on "any", so the "test" entry needs the level
+"test" (`levelm.vpp` holds a `test.s3d`), which only the console can load. *Inferred:* through the console
+(`level test` then the "test" cutscene) the path can be reached; in normal play it cannot.
+
 The actor table has 175 slots (it ends at the pool buffer `0x5fd260`). The loop has no bound
 check. **Observed.** More than 175 living characters would overwrite the table pool. *Inferred.*
 
@@ -143,7 +151,7 @@ check. **Observed.** More than 175 living characters would overwrite the table p
 
 `cutscene_load_files` (`0x434b40`) opens each `$Camera` file from the cutscene path. It checks
 the magic `0x52435343` ("CSCR") and a version of at least `0x20000`. It reads two floats and a
-shot count, then each shot with `cutscene_camera_read_track(file, start)` (`0x493fd0`): its start and end
+shot count (the floats: see the note below), then each shot with `cutscene_camera_read_track(file, start)` (`0x493fd0`): its start and end
 time, the field of view (times 1.6949153), the position keys (time in 1/4800 s, position, in and out vectors)
 and the rotation keys (time, quaternion stored x 16383, three tangent values x 127, ease in and out x 2.54).
 A shot whose own start lies 0.4 s or more after `start` is moved back to it, its key times with it. The keys
@@ -156,6 +164,13 @@ retail cutscene, Act2-Outro, has 48 shots in its camera files), with the count i
 `cutscene_num_sequences` (`0x601e7c`). Record `+0xc` is the shot start and `+0x10` the shot end,
 in seconds. Each shot starts where the previous one ended. **Observed.** So the
 `0x601e90 + i*0x70` value in [Timing bugs](timing-bugs.md) is the end time of shot `i`.
+
+**The two unused floats (2026-11-10).** **Observed** in the 94 retail `.csc` files: the header is the magic, the
+version `0x20000`, two floats and the shot count, and the floats go up from one file of a cutscene to the next. For
+Act2-Outro, `a2-out-cam01` holds 0.0333 and 80.0, `a2-out-cam21` 80.0333 and 165.6, `a2-out-cam40` 165.6333 and
+223.3333; single-file cutscenes start at 0.0333 (Act4-Intro-Cam: 0.0333 and 42.1333, one shot). *Inferred:* they
+are the time of the file's first frame (1/30 s after the previous file's end) and the end time of its last shot on
+the cutscene's timeline, as the exporter wrote them; the game rebuilds both from the shots instead.
 
 `state_game_frame` calls `cutscene_sequence_update` (`0x436a90`) each frame while bit `0x20` is
 set, and skips `automap_reveal_around_party`. **Observed.** It does nothing while paused. It works
@@ -273,12 +288,14 @@ are *unknown*.
   drops them (`0x434cd5`, `0x434cea`); what they hold is still *unknown*. It sets `cutscene_time_offset`
   (`0x601e70`) to the running start time before the first file (`0x434cfe`..`0x434d01`), which is always 0, and
   `cutscene_unload` sets it to -1. The end of the last shot goes to object `+0xc` (`0x434dc6`), which nothing
-  in the cutscene code reads. **Observed.**
+  in the cutscene code reads. **Observed.** *Answered 2026-11-10 (from the files):* the start and end time of the
+  file on the cutscene's timeline (*inferred* from the values), see [Shots, timing and events](#shots-timing-and-events).
 - *Answered 2026-10-15:* `gr_set_vsync` (`0x506160`) turns vsync on for the cutscene (DirectDraw `Flip` without
   `DDFLIP_NOVSYNC`, the Glide swap interval) and off again in `cutscene_cleanup`. **Observed.**
 - What `cutscene_playing` (`0x609f34`) was for. It is set only when the entry is named
   "Placeholder", and nothing reads it. **Observed.**
-- Whether the missing-file path above can happen with retail data.
+- Whether the missing-file path above can happen with retail data. *Answered 2026-11-10:* only for the "test"
+  entry on the console-only level "test", see [What `cutscene_play` changes](#what-cutscene_play-changes).
 
 ## Evidence
 

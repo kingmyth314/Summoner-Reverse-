@@ -57,8 +57,21 @@ fixed, and only 4 still score 9 or more:
   from the fixed list on [Bug fix priorities](sum-exe/bug-priorities.md) (corrected there).
 - 25 *Unknown* tags and eight "Open questions" sections remain in the Sum.exe pages (bosses, camera, characters,
   cutscenes, effects, shops and loot, sound, summons); answered ones should move into the page body.
+  **Done 2026-11-10 (from the code and the retail tables, no game run):** 25 of the 27 questions still open on those
+  eight pages are answered in the page bodies (with the *Unknown* tags that repeated them in the text), each with an
+  "Answered 2026-11-10" pointer left in its list, and 5 more *Unknown* tags elsewhere (party 3, side quests 1, effect
+  decals 1); two answers corrected the page they
+  were on (the party's "near the leader" flag is set below 20 units, not above; on the Character screen only HP, AP
+  and speed use the bonus colour). Still open: what camera `+0x19c` is meant for, why `cutscene_playing` exists, the
+  inside of a `.vfx` node, and the *Unknown* tags of the world map, savegame, script editor, `vsdk-os`, video
+  settings and localize pages. Four answers come from the code alone and wait for a look in game: the Ghost's
+  class-4 double hit ([Bosses](sum-exe/bosses.md#how-a-boss-hit-is-resolved)), the crossed hurt walk
+  ([Characters](sum-exe/characters.md)), a held member fighting back ([Party](sum-exe/party.md)), and the
+  multiplayer difficulty left over in single player ([Shops and loot](sum-exe/shops-loot.md#items)).
 - [Public release](public-release.md) still reads as a plan; the repository has been public since 2026-10-21.
+  **Done 2026-11-10:** a dated status note at its top; the plan below it stays as history.
 - `tools/link-savecheck.mjs` and `link-screencheck.mjs`: `--game` is not in their rows in [Tools](tools.md).
+  **Done 2026-11-10:** both rows list every option of the scripts with its default.
 
 ### E. Waiting on the owner (last, by the owner's order of 2026-11-10)
 
