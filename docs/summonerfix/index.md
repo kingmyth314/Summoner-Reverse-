@@ -345,7 +345,7 @@ once on 2026-11-10 (**Observed**: pixel format 38, 4 samples, smooth edges; [Fix
 2026-11-10, evening: the sentence "SummonerFix does not have it ... left for the owner to decide" no longer holds.
 SummonerFix has the key now (below).
 
-*SummonerFix (2026-11-10, built, not yet run in the game).* `display.c` hooks `Sum.exe`'s import of
+*SummonerFix (2026-11-10; run the same night, **Observed**: the original exe with `Antialiasing=4` logged the hook and `pixel format 38, 4 samples (4 asked for), colour 32, depth 16 bits`; a capture, `savenow`, the brightness pass at gamma 1.5 and the FAST badge all worked; the save thumbnail on the Load screen was not looked at).* `display.c` hooks `Sum.exe`'s import of
 `GDI32!ChoosePixelFormat` (import slot `0x57e04c`; its only call, `call dword ptr [0x57e04c]` at `0x54f6c0`, is in
 `gr_opengl_set_pixel_format` `0x54f680`, which then calls `SetPixelFormat` through `0x57e044`; **Observed** in the
 import table and the disassembly) when `Antialiasing` is above 1, and answers with the format found the same way as
