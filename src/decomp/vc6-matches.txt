@@ -3578,7 +3578,7 @@ game/unnamed_serpent_0x495290.cpp 0x496330 differs
 game/unnamed_serpent_0x495290.cpp 0x496b00 match
 game/unnamed_serpent_0x495290.cpp 0x496b40 match
 game/unnamed_serpent_0x495290.cpp 0x496ba0 differs
-game/unnamed_serpent_0x495290.cpp 0x496d60 differs
+game/unnamed_serpent_0x495290.cpp 0x496d60 match
 game/unnamed_serpent_0x495290.cpp 0x4970a0 match
 game/unnamed_serpent_0x495290.cpp 0x497230 match
 game/unnamed_serpent_0x495290.cpp 0x497370 match

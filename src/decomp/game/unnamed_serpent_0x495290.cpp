@@ -851,8 +851,9 @@ void ai_state::serpent_illusion_start()
     set_mode(AI_STATE_COMBAT, 0x39);
 }
 
-// 0x496d60  Confidence: likely (m-1020, D11104: the alpha bases as `a = 255; if (i) a = 230`; left: 8966 turns
-// x / -1000 into base - x / 1000; D20501: `300 >= rem` keeps the binary's re-test of rem <= 300; the alpha arithmetic divides by -1000 as the binary does). Sub-mode 0x39:
+// 0x496d60  Confidence: exact (VC6 byte match) (m-1020, D11104: the alpha bases as `a = 255; if (i) a = 230`;
+// D20501: `300 >= rem` keeps the binary's re-test of rem <= 300; D26700: the fade as `a += (rem - 300) * a / -1000`
+// on the base's own variable keeps the divide by -1000). Sub-mode 0x39:
 // all three at serpent_place_parts' points, invisible for 1.4 s, fading in with the effect, then
 // targetable again; the copies vanish 8 s later (serpent_part_check_timeout).
 void ai_state::serpent_illusion_update()
@@ -900,10 +901,12 @@ void ai_state::serpent_illusion_update()
                 p = living_from_handle(serpent.handles[i]);
                 if (p) {
                     if (rem < 1300) {
-                        int base = 255;
+                        // D26700: the base and the faded value in one variable; with a separate base 8966
+                        // rewrites base + x / -1000 as base - x / 1000.
+                        int a = 255;
                         if (i != 0)
-                            base = 230;
-                        int a = (rem - 300) * base / -1000 + base;
+                            a = 230;
+                        a += (rem - 300) * a / -1000;
                         if (a < 1)
                             a = 1;
                         p->instance->_unkb4 = (ubyte)a;
