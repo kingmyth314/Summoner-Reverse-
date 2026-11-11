@@ -40,6 +40,9 @@
 #include "engine/objects/objects.h"
 #include "engine/objects/items.h"
 #include "engine/characterinfo/characterinfo.h"
+#include "engine/s3d/s3d.h"
+#include "engine/rendering/levelrender.h"
+#include "engine/ai/pathfinding.h"
 
 extern int dialogue_mode;                // 0x5bc48c new_dialogue.cpp
 extern container *pickup_container;      // 0x5c3b6c new_pickup.cpp
@@ -122,6 +125,99 @@ static void *sum_va(unsigned int addr)
     if (!p)
         modern_log("agent: no address for Sum.exe 0x%06X in this exe's table", addr);
     return p;
+}
+
+// doors [RADIUS] (2026-11-10, roadmap A3): the level's door records (doors / num_doors, level_s3d +0x64 / +0x60),
+// each with its level object, the middle of its navigation door edges (pf_edges with PF_EDGE_DOOR and this door's
+// index) and door_is_open(d, 0.4f), the test pf_check_direct_walk makes; nearest first by horizontal distance from
+// cur_character. The same line as SummonerFix's agent (DoorsOnGameThread there, which reads the 32-bit offsets).
+static float doors_radius;
+static int door_pos(int i, vector3 *p)
+{
+    door_info *d = &doors[i];
+    lobj *lo = &lobjs[d->lobj_index];
+    int n = 0;
+    float sx = 0.0f, sz = 0.0f;
+    for (int k = 0; pf_edges && k < pf_edge_count; k++) {
+        pf_edge *e = &pf_edges[k];
+        if (!(e->flags & PF_EDGE_DOOR) || e->door != (ubyte)i)
+            continue;
+        sx += (e->a->x + e->b->x) * 0.5f;
+        sz += (e->a->y + e->b->y) * 0.5f;
+        n++;
+    }
+    p->x = n ? sx / n : lo->pos.x;
+    p->z = n ? sz / n : lo->pos.z;
+    p->y = n && d->named_path >= 0 ? d->floor_point().y : lo->pos.y;
+    return n;
+}
+static const char *door_name(int i)
+{
+    for (int k = 0; level_s3d.door_names && k < num_doors; k++)
+        if (level_s3d.door_names[k].door == i)
+            return level_s3d.door_names[k].name && *level_s3d.door_names[k].name ? level_s3d.door_names[k].name : "-";
+    return "-";
+}
+struct door_sort { int index; float d; };
+static int door_sort_cmp(const void *a, const void *b)
+{
+    float x = ((const door_sort *)a)->d, y = ((const door_sort *)b)->d;
+    return x < y ? -1 : x > y;
+}
+static void doors_body(void *)
+{
+    Character *me = cur_character;
+    int nd = num_doors;
+    if (!doors || !lobjs || nd <= 0) {
+        out("doors: none (no level loaded or no door records)");
+        return;
+    }
+    if (nd > 256)
+        nd = 256;   // the edges' door index is a byte
+    static door_sort list[256];
+    int n = 0;
+    float mx = me ? me->pos.x : 0.0f, mz = me ? me->pos.z : 0.0f;
+    for (int i = 0; i < nd; i++) {
+        vector3 p;
+        door_pos(i, &p);
+        float d = sqrtf((p.x - mx) * (p.x - mx) + (p.z - mz) * (p.z - mz));
+        if (d <= doors_radius) {
+            list[n].index = i;
+            list[n++].d = d;
+        }
+    }
+    qsort(list, n, sizeof list[0], door_sort_cmp);
+    for (int j = 0; j < n && j < 40; j++) {
+        int i = list[j].index;
+        door_info *d = &doors[i];
+        lobj *lo = &lobjs[d->lobj_index];
+        vector3 p;
+        int ne = door_pos(i, &p);
+        bool open = door_is_open(d, 0.4f);
+        out("door %d lobj %d %s pos %.2f %.2f %.2f layer %d %s%s edges %d dist %.1f dy %.1f lock %.0f name %s", i,
+            d->lobj_index, lo->name ? lo->name : "?", (double)p.x, (double)p.y, (double)p.z, (int)lo->layers[0],
+            open ? "open" : "closed", d->moving ? (d->opening ? " opening" : " closing") : "", ne, (double)list[j].d,
+            me ? (double)(p.y - me->pos.y) : 0.0, (double)d->lock, door_name(i));
+    }
+    if (!n)
+        out("doors: none within %.1f (%d in the level)", (double)doors_radius, nd);
+}
+// dooropen N 0|1: door_set_open(lobj, -1, force, sound) as the console's door command opens one (locks ignored), or
+// door_set_closed(lobj).
+static int door_index, door_open_want;
+static void dooropen_body(void *)
+{
+    if (!doors || !lobjs || door_index < 0 || door_index >= num_doors) {
+        out("dooropen %d: no such door (%d in the level)", door_index, num_doors);
+        return;
+    }
+    lobj *lo = &lobjs[doors[door_index].lobj_index];
+    if (door_open_want)
+        out("dooropen %d 1: door_set_open %s", door_index, door_set_open(lo, -1.0f, true, true) ? "true" : "false");
+    else {
+        door_set_closed(lo);
+        out("dooropen %d 0: door_set_closed called", door_index);
+    }
 }
 
 // ---- game-thread bodies ----
@@ -814,6 +910,17 @@ static void run_line(char *line)
         }
         if (!n)
             out("party: none");
+    } else if (!_stricmp(c, "doors")) {
+        // doors [RADIUS] (2026-11-10): the doors within RADIUS (default 60), nearest first (doors_body).
+        doors_radius = argc >= 2 ? (float)atof(argv[1]) : 60.0f;
+        if (!run_sync(doors_body, NULL))
+            out("doors: no window");
+    } else if (!_stricmp(c, "dooropen") && argc >= 3) {
+        // dooropen N 0|1 (2026-11-10): the game's door_set_open / door_set_closed on door N, on the game thread.
+        door_index = atoi(argv[1]);
+        door_open_want = atoi(argv[2]) != 0;
+        if (!run_sync(dooropen_body, NULL))
+            out("dooropen: no window");
     } else if (!_stricmp(c, "talkto") && argc >= 2) {
         // talkto NAME: the nearest living character whose name starts with NAME ('~' for spaces) is talked to as a
         // click on it does (player_talk_to), also shopkeepers that npcgoto cannot find.

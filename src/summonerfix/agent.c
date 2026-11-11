@@ -510,6 +510,132 @@ static void CallIntOnGameThread(void *unused)
     Log("agent: calli %06lX(0x%lX, 0x%lX) = 0x%lX", g_callAddr, g_callIntA, g_callIntB, r);
 }
 
+// "doors [RADIUS]" (2026-11-10, for the pf_check_direct_walk look-ahead test, roadmap A3): the level's door records
+// (level_s3d +0x60 count 0xa5a300, +0x64 array 0xa5a304, 0x8c bytes each, sorted by lobj index) with the door's
+// level object (lobjs 0xa5a2cc, 0x70 each: name +0x00, pos +0x14, layers +0x6c), its navigation door edges
+// (pf_edges 0x2460cb0, count 0x2460c9c, 0x10 each: vector2 *a +0x00, *b +0x04, flags +0x08 with 0x2 = door, door
+// index byte +0x0a: the index into the door array, as pf_door_index_is_open takes it) and door_is_open(d, 0.4)
+// (0x476940), the test pf_check_direct_walk and the path search make. Run on the game thread (door_is_open reads
+// the saved two-stage state and the move timer). Nearest first (horizontal distance from cur_character), one line
+// per door, the same line as the 64-bit host's.
+#define VA_NUM_DOORS 0xa5a300u
+#define VA_DOORS 0xa5a304u
+#define VA_DOOR_NAMES 0xa5a308u      // level_s3d +0x68: {const char *name; int door} per door, sorted by name
+#define VA_NUM_LOBJS 0xa5a2c8u
+#define VA_LOBJS 0xa5a2ccu
+#define VA_PF_EDGE_COUNT 0x2460c9cu
+#define VA_PF_EDGES 0x2460cb0u
+#define VA_DOOR_IS_OPEN 0x476940u    // cdecl (door_info *, float fraction) -> bool (AL)
+#define VA_DOOR_SET_OPEN 0x476e00u   // cdecl (lobj *, float close_delay, bool force, bool sound) -> bool
+#define VA_DOOR_SET_CLOSED 0x476e80u // cdecl (lobj *)
+typedef struct { int index; float d; } DoorSort;
+static float g_doorsRadius;
+static int DoorSortCmp(const void *a, const void *b)
+{
+    float x = ((const DoorSort *)a)->d, y = ((const DoorSort *)b)->d;
+    return x < y ? -1 : x > y;
+}
+// The door's position: the middle of its navigation door edges (all of them averaged; x and z, y from the floor
+// point +0x48 when the door has a named path, else the level object's), or the level object's position when it has
+// no edge. Returns the number of edges.
+static int DoorPos(int i, float *x, float *y, float *z)
+{
+    const BYTE *d = *(const BYTE *const *)(UINT_PTR)SumVa(VA_DOORS) + 0x8c * i;
+    const BYTE *lo = *(const BYTE *const *)(UINT_PTR)SumVa(VA_LOBJS) + 0x70 * *(const int *)d;
+    const BYTE *e = *(const BYTE *const *)(UINT_PTR)SumVa(VA_PF_EDGES);
+    int ne = e ? *(const int *)(UINT_PTR)SumVa(VA_PF_EDGE_COUNT) : 0, n = 0;
+    float sx = 0, sz = 0;
+    for (int k = 0; k < ne; k++, e += 0x10) {
+        if (!(*(const WORD *)(e + 8) & 2) || e[0x0a] != (BYTE)i)
+            continue;
+        const float *a = *(const float *const *)e, *b = *(const float *const *)(e + 4);
+        sx += (a[0] + b[0]) * 0.5f;
+        sz += (a[1] + b[1]) * 0.5f;
+        n++;
+    }
+    *x = n ? sx / n : *(const float *)(lo + 0x14);
+    *z = n ? sz / n : *(const float *)(lo + 0x1c);
+    *y = n && *(const short *)(d + 4) >= 0 ? *(const float *)(d + 0x4c) : *(const float *)(lo + 0x18);
+    return n;
+}
+static const char *DoorName(int i)
+{
+    const BYTE *names = *(const BYTE *const *)(UINT_PTR)SumVa(VA_DOOR_NAMES);
+    int nd = *(const int *)(UINT_PTR)SumVa(VA_NUM_DOORS);
+    for (int k = 0; names && k < nd; k++)
+        if (*(const int *)(names + 8 * k + 4) == i) {
+            const char *s = *(const char *const *)(names + 8 * k);
+            return s && *s ? s : "-";
+        }
+    return "-";
+}
+static void DoorsOnGameThread(void *unused)
+{
+    (void)unused;
+    int nd = *(const int *)(UINT_PTR)SumVa(VA_NUM_DOORS);
+    const BYTE *doors = *(const BYTE *const *)(UINT_PTR)SumVa(VA_DOORS);
+    const BYTE *lobjs = *(const BYTE *const *)(UINT_PTR)SumVa(VA_LOBJS);
+    const BYTE *me = *(const BYTE *const *)(UINT_PTR)SumVa(VA_CUR_CHARACTER);
+    if (!doors || !lobjs || nd <= 0) {
+        Out("doors: none (no level loaded or no door records)");
+        return;
+    }
+    if (nd > 256)
+        nd = 256;   // the edges' door index is a byte
+    static DoorSort list[256];
+    int n = 0;
+    float mx = me ? *(const float *)(me + 0x10) : 0, mz = me ? *(const float *)(me + 0x18) : 0;
+    for (int i = 0; i < nd; i++) {
+        float x, y, z;
+        DoorPos(i, &x, &y, &z);
+        float d = sqrtf((x - mx) * (x - mx) + (z - mz) * (z - mz));
+        if (d <= g_doorsRadius) {
+            list[n].index = i;
+            list[n++].d = d;
+        }
+    }
+    qsort(list, n, sizeof list[0], DoorSortCmp);
+    for (int j = 0; j < n && j < 40; j++) {
+        int i = list[j].index;
+        const BYTE *d = doors + 0x8c * i;
+        int li = *(const int *)d;
+        const BYTE *lo = lobjs + 0x70 * li;
+        float x, y, z;
+        int ne = DoorPos(i, &x, &y, &z);
+        BOOL open = ((BYTE(__cdecl *)(const BYTE *, float))(UINT_PTR)SumVa(VA_DOOR_IS_OPEN))(d, 0.4f) & 1;
+        DWORD st = *(const DWORD *)(d + 0x54);
+        Out("door %d lobj %d %s pos %.2f %.2f %.2f layer %d %s%s edges %d dist %.1f dy %.1f lock %.0f name %s", i, li,
+            *(const char *const *)lo ? *(const char *const *)lo : "?", (double)x, (double)y, (double)z,
+            (int)*(const signed char *)(lo + 0x6c), open ? "open" : "closed",
+            st & 1 ? (st & 2 ? " opening" : " closing") : "", ne, (double)list[j].d,
+            me ? (double)(y - *(const float *)(me + 0x14)) : 0.0, (double)*(const float *)(d + 0x58), DoorName(i));
+    }
+    if (!n)
+        Out("doors: none within %.1f (%d in the level)", (double)g_doorsRadius, nd);
+}
+// "dooropen N 0|1": door N (the index doors prints) opened with door_set_open(lobj, -1, force 1, sound 1), as the
+// console's door command and level_restore_doors open one (locks ignored), or closed with door_set_closed(lobj).
+static int g_doorIndex, g_doorOpen;
+static void DoorOpenOnGameThread(void *unused)
+{
+    (void)unused;
+    int nd = *(const int *)(UINT_PTR)SumVa(VA_NUM_DOORS);
+    const BYTE *doors = *(const BYTE *const *)(UINT_PTR)SumVa(VA_DOORS);
+    BYTE *lobjs = *(BYTE *const *)(UINT_PTR)SumVa(VA_LOBJS);
+    if (!doors || !lobjs || g_doorIndex < 0 || g_doorIndex >= nd) {
+        Out("dooropen %d: no such door (%d in the level)", g_doorIndex, nd);
+        return;
+    }
+    BYTE *lo = lobjs + 0x70 * *(const int *)(doors + 0x8c * g_doorIndex);
+    if (g_doorOpen) {
+        BYTE r = ((BYTE(__cdecl *)(BYTE *, float, int, int))(UINT_PTR)SumVa(VA_DOOR_SET_OPEN))(lo, -1.0f, 1, 1);
+        Out("dooropen %d 1: door_set_open %s", g_doorIndex, r & 1 ? "true" : "false");
+    } else {
+        ((void(__cdecl *)(BYTE *))(UINT_PTR)SumVa(VA_DOOR_SET_CLOSED))(lo);
+        Out("dooropen %d 0: door_set_closed called", g_doorIndex);
+    }
+}
+
 // "callt ADDR THIS [ARG ...]": a thiscall game function with up to six int arguments. The callee pops its own
 // arguments, however many it takes, so esp is saved around the call.
 static DWORD g_callThis;
@@ -1071,6 +1197,18 @@ static void RunLine(char *line)
         }
         if (!n)
             Out("party: none");
+    } else if (!_stricmp(c, "doors")) {
+        // doors [RADIUS] (2026-11-10): the doors within RADIUS (default 60) of the current character, nearest first
+        // (DoorsOnGameThread above).
+        g_doorsRadius = argc >= 2 ? (float)atof(argv[1]) : 60.0f;
+        if (!AgentRunSync(DoorsOnGameThread, NULL))
+            Out("doors: no window");
+    } else if (!_stricmp(c, "dooropen") && argc >= 3) {
+        // dooropen N 0|1 (2026-11-10): the game's door_set_open / door_set_closed on door N, on the game thread.
+        g_doorIndex = atoi(argv[1]);
+        g_doorOpen = atoi(argv[2]) != 0;
+        if (!AgentRunSync(DoorOpenOnGameThread, NULL))
+            Out("dooropen: no window");
     } else if (!_stricmp(c, "talkto") && argc >= 2) {
         // talkto NAME (2026-11-04): the nearest character of living_list (0x8eca60, linked at +0x318) whose name
         // (+0x2f4, character_get_name) starts with NAME ('~' for spaces, case ignored) is talked to as a click

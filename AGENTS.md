@@ -86,7 +86,8 @@ The docs are also the project's log: long pages are chronological under a summar
 Command reference: `docs/tools.md`, section `tools/agent.mjs`. Some commands:
 - `info` (state, screen, fps), `capture NAME`, `click X Y`, `key NAME`, `postkey NAME`;
 - `peek` / `poke ADDR` (Sum.exe addresses); `party` (each member's position, layer, HP, flags, in both hosts: use it,
-  not `peek` at structure offsets, which differ in the 64-bit exe);
+  not `peek` at structure offsets, which differ in the 64-bit exe); `doors [R]` (nearby doors: index, position,
+  layer, open or closed, distance) and `dooropen I 1|0` (both hosts);
 - `level NAME SCRIPT`, `npcgoto NAME`, `summon N`, `firewall N`, `shop NAME`, `savenow`, `speedkey 1|0`.
 
 Coordinates are capture pixels (half the window).

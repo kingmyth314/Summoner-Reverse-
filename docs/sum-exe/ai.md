@@ -195,6 +195,28 @@ current order is `+0x38` (999999 for direct orders).
   `ai_reset` and `ai_reset_party_member` free it as well.
 - The path search also steers around obstacle-avoidance areas (next section).
 
+### Doors on a path (2026-11-10)
+
+Read from the decomp (`game/pathfinding.cpp`, `game/unnamed_goals_doors_0x475180.cpp`, `engine/s3d/s3d.h`,
+`engine/rendering/levelrender.h`) for the agent command `doors` (**observed** in the code, not yet run):
+- The level's door records are `level_s3d` `+0x60` (count, `num_doors` `0xa5a300`) and `+0x64` (array, `doors`
+  `0xa5a304`), `0x8c` bytes each (`door_info`), sorted by level object index (`door_from_lobj` `0x4768c0` finds one
+  with `bsearch`). Fields used: `+0x00` the level object index, `+0x04` the named path (`-1` none), `+0x48` the floor
+  point (`door_find_floor_point` `0x476ab0`), `+0x54` the state bits (bit 0 moving, bit 1 opening), `+0x58` the lock
+  value. `+0x68` (`0xa5a308`) is a `{name, door index}` pair per door, sorted by name (`door_find_by_name`).
+- The door's level object is `lobjs[index]` (`0xa5a2cc`, `0x70` bytes): name `+0x00`, flags `+0x08` (`0x100` door),
+  position `+0x14`, layer bytes `+0x6c`.
+- A navigation wall that belongs to a door has flag `0x2` (`PF_EDGE_DOOR`) and the door's index into `doors` in its
+  byte `+0x0a` (`pf_edges` `0x2460cb0`, count `0x2460c9c`, `0x10` bytes, two `vector2` pointers at `+0x00` / `+0x04`;
+  the vector's y is the world z). `pf_door_index_is_open(index, 0.4)` (`0x49dbe0`) is `door_is_open(&doors[index],
+  0.4)` (`0x476940`): the saved open bit (`savegame_two_stage_get`), or while the door moves its eased progress toward
+  open above 0.4. An index outside `num_doors` counts as open.
+- The path search (`pf_sweep_test_wall`) and the AI's look-ahead (`pf_check_direct_walk` `0x49e620`, from
+  `ai_follow_path`) both ignore door walls of open doors and stop at those of closed ones. The look-ahead's length
+  counts the destination's absolute height (D15600; the candidate in the [roadmap](../roadmap.md)).
+- The console's `door_open` / `door_close` call `door_set_open(lobj, -1, 1, 1)` (`0x476e00`, locks ignored) and
+  `door_set_closed(lobj)` (`0x476e80`); the agent's `dooropen` calls the same two.
+
 ## Obstacle avoidance
 
 Ground effects and summons mark areas that paths should go around (`avoid_area_add` `0x4a9b40`, callers
