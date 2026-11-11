@@ -306,7 +306,8 @@ scissored `glClear`. Mouse coordinates are mapped back to game pixels.
 ### Exclusive fullscreen and anti-aliasing, 2026-11-10
 
 From the roadmap's display candidates ([Future projects](../roadmap.md#after-the-code-fully-recompiles)). Nothing
-here has been run yet: every claim is **Inferred** from the code and the API documentation until the in-game test.
+here has been run yet: every claim is **Inferred** from the code and the API documentation until the in-game test,
+except the 64-bit build's anti-aliasing, run once later that day (below).
 
 **`[Display] Mode=Exclusive`** (SummonerFix's OpenGL output, and the 64-bit build's host,
 `src/decomp/modern/display.cpp`):
