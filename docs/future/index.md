@@ -12,3 +12,4 @@ Work beyond the decompilation itself, each with its research, decisions and resu
 - [Texture upscaling](texture-upscale.md): a loose-file pack of upscaled textures made from your own install.
 - [dgVoodoo 2](dgvoodoo.md): the Glide and Direct3D renderers on a modern PC.
 - [Tentacle Beast grab and throw](tentacle-grab.md): the attack the developers switched off, made to work.
+- [Interface scale](interface-scale.md): a smaller interface on large screens, and why a larger one is not possible.

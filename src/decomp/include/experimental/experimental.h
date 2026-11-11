@@ -79,6 +79,8 @@ int  exp_ws_side_panel_begin(bool frame);                // around interface_dra
 void exp_ws_side_panel_end(int undo);
 bool exp_ws_full_panel();                                // a full-screen panel in play, centred like a menu
 int  exp_ws_view_width();                                // interface_set_view_clip's gr_screen_width
+int  exp_ws_view_height();                               // its gr_screen_height (InterfaceScale, a taller screen)
+int  exp_ws_real_screen_height();                        // gr_screen_height past ui_shift.h's 768 (the fov measure)
 int  exp_ws_panel_width(int width);                      // interface_set_view_clip's side-panel widths
 // levelreverb.cpp: [Experimental] LevelReverb, the level's <level>.eax read from the packfiles (game-bugs K261)
 void exp_level_reverb(const char *name);                 // level_parse_table, when no loose file was found

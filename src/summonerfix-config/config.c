@@ -52,7 +52,7 @@ enum { ID_LIST = 100, ID_CHANGE, ID_CLEAR, ID_RESET, ID_CLOSE, ID_STATUS, ID_SKI
        ID_PADOPEN, ID_PADENABLED, ID_PADSAVE, ID_PADRESET, ID_PADCLOSE,
        ID_EXPOPEN, ID_EXPAUTOSAVE, ID_EXPLEVEL, ID_EXPVSYNC, ID_EXPHIRES, ID_EXPREVERB, ID_EXPLOG, ID_EXPSAVE, ID_EXPRESET, ID_EXPCLOSE,
        ID_DISPOPEN, ID_DISPRENDER, ID_DISPOUTPUT, ID_DISPSIZE, ID_DISPWIN, ID_DISPMENUS, ID_DISPHUD, ID_DISPPANELS,
-       ID_DISPSCALE, ID_DISPSHARP, ID_DISPSAVE, ID_DISPRESET, ID_DISPCLOSE, ID_CHEATOPEN, ID_DISPFOV, ID_DISPBADGE, ID_DISPEXCL, ID_DISPAA };
+       ID_DISPSCALE, ID_DISPSHARP, ID_DISPSAVE, ID_DISPRESET, ID_DISPCLOSE, ID_CHEATOPEN, ID_DISPFOV, ID_DISPBADGE, ID_DISPEXCL, ID_DISPAA, ID_DISPUISCALE };
 
 // [ConsoleKeys] Key=command entries (keys that run a developer console command). Shown as list rows after the
 // hotkeys; Change key / Clear work on them, and "Bind key..." adds one for the command typed in the box.
@@ -1057,7 +1057,7 @@ static void OpenCheatWindow(void)
 // or the survey's common sizes when it reports none.
 static HWND g_dispWnd;
 #define DISP_WND_W 560
-#define DISP_WND_H 542
+#define DISP_WND_H 574
 typedef struct { int sw, sh; const char *shape; } DispSize;
 static const DispSize k_dispSizes[] = {
     {4, 3, "4:3, the original layout"},
@@ -1093,6 +1093,12 @@ static const DispChoice k_antialiasing[] = {
     {"0", "Off"}, {"2", "2x MSAA"}, {"4", "4x MSAA"}, {"8", "8x MSAA"},
 };
 #define ANTIALIAS_COUNT (int)(sizeof k_antialiasing / sizeof k_antialiasing[0])
+// [Display] InterfaceScale rows (2026-11-10, docs/future/interface-scale.md): the interface's height in percent of the
+// screen's, with "Match my screen" (GameWidth=Auto) and the fixed, experimental and 64-bit builds.
+static const DispChoice k_uiScales[] = {
+    {"100", "100% (the original size)"}, {"90", "90%"}, {"80", "80%"}, {"75", "75%"}, {"67", "67%"}, {"50", "50%"},
+};
+#define UI_SCALE_COUNT (int)(sizeof k_uiScales / sizeof k_uiScales[0])
 // [Display] Mode rows ("Show the game:").
 static const char *const k_outputModes[] = {"Fullscreen", "Window", "Exclusive"};
 // The exclusive display modes (Mode=Exclusive): row 0 the desktop's (0 x 0 at 0 Hz), then the primary display's modes
@@ -1100,7 +1106,7 @@ static const char *const k_outputModes[] = {"Fullscreen", "Window", "Exclusive"}
 static int g_exclW[128], g_exclH[128], g_exclHz[128], g_exclCount;
 static int g_dispSizeW[DISP_SIZE_COUNT + 2], g_dispSizeH[DISP_SIZE_COUNT + 2]; // per list row; 0 x 0 = Auto
 static int g_dispWinW[64], g_dispWinH[64], g_dispWinCount;
-static char g_dispScaleIni[16], g_dispSharpIni[16], g_dispAaIni[16]; // the ini's own value when no row matches it, else ""
+static char g_dispScaleIni[16], g_dispSharpIni[16], g_dispAaIni[16], g_dispUiIni[16]; // the ini's own value when no row matches it, else ""
 
 static HWND DispCombo(HWND parent, int id, int x, int y, int w)
 {
@@ -1233,7 +1239,7 @@ static void DispFillChoice(HWND c, const char *key, const DispChoice *rows, int 
     SendMessageA(c, CB_RESETCONTENT, 0, 0);
     for (int i = 0; i < count; i++)
         SendMessageA(c, CB_ADDSTRING, 0, (LPARAM)rows[i].label);
-    const char *def = !strcmp(key, "FsrSharpness") ? "0.2" : !strcmp(key, "Antialiasing") ? "0" : "1";
+    const char *def = !strcmp(key, "FsrSharpness") ? "0.2" : !strcmp(key, "Antialiasing") ? "0" : !strcmp(key, "InterfaceScale") ? "100" : "1";
     GetPrivateProfileStringA("Display", key, def, buf, sizeof buf, g_ini);
     if (defaults)
         lstrcpynA(buf, def, sizeof buf);
@@ -1292,6 +1298,7 @@ static void DispFill(HWND w, BOOL defaults)
     HWND ex = GetDlgItem(w, ID_DISPEXCL);
     SendMessageA(ex, CB_SETCURSEL, DispFillExclusive(ex, ew, eh, ez < 0 ? 0 : ez), 0);
     DispFillChoice(GetDlgItem(w, ID_DISPAA), "Antialiasing", k_antialiasing, ANTIALIAS_COUNT, g_dispAaIni, defaults);
+    DispFillChoice(GetDlgItem(w, ID_DISPUISCALE), "InterfaceScale", k_uiScales, UI_SCALE_COUNT, g_dispUiIni, defaults);
 
     // Game size: row 0 is Auto; then the fixed list; then the ini's own size if it is none of them.
     HWND s = GetDlgItem(w, ID_DISPSIZE);
@@ -1384,6 +1391,7 @@ static void DispSave(HWND w)
         WritePrivateProfileStringA("Display", "ExclusiveRefresh", buf, g_ini);
     }
     DispSaveChoice(GetDlgItem(w, ID_DISPAA), "Antialiasing", k_antialiasing, ANTIALIAS_COUNT, g_dispAaIni);
+    DispSaveChoice(GetDlgItem(w, ID_DISPUISCALE), "InterfaceScale", k_uiScales, UI_SCALE_COUNT, g_dispUiIni);
     int si = (int)SendMessageA(GetDlgItem(w, ID_DISPSIZE), CB_GETCURSEL, 0, 0);
     if (si <= 0 || !g_dispSizeW[si]) {
         WritePrivateProfileStringA("Display", "GameWidth", "Auto", g_ini);
@@ -1435,34 +1443,37 @@ static LRESULT CALLBACK DispWndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp)
         Label(w, "Game resolution:", 10, 104, 130);
         DispCombo(w, ID_DISPSIZE, 150, 101, 390);
         Label(w, "The 3D world is always drawn at full resolution. This sets the", 150, 128, 400);
-        Label(w, "interface's layout, which is made for 768 lines: all sizes are 768 high.", 150, 144, 400);
-        Label(w, "Window size:", 10, 172, 130);
-        DispCombo(w, ID_DISPWIN, 150, 169, 160);
-        Label(w, "(when shown in a window)", 320, 172, 200);
-        Label(w, "Exclusive mode:", 10, 204, 130);
-        DispCombo(w, ID_DISPEXCL, 150, 201, 220);
-        Label(w, "(when fullscreen, exclusive)", 380, 204, 170);
-        DispCheck(w, ID_DISPMENUS, "Centre the menus on wide screens", 234);
-        DispCheck(w, ID_DISPHUD, "Centre the HUD and in-game screens on wide screens", 256);
-        DispCheck(w, ID_DISPPANELS, "Keep the world full width behind the map, spells and skills panels", 278);
-        Label(w, "Field of view:", 10, 308, 130);
-        HWND fe = CreateWindowExA(WS_EX_CLIENTEDGE, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL, 150, 305, 60, 22,
+        Label(w, "interface's layout, made for 768 lines; a smaller interface size below uses more.", 150, 144, 400);
+        Label(w, "Interface size:", 10, 172, 130);
+        DispCombo(w, ID_DISPUISCALE, 150, 169, 220);
+        Label(w, "(Match my screen; not Sum.exe)", 380, 172, 170);
+        Label(w, "Window size:", 10, 204, 130);
+        DispCombo(w, ID_DISPWIN, 150, 201, 160);
+        Label(w, "(when shown in a window)", 320, 204, 200);
+        Label(w, "Exclusive mode:", 10, 236, 130);
+        DispCombo(w, ID_DISPEXCL, 150, 233, 220);
+        Label(w, "(when fullscreen, exclusive)", 380, 236, 170);
+        DispCheck(w, ID_DISPMENUS, "Centre the menus on wide screens", 266);
+        DispCheck(w, ID_DISPHUD, "Centre the HUD and in-game screens on wide screens", 288);
+        DispCheck(w, ID_DISPPANELS, "Keep the world full width behind the map, spells and skills panels", 310);
+        Label(w, "Field of view:", 10, 340, 130);
+        HWND fe = CreateWindowExA(WS_EX_CLIENTEDGE, "EDIT", "", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL, 150, 337, 60, 22,
                                   w, (HMENU)(INT_PTR)ID_DISPFOV, NULL, NULL);
         SendMessageA(fe, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
         Label(w, "degrees, 40-110 (empty = the game's 73.74; wide screens see more)", 220, 308, 330);
-        DispCheck(w, ID_DISPBADGE, "Show \"FAST x3\" while the speed key's fast mode is on", 334);
-        Label(w, "64-bit builds only (OpenGL and Vulkan):", 10, 366, DISP_WND_W - 20);
-        Label(w, "Anti-aliasing:", 10, 390, 130);
-        DispCombo(w, ID_DISPAA, 150, 387, 220);
-        Label(w, "Vulkan renderer only (the 64-bit builds):", 10, 422, DISP_WND_W - 20);
-        Label(w, "Render scale:", 10, 446, 130);
-        DispCombo(w, ID_DISPSCALE, 150, 443, 220);
-        Label(w, "FSR sharpening:", 10, 478, 130);
-        DispCombo(w, ID_DISPSHARP, 150, 475, 220);
-        Label(w, "(below scale 1 only)", 380, 478, 170);
-        Button(w, ID_DISPSAVE, "&Save", 10, 508, 100);
-        Button(w, ID_DISPRESET, "&Defaults", 120, 508, 100);
-        Button(w, ID_DISPCLOSE, "Close", 230, 508, 100);
+        DispCheck(w, ID_DISPBADGE, "Show \"FAST x3\" while the speed key's fast mode is on", 366);
+        Label(w, "64-bit builds only (OpenGL and Vulkan):", 10, 398, DISP_WND_W - 20);
+        Label(w, "Anti-aliasing:", 10, 422, 130);
+        DispCombo(w, ID_DISPAA, 150, 419, 220);
+        Label(w, "Vulkan renderer only (the 64-bit builds):", 10, 454, DISP_WND_W - 20);
+        Label(w, "Render scale:", 10, 478, 130);
+        DispCombo(w, ID_DISPSCALE, 150, 475, 220);
+        Label(w, "FSR sharpening:", 10, 510, 130);
+        DispCombo(w, ID_DISPSHARP, 150, 507, 220);
+        Label(w, "(below scale 1 only)", 380, 510, 170);
+        Button(w, ID_DISPSAVE, "&Save", 10, 540, 100);
+        Button(w, ID_DISPRESET, "&Defaults", 120, 540, 100);
+        Button(w, ID_DISPCLOSE, "Close", 230, 540, 100);
         DispFill(w, FALSE);
         return 0;
     }

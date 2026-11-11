@@ -382,6 +382,10 @@ programs. It applies to the original game and to the rebuilt exes (the fixed and
 from SummonerFix through the registry; `CustomResolution` in their source). Since 2026-11-10 the window also has a
 **Field of view** box (`[Display] FieldOfView`; Save refuses anything but empty or 40-110) and the **Show "FAST x3"**
 checkbox (`[Game] SpeedBadge`); the window was made 60 pixels taller for them (built, not yet clicked through).
+Also 2026-11-10: an **Interface size** row under the game resolution (`[Display] InterfaceScale`: 100, 90, 80, 75, 67
+or 50%; a value no row has is listed as "as set in summonerfix.ini"), and the window 32 pixels taller again (built,
+not yet clicked through). With it, "All are 768 high" above holds only at 100%: the rebuilt exes take a taller size
+for a smaller interface ([Interface scale](../future/interface-scale.md)).
 
 The original launcher (`Summoner.exe`) cannot be made to list modern sizes in a useful way: it detects cards with
 DirectDraw calls that modern drivers do not answer as it expects ([Video settings](../sum-exe/video-settings.md)),
@@ -569,7 +573,8 @@ picks its own "selected" character, not a cheats matter.
 | `[Display] Antialiasing` | 0 | The 64-bit build only (OpenGL and Vulkan): multisampling, 0 (off), 2, 4 or 8 samples (2026-11-10). SummonerFix ignores it |
 | `[Display] WindowWidth`, `WindowHeight` | 1600, 1200 | Client size for `Mode=Window` (resizable); shrunk to fit the work area, keeping its shape (2026-11-01) |
 | `[Display] GameWidth`, `GameHeight` | `Auto`, 768 | The game's internal layout resolution. `Auto` (since 2026-10-24): 768 high and as wide as the primary screen's aspect (1366x768 at 16:9, 1228x768 at 16:10, 1834x768 at 3440x1440, 1024x768 at 4:3); or two numbers, e.g. 1366 and 768. Set in the config app with **Display / resolution...** |
-| `[Display] CenterMenus` | 1 | With a wider `GameWidth`, centre the 1024-wide menus |
+| `[Display] InterfaceScale` | 100 | The interface's height in percent of the screen's, 50-100 (2026-11-10). Below 100, `GameWidth=Auto` makes the game taller at the screen's shape (75: 1820x1024 on 16:9), so the 768-line menus and HUD are smaller; the HUD stays at the bottom, menus and full panels are centred in y too. OpenGL or Vulkan, and only an exe whose `.fixes` file lists `InterfaceScale` (the fixed, experimental and 64-bit builds); the original `Sum.exe` keeps 100. [Interface scale](../future/interface-scale.md). Built, not yet run in the game |
+| `[Display] CenterMenus` | 1 | With a wider `GameWidth`, centre the 1024-wide menus (in the rebuilt exes also a game taller than 768: the menus in y) |
 | `[Display] SidePanelsOverWorld` | 1 | Wide screens: the 3D view stays full width behind the map/spells/skills panels |
 | `[Display] CenterHud` | 1 | With a wider `GameWidth`, centre the HUD and in-game screens (OpenGL) |
 | `[Display] Windowed` | 0 | Direct3D/Glide only: use the game's own windowed mode |

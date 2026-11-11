@@ -27,6 +27,16 @@
 //  - Everything else (the HUD alone, pickup, play menu, conversation, assess): call shifting.
 // [Display] CenterHud (default 1) switches it off, as in SummonerFix.
 // FIXED_BUILD: Widescreen CenterHud
+//
+// A game height above 768 (2026-11-10, [Display] InterfaceScale, docs/future/interface-scale.md): the interface is
+// still the 1024x768 layout, so the same machinery places it in y as well. During gameplay the call-shifted screens
+// and the side panels move down by (height - 768): the HUD bar sits at the bottom of the screen and the 3D view above
+// it keeps the full height (exp_ws_view_height); the side panels keep x unshifted and take only the y shift. Full
+// panels and the menus are centred as a whole picture by the display layer (modern/display.cpp, SummonerFix's
+// display.c), and interface code then sees a 768-high screen (ui_gr_screen_height), except interface_init_global's
+// field-of-view measurement, which needs the real shape (exp_ws_real_screen_height). The cursor's y gets the same
+// treatment as x (exp_ws_mouse_tick, ui_mouse_get_pos); world code reads exp_mouse_raw_y.
+// FIXED_BUILD: Widescreen InterfaceScale
 #include <string.h>
 #include "experimental/experimental.h"
 
@@ -40,6 +50,7 @@
 #include "summoner/interface/interface.h"
 
 #define WS_LAYOUT_WIDTH 1024
+#define WS_LAYOUT_HEIGHT 768
 
 namespace gr {
 void ui_set_clip(int x, int y, int w, int h);   // as in ui_shift.h, which this file does not include (its macros)
@@ -47,23 +58,33 @@ void ui_set_clip(int x, int y, int w, int h);   // as in ui_shift.h, which this 
 
 int exp_ws_clip_shifted;              // the current clip was set by interface code and includes the shift
 int exp_mouse_raw_x, exp_mouse_raw_y; // the cursor in game pixels, unshifted (read by world code)
-static int ws_shift = -1;             // -1 = not known yet
-static int ws_no_shift;               // inside a side panel's draw or frame
+static int ws_shift = -1;             // x; -1 = not known yet
+static int ws_shift_y;                // y: height - 768 above 768 (the layout at the bottom), else 0
+static int ws_center_menus;           // [Display] CenterMenus: the display layer centres menus and full panels
+static int ws_no_shift;               // inside a side panel's draw or frame (no x shift)
+static int ws_clip_dx, ws_clip_dy;    // the shift the current interface clip got (with exp_ws_clip_shifted)
 static int ws_panels_over_world = -1;
 static float ws_wide_aspect;
 
 static int ws_get_shift()
 {
     if (ws_shift < 0) {
-        int w = gr_screen_width();   // the real width: this file does not include ui_shift.h
-        if (w <= 0)
+        int w = gr_screen_width();   // the real size: this file does not include ui_shift.h
+        int h = gr_screen_height();
+        if (w <= 0 || h <= 0)
             return 0;                // before gr_init
-        ws_shift = (exp_ini_int("Display", "CenterHud", 1) && w > WS_LAYOUT_WIDTH) ? (w - WS_LAYOUT_WIDTH) / 2 : 0;
+        bool on = exp_ini_int("Display", "CenterHud", 1) != 0;
+        ws_shift = (on && w > WS_LAYOUT_WIDTH) ? (w - WS_LAYOUT_WIDTH) / 2 : 0;
+        ws_shift_y = (on && h > WS_LAYOUT_HEIGHT) ? h - WS_LAYOUT_HEIGHT : 0;
+        ws_center_menus = exp_ini_int("Display", "CenterMenus", 1);
         ws_panels_over_world = exp_ini_int("Display", "SidePanelsOverWorld", 1);
-        exp_log("widescreen: width %d, interface shift %d", w, ws_shift);
+        exp_log("widescreen: %dx%d, interface shift %d, %d", w, h, ws_shift, ws_shift_y);
     }
     return ws_shift;
 }
+
+// Any placement at all (a game wider than 1024 or taller than 768, with CenterHud).
+static bool ws_any() { return ws_get_shift() > 0 || ws_shift_y > 0; }
 
 static bool ws_in_game() { return gameseq_get_state() == 4; }
 static bool ws_call_shift_screen(int s) { return s == 0 || s == 4 || s == 9 || s == 13 || s == 20; }
@@ -71,70 +92,78 @@ static bool ws_side_panel(int s) { return s == 3 || s == 5 || s == 6 || s == 19;
 
 static bool ws_full_panel()
 {
-    if (ws_get_shift() <= 0 || !ws_in_game())
+    if (!ws_any() || !ws_in_game())
         return false;
     int s = interface_cur_screen;
     return !ws_call_shift_screen(s) && !ws_side_panel(s);
 }
 
 // The host's display map (modern/display.cpp) centres these panels as SummonerFix's GetMap does.
-bool exp_ws_full_panel() { return ws_get_shift() > 0 && ws_full_panel(); }
+bool exp_ws_full_panel() { return ws_any() && ws_full_panel(); }
 
-static bool ws_active() { return ws_get_shift() > 0 && !ws_no_shift && ws_in_game() && !ws_full_panel(); }
-static bool ws_shift_draw() { return ws_active() && !exp_ws_clip_shifted; }
+// Call shifting in play: the HUD-type screens (x and y) and the side panels (y only).
+static bool ws_placed() { return ws_any() && ws_in_game() && !ws_full_panel(); }
+static int ws_dx() { return (ws_placed() && !ws_no_shift) ? ws_shift : 0; }
+static int ws_dy() { return ws_placed() ? ws_shift_y : 0; }
+static bool ws_active() { return ws_placed() && !ws_no_shift && ws_shift > 0; }   // x placement (as before)
+static int ws_draw_dx() { return exp_ws_clip_shifted ? 0 : ws_dx(); }
+static int ws_draw_dy() { return exp_ws_clip_shifted ? 0 : ws_dy(); }
 
 // ---- the wrappers (ui_shift.h) ----
 void ui_gr_bitmap(int bm, int x, int y, gr::Mode mode)
 {
-    gr_bitmap(bm, ws_shift_draw() ? x + ws_shift : x, y, mode);
+    gr_bitmap(bm, x + ws_draw_dx(), y + ws_draw_dy(), mode);
 }
 
 void ui_gr_bitmap_ex(int bm, int x, int y, int w, int h, int sx, int sy, gr::Mode mode)
 {
-    gr_bitmap_ex(bm, ws_shift_draw() ? x + ws_shift : x, y, w, h, sx, sy, mode);
+    gr_bitmap_ex(bm, x + ws_draw_dx(), y + ws_draw_dy(), w, h, sx, sy, mode);
 }
 
 void ui_gr_bitmap_stretched(int bm, int x, int y, int w, int h, int sx, int sy, int sw, int sh, gr::Mode mode)
 {
-    gr_bitmap_stretched(bm, ws_shift_draw() ? x + ws_shift : x, y, w, h, sx, sy, sw, sh, mode);
+    gr_bitmap_stretched(bm, x + ws_draw_dx(), y + ws_draw_dy(), w, h, sx, sy, sw, sh, mode);
 }
 
 void ui_gr_bitmap_float(int bm, float x, float y, float scale, float angle, gr::Mode mode)
 {
-    gr_bitmap_float(bm, ws_shift_draw() ? x + (float)ws_shift : x, y, scale, angle, mode);
+    gr_bitmap_float(bm, x + (float)ws_draw_dx(), y + (float)ws_draw_dy(), scale, angle, mode);
 }
 
 void ui_gr_string(int x, int y, const char *s, int font, gr::Mode mode)
 {
-    gr_string((ws_shift_draw() && x != GR_CENTER_X) ? x + ws_shift : x, y, s, font, mode);
+    gr_string(x != GR_CENTER_X ? x + ws_draw_dx() : x, y + ws_draw_dy(), s, font, mode);
 }
 
 void ui_gr_rect(int x, int y, int w, int h, gr::Mode mode, float z)
 {
-    gr_rect(ws_shift_draw() ? x + ws_shift : x, y, w, h, mode, z);
+    gr_rect(x + ws_draw_dx(), y + ws_draw_dy(), w, h, mode, z);
 }
 
 void ui_gr_line(float x1, float y1, float x2, float y2, gr::Mode mode)
 {
-    if (ws_shift_draw()) {
-        x1 += (float)ws_shift;
-        x2 += (float)ws_shift;
-    }
-    gr_line(x1, y1, x2, y2, mode);
+    float dx = (float)ws_draw_dx(), dy = (float)ws_draw_dy();
+    gr_line(x1 + dx, y1 + dy, x2 + dx, y2 + dy, mode);
 }
 
 void gr::ui_set_clip(int x, int y, int w, int h)
 {
-    bool active = ws_active();
-    gr::set_clip(active ? x + ws_shift : x, y, w, h);   // clears exp_ws_clip_shifted
-    exp_ws_clip_shifted = active;
+    int dx = ws_dx(), dy = ws_dy();
+    gr::set_clip(x + dx, y + dy, w, h);   // clears exp_ws_clip_shifted
+    exp_ws_clip_shifted = dx != 0 || dy != 0;
+    ws_clip_dx = dx;
+    ws_clip_dy = dy;
 }
 
 void ui_gr_get_clip(int *x, int *y, int *w, int *h)
 {
     gr_get_clip(x, y, w, h);
-    if (ws_active() && exp_ws_clip_shifted && x)
-        *x -= ws_shift;
+    if (exp_ws_clip_shifted && ws_placed()) {
+        if (x)
+            *x -= ws_clip_dx;
+        if (y)
+            *y -= ws_clip_dy;
+    }
 }
 
 int ui_gr_screen_width()
@@ -142,11 +171,33 @@ int ui_gr_screen_width()
     return ws_active() ? WS_LAYOUT_WIDTH : gr_screen_width();
 }
 
+// 768 wherever the layout is placed in a taller screen: in play (call shifting), and where the display layer centres
+// the whole picture (menus outside play, full panels in play).
+int ui_gr_screen_height()
+{
+    int h = gr_screen_height();
+    if (h <= WS_LAYOUT_HEIGHT)
+        return h;
+    ws_get_shift();
+    if (ws_shift_y > 0 && ws_placed())
+        return WS_LAYOUT_HEIGHT;
+    if (ws_center_menus && (!ws_in_game() || ws_full_panel()))
+        return WS_LAYOUT_HEIGHT;
+    return h;
+}
+
+int exp_ws_real_screen_height()
+{
+    return gr_screen_height();
+}
+
 int ui_mouse_get_pos(int *x, int *y, int *z)
 {
     int r = mouse_get_pos(x, y, z);
-    if (x && ws_active())
-        *x -= ws_shift;
+    if (x)
+        *x -= ws_dx();
+    if (y)
+        *y -= ws_dy();
     return r;
 }
 
@@ -158,8 +209,10 @@ int exp_ws_mouse_tick(int *x, int *y, int *z)
         exp_mouse_raw_x = *x;
     if (y)
         exp_mouse_raw_y = *y;
-    if (x && ws_active())
-        *x -= ws_shift;
+    if (x)
+        *x -= ws_dx();
+    if (y)
+        *y -= ws_dy();
     return r;
 }
 
@@ -192,7 +245,7 @@ void exp_ws_side_panel_end(int undo)
 int exp_ws_view_width()
 {
     bool full = ws_full_panel();
-    if (ws_get_shift() > 0) {
+    if (ws_any()) {
         // The projection scale is the view width over gr_screen.aspect; a 1024-wide view for a full panel uses the
         // 4:3 aspect (1.0), so the panel's models keep their size.
         if (!ws_wide_aspect && !full)
@@ -201,6 +254,13 @@ int exp_ws_view_width()
             gr_screen.aspect = full ? 1.0f : ws_wide_aspect;
     }
     return full ? WS_LAYOUT_WIDTH : gr_screen_width();
+}
+
+// interface_set_view_clip's gr_screen_height: the real height (the HUD bar sits at the bottom of a taller screen, so
+// height - bar is the view above it), 768 while a full-screen panel is open (its picture is centred like a menu).
+int exp_ws_view_height()
+{
+    return ws_full_panel() ? WS_LAYOUT_HEIGHT : gr_screen_height();
 }
 
 int exp_ws_panel_width(int width)

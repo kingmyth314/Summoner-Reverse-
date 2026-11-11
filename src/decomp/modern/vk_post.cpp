@@ -423,7 +423,10 @@ static void vk_post_badge(VkCommandBuffer cmd, float factor, vk_badge_step step)
     int fh = (int)(18 * scale + 0.5);
     int pad = (int)(6 * scale);
     int bw = (int)(strlen(text) * fh * 0.62f + 2 * pad), bh = fh + 2 * pad;
-    int x = off_x + (int)(12 * scale), y = off_y + (int)(12 * scale);
+    // off_y is from the bottom; the picture's top edge from the top (they differ when a 768-line layout is centred
+    // in a taller game, [Display] InterfaceScale).
+    int top = ch - off_y - (int)(gr_screen.max_h * scale + 0.5);
+    int x = off_x + (int)(12 * scale), y = top + (int)(12 * scale);
     if (step == VK_BADGE_DRAW) {
         if (vk_badge.image && !strcmp(text, vk_badge_text))
             vk_post_draw(cmd, vk_post_pipeline_window, vkc.extent, x, y, vk_badge.w, vk_badge.h, vk_badge.slot, 1,

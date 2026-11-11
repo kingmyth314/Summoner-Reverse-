@@ -48,7 +48,19 @@ static HWND g_wnd;
 #define VA_GAMESEQ_STATE_CUR 0x5b27e0u // current game state; 4 = in game
 
 // Game-pixel -> window-pixel mapping for the current client size.
-typedef struct { int cw, ch; double scale; int offX, offY; int menuShift; } Map; // menuShift: a centred 1024-wide menu
+// menuShift: a centred 1024-wide (and 768-high) menu. offY is from the bottom (glViewport's origin), offYTop the same
+// placement from the top (the mouse, the badge); they differ when a 768-line layout is centred in a taller game
+// ([Display] InterfaceScale, 2026-11-10, rebuilt exes that place their interface: the "InterfaceScale" .fixes key).
+typedef struct { int cw, ch; double scale; int offX, offY, offYTop; int menuShift; } Map;
+
+// The rebuilt exe places its 1024x768 interface in a game taller than 768 (its .fixes file lists InterfaceScale).
+static int DisplayPlacesInterface(void)
+{
+    static int known = -1;
+    if (known < 0)
+        known = RebuiltFixInSource("InterfaceScale") ? 1 : 0;
+    return known;
+}
 
 static BOOL GetMap(Map *m)
 {
@@ -63,6 +75,7 @@ static BOOL GetMap(Map *m)
     m->scale = sx < sy ? sx : sy;
     m->offX = (int)((m->cw - g_cfg.width * m->scale) / 2 + 0.5);
     m->offY = (int)((m->ch - g_cfg.height * m->scale) / 2 + 0.5);
+    m->offYTop = m->offY;
     m->menuShift = 0;
     // Widescreen menus: outside gameplay (game state 4) the UI is a fixed 1024-wide layout at the left of
     // the wider game screen. Shift the output so that layout is centred; the empty right part moves off
@@ -73,6 +86,16 @@ static BOOL GetMap(Map *m)
     {
         m->offX += (int)((g_cfg.width - 1024) / 2.0 * m->scale + 0.5);
         m->menuShift = *(volatile int *)(UINT_PTR)SumVa(VA_GAMESEQ_STATE_CUR) != 4; // menus only, not in-game panels
+    }
+    // A game taller than 768 (InterfaceScale): the layout's top 768 lines are centred the same way in y. Only for an
+    // exe that places its in-game interface in such a size itself (experimental/widescreen.cpp).
+    if (g_cfg.centerMenus && g_cfg.height > 768 && DisplayPlacesInterface() &&
+        (*(volatile int *)(UINT_PTR)SumVa(VA_GAMESEQ_STATE_CUR) != 4 || WidescreenFullPanel()))
+    {
+        int d = (int)((g_cfg.height - 768) / 2.0 * m->scale + 0.5);
+        m->offY -= d;
+        m->offYTop += d;
+        m->menuShift = *(volatile int *)(UINT_PTR)SumVa(VA_GAMESEQ_STATE_CUR) != 4;
     }
     return TRUE;
 }
@@ -268,8 +291,9 @@ void DisplayMoveCursor(double dxGame, double dyGame)
         x = p.x;
         y = p.y;
     }
-    int usedW = (int)((m.menuShift ? 1024 : g_cfg.width) * m.scale + 0.5), usedH = (int)(g_cfg.height * m.scale + 0.5);
-    int left = m.offX, right = m.offX + usedW - 1, top = m.offY, bottom = m.offY + usedH - 1;
+    int usedW = (int)((m.menuShift ? 1024 : g_cfg.width) * m.scale + 0.5);
+    int usedH = (int)((m.menuShift && g_cfg.height > 768 ? 768 : g_cfg.height) * m.scale + 0.5);
+    int left = m.offX, right = m.offX + usedW - 1, top = m.offYTop, bottom = m.offYTop + usedH - 1;
     if (right > m.cw - 1) right = m.cw - 1;
     if (bottom > m.ch - 1) bottom = m.ch - 1;
     x += ix;
@@ -387,7 +411,7 @@ static void DrawSpeedIndicator(HDC dc, const Map *m)
 
     // Badge in the top-left of the game picture (GL origin is bottom-left).
     float pad = 6 * (float)m->scale, x0 = (float)m->offX + 12 * (float)m->scale;
-    float y1 = (float)(m->ch - m->offY) - 12 * (float)m->scale, w = len * fh * 0.62f + 2 * pad, h = fh + 2 * pad;
+    float y1 = (float)(m->ch - m->offYTop) - 12 * (float)m->scale, w = len * fh * 0.62f + 2 * pad, h = fh + 2 * pad;
     gi.Color4f(0.0f, 0.0f, 0.0f, 1.0f);
     gi.Begin(7 /* QUADS */);
     gi.Vertex2f(x0, y1 - h); gi.Vertex2f(x0 + w, y1 - h); gi.Vertex2f(x0 + w, y1); gi.Vertex2f(x0, y1);
@@ -417,11 +441,14 @@ static BOOL WINAPI Hook_SwapBuffers(HDC dc)
         p_glGetFloatv(GL_COLOR_CLEAR_VALUE, old);
         p_glClearColor(0, 0, 0, 1);
         p_glEnable(GL_SCISSOR_TEST);
-        int used_w = (int)((m.menuShift ? 1024 : g_cfg.width) * m.scale + 0.5), used_h = (int)(g_cfg.height * m.scale + 0.5);
+        // A centred menu shows only its layout: the top 768 lines of a taller game, bottom-up from offY + (height - 768).
+        int lay_h = m.menuShift && g_cfg.height > 768 ? 768 : g_cfg.height;
+        int used_w = (int)((m.menuShift ? 1024 : g_cfg.width) * m.scale + 0.5), used_h = (int)(lay_h * m.scale + 0.5);
+        int used_y = m.offY + (int)((g_cfg.height - lay_h) * m.scale + 0.5);
         ClearRect(0, 0, m.offX, m.ch);                                   // left bar
         ClearRect(m.offX + used_w, 0, m.cw - m.offX - used_w, m.ch);     // right bar
-        ClearRect(0, 0, m.cw, m.offY);                                   // bottom bar
-        ClearRect(0, m.offY + used_h, m.cw, m.ch - m.offY - used_h);     // top bar
+        ClearRect(0, 0, m.cw, used_y);                                   // bottom bar
+        ClearRect(0, used_y + used_h, m.cw, m.ch - used_y - used_h);     // top bar
         if (!scissor)
             p_glDisable(GL_SCISSOR_TEST);
         p_glClearColor(old[0], old[1], old[2], old[3]);
@@ -644,7 +671,7 @@ static BOOL WINAPI Hook_ScreenToClient(HWND w, LPPOINT p)
         p->y = g_agentY;
     }
     if (ok && w == g_wnd && GetMap(&m)) {
-        int gx = (int)((p->x - m.offX) / m.scale), gy = (int)((p->y - m.offY) / m.scale);
+        int gx = (int)((p->x - m.offX) / m.scale), gy = (int)((p->y - m.offYTop) / m.scale);
         p->x = gx < 0 ? 0 : gx >= g_cfg.width ? g_cfg.width - 1 : gx;
         p->y = gy < 0 ? 0 : gy >= g_cfg.height ? g_cfg.height - 1 : gy;
     }
@@ -657,7 +684,7 @@ static BOOL WINAPI Hook_ClientToScreen(HWND w, LPPOINT p)
     DWORD va = OrigVa((DWORD)(UINT_PTR)__builtin_return_address(0));
     if (w == g_wnd && va >= 0x500b00 && va < 0x500d00 && GetMap(&m)) {
         p->x = m.offX + Round(p->x * m.scale);
-        p->y = m.offY + Round(p->y * m.scale);
+        p->y = m.offYTop + Round(p->y * m.scale);
         if (g_agentCursor) { // the game warps the cursor (mouse look): the agent cursor follows
             InterlockedExchange(&g_agentX, p->x);
             InterlockedExchange(&g_agentY, p->y);
