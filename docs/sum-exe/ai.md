@@ -198,7 +198,7 @@ current order is `+0x38` (999999 for direct orders).
 ### Doors on a path (2026-11-10)
 
 Read from the decomp (`game/pathfinding.cpp`, `game/unnamed_goals_doors_0x475180.cpp`, `engine/s3d/s3d.h`,
-`engine/rendering/levelrender.h`) for the agent command `doors` (**observed** in the code, not yet run):
+`engine/rendering/levelrender.h`) for the agent command `doors` (**observed** in the code; run 2026-11-10 in both hosts):
 - The level's door records are `level_s3d` `+0x60` (count, `num_doors` `0xa5a300`) and `+0x64` (array, `doors`
   `0xa5a304`), `0x8c` bytes each (`door_info`), sorted by level object index (`door_from_lobj` `0x4768c0` finds one
   with `bsearch`). Fields used: `+0x00` the level object index, `+0x04` the named path (`-1` none), `+0x48` the floor

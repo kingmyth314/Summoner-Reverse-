@@ -691,7 +691,7 @@ intro movies (2026-10-25). The main menu sets state 1 before it plays them, and 
     current character; NAME is the level script's name for the door (`-` none). It runs on the game thread. Layout:
     [AI, Doors on a path](sum-exe/ai.md#doors-on-a-path-2026-11-10). `dooropen I 1|0` opens door I with
     `door_set_open(lobj, -1, 1, 1)` (locks ignored, with the sound) or closes it with `door_set_closed(lobj)`, the
-    functions of the console's `door_open` / `door_close`, on the game thread. **Inferred** (built, not yet run);
+    functions of the console's `door_open` / `door_close`, on the game thread. **Observed** 2026-11-10 in both hosts: the same door line from the original exe and the 64-bit build, and `dooropen I 0` closing the door (`closed closing`, then `closed` after about 3 s);
   - `items [R]` lists the item objects (type 3) and containers (type 11) within R (default 15) of the current
     character with their address, distance and contents, and `open ADDR` opens such a container as a click does
     (`pickup_container` and `interface_set_screen(4)`). For loot that is hard to see, for example the Ring of Light
