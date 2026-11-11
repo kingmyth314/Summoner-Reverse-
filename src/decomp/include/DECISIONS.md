@@ -15237,3 +15237,16 @@ with no read between them.
 - avoid_prim_overlap 0x4a6e00 (13), LineFile::detect_eol 0x558430 (14), tentacle_beast_frame_hook 0x4c7960
   (24): not retried; the earlier notes (D18503 + 43 forms; D19602 + the 2026-10-21e list; D23401 + 33 orders)
   cover the devices that apply.
+
+**D26300 (include/vsdk/vsdk.h; 2026-11-10). PLAIN_SOURCE: the plain form of the undefined or compiler-dependent
+devices.** `vsdk.h` defines `PLAIN_SOURCE` when `FIXED_BUILD`, `MODERN_BUILD` or `__clang__` is defined, so in every
+build but the shipped one (the byte-match reference, which keeps the device). Sites: ui_window::send_event 0x52aff0
+(D15400) and ui_gadget::send_event 0x52c330 (D21001) get their final `return false` / `return true` (they had them
+under `__clang__` only, so the VC6 fixed build still fell off the end and returned AL); snd_calc_volume_3d 0x520fa0
+and sound_emitter_calc_volume 0x5210b0 assign `0.0f` instead of reading an int zero as a float (D11702);
+ca_render_morph_vertices 0x50b150 writes `ca_morph_vertices[v].x/.y/.z` instead of through a `float *` view
+(D16701); the `#pragma optimize("w", on)` over the end of the net unit is skipped (D14204); the `&(a + b)`
+temporaries of ix_ray_parallelogram 0x53af40 (D15902) and the explicit constructor calls of living_combat 0x4681b0
+(D7805) and gr_light_desc 0x50f3e0 (D8900) take the named-local / placement-new / no-call forms the clang build
+already had. Same behaviour in each (the values are the ones VC6 produced); the strict sweep is unchanged (5,613,
+0 lost). The classification of every catalogued device is in docs/matching-devices.md.

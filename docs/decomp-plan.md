@@ -503,7 +503,7 @@ trigger-9 test was inverted (D11702) and `lamp_glow_update_effects` read the glo
 `savegame_write_header` copies the level and script names without their NUL into the zeroed fields (D12302), both
 read in the listing; three float constants were one unit in the last place off the binary's (D11400, D12202, D12401).
 One device is a matching aid, not a claim about the original source: an int read as a float to keep a zero in a
-frame slot (D11703). Candidates for the bug list, not checked in game: InetGetFile's 256-byte directory buffer.
+frame slot (D11702; this page said D11703 until 2026-11-10). Candidates for the bug list, not checked in game: InetGetFile's 256-byte directory buffer.
 
 **Byte-match round 2026-10-20, second (fifteen workers, D12500-D13999).** 5,255 -> 5,317, none lost (notes in
 `src/decomp/NOTES-match-2026-10-20b.md`); the hardest tail, so about a third of the previous round. `os_wndproc` and

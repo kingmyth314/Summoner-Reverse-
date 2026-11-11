@@ -1053,8 +1053,8 @@ bool ui_window::send_event(int event, int value)
         value = id;
     if (callback)
         return callback(event, value);
-#ifdef __clang__
-    return false;   // the clang build (docs/future/modern-port.md): VC6's AL here is 0; falling off is undefined
+#ifdef PLAIN_SOURCE
+    return false;   // PLAIN_SOURCE (fixed and clang builds): VC6's AL here is 0; falling off is undefined
 #endif
 }
 

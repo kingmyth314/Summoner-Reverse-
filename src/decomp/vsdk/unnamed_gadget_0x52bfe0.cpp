@@ -187,8 +187,8 @@ bool ui_gadget::send_event(int event, int value)
             return parent->send_event(event, value);
         return window->send_event(event, value);
     }
-#ifdef __clang__
-    return true;    // the clang build (docs/future/modern-port.md): VC6 returns the callback's AL, true here
+#ifdef PLAIN_SOURCE
+    return true;    // PLAIN_SOURCE (fixed and clang builds): VC6 returns the callback's AL, true here
 #endif
 }
 

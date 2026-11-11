@@ -454,7 +454,9 @@ int snd_play_streamed_looping(int handle, float volume, float pan)
 float snd_calc_volume_3d(int handle, const vector3 *pos, float scale)
 {
     snd_sound *s = &sounds[handle];
-    int zero = 0;
+#ifndef PLAIN_SOURCE
+    int zero = 0;           // D11702 device: the binary's frame slot for the zero (PLAIN_SOURCE: 0.0f)
+#endif
     float dist, v, d;
 
     if (*pos == snd_listener_pos)
@@ -471,7 +473,11 @@ float snd_calc_volume_3d(int handle, const vector3 *pos, float scale)
         if (d != 0.0f)
             v /= d;
         else
-            v = *(float *)&zero;
+#ifdef PLAIN_SOURCE
+            v = 0.0f;
+#else
+            v = *(float *)&zero;    // D11702: an int read as a float (type pun)
+#endif
     }
     v *= snd_group_volumes[s->group];
     if (v >= 1.0f)
@@ -484,7 +490,9 @@ float snd_calc_volume_3d(int handle, const vector3 *pos, float scale)
 float sound_emitter_calc_volume(int handle, const vector3 *a, const vector3 *b, float scale)
 {
     snd_sound *s = &sounds[handle];
-    int zero = 0;
+#ifndef PLAIN_SOURCE
+    int zero = 0;           // D11702 device: the binary's frame slot for the zero (PLAIN_SOURCE: 0.0f)
+#endif
     float dist, v, d;
     vector3 p;
     vector3 dir;
@@ -504,7 +512,11 @@ float sound_emitter_calc_volume(int handle, const vector3 *a, const vector3 *b, 
         if (d != 0.0f)
             v /= d;
         else
-            v = *(float *)&zero;
+#ifdef PLAIN_SOURCE
+            v = 0.0f;
+#else
+            v = *(float *)&zero;    // D11702: an int read as a float (type pun)
+#endif
     }
     v *= snd_group_volumes[s->group];
     if (v >= 1.0f)
